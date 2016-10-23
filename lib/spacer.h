@@ -2,9 +2,12 @@
 #define _SPACE_UTIL_H
 
 #include <vector>
+#include <string>
 #include "kmerutil.h"
 
-uint32_t comb_size(const std::vector<uint8_t> &spaces) {
+typedef std::vector<uint8_t> spvec_t;
+
+uint32_t comb_size(const spvec_t &spaces) {
     uint32_t ret(spaces.size() + 1); // Since there's 1 fewer entry in spaces
     // We then increment the size of our comb for each space.
     for(auto i: spaces) ret += i;
@@ -13,20 +16,23 @@ uint32_t comb_size(const std::vector<uint8_t> &spaces) {
 
 class Spacer {
     // Instance variables
-    const std::vector<uint8_t> s_; // Spaces to skip
+    spvec_t s_; // Spaces to skip
     const uint32_t k_:8;
     const uint32_t w_:16; // window size
     const uint32_t c_:16; // comb size
     const uint64_t mask_;
 
 public:
-    Spacer(unsigned k, uint16_t w, std::vector<uint8_t> *spaces=nullptr):
+    Spacer(unsigned k, uint16_t w, spvec_t *spaces=nullptr):
+      s_(spaces ? *spaces: spvec_t(k - 1, 0)),
       k_(k),
-      s_(spaces ? *spaces: std::vector<uint8_t>(0, k_ - 1)),
       w_(w),
       c_(comb_size(s_)),
       mask_(__kmask_init(k))
-    {}
+    {
+        assert(s_.size() + 1 == k);
+        fprintf(stderr, "Size of spaces: %zu. k_: %i\n", s_.size(), (int)k);
+    }
     void write(uint64_t kmer, FILE *fp=stdout) {
         int offset = ((k_ - 1) << 1);
         fputc(num2nuc((kmer >> offset) & 0x3u), fp);
@@ -37,6 +43,20 @@ public:
             fputc(num2nuc((kmer >> offset) & 0x3u), fp);
         }
         fputc('\n', fp);
+    }
+    std::string to_string(uint64_t kmer) {
+        std::string ret;
+        ret.reserve(c_ - k_ + 1);
+        int offset = ((k_ - 1) << 1);
+        fprintf(stderr, "offset: %i. vec size: %zu. c_: %u\n", offset, s_.size(), c_);
+        ret.push_back(num2nuc((kmer >> offset) & 0x3u));
+        for(auto s: s_) {
+            assert(offset >= 0);
+            offset -= 2;
+            while(s--) ret.push_back('-');
+            ret.push_back(num2nuc((kmer >> offset) & 0x3u));
+        }
+        return ret;
     }
     ~Spacer() {}
 };
