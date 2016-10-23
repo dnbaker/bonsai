@@ -32,6 +32,7 @@ private:
     int is_calculated_;
 // Functions
 public:
+    // Call sum to recalculate if you have changed contents.
     void sum() {
         sum_ = 0;
         int noninf(0);
@@ -55,9 +56,8 @@ public:
     }
     void add(uint64_t hashval) {
         const uint32_t index = hashval >> (64 - np);
-        assert(index < m_);
         const int lzt(__builtin_clzll(hashval << np) + 1);
-        //assert(lzt < (64 - np) + 1);
+        assert(index < m_);
         assert(!hashval || lzt == __builtin_clzll(hashval << np) + 1);
         if(core_[index] < lzt) core_[index] = lzt;
     }
