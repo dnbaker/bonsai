@@ -25,11 +25,14 @@ public:
         s_ = s; l_ = l; pos_ = 0;
     }
     void assign(kstring_t *ks) {assign(ks->s, ks->l);}
+    // Algorithmic inefficiencies
+    // 1. Not skipping over previousy discovered ambiguous bases
+    // 2. Recalculating kmers for positions shared between neighboring windows.
     uint64_t window(unsigned start) {
         // Encode kmer here.
         assert(sp_.w_ + start <= l_);
         uint64_t best_kmer(0);
-        for(unsigned wpos(start), end(sp_.w_ + start); wpos != end; ++wpos) {
+        for(unsigned wpos(start), end(sp_.w_ + start - sp_.c_ + 1; wpos != end; ++wpos) {
             uint64_t new_kmer(cstr_lut[s_[wpos]]);
             unsigned j(0);
             for(auto s: sp_.s_) {
