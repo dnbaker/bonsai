@@ -1,5 +1,5 @@
-#ifndef KMER_UTIL_H
-#define KMER_UTIL_H
+#ifndef _KMER_UTIL_H_
+#define _KMER_UTIL_H_
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -255,4 +255,4 @@ static inline int fails_hp(char *str, int threshold)
 
 } // namespace kpg
 
-#endif
+#endif //ifndef _KMER_UTIL_H_
