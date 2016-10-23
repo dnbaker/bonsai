@@ -64,6 +64,7 @@ public:
     hll_t(): core_((uint8_t *)calloc(m_, sizeof(uint8_t))), sum_(0.), is_calculated_(0) {}
     ~hll_t() {free(core_);}
     hll_t<np> const &operator+=(const hll_t<np> &other) {
+         // If we ever find this to be expensive, this could be trivially implemented with SIMD.
         for(unsigned i(0); i < m_; ++i) if(core_[i] < other.core_[i]) core_[i] = other.core_[i];
         return *this;
     }
