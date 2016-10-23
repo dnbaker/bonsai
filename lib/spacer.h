@@ -50,7 +50,8 @@ public:
         int offset = ((k_ - 1) << 1);
         fprintf(stderr, "offset: %i. vec size: %zu. c_: %u\n", offset, s_.size(), c_);
         ret.push_back(num2nuc((kmer >> offset) & 0x3u));
-        for(auto s: s_) {
+        for(auto i(s_.crbegin()); i != s_.crend(); ++i) {
+            auto s(*i);
             assert(offset >= 0);
             offset -= 2;
             while(s--) ret.push_back('-');

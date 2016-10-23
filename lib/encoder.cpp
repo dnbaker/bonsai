@@ -1,7 +1,8 @@
-#include "spacer.h"
 #include "encoder.h"
+#include "htslib/kseq.h"
+using namespace kpg;
 
-// Simple test for spacer IO.
+int is_lt(uint64_t i, uint64_t j, void *data) {return i < j;}
 
 int main(void) {
     spvec_t s;
@@ -15,4 +16,7 @@ int main(void) {
     }
     Spacer space(31, 100, &s);
     fprintf(stderr, "13337 in kmer form: %s.\n", space.to_string(13337).data());
+    kstring_t ks{0};
+    kputs("ACATNGNTNTNATNAAATACACCCCCCCCCCCCTTTTTTTGGGGGGGGGGGGGGGGGN", &ks);
+    Encoder<is_lt> enc(ks.s, ks.l, space);
 }
