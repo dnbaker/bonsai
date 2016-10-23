@@ -1,19 +1,29 @@
 #ifndef _ENCODER_H_
 #define _ENCODER_H_
-#include "spacer.h"
+#include <thread>
+#include <future>
+
+#include <zlib.h>
+#include <unistd.h>
+
 #include "htslib/kstring.h"
+
+#include "spacer.h"
+#include "hll.h"
+#include "kseq_declare.h"
+
 
 namespace kpg {
 
 template<int (*is_lt)(uint64_t, uint64_t, void *)>
 class Encoder {
     const char *s_;
-    const size_t l_;
+    size_t l_;
     const Spacer &sp_;
     unsigned pos_;
     void *data_;
 public:
-    Encoder(char *s, size_t l, Spacer &sp, void *data=nullptr):
+    Encoder(char *s, size_t l, const Spacer &sp, void *data=nullptr):
       s_(s),
       l_(l),
       sp_(sp),
@@ -25,6 +35,7 @@ public:
         s_ = s; l_ = l; pos_ = 0;
     }
     void assign(kstring_t *ks) {assign(ks->s, ks->l);}
+    void assign(kseq_t *ks) {assign(ks->seq.s, ks->seq.l);}
     // Algorithmic inefficiencies
     // 1. Not skipping over previousy discovered ambiguous bases
     // 2. Recalculating kmers for positions shared between neighboring windows.
@@ -32,7 +43,7 @@ public:
         // Encode kmer here.
         assert(sp_.w_ + start <= l_);
         uint64_t best_kmer(0);
-        for(unsigned wpos(start), end(sp_.w_ + start - sp_.c_ + 1; wpos != end; ++wpos) {
+        for(unsigned wpos(start), end(sp_.w_ + start - sp_.c_ + 1); wpos != end; ++wpos) {
             uint64_t new_kmer(cstr_lut[s_[wpos]]);
             unsigned j(0);
             for(auto s: sp_.s_) {
@@ -51,6 +62,64 @@ public:
         return window(pos_++);
     }
 };
+
+template<typename R>
+static inline bool is_ready(std::future<R> const& f) {
+    return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+}
+
+template<int (*is_lt)(uint64_t, uint64_t, void *), size_t np=22>
+hll_t<np> count_lmers(const std::string &path, const Spacer &space, unsigned k, uint16_t w,
+                  void *data=nullptr) {
+    Encoder<is_lt> enc(nullptr, 0, space, data);
+    gzFile fp(gzopen(path.data(), "rb"));
+    fprintf(stderr, "Opening from path %s.\n", path.data());
+    kseq_t *ks(kseq_init(fp));
+    hll_t<np> ret;
+    while(kseq_read(ks) >= 0) {
+        enc.assign(ks);
+        while(enc.has_next_window()) ret.add(kh_int64_hash_func(enc.next_kmer()));
+    }
+    kseq_destroy(ks);
+    gzclose(fp);
+    return ret;
+}
+
+template<int (*is_lt)(uint64_t, uint64_t, void *), size_t np>
+size_t estimate_cardinality(const std::vector<std::string> paths,
+                            unsigned k, uint16_t w, spvec_t *spaces=nullptr,
+                            void *data=nullptr, int num_threads=-1) {
+    // Default to using all available threads.
+    fprintf(stderr, "Starting.\n");
+    if(num_threads < 0) num_threads = sysconf(_SC_NPROCESSORS_ONLN);
+    const Spacer space(k, w, spaces);
+    size_t submitted(0), completed(0), todo(paths.size());
+    std::vector<std::future<hll_t<np>>> futures;
+    std::vector<hll_t<np>> hlls;
+    // Submit the first set of jobs
+    for(int i(0); i < num_threads && i < (ssize_t)todo; ++i) {
+        futures.emplace_back(std::async(
+          std::launch::async, count_lmers<is_lt, np>, paths[i], space, k, w, data));
+        ++submitted;
+    }
+    // Daemon -- check the status of currently running jobs, submit new ones when available.
+    while(submitted < todo) {
+        for(auto &f: futures) {
+            if(is_ready(f)) {
+                hlls.push_back(f.get());
+                f = std::async(
+                  std::launch::async, count_lmers<is_lt, np>, paths[submitted++],
+                  space, k, w, data);
+                ++completed;
+            }
+        }
+    }
+    // Get values from the rest of these threads.
+    for(auto &f: futures) if(f.valid()) hlls.push_back(f.get());
+    // Combine them all for a final count
+    for(auto i(1u); i < hlls.size(); ++i) hlls[0] += hlls[i];
+    return (size_t)hlls[0].report();
+}
 
 } //namespace kpg
 #endif // _ENCODER_H_

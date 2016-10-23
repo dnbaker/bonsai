@@ -14,7 +14,8 @@ uint32_t comb_size(const spvec_t &spaces) {
     return ret;
 }
 
-class Spacer {
+
+struct Spacer {
     // Instance variables
     spvec_t s_; // Spaces to skip
     const uint32_t k_:8;
@@ -44,7 +45,7 @@ public:
         }
         fputc('\n', fp);
     }
-    std::string to_string(uint64_t kmer) {
+    std::string to_string (uint64_t kmer) const {
         std::string ret;
         ret.reserve(c_ - k_ + 1);
         int offset = ((k_ - 1) << 1);
