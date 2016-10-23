@@ -35,7 +35,6 @@ public:
     // Call sum to recalculate if you have changed contents.
     void sum() {
         sum_ = 0;
-        int noninf(0);
         for(unsigned i(0); i < m_; ++i) if(core_[i]) sum_ += 1. / (1 << core_[i]);
         is_calculated_ = 1;
     }
