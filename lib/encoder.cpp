@@ -16,6 +16,6 @@ int main(void) {
     const Spacer space(31, 100, &s);
     const std::vector<std::string> paths{"/home-1/dbaker49@jhu.edu/work/references/e_coli.fa",
                                          "/home-1/dbaker49@jhu.edu/work/references/lambda_virus.fa"};
-    size_t cardinality = estimate_cardinality<is_lt, 22>(paths, 31, 55, nullptr, 0, 2);
+    size_t cardinality = estimate_cardinality<is_lt, 18>(paths, 31, 55, nullptr, 0, 2);
     fprintf(stderr, "Number of elements, approximately: %zu.\n", cardinality);
 }

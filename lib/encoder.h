@@ -15,6 +15,15 @@
 
 namespace kpg {
 
+static inline uint64_t u64hash(uint64_t key) {
+    key ^= key >> 33;
+    key *= 0xff51afd7ed558ccd;
+    key ^= key >> 33;
+    key *= 0xc4ceb9fe1a85ec53;
+    key ^= key >> 33;
+    return key;
+}
+
 template<int (*is_lt)(uint64_t, uint64_t, void *)>
 class Encoder {
     const char *s_;
@@ -41,13 +50,16 @@ public:
     // 2. Recalculating kmers for positions shared between neighboring windows.
     uint64_t window(unsigned start) {
         // Encode kmer here.
-        assert(sp_.w_ + start <= l_);
-        uint64_t best_kmer(0);
+        if(start > l_ - sp_.w_ + 1) {
+            fprintf(stderr, "FAIL window %i, start %i, length %i, diff %i.\n", sp_.w_, start, l_, l_ - start - sp_.w_);
+            assert(sp_.w_ + start <= l_);
+        }
+        uint64_t best_kmer(BF);
         for(unsigned wpos(start), end(sp_.w_ + start - sp_.c_ + 1); wpos != end; ++wpos) {
             uint64_t new_kmer(cstr_lut[s_[wpos]]);
             unsigned j(0);
             for(auto s: sp_.s_) {
-                j += s + 1; ++j;
+                j += s + 1;
                 assert(j < sp_.c_);
                 new_kmer <<= 2;
                 new_kmer |= cstr_lut[s_[wpos + j]];
@@ -57,7 +69,7 @@ public:
         }
         return best_kmer;
     }
-    int has_next_window() {return pos_ < l_ - sp_.w_ + 1;}
+    int has_next_window() {return pos_ < l_ - sp_.w_ - 1;}
     uint64_t next_kmer() {
         return window(pos_++);
     }
@@ -76,9 +88,10 @@ hll_t<np> count_lmers(const std::string &path, const Spacer &space, unsigned k, 
     fprintf(stderr, "Opening from path %s.\n", path.data());
     kseq_t *ks(kseq_init(fp));
     hll_t<np> ret;
+    size_t n(0);
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
-        while(enc.has_next_window()) ret.add(kh_int64_hash_func(enc.next_kmer()));
+        while(enc.has_next_window()) {++n; ret.add(u64hash(enc.next_kmer()));}
     }
     kseq_destroy(ks);
     gzclose(fp);
@@ -117,7 +130,10 @@ size_t estimate_cardinality(const std::vector<std::string> paths,
     // Get values from the rest of these threads.
     for(auto &f: futures) if(f.valid()) hlls.push_back(f.get());
     // Combine them all for a final count
-    for(auto i(1u); i < hlls.size(); ++i) hlls[0] += hlls[i];
+    for(auto i(1u); i < hlls.size(); ++i) {
+        hlls[0] += hlls[i];
+    }
+    hlls[0].sum();
     return (size_t)hlls[0].report();
 }
 

@@ -7,6 +7,7 @@
 #include <cstring>
 #include <cinttypes>
 #include <cassert>
+#include <algorithm>
 
 constexpr double make_alpha(size_t m) {
     switch(m) {
@@ -26,7 +27,7 @@ public:
     static constexpr double relative_error_ = 1.03896 / std::sqrt(m_);
     static const uint64_t bitmask_ = (~((uint64_t)0)) >> np;
 // Members
-    uint8_t *core_;
+    std::vector<uint8_t> core_;
 private:
     double sum_;
     int is_calculated_;
@@ -35,7 +36,7 @@ public:
     // Call sum to recalculate if you have changed contents.
     void sum() {
         sum_ = 0;
-        for(unsigned i(0); i < m_; ++i) if(core_[i]) sum_ += 1. / (1 << core_[i]);
+        for(unsigned i(0); i < m_; ++i) sum_ += 1. / (1 << core_[i]);
         is_calculated_ = 1;
     }
     double report() {
@@ -60,11 +61,11 @@ public:
         assert(!hashval || lzt == __builtin_clzll(hashval << np) + 1);
         if(core_[index] < lzt) core_[index] = lzt;
     }
-    hll_t(): core_((uint8_t *)calloc(m_, sizeof(uint8_t))), sum_(0.), is_calculated_(0) {}
-    ~hll_t() {free(core_);}
+    hll_t(): core_(m_, 0), sum_(0.), is_calculated_(0) {}
+    ~hll_t() {}
     hll_t<np> const &operator+=(const hll_t<np> &other) {
          // If we ever find this to be expensive, this could be trivially implemented with SIMD.
-        for(unsigned i(0); i < m_; ++i) if(core_[i] < other.core_[i]) core_[i] = other.core_[i];
+        for(unsigned i(0); i < m_; ++i) core_[i] |= other.core_[i];
         return *this;
     }
     // Note: We store values as (64 - value) and take the maximum when updating,
