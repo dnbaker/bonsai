@@ -23,7 +23,7 @@ static inline size_t roundup64(size_t x) {
 }
 
 // Hash function taken from Murmurhash3, though we only hash a single single-bit element.
-template<typename T, size_t ns=65536>
+template<typename T, size_t ns=4>
 struct cms_t {
     const size_t sz_;
     std::vector<T> bits_; // 2-d array of bits.
