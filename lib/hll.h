@@ -68,6 +68,9 @@ public:
         for(unsigned i(0); i < m_; ++i) core_[i] |= other.core_[i];
         return *this;
     }
+    std::string to_string() {
+        return std::to_string(report()) + ", +- " + std::to_string(est_err());
+    }
     // Note: We store values as (64 - value) and take the maximum when updating,
     // which allows us to minimize our trailing zeroes without sacrificing calloc.
 };

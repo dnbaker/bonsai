@@ -15,6 +15,7 @@
 
 namespace kpg {
 
+// Murmurhash3's Finalizer
 static inline uint64_t u64hash(uint64_t key) {
     key ^= key >> 33;
     key *= 0xff51afd7ed558ccd;
@@ -65,6 +66,7 @@ public:
                 new_kmer |= cstr_lut[s_[wpos + j]];
             }
             new_kmer = canonical_representation(new_kmer, sp_.k_);
+            new_kmer ^= XOR_MASK;
             if(is_lt(new_kmer, best_kmer, data_)) best_kmer = new_kmer;
         }
         return best_kmer;
@@ -75,6 +77,10 @@ public:
     }
 };
 
+
+// C++ std lib doesn't actually give you a way to check on the status directly
+// without joining the thread. This is a hacky workaroud c/o
+// http://stackoverflow.com/questions/10890242/get-the-status-of-a-stdfuture
 template<typename R>
 static inline bool is_ready(std::future<R> const& f) {
     return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
@@ -82,7 +88,7 @@ static inline bool is_ready(std::future<R> const& f) {
 
 template<int (*is_lt)(uint64_t, uint64_t, void *), size_t np=22>
 hll_t<np> count_lmers(const std::string &path, const Spacer &space, unsigned k, uint16_t w,
-                  void *data=nullptr) {
+                      void *data=nullptr) {
     Encoder<is_lt> enc(nullptr, 0, space, data);
     gzFile fp(gzopen(path.data(), "rb"));
     fprintf(stderr, "Opening from path %s.\n", path.data());
@@ -103,7 +109,6 @@ size_t estimate_cardinality(const std::vector<std::string> paths,
                             unsigned k, uint16_t w, spvec_t *spaces=nullptr,
                             void *data=nullptr, int num_threads=-1) {
     // Default to using all available threads.
-    fprintf(stderr, "Starting.\n");
     if(num_threads < 0) num_threads = sysconf(_SC_NPROCESSORS_ONLN);
     const Spacer space(k, w, spaces);
     size_t submitted(0), completed(0), todo(paths.size());
@@ -130,9 +135,7 @@ size_t estimate_cardinality(const std::vector<std::string> paths,
     // Get values from the rest of these threads.
     for(auto &f: futures) if(f.valid()) hlls.push_back(f.get());
     // Combine them all for a final count
-    for(auto i(1u); i < hlls.size(); ++i) {
-        hlls[0] += hlls[i];
-    }
+    for(auto i(hlls.begin() + 1), end = hlls.end(); i != hlls.end(); ++i) hlls[0] += *i;
     hlls[0].sum();
     return (size_t)hlls[0].report();
 }
