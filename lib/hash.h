@@ -3,6 +3,16 @@
 
 namespace kpg {
 
+// Murmurhash3's Finalizer
+static inline uint64_t u64hash(uint64_t key) {
+    key ^= key >> 33;
+    key *= 0xff51afd7ed558ccd;
+    key ^= key >> 33;
+    key *= 0xc4ceb9fe1a85ec53;
+    key ^= key >> 33;
+    return key;
+}
+
 // Taken from khash. https://github.com/attractivechaos/klib
 static inline int X31_hash_string(const char *s) 
 {
@@ -10,8 +20,6 @@ static inline int X31_hash_string(const char *s)
     if (h) for (++s ; *s; ++s) h = (h << 5) - h + *s;
     return h;
 }
-
-#pragma gcc("stuff")
 
 // SBDM http://www.cse.yorku.ca/~oz/sdbm.bun/. Mirrored https://github.com/davidar/sdbm.
 // Slightly modified.
@@ -23,9 +31,8 @@ dbm_hash(register const char *str, register size_t len)
 
 #define __hashc  (n = *str++ + 65599 * n)
 #ifdef DUFF
+    if(len) {
 
-
-    if (len) {
         register int loop = (len + 7) >> 3;
 
         switch(len & (7)) {

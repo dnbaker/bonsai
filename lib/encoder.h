@@ -10,20 +10,11 @@
 
 #include "spacer.h"
 #include "hll.h"
+#include "hash.h"
 #include "kseq_declare.h"
 
 
 namespace kpg {
-
-// Murmurhash3's Finalizer
-static inline uint64_t u64hash(uint64_t key) {
-    key ^= key >> 33;
-    key *= 0xff51afd7ed558ccd;
-    key ^= key >> 33;
-    key *= 0xc4ceb9fe1a85ec53;
-    key ^= key >> 33;
-    return key;
-}
 
 template<int (*is_lt)(uint64_t, uint64_t, void *)>
 class Encoder {
