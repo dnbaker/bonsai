@@ -9,6 +9,10 @@
 #include <cassert>
 #include <algorithm>
 
+#include "hash.h"
+
+namespace kpg {
+
 constexpr double make_alpha(size_t m) {
     switch(m) {
         case 16: return .673;
@@ -20,6 +24,11 @@ constexpr double make_alpha(size_t m) {
 
 template<size_t np>
 class hll_t {
+// This is a HyperLogLog implementation.
+// To make it general, the actual point of entry is a 64-bit integer hash function.
+// Therefore, you have to perform a hash function to convert various types into a suitable query.
+// I've added an overload for strings using others' hash functions for convenience.
+
 // Attributes
 public:
     static const size_t m_ = 1 << np;
@@ -61,6 +70,12 @@ public:
         assert(!hashval || lzt == __builtin_clzll(hashval << np) + 1);
         if(core_[index] < lzt) core_[index] = lzt;
     }
+    void add(const char *str) {
+        add(((uint64_t)X31_hash_string(str) << 32) | dbm_hash(str));
+    }
+    void add(const char *str, size_t l) {
+        add(((uint64_t)X31_hash_string(str) << 32) | dbm_hash(str, l));
+    }
     hll_t(): core_(m_, 0), sum_(0.), is_calculated_(0) {}
     ~hll_t() {}
     hll_t<np> const &operator+=(const hll_t<np> &other) {
@@ -76,5 +91,7 @@ public:
 };
 
 typedef hll_t<22> HyperLogLog;
+
+} // namespace kpg
 
 #endif // #ifndef _HLL_H_
