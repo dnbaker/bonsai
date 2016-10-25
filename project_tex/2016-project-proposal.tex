@@ -1,0 +1,164 @@
+% -*-tex-*-
+\documentclass{elsarticle}
+
+%%
+%% @file 2016-project-proposal.tex
+%% @brief
+%% @author Aaron Carass
+%% @version $Revision: 1.5 $
+%% @created Fri 21 Oct 2016 11:32:09 AM EDT
+%% @edited Tue 25 Oct 2016 06:25:36 PM EDT
+%%
+
+
+
+\usepackage{amssymb}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{amsthm}
+\usepackage{mathtools}
+\usepackage{bm}
+\usepackage{IEEEtrantools}
+\usepackage{xspace}
+\usepackage{hyperref}
+
+
+\usepackage[textheight=722pt, textwidth=508pt, headheight=15pt]{geometry}
+
+
+\usepackage[T1]{fontenc}
+\usepackage[scaled]{helvet}
+\renewcommand*\familydefault{\sfdefault}
+
+\usepackage{rotating}
+
+
+\newcommand\sth{$^{\mbox{\scriptsize{{th}}}}$\xspace}
+
+
+
+\begin{document}
+
+\pdfpageattr {/Group << /S /Transparency /I true /CS /DeviceRGB>>}
+
+
+\begin{frontmatter}
+%
+\title{MacGuffin}
+%
+\author{Daniel N. Baker}
+%
+\author{Aaron Carass}
+%
+\author{and Tu Lu}
+
+\begin{abstract}
+%
+Our project is focused on the optimization of classification tasks.
+In particular, we plan to explore the trade-off and impacts of memory
+and computational efficiency with classification tasks possibly
+including transcriptomics and metagenomics of a given high-throughput
+sequencing data set.
+%
+\end{abstract}
+
+\end{frontmatter}
+
+
+\section*{Project Specifics}
+%
+\label{s:ps}
+%
+Many existing classifiers work by exact matching of $k$-mers, such as
+Kraken~\citep{wood2014gb}, Kallisto~\citep{bray2016},
+Sailfish~\citep{patro2014nbioptech}, and
+Salmon~\citep{patro2015bioRxiv}. As useful and ubiquitous as these
+tools are, they have fundamental limitations resulting from the
+construction of their databases. For example, Kraken requires between
+64 and 100~GB of memory to classify genetic haplogroups, whereas
+Kallisto needs an order of magnitude more memory to accomplish the
+same task.
+
+Clearly these are impractical solutions which limit the accessibility
+of these tools to the wider community. There is a growing field of
+approaches based on inexact matching with dramatically improved memory
+efficiency without any significant impact on accuracy. We plan to
+explore the following properties of these approaches:
+%
+\begin{itemize}
+%
+\item[\textbf{1)}] \textbf{Seed Spacing} could be a very
+straightforward, even naive, way to improve the specificity of
+$k$-mers. We would investigate the following seeding schemes: A)~no
+spacing; B)~spaced seeds; C)~co-occurrence modeling with "gapped
+seeds; D)~spaced and gapped seeds; We define gapped seeds to be spaced
+seeds with a significant gap in-between the two seeds at the ends.
+This requires co-occurrence of the seed halves at either end, which
+may improve classification of recently diverged sequences.
+%
+\item[\textbf{2)}] \textbf{Hashing $k$-mers} would be explored through
+several minimizing schemes to determine representative $k$-mers for a
+given window---improving cache locality for lookups---as neighboring
+windows are more likely to share minimizers and reducing database size
+by only encoding these representatives as keys.
+%
+\item[\textbf{3)}] \textbf{$k$-mer retention} can be performed in
+either: A)~deterministic ways were some fixed fraction of the $k$-mers
+are retained; B)~random/probabilistic retention of $k$-mers based on
+heuristics such as co-occurrence or uniqueness of $k$-mers or
+alternatives. We will use sketch structures such as
+\texttt{HyperLogLog} to pre-determine the necessary size for hash and
+filter structures to maximize occupancy and minimize memory
+requirements.
+%
+\item[\textbf{4)}] \textbf{Probabilistic data structures} such as
+Bloom filters~\citep{bloom1970acm} could be used to accelerate
+rejecting $k$-mers, followed by an exact test to confirm proposed
+matches.
+%
+\item[\textbf{5)}] \textbf{$k$-mer classification} could be used to
+identify those $k$-mers that are best able to differentiate between
+species due to their relative occurrence/absence in the different
+genomes under study. This classification can be made somewhat implicit
+under particular minimizing schemes.
+%
+\end{itemize}
+
+As we vary these parameters, we will be able to study the accuracy of
+our classification with respect to the computational and memory
+efficiency. One of our goals is the ability to discriminate
+transcriptome matches to classify individual reads. This can aid in
+resolving complex mutations and characterizing splice events which are
+difficult to examine by direct mapping.
+
+Alternative endpoints include: classifying reads at their lowest
+taxonomic place; specifying which taxonomic groups are responsible for
+the environmental based metabolomes; improving assembly quality by
+pre-classifying reads.
+
+\section*{Deliverables}
+%
+\begin{enumerate}
+%
+\item[\textbf{1)}] We will measure the effects on memory requirements,
+performance, classification accuracy and applicability, as a function
+of seeding schemes [contiguous, spaced, gapped, and combinations],
+minimizing schemes [such as lexicographic, feature, taxonomic, or
+omitting minimizing], and window size.
+%
+\item[\textbf{2)}] We will measure the effectiveness of our classifier
+against benchmark data for accuracy and performance as made available
+by previous tools solving similar problems, such as the data made
+available through the
+\href{https://ccb.jhu.edu/software/kraken/}{Kraken website}.
+%
+\end{enumerate}
+
+
+\bibliographystyle{elsarticle-harv}
+\bibliography{genetics-project}
+
+
+\end{document}
+

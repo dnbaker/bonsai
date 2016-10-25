@@ -1,0 +1,13 @@
+NOTES
+*.aux
+*.bak
+*.bbl
+*.blg
+.~lock*
+*.log
+*.out
+*.pdf
+*.pptx
+*.spl
+*.swp
+*.vrb
