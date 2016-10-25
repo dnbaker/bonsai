@@ -66,6 +66,7 @@ struct cms_t {
         return *this;
     }
 };
-}
+
+} //namspace kpg
 
 #endif // #ifndef _CMS_H_
