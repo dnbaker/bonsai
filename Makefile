@@ -1,5 +1,5 @@
 CXX=g++
-CXXFLAGS=-O3 -flto -std=c++17 -DNDEBUG
+CXXFLAGS=-O3 -flto -funroll-loops -std=c++17 -DNDEBUG
 LD=-lz -pthread
 INCLUDE=-I. -Ihtslib -Ilib
 
