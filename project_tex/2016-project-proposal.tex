@@ -99,13 +99,6 @@ several minimizing schemes which would each determine representative $k$-mers
 for a given window, improving cache locality for lookups, as neighboring
 windows are more likely to share minimizers and reducing database size by only
 encoding these representatives as keys.
-We will investigate lexicographic minimizers, "feature minimizers",
-and "taxonomic minimizers", where
-a feature minimizer is the minimizer which was found in the fewest features
-between which we will be classifying and a taxonomic minimizer is the
-minimizer whose LCA is lowest in the tree.
-We suggest that taxonomic and feature minimizers may provide improved
-discriminatory power by being present in fewer features.
 %
 \item[\textbf{3)}] \textbf{$k$-mer retention} can be performed in
 either: A)~deterministic ways were some fixed fraction of the $k$-mers
@@ -123,7 +116,8 @@ matches.
 \item[\textbf{5)}] \textbf{$k$-mer classification} could be used to
 identify those $k$-mers that are best able to differentiate between
 species due to their relative occurrence/absence in the different
-genomes under study.
+genomes under study. This classification can be made somewhat implicit
+under particular minimizing schemes.
 %
 \end{itemize}
 
