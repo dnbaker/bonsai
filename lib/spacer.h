@@ -5,6 +5,8 @@
 #include <string>
 #include "kmerutil.h"
 
+namespace kpg {
+
 typedef std::vector<uint8_t> spvec_t;
 
 uint32_t comb_size(const spvec_t &spaces) {
@@ -62,5 +64,7 @@ public:
     }
     ~Spacer() {}
 };
+
+} // namespace kpg
 
 #endif // #ifndef _SPACE_UTIL_H
