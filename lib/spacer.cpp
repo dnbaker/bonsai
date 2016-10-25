@@ -2,6 +2,7 @@
 #include "encoder.h"
 
 // Simple test for spacer IO.
+using namespace kpg;
 
 int main(void) {
     spvec_t s;
