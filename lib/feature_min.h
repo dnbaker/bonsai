@@ -31,7 +31,8 @@ khash_t(c) *feature_count_map(std::vector<std::string> fns, const Spacer &sp, in
 khash_t(c) *lca_map(std::vector<std::string> fns, const char *tax_map_path,
                     const char *seq2tax_path,
                     const Spacer &sp, int num_threads=8);
-khash_t(c) *lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map);
+khash_t(c) *make_depth_hash(khash_t(c) *lca_map, khash_t(p) *tax_map);
+void lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map);
 
 } // namespace kpg
 #endif // #ifdef _FEATURE_MIN_

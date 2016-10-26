@@ -17,7 +17,13 @@ size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, si
     return index;
 }
 
-khash_t(c) *lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map) {
+void lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map) {
+    for(khiter_t ki(kh_begin(lca_map)); ki != kh_end(lca_map); ++ki)
+        if(kh_exist(lca_map, ki))
+            kh_val(lca_map, ki) = node_depth(tax_map, kh_val(lca_map, ki));
+}
+
+khash_t(c) *make_depth_hash(khash_t(c) *lca_map, khash_t(p) *tax_map) {
     khash_t(c) *ret(kh_init(c));
     kh_resize(c, ret, kh_size(lca_map));
     khiter_t ki1;
