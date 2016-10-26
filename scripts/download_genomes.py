@@ -1,8 +1,21 @@
 #!/usr/bin/env python
 import sys
 import multiprocessing
+import gzip
 from subprocess import check_call as cc, CalledProcessError
 argv = sys.argv
+
+
+def xfirstline(fn):
+    # Works on python3, not 2.
+    if sys.version_info[0] == 3:
+        print("Checking header")
+        if(open(fn, "rb").read(2) == b"\x1f\x8b"):
+            return gzip.open(fn).readline()
+    else:
+        if(open(fn, "rb").read(2) == "\x1f\x8b"):
+            return gzip.open(fn).readline()
+    return next(open(fn))
 
 
 
@@ -49,7 +62,8 @@ def parse_assembly(fn, fnidmap):
         if len(s) < 14:
             print(s)
             raise Exception("Not long enough")
-        if s[10] != "latest" or s[11] != "Complete Genome" and s[13] != "Full":
+        if s[10] != "latest" or (s[11] != "Complete Genome" and "GRCh" not in line):
+            print("Failing line ", line)
             continue
         fn = "%s_genomic.fna.gz" % ([i for i in s[-2].split("/") if i][-1])
         fnidmap[fn] = int(s[5])
@@ -63,14 +77,17 @@ def retry_cc(cstr):
     r = 0
     while r < RETRY_LIMIT:
         try:
+            print(cstr)
             cc(cstr, shell=True)
+            return
         except CalledProcessError:
+            print("retry number", r)
             r += 1
+            if r == RETRY_LIMIT:
+                raise Exception("Could not download via %s "
+                                "even after %i attempts." % (cstr,
+                                                             RETRY_LIMIT))
             continue
-    if r == RETRY_LIMIT:
-        raise Exception("Could not download via %s "
-                        "even after %i attempts." % (cstr,
-                                                     RETRY_LIMIT))
     print("Success with %s" % cstr)
 
 
@@ -80,7 +97,7 @@ def getopts():
     a.add_argument("--idmap", "-m", help="Path to nameidmap.",
                    default="nameidmap.txt")
     a.add_argument("--ref", "-r", help="Name of folder for references.")
-    a.add_argument("clades", nargs="?", help="Clades to use.")
+    a.add_argument("clades", nargs="+", help="Clades to use.")
     return a.parse_args()
 
 def main():
@@ -90,6 +107,9 @@ def main():
     if not os.path.isdir(ref):
         os.makedirs(ref)
     clades = args.clades if args.clades else DEFAULT_CLADES
+    for clade in clades:
+        print(clade)
+        assert clade in ALL_CLADES_MAP or clade == "all"
     to_dl = get_clade_map(clades)
     nameidmap = {}
     for clade in to_dl:
@@ -101,22 +121,25 @@ def main():
                     "-o %s/%s/as.%s.txt") % (to_dl[clade], ref, clade, clade)
             print(cstr)
             cc(cstr, shell=True)
-        to_dl[clade] = parse_assembly("%s/%s/as.%s.txt" % (ref, clade, clade), cladeidmap)
+        to_dl[clade] = parse_assembly("%s/%s/as.%s.txt" %
+                                      (ref, clade, clade), cladeidmap)
         cstrs = [("curl %s -o %s/%s/%s" %
-                 (assum, ref, clade, assum.split("/")[-1])) for assum in to_dl[clade]
+                 (s, ref, clade, s.split("/")[-1])) for s in to_dl[clade]
                   if not os.path.isfile("ref/%s/%s" % (clade,
-                                                       assum.split("/")[-1]))]
-        print(cstrs)
-        [retry_cc(cstr) for cstr in cstrs]
+                                                       s.split("/")[-1]))]
+        for cstr in cstrs:
+            retry_cc(cstr)
         # Replace pathnames with seqids
         for fn in list(cladeidmap.keys()):
             path = "/".join([ref, clade, fn])
-            cladeidmap[open(path).read().split()[0][1:]] = cladeidmap[fn]
+            cladeidmap[xfirstline(path).decode().split()[0][1:]] = cladeidmap[fn]
             del cladeidmap[fn]
+            print("deleting ", fn, " from map")
         nameidmap.update(cladeidmap)
-    with open(ref + "/nameidmap.txt") as f:
+    print("Done with all clades")
+    with open(ref + "/nameidmap.txt", "w") as f:
         fw = f.write
-        for k, v in nameidmap:
+        for k, v in nameidmap.items():
             fw(k + "\t" + str(v) + "\n")
     return 0
 
