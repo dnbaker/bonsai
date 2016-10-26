@@ -40,7 +40,7 @@ def get_assembly_txt(url):
     return url + "/assembly_summary.txt"
 
 
-def parse_assembly(fn):
+def parse_assembly(fn, fnidmap):
     to_fetch = []
     for line in open(fn):
         if line[0] == "#":
@@ -51,10 +51,11 @@ def parse_assembly(fn):
             raise Exception("Not long enough")
         if s[10] != "latest" or s[11] != "Complete Genome" and s[13] != "Full":
             continue
-        to_fetch.append(s[-2])
-    to_fetch = ["%s/%s_genomic.fna.gz" % (ftp, [i for i in ftp.split("/") if i][-1])
-                for ftp in to_fetch]
+        fn = "%s_genomic.fna.gz" % ([i for i in s[-2].split("/") if i][-1])
+        fnidmap[fn] = int(s[5])
+        to_fetch.append(s[-2] + "/" + fn)
     return to_fetch
+
 
 def retry_cc(cstr):
     print("Starting retry_cc")
@@ -72,27 +73,51 @@ def retry_cc(cstr):
                                                      RETRY_LIMIT))
     print("Success with %s" % cstr)
 
+
+def getopts():
+    import argparse
+    a = argparse.ArgumentParser()
+    a.add_argument("--idmap", "-m", help="Path to nameidmap.",
+                   default="nameidmap.txt")
+    a.add_argument("--ref", "-r", help="Name of folder for references.")
+    a.add_argument("clades", nargs="?", help="Clades to use.")
+    return a.parse_args()
+
 def main():
+    args = getopts()
+    ref = args.ref if args.ref else "ref"
     import os
-    if not os.path.isdir("ref"):
-        os.makedirs("ref")
-    clades = argv[1:] if argv[1:] else DEFAULT_CLADES
-    to_dl = get_clade_map(argv[1:] if argv[1:] else DEFAULT_CLADES)
+    if not os.path.isdir(ref):
+        os.makedirs(ref)
+    clades = args.clades if args.clades else DEFAULT_CLADES
+    to_dl = get_clade_map(clades)
+    nameidmap = {}
     for clade in to_dl:
-        if not os.path.isdir("ref/" + clade):
-            os.makedirs("ref/" + clade)
-        if not os.path.isfile("ref/%s/as.%s.txt" % (clade, clade)):
+        cladeidmap = {}
+        if not os.path.isdir(ref + "/" + clade):
+            os.makedirs(ref + "/" + clade)
+        if not os.path.isfile("%s/%s/as.%s.txt" % (ref, clade, clade)):
             cstr = ("curl %s/assembly_summary.txt "
-                    "-o ref/%s/as.%s.txt") % (to_dl[clade], clade, clade)
+                    "-o %s/%s/as.%s.txt") % (to_dl[clade], ref, clade, clade)
             print(cstr)
             cc(cstr, shell=True)
-        to_dl[clade] = parse_assembly("ref/%s/as.%s.txt" % (clade, clade))
-        cstrs = [("curl %s -o ref/%s/%s" %
-                 (assum, clade, assum.split("/")[-1])) for assum in to_dl[clade]
+        to_dl[clade] = parse_assembly("%s/%s/as.%s.txt" % (ref, clade, clade), cladeidmap)
+        cstrs = [("curl %s -o %s/%s/%s" %
+                 (assum, ref, clade, assum.split("/")[-1])) for assum in to_dl[clade]
                   if not os.path.isfile("ref/%s/%s" % (clade,
                                                        assum.split("/")[-1]))]
         print(cstrs)
         [retry_cc(cstr) for cstr in cstrs]
+        # Replace pathnames with seqids
+        for fn in list(cladeidmap.keys()):
+            path = "/".join([ref, clade, fn])
+            cladeidmap[open(path).read().split()[0][1:]] = cladeidmap[fn]
+            del cladeidmap[fn]
+        nameidmap.update(cladeidmap)
+    with open(ref + "/nameidmap.txt") as f:
+        fw = f.write
+        for k, v in nameidmap:
+            fw(k + "\t" + str(v) + "\n")
     return 0
 
 
