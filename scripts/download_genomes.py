@@ -62,8 +62,8 @@ def parse_assembly(fn, fnidmap):
         if len(s) < 14:
             print(s)
             raise Exception("Not long enough")
-        if s[10] != "latest" or (s[11] != "Complete Genome" and "GRCh" not in line):
-            print("Failing line ", line)
+        if "latest" not in line or (("Complete Genome" not in line and
+                                     "GRCh" not in line)):
             continue
         fn = "%s_genomic.fna.gz" % ([i for i in s[-2].split("/") if i][-1])
         fnidmap[fn] = int(s[5])
@@ -98,6 +98,9 @@ def getopts():
                    default="nameidmap.txt")
     a.add_argument("--ref", "-r", help="Name of folder for references.")
     a.add_argument("clades", nargs="+", help="Clades to use.")
+    a.add_argument("--threads", "-p",
+                   help="Number of threads to use while downloading.",
+                   type=int, default=16)
     return a.parse_args()
 
 def main():
@@ -127,8 +130,8 @@ def main():
                  (s, ref, clade, s.split("/")[-1])) for s in to_dl[clade]
                   if not os.path.isfile("ref/%s/%s" % (clade,
                                                        s.split("/")[-1]))]
-        for cstr in cstrs:
-            retry_cc(cstr)
+        spoool = multiprocessing.Pool(args.threads)
+        spoool.map(retry_cc, cstrs)
         # Replace pathnames with seqids
         for fn in list(cladeidmap.keys()):
             path = "/".join([ref, clade, fn])
