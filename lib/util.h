@@ -16,6 +16,12 @@ namespace kpg {
 
 KHASH_SET_INIT_INT64(all)
 KHASH_MAP_INIT_INT64(c, uint32_t)
+KHASH_MAP_INIT_INT(p, uint32_t)
+KHASH_MAP_INIT_STR(name, uint32_t)
+
+size_t count_lines(const char *fn);
+khash_t(name) *build_name_hash(const char *fn);
+khash_t(name) *destroy_name_hash(khash_t(name) *hash);
 
 template <typename T>
 void write_khash_map(T *map, const char *path) {
@@ -50,6 +56,9 @@ T *load_khash_map(const char *path) {
     fclose(fp);
     return rex;
 }
+
+uint32_t lca(khash_t(p) *map, uint32_t a, uint32_t b);
+unsigned node_depth(khash_t(p) *map, uint32_t a);
 
 } // namespace kpg
 

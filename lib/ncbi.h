@@ -6,10 +6,9 @@
 
 namespace kpg {
 
-KHASH_MAP_INIT_INT(p, uint32_t)
-
 khash_t(p) *build_parent_map(const char *fn);
 uint32_t lca(khash_t(p) *map, uint32_t a, uint32_t b);
+unsigned node_depth(khash_t(p) *map, uint32_t a);
 
 }
 
