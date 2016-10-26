@@ -233,9 +233,9 @@ static inline uint64_t kmer_minimizer(uint64_t kmer, const uint8_t k, const uint
 
 static inline int max_hp(uint64_t kmer)
 {
-    int run(0), max_run(0);
+    int run(1), max_run(0);
     uint8_t last(kmer&0x3);
-    for(;kmer;kmer>>=2)
+    for(kmer >>= 2; kmer; kmer>>=2)
         if((kmer&0x3) == last) ++run;
         else max_run = MAX2(run, max_run), last = kmer&0x3, run = 1;
     return max_run;
@@ -244,8 +244,7 @@ static inline int max_hp(uint64_t kmer)
 static inline int fails_hp(uint64_t kmer, int threshold)
 {
     char run(1), last(kmer&0x3);
-    kmer >>= 2;
-    for(;kmer;kmer>>=2) {
+    for(kmer >>= 2; kmer; kmer>>=2) {
         if((kmer&0x3) == last) {
             if(++run == threshold) return 1;
         } else last = kmer&0x3, run = 0;
@@ -255,8 +254,7 @@ static inline int fails_hp(uint64_t kmer, int threshold)
 static inline int fails_hp(char *str, int threshold)
 {
     char last(*str), run(1);
-    ++str;
-    for(;*str;++str) {
+    for(++str; *str; ++str) {
         if(*str == last) {
             if(++run == threshold) return 1;
         } else last = *str, run = 0;
