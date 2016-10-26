@@ -32,6 +32,8 @@ khash_t(p) *build_parent_map(const char *fn) {
         ki = kh_put(p, ret, atoi(buf), &khr);
         kh_val(ret, ki) = atoi(strchr(buf, '|') + 2);
     }
+    ki = kh_put(p, ret, 1, &khr);
+    kh_val(ret, ki) = 0; // Root of the tree.
     fclose(fp);
     return ret;
 }
