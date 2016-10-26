@@ -1,8 +1,6 @@
 #include "encoder.h"
 using namespace kpg;
 
-int is_lt(uint64_t i, uint64_t j, void *data) {return i < j;}
-
 int main(void) {
     spvec_t s;
     for(;;) {

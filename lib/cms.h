@@ -4,6 +4,7 @@
 #include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
+#include <cassert>
 #include <functional>
 #include <limits>
 #include <vector>

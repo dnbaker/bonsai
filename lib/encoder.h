@@ -17,6 +17,8 @@
 
 namespace kpg {
 
+static inline int is_lt(uint64_t i, uint64_t j, void *data) {return i < j;}
+
 template<int (*is_lt)(uint64_t, uint64_t, void *)>
 class Encoder {
     const char *s_;

@@ -3,7 +3,8 @@ CXXFLAGS=-O3 -flto -funroll-loops -std=c++17 -DNDEBUG
 LD=-lz -pthread
 INCLUDE=-I. -Ihtslib -Ilib -Ithird_party
 
-OBJS=lib/encoder.o lib/kmerutil.o lib/spacer.o lib/cms.o lib/quickfile.o
+OBJS=lib/encoder.o lib/kmerutil.o lib/spacer.o lib/cms.o third_party/quickfile.o \
+     lib/feature_min.o
 
 obj: $(OBJS)
 
