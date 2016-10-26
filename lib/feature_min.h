@@ -4,12 +4,10 @@
 #include "encoder.h"
 #include "spacer.h"
 #include "htslib/khash.h"
+#include "util.h"
 
 namespace kpg {
 
-
-KHASH_SET_INIT_INT64(all)
-KHASH_MAP_INIT_INT64(c, uint32_t)
 
 size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index);
 

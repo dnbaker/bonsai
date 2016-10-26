@@ -9,7 +9,6 @@ argv = sys.argv
 def xfirstline(fn):
     # Works on python3, not 2.
     if sys.version_info[0] == 3:
-        print("Checking header")
         if(open(fn, "rb").read(2) == b"\x1f\x8b"):
             return gzip.open(fn).readline()
     else:
@@ -137,7 +136,6 @@ def main():
             path = "/".join([ref, clade, fn])
             cladeidmap[xfirstline(path).decode().split()[0][1:]] = cladeidmap[fn]
             del cladeidmap[fn]
-            print("deleting ", fn, " from map")
         nameidmap.update(cladeidmap)
     print("Done with all clades")
     with open(ref + "/nameidmap.txt", "w") as f:

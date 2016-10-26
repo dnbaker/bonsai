@@ -14,6 +14,9 @@
 
 namespace kpg {
 
+KHASH_SET_INIT_INT64(all)
+KHASH_MAP_INIT_INT64(c, uint32_t)
+
 template <typename T>
 void write_khash_map(T *map, const char *path) {
     FILE *fp(fopen(path, "wb"));
