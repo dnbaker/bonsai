@@ -55,15 +55,20 @@ khash_t(c) *feature_count_map(std::vector<std::string> fns, const Spacer &sp, in
                   sp, counters[submitted+1], submitted + 1);
                 ++submitted, ++completed;
                 add_to_feature_counter(ret, counters[index]);
+                kh_destroy(all, counters[index]); // Destroy set once we're done with it.
             }
         }
     }
 
     // Join
-    for(auto &f: futures) if(f.valid()) add_to_feature_counter(ret, counters[f.get()]), ++completed;
+    for(auto &f: futures) if(f.valid()) {
+        const size_t index(f.get());
+        add_to_feature_counter(ret, counters[index]);
+        kh_destroy(all, counters[index]);
+        ++completed;
+    }
 
     // Clean up
-    for(size_t i(0); i < todo; ++i) kh_destroy(all, counters[i]);
     free(counters);
     return ret;
 }
