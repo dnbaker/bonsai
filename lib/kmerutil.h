@@ -3,6 +3,9 @@
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <unistd.h>
+#include <future>
+#include <functional>
 
 #include "htslib/khash.h"
 
@@ -157,6 +160,14 @@ inline void cstr_set_kmer(uint64_t *ret, const char *seq, const int cpos,
         *ret &= kmer_mask;
     }
 } /*cstr_set_kmer*/
+
+// C++ std lib doesn't actually give you a way to check on the status directly
+// without joining the thread. This is a hacky workaroud c/o
+// http://stackoverflow.com/questions/10890242/get-the-status-of-a-stdfuture
+template<typename R>
+static inline bool is_ready(std::future<R> const& f) {
+    return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+}
 
 // Jellyfish/Kraken
 static inline uint64_t reverse_complement(uint64_t kmer, uint8_t n) {

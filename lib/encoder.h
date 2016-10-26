@@ -9,6 +9,7 @@
 #include "htslib/kstring.h"
 
 #include "spacer.h"
+#include "util.h"
 #include "hll.h"
 #include "hash.h"
 #include "kseq_declare.h"
@@ -32,11 +33,11 @@ public:
       pos_(0)
     {
     }
-    void assign(char *s, size_t l) {
+    INLINE void assign(char *s, size_t l) {
         s_ = s; l_ = l; pos_ = 0;
     }
-    void assign(kstring_t *ks) {assign(ks->s, ks->l);}
-    void assign(kseq_t *ks) {assign(ks->seq.s, ks->seq.l);}
+    INLINE void assign(kstring_t *ks) {assign(ks->s, ks->l);}
+    INLINE void assign(kseq_t *ks) {assign(ks->seq.s, ks->seq.l);}
     // Algorithmic inefficiencies
     // 1. Not skipping over previousy discovered ambiguous bases
     // 2. Recalculating kmers for positions shared between neighboring windows.
@@ -50,11 +51,10 @@ public:
         for(unsigned wpos(start), end(sp_.w_ + start - sp_.c_ + 1); wpos != end; ++wpos) {
             uint64_t new_kmer(cstr_lut[s_[wpos]]);
             unsigned j(0);
-            for(auto s: sp_.s_) {
-                j += s + 1;
-                assert(j < sp_.c_);
+            for(const auto s: sp_.s_) {
                 new_kmer <<= 2;
-                new_kmer |= cstr_lut[s_[wpos + j]];
+                new_kmer |= cstr_lut[s_[wpos + (j += s + 1)]]; // Increment while accessing.
+                assert(j < sp_.c_);
             }
             new_kmer = canonical_representation(new_kmer, sp_.k_);
             new_kmer ^= XOR_MASK;
@@ -62,20 +62,34 @@ public:
         }
         return best_kmer;
     }
-    int has_next_window() {return pos_ < l_ - sp_.w_ - 1;}
-    uint64_t next_kmer() {
+    INLINE uint64_t kmer(unsigned start) {
+        // Encode kmer here.
+#if !NDEBUG
+        if(start > l_ - c_ + 1) {
+            throw "a party!";
+        }
+#endif
+        uint64_t new_kmer(cstr_lut[s_[start]]);
+        for(const auto s: sp_.s_) {
+            new_kmer <<= 2;
+            new_kmer |= cstr_lut[s_[(start += s + 1)]]; // Incrememnt while accessing.
+            assert(start < l_ - sp_.c_ + 1);
+        }
+        new_kmer = canonical_representation(new_kmer, sp_.k_);
+        new_kmer ^= XOR_MASK;
+        return new_kmer;
+    }
+    INLINE uint64_t decode(uint64_t kmer) {return kmer ^ XOR_MASK;}
+    INLINE int has_next_window() {return pos_ < l_ - sp_.w_ - 1;}
+    INLINE uint64_t next_minimizer() {
         return window(pos_++);
+    }
+    int has_next_kmer() {return pos_ < l_ - sp_.c_ - 1;}
+    uint64_t next_kmer() {
+        return kmer(pos_++);
     }
 };
 
-
-// C++ std lib doesn't actually give you a way to check on the status directly
-// without joining the thread. This is a hacky workaroud c/o
-// http://stackoverflow.com/questions/10890242/get-the-status-of-a-stdfuture
-template<typename R>
-static inline bool is_ready(std::future<R> const& f) {
-    return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
-}
 
 template<int (*is_lt)(uint64_t, uint64_t, void *), size_t np=22>
 hll_t<np> count_lmers(const std::string &path, const Spacer &space, unsigned k, uint16_t w,
@@ -88,7 +102,7 @@ hll_t<np> count_lmers(const std::string &path, const Spacer &space, unsigned k, 
     size_t n(0);
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
-        while(enc.has_next_window()) {++n; ret.add(u64hash(enc.next_kmer()));}
+        while(enc.has_next_window()) {++n; ret.add(u64hash(enc.next_minimizer()));}
     }
     kseq_destroy(ks);
     gzclose(fp);

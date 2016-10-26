@@ -48,6 +48,7 @@ public:
         fputc('\n', fp);
     }
     std::string to_string (uint64_t kmer) const {
+        kmer ^= XOR_MASK;
         std::string ret;
         ret.reserve(c_ - k_ + 1);
         int offset = ((k_ - 1) << 1);
