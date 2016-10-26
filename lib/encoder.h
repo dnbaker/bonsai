@@ -38,30 +38,6 @@ public:
     }
     INLINE void assign(kstring_t *ks) {assign(ks->s, ks->l);}
     INLINE void assign(kseq_t *ks) {assign(ks->seq.s, ks->seq.l);}
-    // Algorithmic inefficiencies
-    // 1. Not skipping over previousy discovered ambiguous bases
-    // 2. Recalculating kmers for positions shared between neighboring windows.
-    uint64_t window(unsigned start) {
-        // Encode kmer here.
-        if(start > l_ - sp_.w_ + 1) {
-            fprintf(stderr, "FAIL window %i, start %i, length %i, diff %i.\n", sp_.w_, start, l_, l_ - start - sp_.w_);
-            assert(sp_.w_ + start <= l_);
-        }
-        uint64_t best_kmer(BF);
-        for(unsigned wpos(start), end(sp_.w_ + start - sp_.c_ + 1); wpos != end; ++wpos) {
-            uint64_t new_kmer(cstr_lut[s_[wpos]]);
-            unsigned j(0);
-            for(const auto s: sp_.s_) {
-                new_kmer <<= 2;
-                new_kmer |= cstr_lut[s_[wpos + (j += s + 1)]]; // Increment while accessing.
-                assert(j < sp_.c_);
-            }
-            new_kmer = canonical_representation(new_kmer, sp_.k_);
-            new_kmer ^= XOR_MASK;
-            if(is_lt(new_kmer, best_kmer, data_)) best_kmer = new_kmer;
-        }
-        return best_kmer;
-    }
     INLINE uint64_t kmer(unsigned start) {
         // Encode kmer here.
 #if !NDEBUG
@@ -78,6 +54,22 @@ public:
         new_kmer = canonical_representation(new_kmer, sp_.k_);
         new_kmer ^= XOR_MASK;
         return new_kmer;
+    }
+    // Algorithmic inefficiencies
+    // 1. Not skipping over previousy discovered ambiguous bases
+    // 2. Recalculating kmers for positions shared between neighboring windows.
+    uint64_t window(unsigned start) {
+        // Encode kmer here.
+        if(start > l_ - sp_.w_ + 1) {
+            fprintf(stderr, "FAIL window %i, start %i, length %i, diff %i.\n", sp_.w_, start, l_, l_ - start - sp_.w_);
+            assert(sp_.w_ + start <= l_);
+        }
+        uint64_t best_kmer(BF);
+        for(unsigned wpos(start), end(sp_.w_ + start - sp_.c_ + 1); wpos != end; ++wpos) {
+            const uint64_t new_kmer(kmer(wpos));
+            if(is_lt(new_kmer, best_kmer, data_)) best_kmer = new_kmer;
+        }
+        return best_kmer;
     }
     INLINE uint64_t decode(uint64_t kmer) {return kmer ^ XOR_MASK;}
     INLINE int has_next_window() {return pos_ < l_ - sp_.w_ - 1;}
