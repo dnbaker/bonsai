@@ -1,9 +1,9 @@
 CXX=g++
 CXXFLAGS=-O3 -flto -funroll-loops -std=c++17 -DNDEBUG
 LD=-lz -pthread
-INCLUDE=-I. -Ihtslib -Ilib
+INCLUDE=-I. -Ihtslib -Ilib -Ithird_party
 
-OBJS=lib/encoder.o lib/kmerutil.o lib/spacer.o lib/cms.o
+OBJS=lib/encoder.o lib/kmerutil.o lib/spacer.o lib/cms.o lib/quickfile.o
 
 obj: $(OBJS)
 
