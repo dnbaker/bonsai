@@ -4,7 +4,7 @@ LD=-lz -pthread
 INCLUDE=-I. -Ihtslib -Ilib -Ithird_party
 
 OBJS=lib/encoder.o lib/kmerutil.o lib/spacer.o lib/cms.o third_party/quickfile.o \
-     lib/feature_min.o
+     lib/feature_min.o lib/ncbi.o
 
 obj: $(OBJS)
 
