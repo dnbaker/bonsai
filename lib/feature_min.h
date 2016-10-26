@@ -27,18 +27,7 @@ int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret)
     } else return 0;
 }
 
-void add_to_feature_counter(khash_t(c) *kc, khash_t(all) *set) {
-    int khr;
-    khint_t k2;
-    for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
-        if(kh_exist(set, ki)) {
-            if((k2 = kh_get(c, kc, kh_key(set, ki))) == kh_end(kc)) {
-                k2 = kh_put(c, kc, kh_key(set, ki), &khr);
-                kh_val(kc, k2) = 1;
-            } else ++kh_val(kc, k2);
-        }
-    }
-}
+void add_to_feature_counter(khash_t(c) *kc, khash_t(all) *set);
 
 khash_t(c) *feature_count_map(std::vector<std::string> fns, const Spacer &sp, int num_threads=8);
 
