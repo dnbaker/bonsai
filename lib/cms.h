@@ -11,6 +11,8 @@
 #include "hash.h"
 #include "util.h"
 
+#define is_pow2(x) ((x & (x - 1)) == 0)
+
 namespace kpg {
 
 static inline size_t roundup64(size_t x) {
@@ -35,6 +37,7 @@ struct cms_t {
     cms_t(size_t sz, uint32_t seedseed=1337): // Lucky number
       sz_(roundup64(sz)), bits_(ns * sz_, 0), mask_(sz_ - 1)
     {
+        assert(is_pow2(sz_));
         srand(seedseed);
         for(auto &seed: seeds_) seed = ((uint64_t)rand() << 32) | rand();
     }
