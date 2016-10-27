@@ -8,6 +8,7 @@
 #include <cinttypes>
 #include <cassert>
 #include <algorithm>
+#include <vector>
 
 #include "hash.h"
 

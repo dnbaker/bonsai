@@ -13,24 +13,24 @@ void add_to_feature_counter(khash_t(c) *kc, khash_t(all) *set);
 khash_t(c) *feature_count_map(std::vector<std::string> fns, const Spacer &sp, int num_threads=8);
 uint32_t get_taxid(const char *fn, khash_t(name) *name_hash);
 
-template<int (*is_lt)(uint64_t, uint64_t, void *)>
+template<uint64_t (*score)(uint64_t, void *)>
 khash_t(c) *lca_map(std::vector<std::string> fns, const char *tax_map_path,
                     const char *seq2tax_path,
                     const Spacer &sp, int num_threads=8);
 khash_t(c) *make_depth_hash(khash_t(c) *lca_map, khash_t(p) *tax_map);
 void lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map);
-template<int (*is_lt)(uint64_t, uint64_t, void *)>
+template<uint64_t (*score)(uint64_t, void *)>
 int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret);
-template<int (*is_lt)(uint64_t, uint64_t, void *)>
+template<uint64_t (*score)(uint64_t, void *)>
 size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index);
 void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, uint32_t taxid);
 
 
 // Return value: whether or not additional sequences were present and added.
-template<int (*is_lt)(uint64_t, uint64_t, void *)>
+template<uint64_t (*score)(uint64_t, void *)>
 int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret) {
     assert(ret);
-    Encoder<is_lt> enc(0, 0, sp, nullptr);
+    Encoder<score> enc(0, 0, sp, nullptr);
     int khr; // khash return value. Unused, really.
     if(kseq_read(ks) >= 0) {
         enc.assign(ks);
@@ -39,11 +39,11 @@ int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret) {
     } else return 0;
 }
 
-template<int (*is_lt)(uint64_t, uint64_t, void *)>
+template<uint64_t (*score)(uint64_t, void *)>
 size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index) {
     assert(ret);
     gzFile ifp(gzopen(path, "rb"));
-    Encoder<is_lt> enc(0, 0, sp, nullptr);
+    Encoder<score> enc(0, 0, sp, nullptr);
     kseq_t *ks(kseq_init(ifp));
     int khr; // khash return value. Unused, really.
     while(kseq_read(ks) >= 0) {
@@ -55,7 +55,7 @@ size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, si
     return index;
 }
 
-template<int (*is_lt)(uint64_t, uint64_t, void *)>
+template<uint64_t (*score)(uint64_t, void *)>
 khash_t(c) *lca_map(std::vector<std::string> fns, const char *tax_map_path,
                     const char *seq2tax_path,
                     const Spacer &sp, int num_threads) {
@@ -71,7 +71,7 @@ khash_t(c) *lca_map(std::vector<std::string> fns, const char *tax_map_path,
     // Submit the first set of jobs
     for(size_t i(0); i < num_threads && i < todo; ++i) {
         futures.emplace_back(std::async(
-          std::launch::async, fill_set_genome<is_lt>, fns[i].data(), sp, counters[i], i));
+          std::launch::async, fill_set_genome<score>, fns[i].data(), sp, counters[i], i));
         ++submitted;
     }
 
@@ -81,7 +81,7 @@ khash_t(c) *lca_map(std::vector<std::string> fns, const char *tax_map_path,
             if(is_ready(f)) {
                 const size_t index(f.get());
                 f = std::async(
-                  std::launch::async, fill_set_genome<is_lt>, fns[submitted+1].data(),
+                  std::launch::async, fill_set_genome<score>, fns[submitted+1].data(),
                   sp, counters[submitted+1], submitted + 1);
                 ++submitted, ++completed;
                 update_lca_map(ret, counters[index], tax_map, get_taxid(fns[index].data(), name_hash));
@@ -104,7 +104,7 @@ khash_t(c) *lca_map(std::vector<std::string> fns, const char *tax_map_path,
     destroy_name_hash(name_hash);
     return ret;
 }
-template <int (*is_lt)(uint64_t, uint64_t, void *)>
+template <uint64_t (*score)(uint64_t, void *)>
 khash_t(c) *feature_count_map(std::vector<std::string> fns, const Spacer &sp, int num_threads) {
     size_t submitted(0), completed(0), todo(fns.size());
     khash_t(all) **counters((khash_t(all) **)malloc(sizeof(khash_t(all) *) * todo));
@@ -115,7 +115,7 @@ khash_t(c) *feature_count_map(std::vector<std::string> fns, const Spacer &sp, in
     // Submit the first set of jobs
     for(size_t i(0); i < num_threads && i < todo; ++i) {
         futures.emplace_back(std::async(
-          std::launch::async, fill_set_genome<is_lt>, fns[i].data(), sp, counters[i], i));
+          std::launch::async, fill_set_genome<score>, fns[i].data(), sp, counters[i], i));
         ++submitted;
     }
 
@@ -125,7 +125,7 @@ khash_t(c) *feature_count_map(std::vector<std::string> fns, const Spacer &sp, in
             if(is_ready(f)) {
                 const size_t index(f.get());
                 f = std::async(
-                  std::launch::async, fill_set_genome<is_lt>, fns[submitted+1].data(),
+                  std::launch::async, fill_set_genome<score>, fns[submitted+1].data(),
                   sp, counters[submitted+1], submitted + 1);
                 ++submitted, ++completed;
                 add_to_feature_counter(ret, counters[index]);

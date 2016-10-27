@@ -8,11 +8,12 @@
 
 #include "htslib/kstring.h"
 
+#include "hash.h"
+#include "hll.h"
+#include "kseq_declare.h"
+#include "qmap.h"
 #include "spacer.h"
 #include "util.h"
-#include "hll.h"
-#include "hash.h"
-#include "kseq_declare.h"
 
 
 namespace kpg {
@@ -50,24 +51,54 @@ static INLINE int hashval_is_lt(uint64_t i, uint64_t j, void *data) {
         exit(EXIT_FAILURE);
 }
 
-template<int (*is_lt)(uint64_t, uint64_t, void *)>
+static INLINE uint64_t lex_score(uint64_t i, void *data) {
+    return i;
+}
+
+static INLINE uint64_t tax_score(uint64_t i, void *data) {
+    lca_tax_t *hashes((lca_tax_t *)data);
+    khint_t k1;
+    if(unlikely((k1 = kh_get(c, hashes->lca, i)) == kh_end(hashes->lca))) goto fail;
+    return node_depth(hashes->tax, kh_val(hashes->lca, k1));
+    fail:
+        fprintf(stderr, "i: %" PRIu64 "\n", i);
+        exit(EXIT_FAILURE);
+        return 0uL;
+}
+
+static INLINE uint64_t hash_score(uint64_t i, void *data) {
+    khash_t(c) *h((khash_t(c) *)data);
+    khint_t k1;
+    if(unlikely((k1 = kh_get(c, h, i)) == kh_end(h))) goto fail;
+    return kh_val(h, k1);
+    fail:
+        fprintf(stderr, "i: %" PRIu64 ".\n", i);
+        exit(EXIT_FAILURE);
+        return 0uL;
+}
+
+
+template<uint64_t (*score)(uint64_t, void *)>
 class Encoder {
     const char *s_;
     size_t l_;
     const Spacer &sp_;
     unsigned pos_;
     void *data_;
+    qmap_t qmap_;
 public:
     Encoder(char *s, size_t l, const Spacer &sp, void *data=nullptr):
       s_(s),
       l_(l),
       sp_(sp),
       data_(data),
-      pos_(0)
+      pos_(0),
+      qmap_(sp_.w_ - sp_.k_ + 1)
     {
     }
     INLINE void assign(char *s, size_t l) {
         s_ = s; l_ = l; pos_ = 0;
+        qmap_.reset();
     }
     INLINE void assign(kstring_t *ks) {assign(ks->s, ks->l);}
     INLINE void assign(kseq_t *ks) {assign(ks->seq.s, ks->seq.l);}
@@ -90,51 +121,41 @@ public:
     }
     // Algorithmic inefficiencies
     // 1. Not skipping over previousy discovered ambiguous bases
-    // 2. Recalculating kmers for positions shared between neighboring windows.
-    uint64_t window(unsigned start) {
-        // Encode kmer here.
-        if(start > l_ - sp_.w_ + 1) {
-            fprintf(stderr, "FAIL window %i, start %i, length %i, diff %i.\n", sp_.w_, start, l_, l_ - start - sp_.w_);
-            assert(sp_.w_ + start <= l_);
-        }
-        uint64_t best_kmer(BF);
-        for(unsigned wpos(start), end(sp_.w_ + start - sp_.c_ + 1); wpos != end; ++wpos) {
-            const uint64_t new_kmer(kmer(wpos));
-            if(is_lt(new_kmer, best_kmer, data_)) best_kmer = new_kmer;
-        }
-        return best_kmer;
-    }
+    // 2. (Solved)
+    //    Recalculating kmers for positions shared between neighboring windows.
+    //    [Addressed 2 using a linked list of elements with scores and
+    //     a red-black tree with scores as keys and counts as values.]
     INLINE uint64_t decode(uint64_t kmer) {return kmer ^ XOR_MASK;}
-    INLINE int has_next_window() {return pos_ < l_ - sp_.w_ - 1;}
-    INLINE uint64_t next_minimizer() {
-        return window(pos_++);
-    }
     INLINE int has_next_kmer() {return pos_ < l_ - sp_.c_ - 1;}
-    INLINE uint64_t next_kmer() {
-        return kmer(pos_++);
+    INLINE uint64_t next_minimizer() {
+        assert(has_next_kmer());
+        const uint64_t k(kmer(pos_++));
+        return qmap_.next_value(k, score(k, data_));
     }
 };
 
 
-template<int (*is_lt)(uint64_t, uint64_t, void *), size_t np=22>
+template<uint64_t (*score)(uint64_t, void *), size_t np=22>
 hll_t<np> count_lmers(const std::string &path, const Spacer &space, unsigned k, uint16_t w,
                       void *data=nullptr) {
-    Encoder<is_lt> enc(nullptr, 0, space, data);
+    Encoder<score> enc(nullptr, 0, space, data);
     gzFile fp(gzopen(path.data(), "rb"));
     fprintf(stderr, "Opening from path %s.\n", path.data());
     kseq_t *ks(kseq_init(fp));
     hll_t<np> ret;
-    size_t n(0);
+    uint64_t min;
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
-        while(enc.has_next_window()) {++n; ret.add(u64hash(enc.next_minimizer()));}
+        while(enc.has_next_window())
+            if((min = enc.next_minimizer()) != BF)
+                ret.add(u64hash(min));
     }
     kseq_destroy(ks);
     gzclose(fp);
     return ret;
 }
 
-template<int (*is_lt)(uint64_t, uint64_t, void *), size_t np>
+template<uint64_t (*score)(uint64_t, void *), size_t np>
 size_t estimate_cardinality(const std::vector<std::string> paths,
                             unsigned k, uint16_t w, spvec_t *spaces=nullptr,
                             void *data=nullptr, int num_threads=-1) {
@@ -147,7 +168,7 @@ size_t estimate_cardinality(const std::vector<std::string> paths,
     // Submit the first set of jobs
     for(size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
         futures.emplace_back(std::async(
-          std::launch::async, count_lmers<is_lt, np>, paths[i], space, k, w, data));
+          std::launch::async, count_lmers<score, np>, paths[i], space, k, w, data));
         ++submitted;
     }
     // Daemon -- check the status of currently running jobs, submit new ones when available.
@@ -156,7 +177,7 @@ size_t estimate_cardinality(const std::vector<std::string> paths,
             if(is_ready(f)) {
                 hlls.push_back(f.get());
                 f = std::async(
-                  std::launch::async, count_lmers<is_lt, np>, paths[submitted++],
+                  std::launch::async, count_lmers<score, np>, paths[submitted++],
                   space, k, w, data);
                 ++completed;
             }
