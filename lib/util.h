@@ -5,6 +5,7 @@
 #include <cinttypes>
 #include <cstdint>
 #include <type_traits>
+#include "htslib/khash.h"
 
 #if __GNUC__ || __clang__
 #define INLINE __attribute__((always_inline))

@@ -1,6 +1,7 @@
 #include "encoder.h"
 using namespace kpg;
 
+#ifdef __ENCODER_MAIN
 int main(void) {
     spvec_t s;
     for(;;) {
@@ -17,3 +18,4 @@ int main(void) {
     size_t cardinality = estimate_cardinality<is_lt, 18>(paths, 31, 55, nullptr, 0, 2);
     fprintf(stderr, "Number of elements, approximately: %zu.\n", cardinality);
 }
+#endif

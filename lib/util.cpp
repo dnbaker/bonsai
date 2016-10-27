@@ -1,4 +1,5 @@
 #include "util.h"
+#include <set>
 
 namespace kpg {
 
@@ -75,8 +76,8 @@ khash_t(name) *build_name_hash(const char *fn) {
         ki = kh_put(name, ret, buf, &khr);
         namelen = p - buf;
         kh_key(ret, ki) = (char *)malloc(namelen + 1);
-        memcpy(kh_key(ret, ki), buf, namelen);
-        kh_key(ret, ki)[namelen] = 0;
+        memcpy((void*)kh_key(ret, ki), buf, namelen);
+       ((char *)kh_key(ret, ki))[namelen] = 0;
         kh_val(ret, ki) = atoi(++p);
     }
     fclose(fp);
@@ -86,7 +87,7 @@ khash_t(name) *build_name_hash(const char *fn) {
 khash_t(name) *destroy_name_hash(khash_t(name) *hash) {
     for(khint_t ki(kh_begin(hash)); ki != kh_end(hash); ++ki)
         if(kh_exist(hash, ki))
-            free(kh_key(ret, ki));
+            free((void *)kh_key(hash, ki));
     kh_destroy(name, hash);
 }
 
