@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "util.h"
+#include "kmerutil.h"
 
 namespace kpg {
 
@@ -16,24 +17,26 @@ struct elscore_t {
     inline bool operator <(const elscore_t &other) const {
         return score_ < other.score_ || el_ < other.el_; // Lexicographic is tie-breaker.
     }
+    inline bool operator ==(const elscore_t &other) const {
+        return score_ == other.score_ && el_ == other.el_; // Lexicographic is tie-breaker.
+    }
 };
 
 struct esq_t: public std::list<elscore_t> {
 };
 
 struct esmap_t: public std::map<elscore_t, unsigned> {
+    std::pair<std::map<elscore_t, unsigned>::iterator, bool> finder_;
     void add(const elscore_t &el) {
-        auto f(find(el));
-        if(f == end())
-            emplace(el, 1);
-        else
-            ++f->second;
+        std::map<elscore_t, unsigned>::iterator it(lower_bound(el));
+        if(it->first == el) ++it->second;
+        else emplace_hint(it, el, 1);
     }
     void del(const elscore_t &el) {
         const auto f(find(el));
-        if(f != end())
-            if(--f->second <= 0)
-                erase(f);
+        assert(f != end());
+        if(--f->second <= 0)
+            erase(f);
     }
 };
 
@@ -53,7 +56,7 @@ class qmap_t {
         }
         list_.emplace_back(el, score);
         map_.add(*list_.end());
-        return list_.size() == wsz_ ? map_.begin()->first.el_: (uint64_t)~0;
+        return list_.size() == wsz_ ? map_.begin()->first.el_: BF;
         // Signal a window that is not filled by 0xFFFFFFFFFFFFFFFF
     }
     qmap_t(size_t wsz): wsz_(wsz) {}
