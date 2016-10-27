@@ -31,13 +31,8 @@ public:
         fprintf(stderr, "Size of spaces: %zu. k_: %i\n", s_.size(), (int)k);
     }
     Spacer(unsigned k, uint16_t w, const char *space_string):
-      s_(encode_spacing(space_string)),
-      k_(k),
-      w_(w),
-      c_(comb_size(s_)),
-      mask_(__kmask_init(k))
+        Spacer(k, w, encode_spacing(space_string))
     {
-        assert(s_.size() + 1 == k);
     }
     void write(uint64_t kmer, FILE *fp=stdout) {
         kmer ^= XOR_MASK;
