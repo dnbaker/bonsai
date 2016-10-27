@@ -54,7 +54,7 @@ static const uint32_t nucpos_arr_acgt[128] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
         0, 0, 0, 0
 };
 
-static inline uint8_t nuc2num(char c) {return nucpos_arr_acgt[(uint8_t)c];}
+static INLINE uint8_t nuc2num(char c) {return nucpos_arr_acgt[(uint8_t)c];}
 
 static const int8_t htseq_lut[] {
     -1,  0,  1, -1,  2, -1, -1, -1,
@@ -94,11 +94,11 @@ static const int8_t cstr_rc_lut[] {
 
 //Gets the 2 bits for an encoded base at an index in an unsigned 64-bit integer encoded kmer.
 #define encoded_base(kmer, k, index) ((kmer >> (2 * (k - 1 - index))) & 0x3)
-static inline char decoded_base(uint64_t kmer, const int k, const int index) {
+static INLINE char decoded_base(uint64_t kmer, const int k, const int index) {
    return num2nuc(encoded_base(kmer, k, index));
 }
 
-inline void kmer2cstr(uint64_t kmer, int k, char *buf)
+INLINE void kmer2cstr(uint64_t kmer, int k, char *buf)
 {
     while(k) *buf++ = num2nuc((kmer >> (2 * --k)) & 0x3u);
     *buf = '\0';
@@ -165,12 +165,12 @@ inline void cstr_set_kmer(uint64_t *ret, const char *seq, const int cpos,
 // without joining the thread. This is a hacky workaroud c/o
 // http://stackoverflow.com/questions/10890242/get-the-status-of-a-stdfuture
 template<typename R>
-static inline bool is_ready(std::future<R> const& f) {
+static INLINE bool is_ready(std::future<R> const& f) {
     return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
 }
 
 // Jellyfish/Kraken
-static inline uint64_t reverse_complement(uint64_t kmer, uint8_t n) {
+static INLINE uint64_t reverse_complement(uint64_t kmer, uint8_t n) {
     kmer = ((kmer >> 2)  & 0x3333333333333333UL) | ((kmer & 0x3333333333333333UL) << 2);
     kmer = ((kmer >> 4)  & 0x0F0F0F0F0F0F0F0FUL) | ((kmer & 0x0F0F0F0F0F0F0F0FUL) << 4);
     kmer = ((kmer >> 8)  & 0x00FF00FF00FF00FFUL) | ((kmer & 0x00FF00FF00FF00FFUL) << 8);
@@ -179,7 +179,7 @@ static inline uint64_t reverse_complement(uint64_t kmer, uint8_t n) {
     return (((uint64_t)-1) - kmer) >> (8 * sizeof(kmer) - (n << 1));
 }
 
-static inline uint64_t canonical_representation(uint64_t kmer, uint8_t n) {
+static INLINE uint64_t canonical_representation(uint64_t kmer, uint8_t n) {
     const uint64_t revcom(reverse_complement(kmer, n));
     return kmer < revcom ? kmer : revcom;
 }

@@ -16,7 +16,7 @@
 
 namespace kpg {
 
-static inline size_t roundup64(size_t x) {
+static INLINE size_t roundup64(size_t x) {
     --x;
     x |= x >> 1;
     x |= x >> 2;

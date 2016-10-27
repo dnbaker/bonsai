@@ -7,8 +7,16 @@
 #include <type_traits>
 #include "htslib/khash.h"
 
+#ifdef __GNUC__
+#  define likely(x) __builtin_expect((x),1)
+#  define unlikely(x) __builtin_expect((x),0)
+#else
+#  define likely(x)
+#  define unlikely(x)
+#endif
+
 #if __GNUC__ || __clang__
-#define INLINE __attribute__((always_inline))
+#define INLINE __attribute__((always_inline)) inline
 #else
 #define INLINE inline
 #endif

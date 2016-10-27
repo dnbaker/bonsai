@@ -4,7 +4,7 @@
 namespace kpg {
 
 // Murmurhash3's Finalizer
-static inline uint64_t u64hash(uint64_t key) {
+static INLINE uint64_t u64hash(uint64_t key) {
     key ^= key >> 33;
     key *= 0xff51afd7ed558ccd;
     key ^= key >> 33;
@@ -14,7 +14,7 @@ static inline uint64_t u64hash(uint64_t key) {
 }
 
 // Taken from khash. https://github.com/attractivechaos/klib
-static inline int X31_hash_string(const char *s) 
+static INLINE int X31_hash_string(const char *s) 
 {
     int h = *s;
     if (h) for (++s ; *s; ++s) h = (h << 5) - h + *s;
@@ -24,7 +24,7 @@ static inline int X31_hash_string(const char *s)
 // SBDM http://www.cse.yorku.ca/~oz/sdbm.bun/. Mirrored https://github.com/davidar/sdbm.
 // Slightly modified.
 #define DUFF
-static inline unsigned
+static INLINE unsigned
 dbm_hash(register const char *str, register size_t len)
 {
     register unsigned n = 0;
@@ -51,7 +51,7 @@ dbm_hash(register const char *str, register size_t len)
 }
 #undef DUFF
 #undef __hashc
-static inline unsigned dbm_hash(register const char *str)
+static INLINE unsigned dbm_hash(register const char *str)
 {
     register unsigned n = 0;
     while(*str) n = *str++ + ((n << 16) + (n << 6) - n);

@@ -17,7 +17,38 @@
 
 namespace kpg {
 
-static inline int is_lt(uint64_t i, uint64_t j, void *data) {return i < j;}
+struct lca_tax_t {
+    khash_t(c) *lca;
+    khash_t(p) *tax;
+};
+
+static INLINE int is_lt(uint64_t i, uint64_t j, void *data) {
+    return i < j;
+}
+
+static INLINE int tax_is_lt(uint64_t i, uint64_t j, void *data) {
+    lca_tax_t *hashes((lca_tax_t *)data);
+    khint_t k1, k2;
+    if(unlikely((k1 = kh_get(c, hashes->lca, i)) == kh_end(hashes->lca))) goto fail;
+    if(unlikely((k2 = kh_get(c, hashes->lca, j)) == kh_end(hashes->lca))) goto fail;
+    return node_depth(hashes->tax, kh_val(hashes->lca, k1)) < node_depth(hashes->tax, kh_val(hashes->lca, k2));
+    fail:
+        fprintf(stderr, "i: %" PRIu64 ". j: %" PRIu64 ". Failed? %s.\n", i, j,
+                i == kh_end(hashes->lca) ? j == kh_end(hashes->lca) ? "both": "i" : "j");
+        exit(EXIT_FAILURE);
+}
+
+static INLINE int hashval_is_lt(uint64_t i, uint64_t j, void *data) {
+    khash_t(c) *h((khash_t(c) *)data);
+    khint_t k1, k2;
+    if(unlikely((k1 = kh_get(c, h, i)) == kh_end(h))) goto fail;
+    if(unlikely((k2 = kh_get(c, h, j)) == kh_end(h))) goto fail;
+    return kh_val(h, k1) < kh_val(h, k2);
+    fail:
+        fprintf(stderr, "i: %" PRIu64 ". j: %" PRIu64 ". Failed? %s.\n", i, j,
+                i == kh_end(h) ? j == kh_end(h) ? "both": "i" : "j");
+        exit(EXIT_FAILURE);
+}
 
 template<int (*is_lt)(uint64_t, uint64_t, void *)>
 class Encoder {
