@@ -6,15 +6,31 @@ from subprocess import check_call as cc, CalledProcessError
 argv = sys.argv
 
 
+def isvalid_gzip(fn):
+    try:
+        cc("gunzip -t " + fn, shell=True)
+        return True
+    except CalledProcessError:
+        print("Corrupted file ", fn, ". Delete, try again.")
+        return False
+
+
 def xfirstline(fn):
     # Works on python3, not 2.
+    if not isvalid_gzip(fn):
+        cc("rm " + fn, shell=True)
+        sys.exit(main())
     if sys.version_info[0] == 3:
         if(open(fn, "rb").read(2) == b"\x1f\x8b"):
             return gzip.open(fn).readline()
     else:
         if(open(fn, "rb").read(2) == "\x1f\x8b"):
             return gzip.open(fn).readline()
-    return next(open(fn))
+    try:
+        return next(open(fn))
+    except StopIteration:
+        cc("rm " + fn, shell=True)
+        sys.exit(main())
 
 
 
@@ -33,6 +49,8 @@ ALL_CLADES_MAP = {
 DEFAULT_CLADES = [
     "archaea", "bacteria", "viral", "human"
 ]
+
+TAX_PATH = "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
 
 
 def get_clade_map(clades):
@@ -55,14 +73,17 @@ def get_assembly_txt(url):
 def parse_assembly(fn, fnidmap):
     to_fetch = []
     for line in open(fn):
-        if line[0] == "#":
+        if line[0] == '#':
             continue
         s = line.split("\t")
         if len(s) < 14:
             print(s)
             raise Exception("Not long enough")
-        if "latest" not in line or (("Complete Genome" not in line and
-                                     "GRCh" not in line)):
+        if ("latest" not in line
+                or (("Complete Genome" not in line and
+                                     "GRCh" not in line
+                     and s[13] != "Full"))):
+            print("Failing line %s" % line[:-1])
             continue
         fn = "%s_genomic.fna.gz" % ([i for i in s[-2].split("/") if i][-1])
         fnidmap[fn] = int(s[5])
@@ -103,6 +124,8 @@ def getopts():
     return a.parse_args()
 
 def main():
+    global TAX_PATH
+    tax_path = TAX_PATH  # Make global variable local
     args = getopts()
     ref = args.ref if args.ref else "ref"
     import os
@@ -125,10 +148,20 @@ def main():
             cc(cstr, shell=True)
         to_dl[clade] = parse_assembly("%s/%s/as.%s.txt" %
                                       (ref, clade, clade), cladeidmap)
+        for s in to_dl[clade]:
+            fn = "%s/%s/%s" % (ref, clade, s.split("/")[-1])
+            if os.path.isfile(fn):
+                if not isvalid_gzip(fn):
+                    cc("rm " + fn, shell=True)
         cstrs = [("curl %s -o %s/%s/%s" %
                  (s, ref, clade, s.split("/")[-1])) for s in to_dl[clade]
-                  if not os.path.isfile("ref/%s/%s" % (clade,
+                  if not os.path.isfile("%s/%s/%s" % (ref, clade,
                                                        s.split("/")[-1]))]
+        # If nodes.dmp hasn't been downloaded, grab it.
+        if not os.path.isfile("%s/nodes.dmp" % ref):
+            cstrs.append("curl {tax_path} -o {ref}/"
+                         "taxdump.tgz && tar -zxvf {ref}/taxdump.tgz"
+                         " && mv nodes.dmp {ref}/nodes.dmp".format(**locals()))
         spoool = multiprocessing.Pool(args.threads)
         spoool.map(retry_cc, cstrs)
         # Replace pathnames with seqids
