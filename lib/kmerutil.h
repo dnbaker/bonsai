@@ -7,7 +7,7 @@
 #include <future>
 #include <functional>
 
-#include "htslib/khash.h"
+#include "util.h"
 
 // Largest odd kmer that can held in 64 bits, since 32 Ts is reserved to signal ambiguity
 #define MAX_KMER 31

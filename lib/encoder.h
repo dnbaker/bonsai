@@ -109,8 +109,8 @@ public:
     INLINE uint64_t next_minimizer() {
         return window(pos_++);
     }
-    int has_next_kmer() {return pos_ < l_ - sp_.c_ - 1;}
-    uint64_t next_kmer() {
+    INLINE int has_next_kmer() {return pos_ < l_ - sp_.c_ - 1;}
+    INLINE uint64_t next_kmer() {
         return kmer(pos_++);
     }
 };
@@ -145,7 +145,7 @@ size_t estimate_cardinality(const std::vector<std::string> paths,
     std::vector<std::future<hll_t<np>>> futures;
     std::vector<hll_t<np>> hlls;
     // Submit the first set of jobs
-    for(int i(0); i < num_threads && i < (ssize_t)todo; ++i) {
+    for(size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
         futures.emplace_back(std::async(
           std::launch::async, count_lmers<is_lt, np>, paths[i], space, k, w, data));
         ++submitted;
