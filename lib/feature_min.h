@@ -32,9 +32,12 @@ int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret) {
     assert(ret);
     Encoder<score> enc(0, 0, sp, nullptr);
     int khr; // khash return value. Unused, really.
+    uint64_t kmer;
     if(kseq_read(ks) >= 0) {
         enc.assign(ks);
-        while(enc.has_next_kmer()) kh_put(all, ret, enc.next_kmer(), &khr);
+        while(enc.has_next_kmer())
+            if((kmer = enc.next_minimizer()) != BF)
+                kh_put(all, ret, kmer, &khr);
         return 1;
     } else return 0;
 }
@@ -46,9 +49,12 @@ size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, si
     Encoder<score> enc(0, 0, sp, nullptr);
     kseq_t *ks(kseq_init(ifp));
     int khr; // khash return value. Unused, really.
+    uint64_t kmer;
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
-        while(enc.has_next_kmer()) kh_put(all, ret, enc.next_kmer(), &khr);
+        while(enc.has_next_kmer())
+            if((kmer = enc.next_minimizer()) != BF)
+                kh_put(all, ret, kmer, &khr);
     }
     kseq_destroy(ks);
     gzclose(ifp);
@@ -56,14 +62,13 @@ size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, si
 }
 
 template<uint64_t (*score)(uint64_t, void *)>
-khash_t(c) *lca_map(std::vector<std::string> fns, const char *tax_map_path,
+khash_t(c) *lca_map(std::vector<std::string> fns, khash_t(p) *tax_map,
                     const char *seq2tax_path,
                     const Spacer &sp, int num_threads) {
     size_t submitted(0), completed(0), todo(fns.size());
     khash_t(all) **counters((khash_t(all) **)malloc(sizeof(khash_t(all) *) * todo));
     khash_t(c) *ret(kh_init(c));
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
-    khash_t(p) *tax_map(load_khash_map<khash_t(p)>(tax_map_path));
     uint32_t taxid;
     for(size_t i(0), end(fns.size()); i != end; ++i) counters[i] = kh_init(all);
     std::vector<std::future<size_t>> futures;
@@ -100,7 +105,6 @@ khash_t(c) *lca_map(std::vector<std::string> fns, const char *tax_map_path,
 
     // Clean up
     free(counters);
-    kh_destroy(p, tax_map);
     destroy_name_hash(name_hash);
     return ret;
 }

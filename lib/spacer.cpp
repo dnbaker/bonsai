@@ -2,7 +2,7 @@
 #include "encoder.h"
 
 // Simple test for spacer IO.
-using namespace kpg;
+namespace kpg {
 uint32_t comb_size(const spvec_t &spaces) {
     uint32_t ret(spaces.size() + 1); // Since there's 1 fewer entry in spaces
     // We then increment the size of our comb for each space.
@@ -10,6 +10,17 @@ uint32_t comb_size(const spvec_t &spaces) {
     return ret;
 }
 
+spvec_t encode_spacing(const char *space_string) {
+    spvec_t ret;
+    while(*space_string) {
+        ret.emplace_back(atoi(space_string));
+        space_string = strchr(space_string, ',');
+        if(space_string) ++space_string;
+    }
+    return ret;
+}
+
+}
 #ifdef __SPVEC_MAIN
 int main(void) {
     spvec_t s;

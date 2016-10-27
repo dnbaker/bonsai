@@ -10,8 +10,7 @@ namespace kpg {
 typedef std::vector<uint8_t> spvec_t;
 
 uint32_t comb_size(const spvec_t &spaces);
-
-
+spvec_t encode_spacing(const char *space_string);
 struct Spacer {
     // Instance variables
     spvec_t s_; // Spaces to skip
@@ -31,7 +30,17 @@ public:
         assert(s_.size() + 1 == k);
         fprintf(stderr, "Size of spaces: %zu. k_: %i\n", s_.size(), (int)k);
     }
+    Spacer(unsigned k, uint16_t w, const char *space_string):
+      s_(encode_spacing(space_string)),
+      k_(k),
+      w_(w),
+      c_(comb_size(s_)),
+      mask_(__kmask_init(k))
+    {
+        assert(s_.size() + 1 == k);
+    }
     void write(uint64_t kmer, FILE *fp=stdout) {
+        kmer ^= XOR_MASK;
         int offset = ((k_ - 1) << 1);
         fputc(num2nuc((kmer >> offset) & 0x3u), fp);
         for(auto s: s_) {
