@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <algorithm>
 #include "kmerutil.h"
 
 namespace kpg {
@@ -27,21 +28,21 @@ public:
       c_(comb_size(s_)),
       mask_(__kmask_init(k))
     {
+        for(auto &i: s_) ++i; // Convert differences into offsets
         assert(s_.size() + 1 == k);
-        fprintf(stderr, "Size of spaces: %zu. k_: %i\n", s_.size(), (int)k);
     }
     Spacer(unsigned k, uint16_t w, const char *space_string):
         Spacer(k, w, encode_spacing(space_string))
     {
     }
-    void write(uint64_t kmer, FILE *fp=stdout) {
+    void write(uint64_t kmer, FILE *fp=stdout) const {
         kmer ^= XOR_MASK;
         int offset = ((k_ - 1) << 1);
         fputc(num2nuc((kmer >> offset) & 0x3u), fp);
         for(auto s: s_) {
             assert(offset >= 0);
             offset -= 2;
-            while(s--) fputc('-', fp);
+            while(s-- > 1) fputc('-', fp);
             fputc(num2nuc((kmer >> offset) & 0x3u), fp);
         }
         fputc('\n', fp);
@@ -51,13 +52,11 @@ public:
         std::string ret;
         ret.reserve(c_ - k_ + 1);
         int offset = ((k_ - 1) << 1);
-        fprintf(stderr, "offset: %i. vec size: %zu. c_: %u\n", offset, s_.size(), c_);
         ret.push_back(num2nuc((kmer >> offset) & 0x3u));
-        for(auto i(s_.crbegin()); i != s_.crend(); ++i) {
-            auto s(*i);
+        for(auto s: s_) {
             assert(offset >= 0);
             offset -= 2;
-            while(s--) ret.push_back('-');
+            while(s-- > 1) ret.push_back('-');
             ret.push_back(num2nuc((kmer >> offset) & 0x3u));
         }
         return ret;

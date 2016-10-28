@@ -6,13 +6,16 @@
 #include <cstdint>
 #include <type_traits>
 #include "htslib/khash.h"
+#include "lib/logutil.h"
 
 #ifdef __GNUC__
 #  define likely(x) __builtin_expect((x),1)
 #  define unlikely(x) __builtin_expect((x),0)
+#  define UNUSED(x) __attribute__((unused)) x
 #else
-#  define likely(x)
-#  define unlikely(x)
+#  define likely(x) (x)
+#  define unlikely(x) (x)
+#  define UNUSED(x) (x)
 #endif
 
 #if __GNUC__ || __clang__
@@ -25,45 +28,75 @@ namespace kpg {
 
 KHASH_SET_INIT_INT64(all)
 KHASH_MAP_INIT_INT64(c, uint32_t)
+KHASH_MAP_INIT_INT64(64, uint64_t)
 KHASH_MAP_INIT_INT(p, uint32_t)
 KHASH_MAP_INIT_STR(name, uint32_t)
 
 size_t count_lines(const char *fn);
 khash_t(name) *build_name_hash(const char *fn);
 void destroy_name_hash(khash_t(name) *hash);
+khash_t(p) *build_parent_map(const char *fn);
 
-template <typename T>
-void write_khash_map(T *map, const char *path) {
-    FILE *fp(fopen(path, "wb"));
-    fwrite("KHASH_DB", 1, 8, fp);
-    fwrite(map, 1, sizeof(*map), fp);
-    fwrite(map->flags, 1, sizeof(*map->flags) * map->n_buckets, fp);
-    fwrite(map->keys, 1, sizeof(*map->keys) * map->n_buckets, fp);
-    fwrite(map->vals, 1, sizeof(*map->vals) * map->n_buckets, fp);
-    fclose(fp);
+static INLINE size_t roundup64(size_t x) {
+    --x;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
+    x |= x >> 32;
+    return ++x;
 }
 
 template <typename T>
+void print_khash(T *rex) {
+    fprintf(stderr, "n buckets %u, nocc %u, size %u, upper bound %u.\n",
+            rex->n_buckets, rex->n_occupied, rex->size, rex->upper_bound);
+}
+
+#define __fw(item, fp) \
+  fwrite(&(item), 1, sizeof(item), fp)
+template <typename T>
+void write_khash_map(T *map, const char *path) {
+    FILE *fp(fopen(path, "wb"));
+    __fw(map->n_buckets, fp);
+    __fw(map->n_occupied, fp);
+    __fw(map->size, fp);
+    __fw(map->upper_bound, fp);
+    fwrite(map->flags, __ac_fsize(map->n_buckets), sizeof(*map->flags), fp);
+    fwrite(map->keys, map->n_buckets, sizeof(*map->keys), fp);
+    fwrite(map->vals, map->n_buckets, sizeof(*map->vals), fp);
+    fclose(fp);
+}
+#undef __fw
+
+template <typename T>
 T *load_khash_map(const char *path) {
-    char magic[9]{0};
-    T *rex = (T *)malloc(sizeof(T));
+    T *rex = (T *)calloc(1, sizeof(T));
     FILE *fp(fopen(path, "rb"));
-    fread(magic, 1, sizeof magic, fp);
-    if(memcmp(magic, "KHASH_DB", 8)) {
-        fprintf(stderr,  "Missing magic number. (%s found).\n", magic);
-        exit(1);
-    }
     typedef typename std::remove_pointer<decltype(rex->keys)>::type keytype_t;
     typedef typename std::remove_pointer<decltype(rex->vals)>::type valtype_t;
-    fread(rex, 1, sizeof(*rex), fp);
-    rex->flags = (uint32_t *)malloc(rex->n_buckets * sizeof(uint32_t));
-    fread(rex->flags, sizeof((*rex->flags)) * rex->n_buckets, 1uL, fp);
-    rex->keys = (keytype_t *)malloc(rex->n_buckets * sizeof(keytype_t));
-    fread(rex->keys, sizeof((*rex->keys)) * rex->n_buckets, 1uL, fp);
-    rex->vals = (valtype_t *)malloc(rex->n_buckets * sizeof(valtype_t));
-    fread(rex->vals, sizeof(*rex->vals) * rex->n_buckets, 1uL, fp);
+    fread(&rex->n_buckets, 1, sizeof(rex->n_buckets), fp);
+    fread(&rex->n_occupied, 1, sizeof(rex->n_occupied), fp);
+    fread(&rex->size, 1, sizeof(rex->size), fp);
+    fread(&rex->upper_bound, 1, sizeof(rex->upper_bound), fp);
+    rex->flags = (uint32_t *)malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
+    rex->keys = (keytype_t *)malloc(sizeof(*rex->keys) * rex->n_buckets);
+    rex->vals = (valtype_t *)malloc(sizeof(*rex->vals) * rex->n_buckets);
+    fread(rex->flags, __ac_fsize(rex->n_buckets), sizeof(*rex->flags), fp);
+    fread(rex->keys, 1, rex->n_buckets * sizeof(*rex->keys), fp);
+    fread(rex->vals, 1, rex->n_buckets * sizeof(*rex->vals), fp);
     fclose(fp);
     return rex;
+}
+
+inline void kset_union(khash_t(all) *a, khash_t(all) *b) {
+    khint_t ki2;
+    int khr;
+    for(ki2 = kh_begin(b); ki2 != kh_end(b); ++ki2)
+        if(kh_exist(b, ki2))
+            if(kh_get(all, a, kh_key(b, ki2)) == kh_end(a))
+                kh_put(all, a, kh_key(b, ki2), &khr);
 }
 
 uint32_t lca(khash_t(p) *map, uint32_t a, uint32_t b);

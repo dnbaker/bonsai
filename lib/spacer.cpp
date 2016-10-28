@@ -12,10 +12,12 @@ uint32_t comb_size(const spvec_t &spaces) {
 
 spvec_t encode_spacing(const char *space_string) {
     spvec_t ret;
-    while(*space_string) {
-        ret.emplace_back(atoi(space_string));
-        space_string = strchr(space_string, ',');
-        if(space_string) ++space_string;
+    if(space_string) {
+        while(*space_string) {
+            ret.emplace_back(atoi(space_string));
+            space_string = strchr(space_string, ',');
+            if(space_string) ++space_string;
+        }
     }
     return ret;
 }

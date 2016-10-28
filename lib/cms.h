@@ -16,16 +16,6 @@
 
 namespace kpg {
 
-static INLINE size_t roundup64(size_t x) {
-    --x;
-    x |= x >> 1;
-    x |= x >> 2;
-    x |= x >> 4;
-    x |= x >> 8;
-    x |= x >> 16;
-    x |= x >> 32;
-    return ++x;
-}
 
 // Hash function taken from Murmurhash3, though we only hash a single single-bit element.
 template<typename T, size_t ns=4>

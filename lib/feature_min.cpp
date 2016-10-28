@@ -1,3 +1,4 @@
+#include <cctype>
 #include "feature_min.h"
 
 namespace kpg {
@@ -23,6 +24,19 @@ khash_t(c) *make_depth_hash(khash_t(c) *lca_map, khash_t(p) *tax_map) {
     return ret;
 }
 
+khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, khash_t(p) *tax) {
+    khash_t(64) *ret(kh_init(64));
+    int khr;
+    khiter_t kir;
+    kh_resize(64, ret, kc->n_buckets);
+    for(khiter_t ki(0); ki != kh_end(kc); ++ki) {
+        if(!kh_exist(kc, ki)) continue;
+        kir = kh_put(64, ret, kh_key(kc, ki), &khr);
+        kh_val(ret, kir) = ((uint64_t)node_depth(tax, kh_val(kc, ki) << 32)) | kh_val(kc, ki);
+    }
+    return ret;
+}
+
 void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, uint32_t taxid) {
     int khr;
     khint_t k2;
@@ -31,7 +45,7 @@ void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, uint32_t
             if((k2 = kh_get(c, kc, kh_key(set, ki))) == kh_end(kc)) {
                 k2 = kh_put(c, kc, kh_key(set, ki), &khr);
                 kh_val(kc, k2) = taxid;
-            } else kh_val(kc, k2) = lca(tax, taxid, kh_val(kc, k2));
+            } else if(kh_val(kc, k2) != taxid) kh_val(kc, k2) = lca(tax, taxid, kh_val(kc, k2));
         }
     }
 }
@@ -42,13 +56,14 @@ uint32_t get_taxid(const char *fn, khash_t(name) *name_hash) {
     khint_t ki;
     char buf[bufsz];
     char *line(gzgets(fp, buf, bufsz));
-    char *p(strchr(line, '\t'));
+    char *p(++line);
+    while(!isspace(*p)) ++p;
     *p = 0;
     if((ki = kh_get(name, name_hash, line)) == kh_end(name_hash)) {
         fprintf(stderr, "Missing taxid for %s.\n", line);
         exit(1);
     }
-    uint32_t ret(kh_val(name_hash, ki));
+    const uint32_t ret(kh_val(name_hash, ki));
     gzclose(fp);
     return ret;
 }

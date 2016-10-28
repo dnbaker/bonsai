@@ -12,8 +12,11 @@ namespace kpg {
 
 struct elscore_t {
     uint64_t el_, score_;
-    elscore_t(uint64_t el, uint64_t score): el_(el), score_(score) {}
-    elscore_t(): el_(0), score_(0) {}
+    INLINE elscore_t(uint64_t el, uint64_t score): el_(el), score_(score) {
+        assert(el == el_);
+        assert(score == score_);
+    }
+    INLINE elscore_t(): el_(0), score_(0) {}
     inline bool operator <(const elscore_t &other) const {
         return score_ < other.score_ || el_ < other.el_; // Lexicographic is tie-breaker.
     }
@@ -46,16 +49,23 @@ class qmap_t {
     // *maybe* TODO
     // Could also easily templatify this module for other windowing tasks.
     esq_t list_;
+#if !NDEBUG
+public:
     esmap_t map_;
+private:
+#endif
     const size_t wsz_;  // window size to keep
     public:
     uint64_t next_value(const uint64_t el, const uint64_t score) {
-        if(list_.size() == wsz_) {
-            map_.del(*list_.begin());
+        list_.emplace_back(el, score);
+        assert(list_.back().el_ == el);
+        assert(list_.back().score_ == score);
+        map_.add(list_.back());
+        if(list_.size() > wsz_) {
+            map_.del(list_.front());
             list_.pop_front();
         }
-        list_.emplace_back(el, score);
-        map_.add(*list_.end());
+        assert(list_.size() <= wsz_);
         return list_.size() == wsz_ ? map_.begin()->first.el_: BF;
         // Signal a window that is not filled by 0xFFFFFFFFFFFFFFFF
     }
