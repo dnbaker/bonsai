@@ -243,7 +243,7 @@ static inline int max_hp(uint64_t kmer)
 
 static inline int fails_hp(uint64_t kmer, int threshold)
 {
-    char run(1), last(kmer&0x3);
+    unsigned char run(1), last(kmer&0x3);
     for(kmer >>= 2; kmer; kmer>>=2) {
         if((kmer&0x3) == last) {
             if(++run == threshold) return 1;
@@ -253,7 +253,7 @@ static inline int fails_hp(uint64_t kmer, int threshold)
 }
 static inline int fails_hp(char *str, int threshold)
 {
-    char last(*str), run(1);
+    unsigned char last(*str), run(1);
     for(++str; *str; ++str) {
         if(*str == last) {
             if(++run == threshold) return 1;

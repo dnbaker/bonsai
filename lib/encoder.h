@@ -112,7 +112,8 @@ public:
         uint64_t new_kmer(cstr_lut[s_[start]]);
         for(const auto s: sp_.s_) {
             new_kmer <<= 2;
-            new_kmer |= cstr_lut[s_[(start += s + 1)]]; // Incrememnt while accessing.
+            start += s; ++start;
+            new_kmer |= cstr_lut[s_[start]]; // Incrememnt while accessing.
             assert(start < l_ - sp_.c_ + 1);
         }
         new_kmer = canonical_representation(new_kmer, sp_.k_);

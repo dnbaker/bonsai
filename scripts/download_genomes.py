@@ -54,6 +54,8 @@ TAX_PATH = "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
 
 
 def get_clade_map(clades):
+    if clades[0] == "default":
+        return {k: v for k, v in ALL_CLADES_MAP.items() if k in DEFAULT_CLADES}
     if clades[0] == "all":
         return ALL_CLADES_MAP
     ret = {}
@@ -134,7 +136,7 @@ def main():
     clades = args.clades if args.clades else DEFAULT_CLADES
     for clade in clades:
         print(clade)
-        assert clade in ALL_CLADES_MAP or clade == "all"
+        assert clade in ALL_CLADES_MAP or clade in ["all", "default"]
     to_dl = get_clade_map(clades)
     nameidmap = {}
     for clade in to_dl:

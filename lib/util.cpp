@@ -24,7 +24,6 @@ size_t count_lines(const char *fn) {
 uint32_t lca(khash_t(p) *map, uint32_t a, uint32_t b) {
     // Use std::set to use RB trees for small set rather than hash table.
     std::set<uint32_t> nodes;
-    int khr;
     khint_t ki;
     while(a) {
         nodes.insert(a);
@@ -84,7 +83,7 @@ khash_t(name) *build_name_hash(const char *fn) {
     return ret;
 }
 
-khash_t(name) *destroy_name_hash(khash_t(name) *hash) {
+void destroy_name_hash(khash_t(name) *hash) {
     for(khint_t ki(kh_begin(hash)); ki != kh_end(hash); ++ki)
         if(kh_exist(hash, ki))
             free((void *)kh_key(hash, ki));

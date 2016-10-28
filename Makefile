@@ -1,9 +1,9 @@
 CXX=g++
-CXXFLAGS=-O3 -flto -funroll-loops -std=c++17 -DNDEBUG
+CXXFLAGS=-O3 -flto -funroll-loops -std=c++17 -DNDEBUG -Wall -pedantic -Wno-char-subscripts
 LD=-lz -pthread
 
 
-OBJS=lib/encoder.o lib/kmerutil.o lib/spacer.o lib/cms.o third_party/quickfile.o \
+OBJS=lib/encoder.o lib/kmerutil.o lib/spacer.o lib/cms.o \
      lib/feature_min.o lib/ncbi.o lib/util.o
 
 EXEC_OBJS=src/taxmap.o

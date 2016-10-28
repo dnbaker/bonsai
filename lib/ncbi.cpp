@@ -10,9 +10,8 @@ khash_t(p) *build_parent_map(const char *fn) {
     khash_t(p) *ret(kh_init(p));
     kh_resize(p, ret, nlines);
     size_t bufsz = 4096;
-    char *buf((char *)malloc(bufsz)), *tmp(nullptr);
+    char *buf((char *)malloc(bufsz));
     ssize_t len;
-    int *offsets(nullptr), noffsets(0);
     khint_t ki;
     int khr;
     while((len = getline(&buf, &bufsz, fp)) >= 0) {

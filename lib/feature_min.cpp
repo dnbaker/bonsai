@@ -37,7 +37,7 @@ void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, uint32_t
 }
 
 uint32_t get_taxid(const char *fn, khash_t(name) *name_hash) {
-    gzFile fp;
+    gzFile fp(gzopen(fn, "rb"));
     static const size_t bufsz(2048);
     khint_t ki;
     char buf[bufsz];

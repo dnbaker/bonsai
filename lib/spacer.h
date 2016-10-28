@@ -20,8 +20,8 @@ struct Spacer {
     const uint64_t mask_;
 
 public:
-    Spacer(unsigned k, uint16_t w, spvec_t *spaces=nullptr):
-      s_(spaces ? *spaces: spvec_t(k - 1, 0)),
+    Spacer(unsigned k, uint16_t w, spvec_t spaces=spvec_t{}):
+      s_(spaces.size() ? spaces: spvec_t(k - 1, 0)),
       k_(k),
       w_(w),
       c_(comb_size(s_)),

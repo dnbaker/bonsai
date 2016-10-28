@@ -30,7 +30,7 @@ KHASH_MAP_INIT_STR(name, uint32_t)
 
 size_t count_lines(const char *fn);
 khash_t(name) *build_name_hash(const char *fn);
-khash_t(name) *destroy_name_hash(khash_t(name) *hash);
+void destroy_name_hash(khash_t(name) *hash);
 
 template <typename T>
 void write_khash_map(T *map, const char *path) {
