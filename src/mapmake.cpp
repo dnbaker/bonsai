@@ -35,8 +35,9 @@ int taxdbb_main(int argc, char *argv[]) {
     spvec_t sv(encode_spacing(spacing.data()));
     Spacer sp(k, w, sv);
     std::vector<std::string> inpaths(argv + optind + 2, argv + argc);
-    khash_t(64) *td(load_khash_map<khash_t(64)>(argv[optind]));
+    khash_t(64) *td(mode ? load_khash_map<khash_t(64)>(argv[optind]): nullptr);
     chm_t out;
+    //mindb_helper<tax_score>(inpaths[0], sp, td, out);
     switch(mode) {
         case score_scheme::LEX:
             build_minimized_database<lex_score>(td, sp, inpaths, out, num_threads); break;

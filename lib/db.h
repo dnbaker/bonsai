@@ -2,20 +2,19 @@
 #define __DB_H__
 
 #include "feature_min.h"
+#include "encoder.h"
 #include "cuckoohash_map.hh"
 #include "city_hasher.hh"
 
 namespace kpg {
 typedef cuckoohash_map<uint64_t, uint32_t, CityHasher<uint64_t>> chm_t;
 
-int mindb_helper(std::string &path, const Spacer &sp, void *data, chm_t &ret);
-
 template<uint64_t (*score)(uint64_t, void *)>
-int mindb_helper(std::string &path, const Spacer &sp, void *data, chm_t &ret) {
+int mindb_helper(const char *path, const Spacer &sp, void *data, chm_t &ret) {
     uint64_t kmer;
     khash_t(64) *td_map((khash_t(64) *)data);
     Encoder<score> enc(0, 0, sp, data);
-    gzFile fp(gzopen(path.data(), "rb"));
+    gzFile fp(gzopen(path, "rb"));
     kseq_t *ks(kseq_init(fp));
     khint_t ki;
     if(likely(kseq_read(ks) >= 0)) {
@@ -39,9 +38,9 @@ void build_minimized_database(khash_t(64) *td_map, const Spacer &sp, std::vector
     ret.clear();
     std::vector<std::future<int>> futures;
     size_t i(0);
-    while(i < num_threads && i < paths.size()) {
+    while(i < (unsigned)num_threads && i < paths.size()) {
         futures.emplace_back(std::async(
-          std::launch::async, mindb_helper<score>, paths[i++], sp, (void *)td_map, ret));
+          std::launch::async, mindb_helper<score>, paths[i++].data(), sp, (void *)td_map, std::ref(ret)));
     }
     while(futures.size()) {
         for(auto f(futures.begin()); f != futures.end(); ++f) {
@@ -49,7 +48,7 @@ void build_minimized_database(khash_t(64) *td_map, const Spacer &sp, std::vector
                 futures.erase(f);
                 if(i < paths.size())
                     futures.emplace_back(std::async(
-                        std::launch::async, mindb_helper<score>, paths[i++], sp, (void *)td_map, ret));
+                        std::launch::async, mindb_helper<score>, paths[i++].data(), sp, (void *)td_map, std::ref(ret)));
                 break;
             }
         }

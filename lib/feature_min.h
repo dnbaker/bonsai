@@ -97,9 +97,6 @@ khash_t(c) *lca_map(std::vector<std::string> fns, khash_t(p) *tax_map,
     khash_t(c) *ret(kh_init(c));
     kh_resize(c, ret, start_size);
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
-    fprintf(stderr, "%p: name_hash.\n", (void *)name_hash);
-    fprintf(stderr, "%p: counters.\n", (void *)counters);
-    fprintf(stderr, "%p: ret.\n", (void *)ret);
     /*
     for(khiter_t ki(kh_begin(name_hash)); ki != kh_end(name_hash); ++ki) {
         if(kh_exist(name_hash, ki))
