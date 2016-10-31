@@ -1,41 +1,49 @@
 #include "lib/feature_min.h"
 #include "lib/util.h"
+#include "lib/db.h"
 
 using namespace kpg;
 
 int taxdbb_main(int argc, char *argv[]) {
-    int c, taxmap_preparsed(0), use_hll(0), num_threads(-1), mode(score_scheme::LEX);
+    int c, num_threads(-1), mode(score_scheme::LEX), w(50);
     unsigned k(31);
     std::string spacing;
     if(argc < 5) {
         usage:
         // TODO update this usage.
-        fprintf(stderr, "Usage: %s <flags> <seq2tax.path> <taxmap.path> <out.path> <paths>\nFlags:\n"
+        fprintf(stderr, "Usage: %s <flags> <db.path> <out.path> <paths>\nFlags:\n"
                 "-k: Set k.\n"
                 "-p: Number of threads\n-S: add a spacer of the format"
                 "<int>,<int>,<int>, (...), where each integer is the number of spaces"
                 "between successive bases included in the seed. There must be precisely k - 1"
                 "elements in this list. Use this option multiple times to specify multiple seeds.\n"
+                "-w: Window size\n"
                 , *argv);
         exit(EXIT_FAILURE);
     }
-    while((c = getopt(argc, argv, "S:p:k:tfTHh?")) >= 0) {
+    while((c = getopt(argc, argv, "w:S:p:k:tfTHh?")) >= 0) {
         switch(c) {
             case 'h': case '?': goto usage;
             case 'k': k = atoi(optarg); break;
+            case 'w': w = atoi(optarg); break;
             case 'p': num_threads = atoi(optarg); break;
             case 'S': spacing = optarg; break;
-            case 'T': taxmap_preparsed = 1; break;
-            case 'H': use_hll = 1; break;
             case 't': mode = score_scheme::TAX_DEPTH; break;
             case 'f': mode = score_scheme::FEATURE_COUNT; break;
         }
     }
     spvec_t sv(encode_spacing(spacing.data()));
-    Spacer sp(k, k, sv);
-    std::vector<std::string> inpaths(argv + optind + 3, argv + argc);
+    Spacer sp(k, w, sv);
+    std::vector<std::string> inpaths(argv + optind + 2, argv + argc);
     khash_t(64) *td(load_khash_map<khash_t(64)>(argv[optind]));
-    // Then 
+    chm_t out;
+    switch(mode) {
+        case score_scheme::LEX:
+            build_minimized_database<lex_score>(td, sp, inpaths, out, num_threads); break;
+        case score_scheme::FEATURE_COUNT: case score_scheme::TAX_DEPTH:
+            build_minimized_database<tax_score>(td, sp, inpaths, out, num_threads); break;
+    }
+    // Then write it to disk somehow
     kh_destroy(64, td);
     return EXIT_SUCCESS;
 }

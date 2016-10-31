@@ -32,7 +32,7 @@ khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, khash_t(p) *tax) {
     for(khiter_t ki(0); ki != kh_end(kc); ++ki) {
         if(!kh_exist(kc, ki)) continue;
         kir = kh_put(64, ret, kh_key(kc, ki), &khr);
-        kh_val(ret, kir) = ((uint64_t)node_depth(tax, kh_val(kc, ki) << 32)) | kh_val(kc, ki);
+        kh_val(ret, kir) = ((uint64_t)node_depth(tax, kh_val(kc, ki)) << 32) | kh_val(kc, ki);
     }
     return ret;
 }
