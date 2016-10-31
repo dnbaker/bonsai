@@ -3,7 +3,7 @@ CXX=g++
 WARNINGS=-Wall -pedantic -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align
-OPT=-O3 -funroll-loops
+OPT=-O3 -funroll-loops -mrtm
 CXXFLAGS=$(OPT) -std=c++17 $(WARNINGS)
 LIB=-lz -pthread -lcityhash
 LD=-L.

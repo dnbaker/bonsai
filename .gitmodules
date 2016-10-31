@@ -1,6 +1,6 @@
 [submodule "htslib"]
 	path = htslib
 	url = https://github.com/samtools/htslib
-[submodule "libcuckoo"]
-	path = libcuckoo
-	url = https://github.com/efficient/libcuckoo
+[submodule "growt"]
+	path = growt
+	url = https://github.com/TooBiased/growt

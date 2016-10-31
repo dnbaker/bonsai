@@ -68,10 +68,6 @@ def get_clade_map(clades):
     return ret
 
 
-def get_assembly_txt(url):
-    return url + "/assembly_summary.txt"
-
-
 def parse_assembly(fn, fnidmap):
     to_fetch = []
     for line in open(fn):
@@ -84,7 +80,9 @@ def parse_assembly(fn, fnidmap):
         if ("latest" not in line
                 or (("Complete Genome" not in line and
                                      "GRCh" not in line
-                     and s[13] != "Full"))):
+                     and s[13] != "Full")) or
+                any(i in line.lower() for i in
+                    ["supercontig", "scaffold"]):
             print("Failing line %s" % line[:-1])
             continue
         fn = "%s_genomic.fna.gz" % ([i for i in s[-2].split("/") if i][-1])

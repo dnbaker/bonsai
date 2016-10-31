@@ -3,12 +3,10 @@
 
 #include "feature_min.h"
 #include "encoder.h"
-#include "cuckoohash_map.hh"
-#include "city_hasher.hh"
 
 namespace kpg {
-typedef cuckoohash_map<uint64_t, uint32_t, CityHasher<uint64_t>> chm_t;
 
+#if 0
 template<uint64_t (*score)(uint64_t, void *)>
 int mindb_helper(const char *path, const Spacer &sp, void *data, chm_t &ret) {
     uint64_t kmer;
@@ -54,6 +52,7 @@ void build_minimized_database(khash_t(64) *td_map, const Spacer &sp, std::vector
         }
     }
 }
+#endif
 
 } // namespace kpg
 
