@@ -4,3 +4,6 @@
 [submodule "growt"]
 	path = growt
 	url = https://github.com/TooBiased/growt
+[submodule "junction"]
+	path = junction
+	url = https://github.com/preshing/junction
