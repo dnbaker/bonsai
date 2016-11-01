@@ -3,10 +3,10 @@ CXX=g++
 WARNINGS=-Wall -pedantic -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align
-OPT=-O3 -funroll-loops -mrtm
+OPT=-O3 -funroll-loops
 CXXFLAGS=$(OPT) -std=c++17 $(WARNINGS)
-LIB=-lz -pthread -lcityhash
-LD=-L.
+LIB=-lz -pthread -lcityhash -march=native
+LD=-L. -L/usr/lib/gcc/x86_64-redhat-linux/6.2.1/
 
 
 OBJS=lib/encoder.o lib/spacer.o lib/cms.o \
@@ -27,7 +27,7 @@ HEADERS=lib/encoder.h lib/kmerutil.h lib/spacer.h lib/misc.h \
         lib/cms.h lib/kseq_declare.h lib/feature_min.h lib/hll.h lib/hash.h lib/db.h
 
 
-INCLUDE=-I. -Ihtslib -Ilib -Ilibcuckoo/cityhash-1.1.1/src -Ilibcuckoo/src
+INCLUDE=-I. -Ihtslib -Ilib -Ijellyfish/include/
 
 all: $(OBJS) $(EX)
 

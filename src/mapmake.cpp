@@ -7,7 +7,7 @@ using namespace kpg;
 int taxdbb_main(int argc, char *argv[]) {
     int c, num_threads(-1), mode(score_scheme::LEX), w(50);
     unsigned k(31);
-    std::string spacing;
+    std::vector<std::string> spacings;
     if(argc < 5) {
         usage:
         // TODO update this usage.
@@ -27,13 +27,14 @@ int taxdbb_main(int argc, char *argv[]) {
             case 'k': k = atoi(optarg); break;
             case 'w': w = atoi(optarg); break;
             case 'p': num_threads = atoi(optarg); break;
-            case 'S': spacing = optarg; break;
+            case 'S': spacings.push_back(optarg); break;
             case 't': mode = score_scheme::TAX_DEPTH; break;
             case 'f': mode = score_scheme::FEATURE_COUNT; break;
         }
     }
-    spvec_t sv(encode_spacing(spacing.data()));
-    Spacer sp(k, w, sv);
+    Classifier<hash_score> cr(1 << 20, k, num_threads);
+    std::vector<Spacer> spacers;
+    for(auto &sp: spacings) spacers.emplace_back(k, w, encode_spacing(sp.data()));
     std::vector<std::string> inpaths(argv + optind + 2, argv + argc);
     khash_t(64) *td(mode ? load_khash_map<khash_t(64)>(argv[optind]): nullptr);
     /*

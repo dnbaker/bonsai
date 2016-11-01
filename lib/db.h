@@ -3,9 +3,37 @@
 
 #include "feature_min.h"
 #include "encoder.h"
+#include "jellyfish/hash_counter.hpp"
+
+typedef jellyfish::cooperative::hash_counter<uint64_t> jfhash_t;
 
 namespace kpg {
 
+template <uint64_t (*score)(uint64_t, void *)>
+class Classifier {
+    // Further, this needs a vector of Encoder objects
+    static const size_t reprobe_limit = 128;
+
+    const size_t default_nelem_;
+    const unsigned nt_;
+    const unsigned k_;
+    std::vector<jfhash_t> hashes_;
+    std::vector<Encoder<score>> encoders_;
+    public:
+    Classifier(size_t nelem, uint8_t k, int num_threads):
+        default_nelem_(nelem),
+        nt_(num_threads > 0 ? num_threads: 16),
+        k_(k)
+    {}
+    ~Classifier() {
+    }
+    void add_encoder(Spacer &sp, void *data) {
+        encoders_.emplace_back(nullptr, 0, sp, data);
+    }
+    void add_hash(size_t nelem=0) {
+        hashes_.emplace_back(nelem ? nelem: default_nelem_, (k_ << 1), nt_, reprobe_limit);
+    }
+};
 #if 0
 template<uint64_t (*score)(uint64_t, void *)>
 int mindb_helper(const char *path, const Spacer &sp, void *data, chm_t &ret) {

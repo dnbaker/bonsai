@@ -88,7 +88,7 @@ template<uint64_t (*score)(uint64_t, void *)=lex_score>
 class Encoder {
     const char *s_;
     size_t l_;
-    const Spacer &sp_;
+    const Spacer sp_;
     unsigned pos_;
     void *data_;
     qmap_t qmap_;
