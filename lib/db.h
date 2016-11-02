@@ -4,6 +4,7 @@
 #include "feature_min.h"
 #include "encoder.h"
 #include "jellyfish/hash_counter.hpp"
+//#include "growt/data-structures/definitions.h"
 
 typedef jellyfish::cooperative::hash_counter<uint64_t> jfhash_t;
 

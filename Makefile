@@ -10,7 +10,7 @@ LD=-L. -L/usr/lib/gcc/x86_64-redhat-linux/6.2.1/
 
 
 OBJS=lib/encoder.o lib/spacer.o lib/cms.o \
-     lib/feature_min.o lib/util.o lib/db.o
+     lib/feature_min.o lib/util.o
 
 TEST_OBJS=test/test_encoding.o \
           test/test_feature_min.o \
@@ -27,7 +27,7 @@ HEADERS=lib/encoder.h lib/kmerutil.h lib/spacer.h lib/misc.h \
         lib/cms.h lib/kseq_declare.h lib/feature_min.h lib/hll.h lib/hash.h lib/db.h
 
 
-INCLUDE=-I. -Ihtslib -Ilib -Ijellyfish/include/
+INCLUDE=-I. -Ihtslib -Ilib -Ijellyfish/include/ -Igrowt
 
 all: $(OBJS) $(EX)
 
