@@ -41,7 +41,7 @@ static INLINE uint64_t feature_score(uint64_t i, void *data) {
     khash_t(64) *hash((khash_t(64) *)data);
     khint_t k1;
     if(unlikely((k1 = kh_get(64, hash, i)) == kh_end(hash))) goto fail;
-    return ((std::numeric_limits<uint32t>::max() - (kh_val(hash, k1) >> 32)) << 32) | (kh_val(hash, k1) & (uint32_t)(~0));
+    return ((std::numeric_limits<uint32_t>::max() - (kh_val(hash, k1) >> 32)) << 32) | (kh_val(hash, k1) & (uint32_t)(~0));
     fail:
         fprintf(stderr, "i: %" PRIu64 "\n", i);
         exit(EXIT_FAILURE);

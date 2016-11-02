@@ -2,7 +2,7 @@
 CXX=g++
 WARNINGS=-Wall -pedantic -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
-         -Wformat -Wcast-align
+         -Wformat -Wcast-align -Wno-unused-function
 OPT=-O3 -funroll-loops
 CXXFLAGS=$(OPT) -std=c++17 $(WARNINGS)
 LIB=-lz -pthread
@@ -13,7 +13,7 @@ JFO=jellyfish/lib/allocators_mmap.o jellyfish/lib/rectangular_binary_matrix.o je
 
 
 OBJS=lib/encoder.o lib/spacer.o lib/cms.o \
-     lib/feature_min.o lib/util.o $(JFO)
+     lib/feature_min.o lib/util.o lib/db.o lib/kseq_declare.o $(JFO)
 
 TEST_OBJS=test/test_encoding.o \
           test/test_feature_min.o \
