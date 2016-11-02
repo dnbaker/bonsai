@@ -2,6 +2,7 @@
 #define _ENCODER_H_
 #include <thread>
 #include <future>
+#include <limits>
 
 #include <zlib.h>
 #include <unistd.h>
@@ -24,48 +25,23 @@ enum score_scheme {
     FEATURE_COUNT = 2
 };
 
-struct lca_tax_t {
-    khash_t(c) *lca;
-    khash_t(p) *tax;
-};
-
-static INLINE int is_lt(uint64_t i, uint64_t j, UNUSED(void *data)) {
+template<typename T>
+static INLINE int is_lt(T i, T j, UNUSED(void *data)) {
     return i < j;
-}
-
-static INLINE int tax_is_lt(uint64_t i, uint64_t j, void *data) {
-    lca_tax_t *hashes((lca_tax_t *)data);
-    khint_t k1, k2;
-    if(unlikely((k1 = kh_get(c, hashes->lca, i)) == kh_end(hashes->lca))) goto fail;
-    if(unlikely((k2 = kh_get(c, hashes->lca, j)) == kh_end(hashes->lca))) goto fail;
-    return node_depth(hashes->tax, kh_val(hashes->lca, k1)) < node_depth(hashes->tax, kh_val(hashes->lca, k2));
-    fail:
-        fprintf(stderr, "i: %" PRIu64 ". j: %" PRIu64 ". Failed? %s.\n", i, j,
-                i == kh_end(hashes->lca) ? j == kh_end(hashes->lca) ? "both": "i" : "j");
-        exit(EXIT_FAILURE);
-}
-
-static INLINE int hashval_is_lt(uint64_t i, uint64_t j, void *data) {
-    khash_t(c) *h((khash_t(c) *)data);
-    khint_t k1, k2;
-    if(unlikely((k1 = kh_get(c, h, i)) == kh_end(h))) goto fail;
-    if(unlikely((k2 = kh_get(c, h, j)) == kh_end(h))) goto fail;
-    return kh_val(h, k1) < kh_val(h, k2);
-    fail:
-        fprintf(stderr, "i: %" PRIu64 ". j: %" PRIu64 ". Failed? %s.\n", i, j,
-                i == kh_end(h) ? j == kh_end(h) ? "both": "i" : "j");
-        exit(EXIT_FAILURE);
 }
 
 static INLINE uint64_t lex_score(uint64_t i, UNUSED(void *data)) {
     return i;
 }
 
-static INLINE uint64_t tax_score(uint64_t i, void *data) {
-    lca_tax_t *hashes((lca_tax_t *)data);
+static INLINE uint64_t feature_score(uint64_t i, void *data) {
+    // Lower feature count is better, so we subtract our number of
+    // features from uint32_t max to get a score which rewards low
+    // feature count kmers.
+    khash_t(64) *hash((khash_t(64) *)data);
     khint_t k1;
-    if(unlikely((k1 = kh_get(c, hashes->lca, i)) == kh_end(hashes->lca))) goto fail;
-    return node_depth(hashes->tax, kh_val(hashes->lca, k1));
+    if(unlikely((k1 = kh_get(64, hash, i)) == kh_end(hash))) goto fail;
+    return ((std::numeric_limits<uint32t>::max() - (kh_val(hash, k1) >> 32)) << 32) | (kh_val(hash, k1) & (uint32_t)(~0));
     fail:
         fprintf(stderr, "i: %" PRIu64 "\n", i);
         exit(EXIT_FAILURE);
