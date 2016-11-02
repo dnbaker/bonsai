@@ -3,7 +3,7 @@ CXX=g++
 WARNINGS=-Wall -pedantic -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align -Wno-unused-function
-OPT=-O3 -funroll-loops
+OPT=-O3 -funroll-loops -fno-asynchronous-unwind-tables -fno-rtti -pipe -fstrict-aliasing
 CXXFLAGS=$(OPT) -std=c++17 $(WARNINGS)
 LIB=-lz -pthread
 LD=-L. -L/usr/lib/gcc/x86_64-redhat-linux/6.2.1/
@@ -61,6 +61,6 @@ unit_tests: $(OBJS) $(TEST_OBJS)
 	 ./unit_tests
 
 clean:
-	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS)
+	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) unit_tests
 
 mostlyclean: clean

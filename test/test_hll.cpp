@@ -54,8 +54,12 @@ TEST_CASE("hll") {
 
 TEST_CASE("parallel hll vs hash") {
     spvec_t vec;
-    static const size_t np(25);
-    ssize_t exact = count_cardinality<lex_score>(paths, 31, 31, vec, nullptr, 2);
-    ssize_t inexact = estimate_cardinality<lex_score, np>(paths, 31, 31, vec, nullptr, 2);
-    REQUIRE(std::abs(exact - inexact) / exact < 1.03896 * exact / std::sqrt(1 << np));
+    static const size_t nps[] {23, 29, 24, 25};
+    for(const auto np: nps) {
+        ssize_t exact = count_cardinality<lex_score>(paths, 31, 31, vec, nullptr, 2);
+        ssize_t inexact = estimate_cardinality<lex_score>(paths, 31, 31, vec, nullptr, 2, np);
+        REQUIRE(std::abs((double)exact - inexact) < 1.03896 * inexact / std::sqrt(1 << np));
+        fprintf(stderr, "For np %zu, we have %lf for expected and %lf for measured as correct as we expect to be, theoretically for %zu and %zu.\n",
+                np, (1.03896 / std::sqrt(1 << np)), (std::abs((double)exact - inexact) / inexact), exact, inexact);
+    }
 }

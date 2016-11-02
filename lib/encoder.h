@@ -161,9 +161,9 @@ khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
     return ret;
 }
 
-template<uint64_t (*score)(uint64_t, void *), size_t np=22>
+template<uint64_t (*score)(uint64_t, void *)>
 hll_t hllcount_lmers(const std::string &path, const Spacer &space,
-                      void *data=nullptr) {
+                     size_t np=22, void *data=nullptr) {
 
     Encoder<score> enc(nullptr, 0, space, data);
     gzFile fp(gzopen(path.data(), "rb"));
@@ -229,10 +229,10 @@ size_t count_cardinality(const std::vector<std::string> paths,
     return ret;
 }
 
-template<uint64_t (*score)(uint64_t, void *)=lex_score, size_t np=20>
+template<uint64_t (*score)(uint64_t, void *)=lex_score>
 size_t estimate_cardinality(const std::vector<std::string> paths,
                             unsigned k, uint16_t w, spvec_t spaces,
-                            void *data=nullptr, int num_threads=-1) {
+                            void *data=nullptr, int num_threads=-1, size_t np=23) {
     // Default to using all available threads.
     if(num_threads < 0) num_threads = sysconf(_SC_NPROCESSORS_ONLN);
     const Spacer space(k, w, spaces);
@@ -242,7 +242,7 @@ size_t estimate_cardinality(const std::vector<std::string> paths,
     // Submit the first set of jobs
     for(size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
         futures.emplace_back(std::async(
-          std::launch::async, hllcount_lmers<score, np>, paths[i], space, data));
+          std::launch::async, hllcount_lmers<score>, paths[i], space, np, data));
         ++submitted;
     }
     LOG_DEBUG("About to start daemon.\n");
@@ -254,8 +254,8 @@ size_t estimate_cardinality(const std::vector<std::string> paths,
                 hlls.push_back(f->get());
                 futures.erase(f);
                 futures.emplace_back(std::async(
-                  std::launch::async, hllcount_lmers<score, np>, paths[submitted++],
-                  space, data));
+                  std::launch::async, hllcount_lmers<score>, paths[submitted++],
+                  space, np, data));
                 ++completed;
                 break; // Iterators are invalid. Start again.
             }
