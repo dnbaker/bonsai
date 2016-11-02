@@ -5,7 +5,7 @@ WARNINGS=-Wall -pedantic -Wextra -Wno-char-subscripts \
          -Wformat -Wcast-align
 OPT=-O3 -funroll-loops
 CXXFLAGS=$(OPT) -std=c++17 $(WARNINGS)
-LIB=-lz -pthread -lcityhash -march=native
+LIB=-lz -pthread
 LD=-L. -L/usr/lib/gcc/x86_64-redhat-linux/6.2.1/
 
 
