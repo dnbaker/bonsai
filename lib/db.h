@@ -10,10 +10,24 @@ typedef jellyfish::cooperative::hash_counter<uint64_t> jfhash_t;
 
 namespace kpg {
 
+
+template<uint64_t (*score)(uint64_t, void *)>
+void build_db(khash_t(64) *hash, std::vector<std::string> &paths, const std::string &outpath) {
+    // Build database, write it to disk at *file*.
+}
+
+jfhash_t load_table(const std::string &path) {
+    // Somehow build hash.
+    // Make file header, then dumper.
+    // Then load the array of keys and values into memory
+    // Then build the hash table
+    return jfhash_t(1 << 20, 62, 64, 16, 126);
+}
+
 template <uint64_t (*score)(uint64_t, void *)>
 class Classifier {
     // Further, this needs a vector of Encoder objects
-    static const size_t reprobe_limit = 128;
+    static const size_t reprobe_limit = 126;
 
     const size_t default_nelem_;
     const unsigned nt_;

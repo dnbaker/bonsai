@@ -8,9 +8,12 @@ CXXFLAGS=$(OPT) -std=c++17 $(WARNINGS)
 LIB=-lz -pthread
 LD=-L. -L/usr/lib/gcc/x86_64-redhat-linux/6.2.1/
 
+JFO=jellyfish/lib/allocators_mmap.o jellyfish/lib/rectangular_binary_matrix.o jellyfish/lib/misc.o \
+    jellyfish/lib/storage.o
+
 
 OBJS=lib/encoder.o lib/spacer.o lib/cms.o \
-     lib/feature_min.o lib/util.o
+     lib/feature_min.o lib/util.o $(JFO)
 
 TEST_OBJS=test/test_encoding.o \
           test/test_feature_min.o \
@@ -35,6 +38,14 @@ obj: $(OBJS) $(EXEC_OBJS) libcityhash.a
 libcityhash.a:
 	+cd cityhash/ && ./configure && make && make install prefix=$$PWD && cp lib/libcityhash.a ../ && cd ../
 
+jellyfish/configure:
+	cd jellyfish && autoreconf -fis
+
+jellyfish/Makefile: jellyfish/configure
+	cd jellyfish && ./configure
+
+jellyfish/lib/%.o: jellyfish/Makefile
+	cd jellyfish && make $(@:jellyfish/%=%) && cd ..
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
@@ -51,3 +62,5 @@ unit_tests: $(OBJS) $(TEST_OBJS)
 
 clean:
 	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS)
+
+mostlyclean: clean
