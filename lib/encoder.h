@@ -178,7 +178,7 @@ hll_t hllcount_lmers(const std::string &path, const Spacer &space,
         //fprintf(stderr, "Has!: %s.\n", ks->name.s);
             if((min = enc.next_minimizer()) != BF) {
                 //fprintf(stderr, "kmer encoded: %s.\n", space.to_string(min).data());
-                ret.add(u64hash(min));
+                ret.add(wang_hash(min));
             }
         }
     }

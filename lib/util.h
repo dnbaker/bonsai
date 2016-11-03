@@ -48,6 +48,10 @@ static INLINE size_t roundup64(size_t x) {
     return ++x;
 }
 
+INLINE uint64_t rand64() {
+    return (((uint64_t)rand()) << 32) | rand();
+}
+
 template <typename T>
 void print_khash(T *rex) {
     fprintf(stderr, "n buckets %u, nocc %u, size %u, upper bound %u.\n",

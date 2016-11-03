@@ -59,7 +59,16 @@ TEST_CASE("parallel hll vs hash") {
         ssize_t exact = count_cardinality<lex_score>(paths, 31, 31, vec, nullptr, 2);
         ssize_t inexact = estimate_cardinality<lex_score>(paths, 31, 31, vec, nullptr, 2, np);
         REQUIRE(std::abs((double)exact - inexact) < 1.03896 * inexact / std::sqrt(1 << np));
-        fprintf(stderr, "For np %zu, we have %lf for expected and %lf for measured as correct as we expect to be, theoretically for %zu and %zu.\n",
+        /*fprintf(stderr, "For np %zu, we have %lf for expected and %lf for measured as correct as we expect to be, theoretically for %zu and %zu.\n",
                 np, (1.03896 / std::sqrt(1 << np)), (std::abs((double)exact - inexact) / inexact), exact, inexact);
+         */
+    }
+}
+
+TEST_CASE("Invert Wang") {
+    for(size_t i(0); i < 10000uL; ++i) {
+        REQUIRE(irving_inv_hash(wang_hash(i)) == i);
+        uint64_t r(rand64());
+        REQUIRE(irving_inv_hash(wang_hash(r)) == r);
     }
 }
