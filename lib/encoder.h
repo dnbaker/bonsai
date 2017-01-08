@@ -6,7 +6,7 @@
 #include <zlib.h>
 #include <unistd.h>
 
-#include "htslib/kstring.h"
+#include "klib/kstring.h"
 
 #include "hash.h"
 #include "hll.h"

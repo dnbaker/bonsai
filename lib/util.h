@@ -5,7 +5,7 @@
 #include <cinttypes>
 #include <cstdint>
 #include <type_traits>
-#include "htslib/khash.h"
+#include "klib/khash.h"
 #include "lib/logutil.h"
 
 #ifdef __GNUC__

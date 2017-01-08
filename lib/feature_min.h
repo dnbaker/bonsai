@@ -3,7 +3,7 @@
 
 #include "encoder.h"
 #include "spacer.h"
-#include "htslib/khash.h"
+#include "klib/khash.h"
 #include "util.h"
 
 #include <set>
