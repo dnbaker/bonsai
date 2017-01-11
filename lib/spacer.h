@@ -1,0 +1,74 @@
+#ifndef _SPACE_UTIL_H
+#define _SPACE_UTIL_H
+
+#include <vector>
+#include <string>
+#include <algorithm>
+#include "kmerutil.h"
+#include "logutil.h"
+
+namespace kpg {
+
+typedef std::vector<std::uint8_t> spvec_t;
+
+std::uint32_t comb_size(const spvec_t &spaces);
+spvec_t parse_spacing(const char *space_string);
+struct Spacer {
+    static const std::uint32_t max_k = 31;
+    // Instance variables
+    spvec_t s_; // Spaces to skip
+    const std::uint32_t k_:8;  // Kmer size
+    const std::uint32_t c_:16; // comb size
+    const std::uint32_t w_:16; // window size
+
+public:
+    Spacer(unsigned k, std::uint16_t w, spvec_t spaces=spvec_t{}):
+      s_(spaces.size() ? spaces: spvec_t(k - 1, 0)),
+      k_(k),
+      c_(comb_size(s_)),
+      w_(std::max((int)c_, (int)w))
+    {
+        if(k > max_k) LOG_EXIT("Provided k %u greater than max %u.\n", k_, max_k);
+        LOG_DEBUG("k: %u. w: %u. comb: %u.\n", k_, w_, c_);
+        for(auto &i: s_) ++i; // Convert differences into offsets
+        if(s_.size() + 1 != k) {
+            LOG_EXIT("Error: input vector must have size 1 less than k. k: %u. size: %zu.\n",
+                     k, s_.size());
+        }
+    }
+    Spacer(unsigned k, std::uint16_t w, const char *space_string):
+        Spacer(k, w, parse_spacing(space_string))
+    {
+    }
+    void write(std::uint64_t kmer, FILE *fp=stdout) const {
+        kmer ^= XOR_MASK;
+        int offset = ((k_ - 1) << 1);
+        fputc(num2nuc((kmer >> offset) & 0x3u), fp);
+        for(auto s: s_) {
+            assert(offset >= 0);
+            offset -= 2;
+            while(s-- > 1) fputc('-', fp);
+            fputc(num2nuc((kmer >> offset) & 0x3u), fp);
+        }
+        fputc('\n', fp);
+    }
+    std::string to_string (std::uint64_t kmer) const {
+        kmer ^= XOR_MASK;
+        std::string ret;
+        ret.reserve(c_ - k_ + 1);
+        int offset = ((k_ - 1) << 1);
+        ret.push_back(num2nuc((kmer >> offset) & 0x3u));
+        for(auto s: s_) {
+            assert(offset >= 0);
+            offset -= 2;
+            while(s-- > 1) ret.push_back('-');
+            ret.push_back(num2nuc((kmer >> offset) & 0x3u));
+        }
+        return ret;
+    }
+    ~Spacer() {}
+};
+
+} // namespace kpg
+
+#endif // #ifndef _SPACE_UTIL_H

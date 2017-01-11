@@ -1,0 +1,9 @@
+[submodule "libcuckoo"]
+	path = libcuckoo
+	url = https://github.com/Efficient/libcuckoo
+[submodule "klib"]
+	path = klib
+	url = https://github.com/attractivechaos/klib
+[submodule "hll"]
+	path = hll
+	url = https://github.com/dnbh/hll
