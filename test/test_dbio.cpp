@@ -1,7 +1,7 @@
 #include "test/catch.hpp"
 #include "lib/database.h"
 #include <stdlib.h>
-using namespace kpg;
+using namespace emp;
 
 #if 1
 

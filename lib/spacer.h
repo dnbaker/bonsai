@@ -7,7 +7,7 @@
 #include "kmerutil.h"
 #include "logutil.h"
 
-namespace kpg {
+namespace emp {
 
 typedef std::vector<std::uint8_t> spvec_t;
 
@@ -69,6 +69,6 @@ public:
     ~Spacer() {}
 };
 
-} // namespace kpg
+} // namespace emp
 
 #endif // #ifndef _SPACE_UTIL_H

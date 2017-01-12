@@ -2,7 +2,7 @@
 #define _HASH_H_
 #include "util.h"
 
-namespace kpg {
+namespace emp {
 
 // Thomas Wang hash
 // Original site down, available at https://naml.us/blog/tag/thomas-wang
@@ -105,6 +105,6 @@ static INLINE unsigned dbm_hash(register const char *str)
     return n;
 }
 
-} // namespace kpg
+} // namespace emp
 
 #endif // #ifdef _HASH_H_

@@ -1,6 +1,6 @@
 #include "classifier.h"
 
-namespace kpg {
+namespace emp {
 
 
 void kt_for_helper(void *data_, long index, int tid) {
@@ -93,4 +93,4 @@ void kt_del_helper(void *data_, long index, int tid) {
         bseq_destroy(data->seqs_ + i);
 }
 
-} // namespace kpg
+} // namespace emp

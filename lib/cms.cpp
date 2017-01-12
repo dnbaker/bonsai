@@ -1,6 +1,6 @@
 #include "cms.h"
 
-using namespace kpg;
+using namespace emp;
 
 #ifdef __CMS_MAIN
 int main(void) {

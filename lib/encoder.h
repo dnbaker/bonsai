@@ -17,7 +17,7 @@
 #include "util.h"
 
 
-namespace kpg {
+namespace emp {
 
 enum score_scheme {
     LEX = 0,
@@ -316,5 +316,5 @@ size_t estimate_cardinality(const std::vector<std::string> &paths,
     return (size_t)hlls[0].report();
 }
 
-} //namespace kpg
+} //namespace emp
 #endif // _ENCODER_H_

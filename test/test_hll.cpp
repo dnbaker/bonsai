@@ -6,7 +6,7 @@
 #include "hll/hll.h"
 #include "lib/encoder.h"
 
-using namespace kpg;
+using namespace emp;
 
 // This file tests pure hll functionality
 // and cardinal estimation, including

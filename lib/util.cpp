@@ -1,7 +1,7 @@
 #include "util.h"
 #include <set>
 
-namespace kpg {
+namespace emp {
 
 size_t count_lines(const char *fn) {
     FILE *fp(fopen(fn, "r"));
@@ -64,11 +64,11 @@ khash_t(name) *build_name_hash(const char *fn) {
     char *buf((char *)malloc(bufsz));
     ssize_t len;
     FILE *fp(fopen(fn, "r"));
+    khash_t(name) *ret(kh_init(name));
+    kh_resize(name, ret, count_lines(fn));
     char *p;
     int khr;
     khint_t ki;
-    khash_t(name) *ret(kh_init(name));
-    kh_resize(name, ret, count_lines(fn));
     while((len = getline(&buf, &bufsz, fp)) >= 0) {
         switch(*buf) case '\n': case '#': continue;
         p = strchr(buf, '\t');
@@ -77,7 +77,7 @@ khash_t(name) *build_name_hash(const char *fn) {
         namelen = p - buf;
         kh_key(ret, ki) = (char *)malloc(namelen + 1);
         memcpy((void*)kh_key(ret, ki), buf, namelen);
-       ((char *)kh_key(ret, ki))[namelen] = 0;
+       ((char *)kh_key(ret, ki))[namelen] = '\0';
         kh_val(ret, ki) = atoi(++p);
     }
     fclose(fp);
@@ -167,11 +167,11 @@ uint32_t resolve_tree(std::map<uint32_t, uint32_t> &hit_counts,
   return max_taxon;
 }
 
-template<>
-void khash_destroy(khash_t(64) *map) {kh_destroy(64, map);}
-template<>
-void khash_destroy(khash_t(c) *map) {kh_destroy(c, map);}
-template<>
-void khash_destroy(khash_t(all) *map) {kh_destroy(all, map);}
+#define _KHD(x) template<> void khash_destroy(khash_t(x) *map) {kh_destroy(x, map);}
 
-} //namespace kpg
+_KHD(all)
+_KHD(c)
+_KHD(64)
+_KHD(p)
+
+} //namespace emp

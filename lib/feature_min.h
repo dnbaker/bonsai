@@ -21,7 +21,7 @@
 #define FMencode(count, taxid) (((uint64_t)count << 32) | taxid)
 
 
-namespace kpg {
+namespace emp {
 
 
 template<uint64_t (*score)(uint64_t, void *)>
@@ -361,5 +361,5 @@ khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map
     return ret;
 }
 
-} // namespace kpg
+} // namespace emp
 #endif // #ifdef _FEATURE_MIN_

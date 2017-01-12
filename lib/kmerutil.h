@@ -36,7 +36,7 @@
 #define haszero(v) (((v) - 0x01010101UL) & ~(v) & 0x80808080UL)
 #define hasvalue(x,n) (haszero((x) ^ (~0UL/255 * (n))))
 
-namespace kpg {
+namespace emp {
 
 
 static const uint32_t nucpos_arr_acgt[128] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -99,6 +99,6 @@ static INLINE uint64_t canonical_representation(uint64_t kmer, uint8_t n) {
     return kmer < revcom ? kmer : revcom;
 }
 
-} // namespace kpg
+} // namespace emp
 
 #endif //ifndef _KMER_UTIL_H_

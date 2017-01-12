@@ -1,6 +1,6 @@
 #include "database.h"
 
 
-namespace kpg {
+namespace emp {
 
-} /* kpg namespace */
+} /* emp namespace */

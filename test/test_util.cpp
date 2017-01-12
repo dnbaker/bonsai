@@ -1,6 +1,6 @@
 #include "test/catch.hpp"
 #include "lib/util.h"
-using namespace kpg;
+using namespace emp;
 
 #define is_pow2(x) ((x & (x - 1)) == 0)
 
@@ -14,8 +14,8 @@ TEST_CASE("Khash writes and reads correcly") {
         ki = kh_put(c, th, k, &khr);
         kh_val(th, ki) = val;
     }
-    write_khash_map(th, "zomg");
-    ti = load_khash_map<khash_t(c)>("zomg");
+    khash_write(th, "zomg");
+    ti = khash_load<khash_t(c)>("zomg");
     system("rm zomg");
     for(size_t i(0); i < th->n_buckets; ++i) {
         REQUIRE(th->flags[__ac_fsize(i)] == ti->flags[__ac_fsize(i)]);

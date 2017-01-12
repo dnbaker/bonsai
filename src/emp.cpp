@@ -2,8 +2,9 @@
 #include "lib/util.h"
 #include "lib/database.h"
 #include "lib/classifier.h"
+#include "lib/tx.h"
 
-using namespace kpg;
+using namespace emp;
 
 int classify_main(int argc, char *argv[]) {
     int co, num_threads(16), emit_kraken(1), emit_fastq(0), emit_all(0), chunk_size(1 << 20), per_set(32);
@@ -147,7 +148,7 @@ int phase1_main(int argc, char *argv[]) {
     }
     if(wsz < 0) wsz = k;
     LOG_DEBUG("Loading tax\n");
-    khash_t(p) *taxmap(taxmap_preparsed ? load_khash_map<khash_t(p)>(argv[optind + 1])
+    khash_t(p) *taxmap(taxmap_preparsed ? khash_load<khash_t(p)>(argv[optind + 1])
                                         : build_parent_map(argv[optind + 1]));
     LOG_DEBUG("Loaded tax\n");
     spvec_t sv(parse_spacing(spacing.data()));

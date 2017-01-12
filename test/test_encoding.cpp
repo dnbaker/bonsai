@@ -6,7 +6,7 @@
 
 // This file tests qmap, encoding, and decoding.
 
-using namespace kpg;
+using namespace emp;
 
 TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly.", "[contiguous]") {
     spvec_t v;

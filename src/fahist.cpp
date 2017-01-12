@@ -31,7 +31,7 @@ void kfunc(void *data_, long index, int id) {
 int main(int argc, char **argv) {
     size_t nthreads(16);
 
-    gzFile ofp(gzdopen(fileno(stdout), "wT"));
+    gzFile ofp(gzdopen(STDOUT_FILENO, "wT"));
 
     std::unordered_map<size_t, size_t> data;
     std::vector<std::map<size_t, size_t>> maps;

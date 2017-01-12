@@ -22,7 +22,7 @@
 #define __fr(item, fp) fread(&(item), 1, sizeof(item), fp)
 #define __fw(item, fp) fwrite(&(item), 1, sizeof(item), fp)
 
-namespace kpg {
+namespace emp {
 
 
 template <typename T>
@@ -109,7 +109,7 @@ struct Database {
 };
 
 
-} /* kpg namespace */
+} /* emp namespace */
 
 #undef __fr
 #undef __fw

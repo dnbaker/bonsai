@@ -4,7 +4,7 @@
 #include "lib/db.h"
 #include "klib/kthread.h"
 
-namespace kpg {
+namespace emp {
 void kt_for_helper(void *data_, long index, int tid);
 
 namespace {
@@ -42,6 +42,6 @@ void kt_for_helper(void *data_, long index, int tid) {
     data->retstr_size_ += retstr_size;
 }
 
-} // namespace kpg
+} // namespace emp
 
 #endif

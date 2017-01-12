@@ -1,7 +1,7 @@
 #include <cctype>
 #include "feature_min.h"
 
-namespace kpg {
+namespace emp {
 
 
 void lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map) {
@@ -149,4 +149,4 @@ uint32_t get_taxid(const char *fn, khash_t(name) *name_hash) {
 }
 
 
-} //namespace kpg
+} //namespace emp

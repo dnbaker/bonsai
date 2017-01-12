@@ -11,7 +11,7 @@
 #include "util.h"
 #include "kmerutil.h"
 
-namespace kpg {
+namespace emp {
 
 template<typename T, typename ScoreType>
 struct ElScore {
@@ -90,6 +90,6 @@ private:
 using qmap_t = QueueMap<uint64_t, uint64_t>;
 using elscore_t = ElScore<uint64_t, uint64_t>;
 
-} // namespace kpg
+} // namespace emp
 
 #endif //ifndef QMAP_H_

@@ -14,7 +14,7 @@
 
 #define is_pow2(x) ((x & (x - 1)) == 0)
 
-namespace kpg {
+namespace emp {
 
 
 // Hash function taken from Murmurhash3, though we only hash a single single-bit element.
@@ -61,6 +61,6 @@ struct cms_t {
     }
 };
 
-} //namspace kpg
+} //namspace emp
 
 #endif // #ifndef _CMS_H_

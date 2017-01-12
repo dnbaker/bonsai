@@ -7,7 +7,7 @@
 #include "feature_min.h"
 #include "klib/kthread.h"
 
-namespace kpg {
+namespace emp {
 void append_kraken_classification(const std::map<uint32_t, uint32_t> &hit_counts,
                                   const std::vector<uint32_t> &taxa,
                                   const uint32_t taxon, const uint32_t ambig_count, const uint32_t missing_count,
@@ -55,7 +55,7 @@ struct ClassifierGeneric {
     }
     ClassifierGeneric(const char *dbpath, spvec_t &spaces, uint8_t k, uint16_t wsz, int num_threads=16,
                       bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false):
-        ClassifierGeneric(load_khash_map<khash_t(c)>(dbpath), spaces, k, wsz, num_threads, emit_all, emit_fastq, emit_kraken) {
+        ClassifierGeneric(khash_load<khash_t(c)>(dbpath), spaces, k, wsz, num_threads, emit_all, emit_fastq, emit_kraken) {
     }
     ~ClassifierGeneric() {
     }
@@ -244,7 +244,7 @@ inline void process_dataset(Classifier &c, khash_t(p) *taxmap, const char *fq1, 
 }
 
 
-} // namespace kpg
+} // namespace emp
 
 #endif // #ifndef __DB_H__
 
