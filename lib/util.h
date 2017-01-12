@@ -81,9 +81,9 @@ void print_khash(T *rex) {
 
 #define __fw(item, fp) \
   fwrite(&(item), 1, sizeof(item), fp)
-template <typename T>
-void khash_write(T *map, const char *path) {
-    FILE *fp(fopen(path, "wb"));
+
+template<typename T>
+void khash_write_impl(T *map, FILE *fp) {
     __fw(map->n_buckets, fp);
     __fw(map->n_occupied, fp);
     __fw(map->size, fp);
@@ -91,16 +91,23 @@ void khash_write(T *map, const char *path) {
     fwrite(map->flags, __ac_fsize(map->n_buckets), sizeof(*map->flags), fp);
     fwrite(map->keys, map->n_buckets, sizeof(*map->keys), fp);
     fwrite(map->vals, map->n_buckets, sizeof(*map->vals), fp);
-    fclose(fp);
 }
+
+template <typename T>
+size_t khash_write(T *map, const char *path) {
+    FILE *fp(fopen(path, "wb"));
+    size_t ret(ftell(fp));
+    fclose(fp);
+    return ret;
+}
+
 #undef __fw
 
 template <typename T>
-T *khash_load(const char *path) {
+T *khash_load_impl(FILE *fp) {
     T *rex((T *)calloc(1, sizeof(T)));
     typedef typename std::remove_pointer<decltype(rex->keys)>::type keytype_t;
     typedef typename std::remove_pointer<decltype(rex->vals)>::type valtype_t;
-    FILE *fp(fopen(path, "rb"));
     fread(&rex->n_buckets, 1, sizeof(rex->n_buckets), fp);
     fread(&rex->n_occupied, 1, sizeof(rex->n_occupied), fp);
     fread(&rex->size, 1, sizeof(rex->size), fp);
@@ -111,9 +118,17 @@ T *khash_load(const char *path) {
     fread(rex->flags, __ac_fsize(rex->n_buckets), sizeof(*rex->flags), fp);
     fread(rex->keys, 1, rex->n_buckets * sizeof(*rex->keys), fp);
     fread(rex->vals, 1, rex->n_buckets * sizeof(*rex->vals), fp);
+    return rex;
+}
+
+template <typename T>
+T *khash_load(const char *path) {
+    FILE *fp(fopen(path, "rb"));
+    T *rex(khash_load_impl<T>(fp));
     fclose(fp);
     return rex;
 }
+
 void kset_union(khash_t(all) *a, khash_t(all) *b);
 
 uint32_t lca(khash_t(p) *map, uint32_t a, uint32_t b);

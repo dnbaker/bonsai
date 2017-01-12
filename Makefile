@@ -17,7 +17,6 @@ OBJS=$(patsubst %.c,%.o,$(wildcard lib/*.c) klib/kthread.o) $(patsubst %.cpp,%.o
 
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 
-
 EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/*.cpp))
 
 EX=$(patsubst src/%.o,%,$(EXEC_OBJS))
@@ -40,6 +39,7 @@ obj: $(OBJS) $(EXEC_OBJS) libhll.a
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
+#%.o: %.h %.cpp
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
