@@ -71,35 +71,21 @@ public:
     }
 };
 
-
 template<typename T>
-unsigned popcount(T val) {
-    return __builtin_popcount(val);
-}
-
+unsigned popcount(T val);
 template<>
-unsigned popcount(uint64_t val) {
-    return __builtin_popcountll(val);
-}
-
+unsigned popcount(uint64_t val);
 template<>
-unsigned popcount(uint32_t val) {
-    return __builtin_popcountl(val);
-}
-
-uint64_t vec_popcnt(std::vector<uint64_t> &vec) {
-    uint64_t ret;
-    for(auto i: vec) ret += popcount(i);
-    return ret;
-}
+unsigned popcount(uint32_t val);
+uint64_t vec_popcnt(std::vector<uint64_t> &vec);
 
 class bitmap_t {
     std::unordered_map<uint64_t, std::vector<uint64_t>> core_;
-    std::vector<std::string> &paths_;
+    kgset_t &set_;
 
-    std::unordered_map<uint64_t, std::vector<uint64_t>> fill(kgset_t &set) {
+    std::unordered_map<uint64_t, std::vector<uint64_t>> fill(kgset_t &set){
         std::unordered_map<uint64_t, std::vector<uint64_t>> tmp;
-        const unsigned len(paths_.size() + (64 - 1) / 64);
+        const unsigned len(set.paths_.size() + (64 - 1) / 64);
         khash_t(all) *h;
 
         for(size_t i(0); i < set.core_.size(); ++i) {
@@ -116,11 +102,11 @@ class bitmap_t {
         return tmp;
     }
 
-    bitmap_t(kgset_t &set): paths_(set.paths_) {
+    bitmap_t(kgset_t &set): set_(set) {
         auto tmp(fill(set));
         for(auto &i: tmp) {
             const unsigned bitsum(vec_popcnt(i.second));
-            if(bitsum == 1 || bitsum == paths_.size()) continue;
+            if(bitsum == 1 || bitsum == set.paths_.size()) continue;
             core_.emplace(i.first, i.second);
         }
     }

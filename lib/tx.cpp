@@ -79,5 +79,25 @@ Taxonomy::Taxonomy(const char *path, unsigned ceil): name_map_(kh_init(name)) {
     ceil_ = ceil ? ceil: tax_map_->n_buckets << 1;
 }
 
+template<typename T>
+unsigned popcount(T val) {
+    return __builtin_popcount(val);
+}
+
+template<>
+unsigned popcount(uint64_t val) {
+    return __builtin_popcountll(val);
+}
+
+template<>
+unsigned popcount(uint32_t val) {
+    return __builtin_popcountl(val);
+}
+
+uint64_t vec_popcnt(std::vector<uint64_t> &vec) {
+    uint64_t ret;
+    for(auto i: vec) ret += popcount(i);
+    return ret;
+}
 
 } // namespace emp
