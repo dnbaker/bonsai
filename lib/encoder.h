@@ -108,7 +108,6 @@ public:
 
     // Encodes a kmer starting at `start` within string `s_`.
     INLINE uint64_t kmer(unsigned start) {
-        const unsigned prestart(start);
         assert(start <= l_ - sp_.c_ + 1);
         if(l_ < sp_.c_) return BF;
         uint64_t new_kmer(cstr_lut[s_[start]]);
@@ -116,11 +115,6 @@ public:
             new_kmer <<= 2;
             start += s;
             new_kmer |= cstr_lut[s_[start]];
-            if(unlikely(start > l_)) {
-                for(auto i: sp_.s_) fprintf(stderr, "offset %i\n", (int)i);
-                fprintf(stderr, "[E:%s] Gone too far... len %zu, start %u, ostart %u\n", __func__, l_, start, prestart);
-                exit(EXIT_FAILURE);
-            }
         }
         new_kmer = canonical_representation(new_kmer, sp_.k_) ^ XOR_MASK;
         //LOG_DEBUG("Kmer about to be classified: %s.\n", sp_.to_string(new_kmer).data());
@@ -153,7 +147,7 @@ public:
 
 template<uint64_t (*score)(uint64_t, void *)>
 khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
-                      void *data=nullptr) {
+                              void *data=nullptr) {
 
     Encoder<score> enc(nullptr, 0, space, data);
     gzFile fp(gzopen(path.data(), "rb"));
@@ -161,22 +155,16 @@ khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
     khash_t(all) *ret(kh_init(all));
     int khr;
     uint64_t min;
-    //fprintf(stderr, "About to start loop. gzfp %p, ksfp %p.\n", (void *)fp, (void *)ks);
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
-        //fprintf(stderr, "Assignd to kseq. name: %s.\n", ks->name.s);
         while(enc.has_next_kmer()) {
-        //fprintf(stderr, "Has!: %s.\n", ks->name.s);
             if((min = enc.next_minimizer()) != BF) {
-                //fprintf(stderr, "kmer encoded: %s.\n", space.to_string(min).data());
                 kh_put(all, ret, min, &khr);
             }
         }
     }
-    //fprintf(stderr, "Cleaning up!\n");
     kseq_destroy(ks);
     gzclose(fp);
-    //fprintf(stderr, "Exiting!\n");
     return ret;
 }
 

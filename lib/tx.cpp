@@ -2,6 +2,24 @@
 
 namespace emp {
 
+void kg_helper(void *data_, long index, int tid) {
+    kg_data *data((kg_data *)data_);
+    Encoder<lex_score> enc(data->sp_);
+    khash_t(all) *h(data->core_[index]);
+    gzFile fp(gzopen(data->paths_[index].data(), "rb"));
+    kseq_t *ks(kseq_init(fp));
+    uint64_t min;
+    int khr;
+    while(kseq_read(ks) >= 0) {
+        enc.assign(ks);
+        while(enc.has_next_kmer())
+            if((min = enc.next_minimizer()) != BF)
+                kh_put(all, h, min, &khr);
+    }
+    kseq_destroy(ks);
+    gzclose(fp);
+}
+
 void Taxonomy::add_node_impl(const char *node_name, const unsigned node_id, const unsigned parent) {
     khint_t ki;
     int khr;
@@ -23,9 +41,9 @@ void Taxonomy::add_node(const char *node_name, const unsigned parent) {
 void Taxonomy::write(const char *fn) const {
     FILE *fp(fopen(fn, "wb"));
     const uint64_t nb(tax_map_->n_buckets);
-    fwrite(&nb, sizeof(nb), 1, fp);
+    fwrite(&nb,     sizeof(nb), 1, fp);
     fwrite(&n_syn_, sizeof(n_syn_), 1, fp);
-    fwrite(&ceil_, sizeof(ceil_), 1, fp);
+    fwrite(&ceil_,  sizeof(ceil_), 1, fp);
     for(khiter_t ki(0); ki != kh_end(name_map_); ++ki) {
         if(!kh_exist(name_map_, ki)) continue;
         for(const char *p(kh_key(name_map_, ki)); *p; fputc(*p++, fp));
@@ -60,5 +78,6 @@ Taxonomy::Taxonomy(const char *path, unsigned ceil): name_map_(kh_init(name)) {
     fclose(fp);
     ceil_ = ceil ? ceil: tax_map_->n_buckets << 1;
 }
+
 
 } // namespace emp
