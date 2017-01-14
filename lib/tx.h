@@ -46,24 +46,7 @@ public:
     uint64_t get_syn_count() const {return n_syn_;}
     uint64_t get_syn_ceil() const {return ceil_;}
     int has_capacity() {return n_syn_ + 1 <= ceil_;}
-    bool operator==(Taxonomy &other) {
-        if(n_syn_ != other.n_syn_) {LOG_DEBUG("syn\n"); return false;}
-        if(ceil_ != other.ceil_) {LOG_DEBUG("ceil %zu, %zu\n", ceil_, other.ceil_); return false; }
-        if(!_kh_eq(tax_map_, other.tax_map_)) return false;
-        if(!_kh_eq(name_map_, other.name_map_)) return false;
-        khiter_t ki, ki2;
-        for(ki = 0; ki != kh_end(tax_map_); ++ki)
-            if(kh_exist(tax_map_, ki))
-                if((ki2 = kh_get(p, other.tax_map_, kh_key(tax_map_, ki))) == kh_end(other.tax_map_) ||
-                        kh_val(tax_map_, ki) != kh_val(other.tax_map_, ki2))
-                    return false;
-        for(ki = 0; ki != kh_end(name_map_); ++ki)
-            if(kh_exist(name_map_, ki))
-                if((ki2 = kh_get(name, other.name_map_, kh_key(name_map_, ki))) == kh_end(other.name_map_) ||
-                        kh_val(name_map_, ki) != kh_val(other.name_map_, ki2))
-                    return false;
-        return true;
-    }
+    bool operator==(Taxonomy &other);
 };
 
 
