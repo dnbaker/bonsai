@@ -50,7 +50,8 @@ obj: $(OBJS) $(EXEC_OBJS) libhll.a
 tests: clean unit_tests
 
 unit_tests: $(OBJS) $(TEST_OBJS) libhll.a
-	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
+	#$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(INCLUDE) test/test_tax.o test/test_main.o $(LD) $(OBJS) -o $@ $(LIB)
 
 
 clean:

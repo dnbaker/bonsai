@@ -53,14 +53,12 @@ public:
 };
 
 
-namespace {
 struct kg_data {
     std::vector<khash_t(all) *> &core_;
     std::vector<std::string>    &paths_;
     Spacer                      &sp_;
 };
 void kg_helper(void *data_, long index, int tid);
-}
 
 class bitmap_t;
 
@@ -71,16 +69,24 @@ class kgset_t {
     std::vector<std::string>   &paths_;
 
 public:
-    kgset_t(std::vector<std::string> &paths): paths_(paths) {
-        for(size_t i(0), end(paths.size()); i != end; ++i) core_.emplace_back(kh_init(all));
-    }
     void fill(std::vector<std::string> &paths, Spacer &sp, int num_threads=-1) {
         if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
         kg_data data{core_, paths, sp};
         kt_for(num_threads, &kg_helper, (void *)&data, core_.size());
     }
+    kgset_t(std::vector<std::string> &paths, Spacer &sp, int num_threads=-1): paths_(paths) {
+        for(size_t i(0), end(paths.size()); i != end; ++i) core_.emplace_back(kh_init(all));
+        fill(paths, sp, num_threads);
+    }
     ~kgset_t() {
         for(auto i: core_) khash_destroy(i);
+    }
+    size_t size() const {return core_.size();}
+
+    size_t weight() const {
+        size_t ret(0);
+        for(auto i: core_) ret += i->n_occupied;
+        return ret;
     }
 };
 

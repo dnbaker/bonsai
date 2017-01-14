@@ -67,6 +67,7 @@ Taxonomy::Taxonomy(const char *path, unsigned ceil): name_map_(kh_init(name)) {
     fread(&ceil_,   sizeof(ceil_),  1, fp);
     kh_resize(name, name_map_, n);
     fgets(ts, sizeof(ts) - 1, fp);
+    *(strchr(ts, '\n')) = '\0';
     name_ = ts;
     LOG_DEBUG("n: %zu. syn: %zu. ceil: %zu. name: %s\n", n, n_syn_, ceil_, name_.data());
 
@@ -78,7 +79,6 @@ Taxonomy::Taxonomy(const char *path, unsigned ceil): name_map_(kh_init(name)) {
         *p = '\0';
         kh_key(name_map_, ki) = strdup(ts);
     }
-    exit(1);
 
     tax_map_ = khash_load_impl<khash_t(p)>(fp);
     fclose(fp);
@@ -92,16 +92,21 @@ bool Taxonomy::operator==(Taxonomy &other) {
     if(!_kh_eq(name_map_, other.name_map_)) return false;
     if(name_ != other.name_) return false;
     khiter_t ki, ki2;
-    for(ki = 0; ki != kh_end(tax_map_); ++ki)
-        if(kh_exist(tax_map_, ki))
-            if((ki2 = kh_get(p, other.tax_map_, kh_key(tax_map_, ki))) == kh_end(other.tax_map_) ||
-                    kh_val(tax_map_, ki) != kh_val(other.tax_map_, ki2))
-                return false;
-    for(ki = 0; ki != kh_end(name_map_); ++ki)
-        if(kh_exist(name_map_, ki))
+    for(ki = 0; ki != kh_end(tax_map_); ++ki) {
+        if(kh_exist(tax_map_, ki)) {
+            if((ki2 = kh_get(p, other.tax_map_, kh_key(tax_map_, ki))) == kh_end(other.tax_map_)) {LOG_DEBUG("Not found\n"); return false;}
+            if(kh_val(tax_map_, ki) != kh_val(other.tax_map_, ki2)) {LOG_DEBUG("Diff vals %u, %u\n", kh_val(tax_map_, ki), kh_val(other.tax_map_, ki2)); return false;}
+        }
+    }
+    for(ki = 0; ki != kh_end(name_map_); ++ki) {
+        if(kh_exist(name_map_, ki)) {
             if((ki2 = kh_get(name, other.name_map_, kh_key(name_map_, ki))) == kh_end(other.name_map_) ||
-                    kh_val(name_map_, ki) != kh_val(other.name_map_, ki2))
+                    kh_val(name_map_, ki) != kh_val(other.name_map_, ki2)) {
+                LOG_DEBUG("Failed test %u, %u\n", kh_val(name_map_, ki), kh_val(other.name_map_, ki2));
                 return false;
+            }
+        }
+    }
     return true;
 }
 
@@ -129,8 +134,9 @@ uint64_t vec_popcnt(std::vector<uint64_t> &vec) {
 std::string rand_string(size_t n) {
     std::string ret;
     ret.reserve(n);
-    static const char set[] = "abcdefghijklmnopqrstuvwxyz12345";
-    while(n--) ret += set[rand() & 31];
+    static const char set[] = "abcdefghijklmnopqrstuvwxyz123456";
+    while(ret.size() < n) ret += set[rand() & 31];
+    assert(ret.size() == n);
     return ret;
 }
 
