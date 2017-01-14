@@ -1,6 +1,6 @@
 .PHONY=all tests clean obj unit_tests
-CXX=g++-mp-6
-CC=gcc-mp-6
+CXX=g++
+CC=gcc
 WARNINGS=-Wall -pedantic -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter

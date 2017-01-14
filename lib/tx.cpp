@@ -46,6 +46,7 @@ void Taxonomy::write(const char *fn) const {
     fwrite(&n_syn_,  sizeof(n_syn_), 1, fp);
     fwrite(&ceil_,   sizeof(ceil_), 1, fp);
     size_t nwritten(0);
+    fprintf(fp, "%s\n", name_.data());
     for(khiter_t ki(0); ki != kh_end(name_map_); ++ki)
         if(kh_exist(name_map_, ki))
             fprintf(fp, "%s\t%u\n", kh_key(name_map_, ki), kh_val(name_map_, ki)), ++nwritten;
@@ -65,7 +66,9 @@ Taxonomy::Taxonomy(const char *path, unsigned ceil): name_map_(kh_init(name)) {
     fread(&n_syn_,  sizeof(n_syn_), 1, fp);
     fread(&ceil_,   sizeof(ceil_),  1, fp);
     kh_resize(name, name_map_, n);
-    LOG_DEBUG("n: %zu. syn: %zu. ceil: %zu\n", n, n_syn_, ceil_);
+    fgets(ts, sizeof(ts) - 1, fp);
+    name_ = ts;
+    LOG_DEBUG("n: %zu. syn: %zu. ceil: %zu. name: %s\n", n, n_syn_, ceil_, name_.data());
 
     for(uint64_t i(0); i < n; ++i) {
         fgets(ts, sizeof(ts) - 1, fp);
@@ -87,6 +90,7 @@ bool Taxonomy::operator==(Taxonomy &other) {
     if(ceil_ != other.ceil_) {LOG_DEBUG("ceil %zu, %zu\n", ceil_, other.ceil_); return false; }
     if(!_kh_eq(tax_map_, other.tax_map_)) return false;
     if(!_kh_eq(name_map_, other.name_map_)) return false;
+    if(name_ != other.name_) return false;
     khiter_t ki, ki2;
     for(ki = 0; ki != kh_end(tax_map_); ++ki)
         if(kh_exist(tax_map_, ki))
@@ -119,6 +123,14 @@ unsigned popcount(unsigned long val) {
 uint64_t vec_popcnt(std::vector<uint64_t> &vec) {
     uint64_t ret(vec[0]);
     for(size_t i(1), end(vec.size()); i < end; ++i) ret += popcount(vec[i]);
+    return ret;
+}
+
+std::string rand_string(size_t n) {
+    std::string ret;
+    ret.reserve(n);
+    static const char set[] = "abcdefghijklmnopqrstuvwxyz12345";
+    while(n--) ret += set[rand() & 31];
     return ret;
 }
 

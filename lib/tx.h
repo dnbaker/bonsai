@@ -19,19 +19,22 @@ int _kh_eq(T *h1, T *h2) {
     return (h1->n_occupied == h2->n_occupied && h1->n_buckets == h2->n_buckets);
 }
 
+std::string rand_string(size_t n);
 
 class Taxonomy {
     khash_t(p)    *tax_map_;
     khash_t(name) *name_map_;
     uint64_t       n_syn_;
     uint64_t       ceil_;
+    std::string    name_;
 public:
     // Textual constructor
-    Taxonomy(const char *taxnodes_path, const char *name_path, unsigned ceil=0):
+    Taxonomy(const char *taxnodes_path, const char *name_path, const char *name="", unsigned ceil=0):
         tax_map_(build_parent_map(taxnodes_path)),
         name_map_(build_name_hash(name_path)),
         n_syn_(0),
-        ceil_(ceil ? ceil: tax_map_->n_buckets << 1)
+        ceil_(ceil ? ceil: tax_map_->n_buckets << 1),
+        name_(*name ? name: rand_string(20))
     {
     }
     // Binary constructor
