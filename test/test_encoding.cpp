@@ -73,11 +73,6 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
                 if((km = enc.next_minimizer()) != BF)
                     minimizers.push_back(km);
             }
-            if(1 /*minimizers.size() != ks->seq.l - window_size - vsum + 1 */) {
-                LOG_INFO("Diff: %zd, Expected length: %zu. Found number of minimizers: %zu. Wlen %zu. k: %zu\n",
-                         minimizers.size() - (ks->seq.l - window_size + 1),
-                         ks->seq.l - window_size + 1, minimizers.size(), (size_t)window_size, 31);
-            }
             REQUIRE(minimizers.size() == ks->seq.l - window_size + 1);
             REQUIRE(enc.max_in_queue() == enc.max_in_queue_manual());
             gzclose(fp);
