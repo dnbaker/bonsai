@@ -30,7 +30,7 @@ void Taxonomy::add_node_impl(const char *node_name, const unsigned node_id, cons
 }
 
 void Taxonomy::add_node(const char *node_name, const unsigned parent) {
-    if(!can_add()) throw std::logic_error("Attempted to add nodes past capacity. Abort!");
+    if(!has_capacity()) throw std::logic_error("Attempted to add nodes past capacity. Abort!");
     unsigned new_id(1);
     assert(kh_get(p, tax_map_, 1) != kh_end(tax_map_)); // Need to have the root in the tree.
     while(kh_get(p, tax_map_, new_id) != kh_end(tax_map_))
@@ -85,18 +85,18 @@ unsigned popcount(T val) {
 }
 
 template<>
-unsigned popcount(uint64_t val) {
+unsigned popcount(unsigned long long val) {
     return __builtin_popcountll(val);
 }
 
 template<>
-unsigned popcount(uint32_t val) {
+unsigned popcount(unsigned long val) {
     return __builtin_popcountl(val);
 }
 
 uint64_t vec_popcnt(std::vector<uint64_t> &vec) {
-    uint64_t ret;
-    for(auto i: vec) ret += popcount(i);
+    uint64_t ret(vec[0]);
+    for(size_t i(1), end(vec.size()); i < end; ++i) ret += popcount(vec[i]);
     return ret;
 }
 

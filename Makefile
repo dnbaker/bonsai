@@ -1,12 +1,12 @@
 .PHONY=all tests clean obj unit_tests
 CXX=g++
 CC=gcc
-WARNINGS=-Wall -pedantic -Wextra -Wno-char-subscripts \
+WARNINGS=-Werror -Wall -pedantic -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
 DBG= -DNDEBUG # -fno-inline
 OPT= $(DBG) -O3 -funroll-loops -fno-asynchronous-unwind-tables -ffast-math \
-			-pipe -fno-strict-aliasing -march=native -Wa,-q -flto #-flto#  -mavx512f # -msse2
+			-pipe -fno-strict-aliasing -march=native -Wa,-q #-flto#  -mavx512f # -msse2
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++14 $(WARNINGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
@@ -47,12 +47,10 @@ obj: $(OBJS) $(EXEC_OBJS) libhll.a
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
 
-
 tests: clean unit_tests
 
 unit_tests: $(OBJS) $(TEST_OBJS) libhll.a
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
-
 
 
 clean:

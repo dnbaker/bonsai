@@ -12,14 +12,14 @@ namespace emp {
 
 
 class Taxonomy {
-    khash_t(p) *tax_map_;
+    khash_t(p)    *tax_map_;
     khash_t(name) *name_map_;
-    uint64_t n_syn_;
-    uint64_t ceil_;
+    uint64_t       n_syn_;
+    uint64_t       ceil_;
 public:
     // Textual constructor
     Taxonomy(const char *taxnodes_path, const char *name_path, unsigned ceil=0):
-        tax_map_(khash_load<khash_t(p)>(taxnodes_path)),
+        tax_map_(build_parent_map(taxnodes_path)),
         name_map_(build_name_hash(name_path)),
         n_syn_(0),
         ceil_(ceil ? ceil: tax_map_->n_buckets << 1)
@@ -36,7 +36,14 @@ public:
     void add_node(const char *node_name, const unsigned parent);
     uint64_t get_syn_count() const {return n_syn_;}
     uint64_t get_syn_ceil() const {return ceil_;}
-    int can_add() {return n_syn_ + 1 <= ceil_;}
+    int has_capacity() {return n_syn_ + 1 <= ceil_;}
+    bool operator==(Taxonomy &other) {
+        if(n_syn_ != other.n_syn_) return false;
+        if(ceil_ != other.ceil_) return false;
+        for(khiter_t ki(0); ki != kh_end(tax_map_); ++ki) {
+            // Make sure that all keys are shared between maps and all values are equal.
+        }
+    }
 };
 
 
@@ -59,7 +66,7 @@ class kgset_t {
 
 public:
     kgset_t(std::vector<std::string> &paths): paths_(paths) {
-        for(auto &path: paths_) core_.emplace_back(kh_init(all));
+        for(size_t i(0), end(paths.size()); i != end; ++i) core_.emplace_back(kh_init(all));
     }
     void fill(std::vector<std::string> &paths, Spacer &sp, int num_threads=-1) {
         if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
@@ -74,18 +81,18 @@ public:
 template<typename T>
 unsigned popcount(T val);
 template<>
-unsigned popcount(uint64_t val);
+unsigned popcount(unsigned long val);
 template<>
-unsigned popcount(uint32_t val);
+unsigned popcount(unsigned long long val);
 uint64_t vec_popcnt(std::vector<uint64_t> &vec);
 
 class bitmap_t {
     std::unordered_map<uint64_t, std::vector<uint64_t>> core_;
     kgset_t &set_;
 
-    std::unordered_map<uint64_t, std::vector<uint64_t>> fill(kgset_t &set){
+    std::unordered_map<uint64_t, std::vector<uint64_t>> fill(kgset_t &set) {
         std::unordered_map<uint64_t, std::vector<uint64_t>> tmp;
-        const unsigned len(set.paths_.size() + (64 - 1) / 64);
+        const unsigned len((set.paths_.size() + 63) / 64);
         khash_t(all) *h;
 
         for(size_t i(0); i < set.core_.size(); ++i) {
@@ -95,7 +102,7 @@ class bitmap_t {
                     auto m(tmp.find(kh_key(h, ki)));
                     if(m == tmp.end())
                         m = tmp.emplace(kh_key(h, ki), std::move(std::vector<uint64_t>(len))).first;
-                    m->second[i >> 6] |= 1 << (i & (64 - 1));
+                    m->second[i >> 6] |= 1 << (i & 63);
                 }
             }
         }

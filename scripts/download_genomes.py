@@ -84,7 +84,9 @@ def parse_assembly(fn, fnidmap):
                                                   i in ["supercontig", "scaffold"])):
             print("Failing line %s" % line[:-1])
             continue
-        fn = "%s_genomic.fna.gz" % ([i for i in s[-2].split("/") if i][-1])
+        print(line)
+        print("s-2:", s[-2], s, len(s))
+        fn = "%s_genomic.fna.gz" % ([i for i in s[19].split("/") if i][-1])
         fnidmap[fn] = int(s[5])
         to_fetch.append(s[-2] + "/" + fn)
     return to_fetch
@@ -152,6 +154,7 @@ def main():
             if os.path.isfile(fn):
                 if not isvalid_gzip(fn):
                     cc("rm " + fn, shell=True)
+        print(to_dl[clade])
         cstrs = [("curl %s -o %s/%s/%s" %
                  (s, ref, clade, s.split("/")[-1])) for s in to_dl[clade]
                   if not os.path.isfile("%s/%s/%s" % (ref, clade,
@@ -165,8 +168,7 @@ def main():
         spoool.map(retry_cc, cstrs)
         # Replace pathnames with seqids
         for fn in list(cladeidmap.keys()):
-            path = "/".join([ref, clade, fn])
-            cladeidmap[xfirstline(path).decode().split()[0][1:]] = cladeidmap[fn]
+            cladeidmap[xfirstline("/".join([ref, clade, fn])).decode().split()[0][1:]] = cladeidmap[fn]
             del cladeidmap[fn]
         nameidmap.update(cladeidmap)
     print("Done with all clades")
