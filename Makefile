@@ -1,10 +1,10 @@
 .PHONY=all tests clean obj unit_tests
-CXX=g++
-CC=gcc
+CXX=g++-mp-6
+CC=gcc-mp-6
 WARNINGS=-Werror -Wall -pedantic -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
-DBG= -DNDEBUG # -fno-inline
+DBG=# -DNDEBUG # -fno-inline
 OPT= $(DBG) -O3 -funroll-loops -fno-asynchronous-unwind-tables -ffast-math \
 			-pipe -fno-strict-aliasing -march=native -Wa,-q #-flto#  -mavx512f # -msse2
 XXFLAGS=-fno-rtti
@@ -37,7 +37,7 @@ libhll.a:
 obj: $(OBJS) $(EXEC_OBJS) libhll.a
 
 %.o: %.c
-	$(CC) $(CFLAGS) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
+	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB)
 
 #%.o: %.h %.cpp
 %.o: %.cpp

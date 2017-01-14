@@ -7,4 +7,6 @@ TEST_CASE("tax") {
     Taxonomy tax("ref/nodes.dmp", "ref/nameidmap.txt");
     tax.write("test_tax.tx");
     Taxonomy tax2("test_tax.tx");
+    bool b(tax2 == tax);
+    REQUIRE(b);
 }
