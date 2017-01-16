@@ -7,6 +7,7 @@
 
 #include "lib/feature_min.h"
 #include "lib/util.h"
+#include "lib/counter.h"
 
 namespace emp {
 
@@ -48,8 +49,8 @@ public:
     void add_node(const char *node_name, const unsigned parent);
     uint64_t get_syn_count() const {return n_syn_;}
     uint64_t get_syn_ceil() const {return ceil_;}
-    int has_capacity() {return n_syn_ + 1 <= ceil_;}
-    bool operator==(Taxonomy &other);
+    int has_capacity() const {return n_syn_ + 1 <= ceil_;}
+    bool operator==(Taxonomy &other) const;
 };
 
 
@@ -84,8 +85,8 @@ public:
     size_t size() const {return core_.size();}
 
     size_t weight() const {
-        size_t ret(0);
-        for(auto i: core_) ret += i->n_occupied;
+        size_t ret(core_[0]->n_occupied);
+        for(size_t i(1), e(core_.size()); i < e; ++i) ret += core_[i]->n_occupied;
         return ret;
     }
 };
@@ -96,15 +97,15 @@ template<>
 unsigned popcount(unsigned long val);
 template<>
 unsigned popcount(unsigned long long val);
-uint64_t vec_popcnt(std::vector<uint64_t> &vec);
+uint64_t vec_popcnt(std::string &vec);
 
 class bitmap_t {
-    std::unordered_map<uint64_t, std::vector<uint64_t>> core_;
+    std::unordered_map<uint64_t, std::string> core_;
     kgset_t &set_;
 
-    std::unordered_map<uint64_t, std::vector<uint64_t>> fill(kgset_t &set) {
-        std::unordered_map<uint64_t, std::vector<uint64_t>> tmp;
-        const unsigned len((set.paths_.size() + 63) / 64);
+    std::unordered_map<uint64_t, std::string> fill(kgset_t &set) {
+        std::unordered_map<uint64_t, std::string> tmp;
+        const unsigned len((set.paths_.size() + CHAR_BIT - 1) / CHAR_BIT);
         khash_t(all) *h;
 
         for(size_t i(0); i < set.core_.size(); ++i) {
@@ -112,9 +113,9 @@ class bitmap_t {
             for(khiter_t ki(0); ki != kh_end(h); ++ki) {
                 if(kh_exist(h, ki)) {
                     auto m(tmp.find(kh_key(h, ki)));
-                    if(m == tmp.end())
-                        m = tmp.emplace(kh_key(h, ki), std::move(std::vector<uint64_t>(len))).first;
-                    m->second[i >> 6] |= 1 << (i & 63);
+                    if(m == tmp.end()) m = tmp.emplace(kh_key(h, ki),
+                                                       std::move(std::string(len, '\0'))).first;
+                    m->second[i >> 3] |= 1 << (i & 7);
                 }
             }
         }
@@ -128,6 +129,11 @@ class bitmap_t {
             if(bitsum == 1 || bitsum == set.paths_.size()) continue;
             core_.emplace(i.first, i.second);
         }
+    }
+    count::Counter<std::string> to_counter() {
+        count::Counter<std::string> ret;
+        for(auto &pair: core_) ret.add(pair.second);
+        return ret;
     }
 };
 
