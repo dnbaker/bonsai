@@ -1,19 +1,24 @@
 .PHONY=all tests clean obj unit_tests
 CXX=g++
 CC=gcc
-WARNINGS=-Wall -pedantic -Wextra -Wno-char-subscripts \
+WARNINGS=-Wall -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
-         -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
+         -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
+         # -pedantic
 DBG=# -DNDEBUG # -fno-inline
-OPT= $(DBG) -O3 -funroll-loops -fno-asynchronous-unwind-tables -ffast-math \
-			-pipe -fno-strict-aliasing -march=native -Wa,-q #-flto#  -mavx512f # -msse2
-XXFLAGS=-fno-rtti
+OPT:= $(DBG) -O3 -funroll-loops -fno-asynchronous-unwind-tables -ffast-math \
+			-pipe -fno-strict-aliasing -march=native -mpclmul # -Wa,-q #-flto#  -mavx512f # -msse2
+OS:=$(shell uname)
+ifeq ($(OS),Darwin)
+	OPT := $(OPT) -Wa,-q
+endif
+XXFLAGS=# -fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++14 $(WARNINGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread -lhll -lcrypto
 LD=-L.
 
-OBJS=$(patsubst %.c,%.o,$(wildcard lib/*.c) klib/kthread.o) $(patsubst %.cpp,%.o,$(wildcard lib/*.cpp)) klib/kstring.o
+OBJS=$(patsubst %.c,%.o,$(wildcard lib/*.c) klib/kthread.o) $(patsubst %.cpp,%.o,$(wildcard lib/*.cpp)) klib/kstring.o clhash.o
 
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 
@@ -23,7 +28,6 @@ EX=$(patsubst src/%.o,%,$(EXEC_OBJS))
 
 HEADERS=lib/encoder.h lib/kmerutil.h lib/spacer.h lib/misc.h \
         lib/cms.h lib/kseq_declare.h lib/feature_min.h hll/hll.h lib/hash.h lib/db.h
-
 
 INCLUDE=-I. -Ilib
 
@@ -35,6 +39,9 @@ libhll.a:
 	cd hll && make && cp libhll.a ..
 
 obj: $(OBJS) $(EXEC_OBJS) libhll.a
+
+clhash.o: clhash/src/clhash.c
+	cd clhash && make && cd .. && mv clhash/clhash.o .
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB)

@@ -4,6 +4,7 @@
 #include "lib/hashutil.h"
 using namespace emp;
 
+#if 0
 TEST_CASE("tax") {
     Taxonomy tax("ref/nodes.dmp", "ref/nameidmap.txt");
     tax.write("test_tax.tx");
@@ -11,47 +12,55 @@ TEST_CASE("tax") {
     REQUIRE(tax == tax2);
     LOG_DEBUG("Got here\n");
     spvec_t v{3, 7, 1, 0, 4};
-    while(v.size() < 30) v.push_back(0);
+    while(v.size() < 12) v.push_back(0);
     std::vector<std::string> paths;
     {
         kstring_t ks{0, 0, 0};
-        const char cmd[] {"ls ref/viral/ | grep fna.gz | head -n 500"};
+        const char cmd[] {"ls ref/protozoa/ | grep fna.gz | head -n 4"};
         fprintf(stderr, "cmd: %s\n", cmd);
         FILE *fp(popen(cmd, "r"));
-        char buf[512];
-        while(fgets(buf, sizeof buf, fp)) {
-            std::string tmp("ref/viral/");
-            tmp += buf;
-            tmp.pop_back();
-            paths.emplace_back(std::move(tmp));
+        if(fp == nullptr) throw "a party";//throw std::system_error(1, std::string("Could not call command '") + cmd + "'\n");
+        fprintf(stderr, "opened file: %s\n", cmd);
+        int c;
+        size_t ind(0);
+        ssize_t len;
+        size_t size;
+        char *buf(nullptr);
+        const std::string prefix("ref/protozoa/");
+        while((len = getline(&buf, &size, fp)) >= 0) {
+            buf[len - 1] = '\0';
+            LOG_DEBUG("Item found at %s\n", buf);
+            paths.emplace_back(prefix + buf);
         }
+        free(buf);
         fclose(fp);
     }
-    LOG_DEBUG("Got here\n");
-    Spacer sp(31, 31, v);
-    LOG_DEBUG("Making set\n");
+    Spacer sp(13, 13, v);
     kgset_t set(paths, sp);
     REQUIRE(set.size() == paths.size());
     count::Counter<std::vector<std::uint64_t>> counts(bitmap_t(set).to_counter());
     LOG_DEBUG("Weight: %zu. Number of bit patterns: %zu. Total weight of all bit patterns: %zu\n", set.weight(), counts.size(), counts.total());
+
     counts.print_counts(stderr);
-#if 0
-    for(auto &i: counts) {
-        for(auto j: i.first) {
-            for(auto k(0u); k < CHAR_BIT * sizeof(j); ++k) {
-                fputc('0' + (j & 1), stderr);
-                j >>= 1;
-            }
-        }
-        fputc('\n', stderr);
-    }
-#endif
-    constexpr char size_arr[] {"ACADasdadasdaj2387asdfadsfakjsfaksdjhfakjsdhfjkasdasdfsdasddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddafasdfasdfasdf"};
-    REQUIRE(spop(size_arr) == vec_popcnt(size_arr, sizeof(size_arr)));
+
+    counts.print_hist(stderr);
+    std::vector<std::uint64_t> thing;
+    for(size_t i(0); i < 1 << 16; ++i) thing.push_back(((uint64_t)rand() << 32) | rand());
+    REQUIRE(spop(thing) == vec_popcnt(thing));
 #if 0
     unsigned __int128 i(((unsigned __int128)0x12b51f95ull << 64) | 0xabd04d69ull),
                       j(((unsigned __int128)0x672f4a3aull << 64) | 0x818c3f78ull);
     cuckoofilter::putu128(i, stdout);
     cuckoofilter::putu128(j, stdout);
 #endif
+}
+#endif
+
+TEST_CASE("bitstrings") {
+    std::vector<std::uint64_t> v1, v2;
+    for(auto i: {1,177,123232,1222, 3344411, 11232}) v1.emplace_back(i), v2.emplace_back(i);
+    count::Counter<std::vector<std::uint64_t>> counter;
+    counter.add(v1);
+    counter.add(v2);
+    counter.print_hist(stderr);
 }

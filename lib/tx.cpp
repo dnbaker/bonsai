@@ -19,7 +19,6 @@ void kg_helper(void *data_, long index, int tid) {
     }
     kseq_destroy(ks);
     gzclose(fp);
-    LOG_DEBUG("Finished up processing index %ld\n", index);
 }
 
 void Taxonomy::add_node_impl(const char *node_name, const unsigned node_id, const unsigned parent) {
@@ -49,9 +48,13 @@ void Taxonomy::write(const char *fn) const {
     fwrite(&ceil_,   sizeof(ceil_), 1, fp);
     size_t nwritten(0);
     fprintf(fp, "%s\n", name_.data());
-    for(khiter_t ki(0); ki != kh_end(name_map_); ++ki)
-        if(kh_exist(name_map_, ki))
+    for(khiter_t ki(0); ki != kh_end(name_map_); ++ki) {
+        if(kh_exist(name_map_, ki)) {
             fprintf(fp, "%s\t%u\n", kh_key(name_map_, ki), kh_val(name_map_, ki)), ++nwritten;
+            assert(kh_get(name, name_map_, kh_key(name_map_, ki)) != kh_end(name_map_));
+            assert(kh_key(name_map_, ki));
+        }
+    }
     LOG_DEBUG("nw: %zu. no: %zu. cl: %zu. nb: %zu.\n", nwritten, num_occ, ceil_, name_map_->n_buckets);
     assert(nwritten == num_occ);
     khash_write_impl(tax_map_, fp);
@@ -74,12 +77,12 @@ Taxonomy::Taxonomy(const char *path, unsigned ceil): name_map_(kh_init(name)) {
     LOG_DEBUG("n: %zu. syn: %zu. ceil: %zu. name: %s\n", n, n_syn_, ceil_, name_.data());
 
     for(uint64_t i(0); i < n; ++i) {
-        fgets(ts, sizeof(ts) - 1, fp);
+        fgets(ts, sizeof(ts), fp);
+        *(p = strchr(ts, '\t')) = '\0';
         ki = kh_put(name, name_map_, ts, &khr);
-        p = strchr(ts, '\t');
         kh_val(name_map_, ki) = atoi(p + 1);
-        *p = '\0';
         kh_key(name_map_, ki) = strdup(ts);
+        assert(strcmp(kh_key(name_map_, ki), ts) == 0);
     }
 
     tax_map_ = khash_load_impl<khash_t(p)>(fp);
@@ -96,28 +99,20 @@ bool Taxonomy::operator==(Taxonomy &other) const {
         LOG_DEBUG("name %s != %s\n", name_.data(), other.name_.data());
         return false;
     }
-    khiter_t ki, ki2;
-    size_t missing1(0), missing2(0);
-    for(ki = 0; ki != kh_end(other.name_map_); ++ki) {
+
+    for(khiter_t ki = 0; ki != kh_end(other.name_map_); ++ki) {
         if(kh_exist(other.name_map_, ki)) {
-            fprintf(stderr, "{'%s': %u}\n", kh_key(other.name_map_, ki), kh_val(other.name_map_, ki));
             if(kh_get(name, name_map_, kh_key(other.name_map_, ki)) == kh_end(name_map_)) {
-                ++missing1;
-            }
-        }
-    }
-    for(ki = 0; ki != kh_end(name_map_); ++ki) {
-        if(kh_exist(name_map_, ki)) {
-            if((ki2 = kh_get(name, other.name_map_, kh_key(name_map_, ki))) == kh_end(other.name_map_) ||
-                    kh_val(name_map_, ki) != kh_val(other.name_map_, ki2)) {
                 LOG_DEBUG("key %s missing from other\n", kh_key(name_map_, ki));
-                ++missing2;
+                return false;
+            }
+            if(kh_val(other.name_map_, ki) != kh_val(name_map_, kh_get(name, name_map_, kh_key(other.name_map_, ki)))) {
+                LOG_DEBUG("Value is different.\n");
+                return false;
             }
         }
     }
-    if(missing1 || missing2) {
-        return false;
-    }
+
     return true;
 }
 
@@ -128,6 +123,17 @@ std::string rand_string(size_t n) {
     while(ret.size() < n) ret += set[rand() & 31];
     assert(ret.size() == n);
     return ret;
+}
+
+uint64_t vec_popcnt(const char *p, const size_t l) {
+    uint64_t *arr((uint64_t *)p), ret(0);
+    const uint64_t nloops((l + 7ul) >> 3);
+    for(size_t i(0); i < nloops; ++i)  ret += popcount(arr[i]);
+    return ret;
+}
+
+uint64_t vec_popcnt(const std::string &vec) {
+    return vec_popcnt(vec.data(), vec.size());
 }
 
 } // namespace emp

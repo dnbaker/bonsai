@@ -9,36 +9,54 @@
 #include "lib/feature_min.h"
 #include "lib/util.h"
 #include "lib/counter.h"
-#include "lib/hashutil.h"
 
-namespace std {
-
-  template <>
-  struct hash<vector<uint64_t>>
-  {
-    uint64_t operator()(const vector<uint64_t>& vec) const
-    {
-        uint32_t a, b;
-        cuckoofilter::HashUtil::BobHash(vec.data(), vec.size() * sizeof(uint64_t), &a, &b);
-        return ((uint64_t)a << 32) | b;
-    }
-  };
-
+template<typename T>
+size_t get_n_occ(T *hash) {
+    size_t ret(0);
+    for(khiter_t ki(0); ki != kh_end(hash); ++ki) ret += !!kh_exist(hash, ki);
+    return ret;
 }
 
 
 namespace emp {
 
+std::string rand_string(size_t n);
+uint64_t vec_popcnt(const std::string &vec);
+
 template<typename T>
-int _kh_eq(T *h1, T *h2) {
-    print_khash(h1);
-    print_khash(h2);
-    LOG_DEBUG("Is %s\n", (h1->n_occupied == h2->n_occupied && h1->n_buckets == h2->n_buckets) ?
-                         "true": "false");
-    return (h1->n_occupied == h2->n_occupied && h1->n_buckets == h2->n_buckets);
+constexpr unsigned popcount(T val) {
+    return __builtin_popcount(val);
 }
 
-std::string rand_string(size_t n);
+template<>
+constexpr unsigned popcount(char val) {
+    return __builtin_popcount((int)val);
+}
+
+template<>
+constexpr unsigned popcount(unsigned long long val) {
+    return __builtin_popcountll(val);
+}
+
+template<>
+constexpr unsigned popcount(unsigned long val) {
+    return __builtin_popcountl(val);
+}
+
+template<typename T>
+std::uint64_t vec_popcnt(T &container) {
+    auto i(container.cbegin());
+    std::uint64_t ret(popcount(*i));
+    while(++i != container.cend()) ret += popcount(*i);
+    return ret;
+}
+
+template<typename T>
+uint64_t vec_popcnt(T *p, size_t l) {
+    std::uint64_t ret(popcount(*p));
+    while(l--) ret += popcount(*++p);
+    return ret;
+}
 
 class Taxonomy {
     khash_t(p)    *tax_map_;
@@ -55,7 +73,7 @@ public:
         ceil_(ceil ? ceil: tax_map_->n_buckets << 1),
         name_(*name ? name: rand_string(20))
     {
-        LOG_DEBUG("Ceil: %" PRIu64". n buckets: %" PRIu64 "\n", ceil_, tax_map_->n_buckets);
+        LOG_DEBUG("Ceil: %" PRIu64 ". n buckets: %" PRIu64 "\n", ceil_, tax_map_->n_buckets);
     }
     // Binary constructor
     Taxonomy(const char *path, unsigned ceil=0);
@@ -110,45 +128,6 @@ public:
     }
 };
 
-
-template<typename T>
-constexpr unsigned popcount(T val) {
-    return __builtin_popcount(val);
-}
-
-template<>
-constexpr unsigned popcount(char val) {
-    return __builtin_popcount((int)val);
-}
-
-template<>
-constexpr unsigned popcount(unsigned long long val) {
-    return __builtin_popcountll(val);
-}
-
-template<>
-constexpr unsigned popcount(unsigned long val) {
-    return __builtin_popcountl(val);
-}
-
-static inline uint64_t vec_popcnt(const char *p, const size_t l);
-static inline uint64_t vec_popcnt(const std::string &vec);
-template<typename T>
-constexpr unsigned lazy_popcnt(T val);
-
-template<typename T>
-static inline std::uint64_t vec_popcnt(T &container) {
-    std::uint64_t ret(0);
-    for(auto i: container) ret += popcount(i);
-    return ret;
-}
-
-template<typename T>
-constexpr size_t spop(T &container) {
-    size_t ret(0);
-    for(auto i: container) ret += lazy_popcnt(i);
-    return ret;
-}
 class bitmap_t {
     std::unordered_map<uint64_t, std::vector<std::uint64_t>> core_;
     kgset_t &set_;
@@ -176,15 +155,19 @@ class bitmap_t {
 
     bitmap_t(kgset_t &set): set_(set) {
         auto tmp(fill(set));
+#if !NDEBUG
         size_t n_passed(0), total(tmp.size());
+#endif
+        unsigned bitsum;
         for(auto &i: tmp) {
-            const unsigned bitsum(vec_popcnt(i.second));
-            if(bitsum == 1 || bitsum == set.paths_.size()) {
-                //LOG_DEBUG("not unique. bitsum: %u. size: %zu\n", bitsum, set.paths_.size());
-                continue;
+            bitsum = vec_popcnt(i.second);
+            if(bitsum != 1 && bitsum != set.paths_.size()) {
+#if !NEBUG
+                ++n_passed;
+                //LOG_DEBUG("Number passed: %zu. bitsum: %u\n", n_passed, bitsum);
+#endif
+                core_.emplace(i.first, i.second);
             }
-            ++n_passed;
-            core_.emplace(i.first, i.second);
         }
         LOG_DEBUG("Keeping %zu of %zu kmers for bit patterns which are not exactly compressed by the taxonomy heuristic.\n",
                   n_passed, total);
@@ -196,32 +179,51 @@ class bitmap_t {
     }
 };
 
+
+template<typename T>
+constexpr unsigned lazy_popcnt(T val);
+
+template<typename T>
+constexpr size_t spop(T &container) {
+    auto i(container.cbegin());
+    std::uint64_t ret(popcount(*i));
+    while(++i != container.cend()) ret += lazy_popcnt(*i);
+    return ret;
+}
+
+
 template<typename T>
 constexpr unsigned lazy_popcnt(T val) {
     unsigned ret(0);
     while(val) {
         switch(val & 0xFu) {
+#ifdef SANITY
             case 1: case 2: case 4: case 8: ++ret; break;
             case 3: case 5: case 6: case 9: case 10: case 12: ret += 2; break;
             case 7: case 11: case 13: case 14: ret += 3; break;
-            case 15: ret += 15; break;
+            case 15: ret += 4; break;
+#else
+            case 15:                                          ++ret;
+            case 7: case 11: case 13: case 14:                ++ret;
+            case 3: case 5: case 6: case 9: case 10: case 12: ++ret;
+            case 1: case 2: case 4: case 8:                   ++ret;
+#endif
         }
         val >>= 4;
     }
     return ret;
 }
+
 static_assert(lazy_popcnt(37774) == popcount(37774), "popcnt failed");
+static_assert(lazy_popcnt(3773374) == popcount(3773374), "popcnt failed");
+static_assert(lazy_popcnt(0xff4cfa44) == popcount(0xff4cfa44), "popcnt failed");
+static_assert(lazy_popcnt(0x1319) == popcount(0x1319), "popcnt failed");
 
-static inline uint64_t vec_popcnt(const std::string &vec) {
-    return vec_popcnt(vec.data(), vec.size());
+template<typename T>
+int _kh_eq(T *h1, T *h2) {
+    return (h1->n_occupied == h2->n_occupied && h1->n_buckets == h2->n_buckets);
 }
 
-static inline uint64_t vec_popcnt(const char *p, const size_t l) {
-    uint64_t *arr((uint64_t *)p), ret(0);
-    const uint64_t nloops((l + 7ul) >> 3);
-    for(size_t i(0); i < nloops; ++i)  ret += popcount(arr[i]);
-    return ret;
-}
 
 } // namespace emp
 
