@@ -10,7 +10,7 @@ OPT= $(DBG) -O3 -funroll-loops -fno-asynchronous-unwind-tables -ffast-math \
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++14 $(WARNINGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
-LIB=-lz -pthread -lhll
+LIB=-lz -pthread -lhll -lcrypto
 LD=-L.
 
 OBJS=$(patsubst %.c,%.o,$(wildcard lib/*.c) klib/kthread.o) $(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))

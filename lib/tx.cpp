@@ -7,6 +7,7 @@ void kg_helper(void *data_, long index, int tid) {
     Encoder<lex_score> enc(data->sp_);
     khash_t(all) *h(data->core_[index]);
     gzFile fp(gzopen(data->paths_[index].data(), "rb"));
+    if(!fp) LOG_EXIT("Could not open file at %s\n", data->paths_[index].data());
     kseq_t *ks(kseq_init(fp));
     uint64_t min;
     int khr;
@@ -104,29 +105,6 @@ bool Taxonomy::operator==(Taxonomy &other) const {
                     kh_val(name_map_, ki) != kh_val(other.name_map_, ki2))
                 return false;
     return true;
-}
-
-template<typename T>
-unsigned popcount(T val) {
-    return __builtin_popcount(val);
-}
-
-template<>
-unsigned popcount(unsigned long long val) {
-    return __builtin_popcountll(val);
-}
-
-template<>
-unsigned popcount(unsigned long val) {
-    return __builtin_popcountl(val);
-}
-
-uint64_t vec_popcnt(std::string &vec) {
-    uint64_t *arr((uint64_t *)&vec[0]), ret(0);
-    for(size_t i(0), e(vec.size() >> 3); i < e; ++i)  ret += popcount(arr[i]);
-    for(auto i(vec.data() + (vec.size() & (~0x7ul))), end(vec.size() + vec.data());
-        i < end; ++i) ret += popcount(*i);
-    return ret;
 }
 
 std::string rand_string(size_t n) {

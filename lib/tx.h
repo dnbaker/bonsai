@@ -3,11 +3,29 @@
 #include <stdexcept>
 #include <thread>
 #include <unordered_map>
+#include <functional>
 #include "klib/kthread.h"
 
 #include "lib/feature_min.h"
 #include "lib/util.h"
 #include "lib/counter.h"
+#include "lib/hashutil.h"
+
+namespace std {
+
+  template <>
+  struct hash<vector<uint64_t>>
+  {
+    uint64_t operator()(const vector<uint64_t>& vec) const
+    {
+        uint32_t a, b;
+        cuckoofilter::HashUtil::BobHash(vec.data(), vec.size() * sizeof(uint64_t), &a, &b);
+        return ((uint64_t)a << 32) | b;
+    }
+  };
+
+}
+
 
 namespace emp {
 
@@ -91,21 +109,54 @@ public:
     }
 };
 
-template<typename T>
-unsigned popcount(T val);
-template<>
-unsigned popcount(unsigned long val);
-template<>
-unsigned popcount(unsigned long long val);
-uint64_t vec_popcnt(std::string &vec);
 
+template<typename T>
+constexpr unsigned popcount(T val) {
+    return __builtin_popcount(val);
+}
+
+template<>
+constexpr unsigned popcount(char val) {
+    return __builtin_popcount((int)val);
+}
+
+template<>
+constexpr unsigned popcount(unsigned long long val) {
+    return __builtin_popcountll(val);
+}
+
+template<>
+constexpr unsigned popcount(unsigned long val) {
+    return __builtin_popcountl(val);
+}
+
+static inline uint64_t vec_popcnt(const char *p, const size_t l);
+static inline uint64_t vec_popcnt(const std::string &vec);
+template<typename T>
+constexpr unsigned lazy_popcnt(T val);
+
+template<typename T>
+static inline std::uint64_t vec_popcnt(T &container) {
+    std::uint64_t ret(0);
+    for(auto i: container) ret += popcount(i);
+    return ret;
+}
+
+template<typename T>
+constexpr size_t spop(T &container) {
+    size_t ret(0);
+    for(auto i: container) ret += lazy_popcnt(i);
+    return ret;
+}
 class bitmap_t {
-    std::unordered_map<uint64_t, std::string> core_;
+    std::unordered_map<uint64_t, std::vector<std::uint64_t>> core_;
     kgset_t &set_;
 
-    std::unordered_map<uint64_t, std::string> fill(kgset_t &set) {
-        std::unordered_map<uint64_t, std::string> tmp;
-        const unsigned len((set.paths_.size() + CHAR_BIT - 1) / CHAR_BIT);
+    public:
+
+    std::unordered_map<std::uint64_t, std::vector<std::uint64_t>> fill(kgset_t &set) {
+        std::unordered_map<std::uint64_t, std::vector<std::uint64_t>> tmp;
+        const unsigned len((set.paths_.size() + 63) >> 6);
         khash_t(all) *h;
 
         for(size_t i(0); i < set.core_.size(); ++i) {
@@ -114,8 +165,8 @@ class bitmap_t {
                 if(kh_exist(h, ki)) {
                     auto m(tmp.find(kh_key(h, ki)));
                     if(m == tmp.end()) m = tmp.emplace(kh_key(h, ki),
-                                                       std::move(std::string(len, '\0'))).first;
-                    m->second[i >> 3] |= 1 << (i & 7);
+                                                       std::move(std::vector<std::uint64_t>(len))).first;
+                    m->second[i >> 6] |= 1u << (i & 63u);
                 }
             }
         }
@@ -126,16 +177,47 @@ class bitmap_t {
         auto tmp(fill(set));
         for(auto &i: tmp) {
             const unsigned bitsum(vec_popcnt(i.second));
-            if(bitsum == 1 || bitsum == set.paths_.size()) continue;
+            if(bitsum == 1 || bitsum == set.paths_.size()) {
+                //LOG_DEBUG("not unique. bitsum: %u. size: %zu\n", bitsum, set.paths_.size());
+                continue;
+            }
+            else {LOG_DEBUG("bitsum: %u\n", bitsum);}
             core_.emplace(i.first, i.second);
         }
     }
-    count::Counter<std::string> to_counter() {
-        count::Counter<std::string> ret;
+    count::Counter<std::vector<std::uint64_t>> to_counter() {
+        count::Counter<std::vector<std::uint64_t>> ret;
         for(auto &pair: core_) ret.add(pair.second);
         return ret;
     }
 };
+
+template<typename T>
+constexpr unsigned lazy_popcnt(T val) {
+    unsigned ret(0);
+    while(val) {
+        switch(val & 0xFu) {
+            case 1: case 2: case 4: case 8: ++ret; break;
+            case 3: case 5: case 6: case 9: case 10: case 12: ret += 2; break;
+            case 7: case 11: case 13: case 14: ret += 3; break;
+            case 15: ret += 15; break;
+        }
+        val >>= 4;
+    }
+    return ret;
+}
+static_assert(lazy_popcnt(37774) == popcount(37774), "popcnt failed");
+
+static inline uint64_t vec_popcnt(const std::string &vec) {
+    return vec_popcnt(vec.data(), vec.size());
+}
+
+static inline uint64_t vec_popcnt(const char *p, const size_t l) {
+    uint64_t *arr((uint64_t *)p), ret(0);
+    const uint64_t nloops((l + 7ul) >> 3);
+    for(size_t i(0); i < nloops; ++i)  ret += popcount(arr[i]);
+    return ret;
+}
 
 } // namespace emp
 

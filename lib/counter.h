@@ -7,13 +7,29 @@
 
 namespace count {
 
-template<typename T>
+template<typename T, class Hash=std::hash<T>>
 class Counter {
-    std::unordered_map<T, std::size_t> map_;
+    std::unordered_map<T, std::size_t, Hash> map_;
     std::size_t n_;
 public:
     Counter(): n_(0) {}
 
+    void add(T elem) {
+        auto match(map_.find(elem));
+        if(match == map_.end()) map_.emplace(elem, 1);
+        else ++match->second;
+        ++n_;
+    }
+
+    template<typename U, typename = std::enable_if<std::is_same<std::string, T>::value>>
+    void add(T &elem) {
+        auto match(map_.find(elem));
+        if(match == map_.end()) map_.emplace(elem, 1);
+        else ++match->second;
+        ++n_;
+    }
+
+    template<typename U, typename = std::enable_if<!std::is_same<std::string, T>::value>>
     void add(T elem) {
         auto match(map_.find(elem));
         if(match == map_.end()) map_.emplace(elem, 1);
@@ -30,6 +46,9 @@ public:
     auto begin()        const {return map_.begin();}
     auto end()          const {return map_.end();}
 };
+
+template<typename T>
+size_t unique(T &vec, Counter<uint64_t> &c);
 
 } // namespace count
 
