@@ -19,6 +19,7 @@ void kg_helper(void *data_, long index, int tid) {
     }
     kseq_destroy(ks);
     gzclose(fp);
+    LOG_DEBUG("Finished up processing index %ld\n", index);
 }
 
 void Taxonomy::add_node_impl(const char *node_name, const unsigned node_id, const unsigned parent) {
@@ -51,7 +52,7 @@ void Taxonomy::write(const char *fn) const {
     for(khiter_t ki(0); ki != kh_end(name_map_); ++ki)
         if(kh_exist(name_map_, ki))
             fprintf(fp, "%s\t%u\n", kh_key(name_map_, ki), kh_val(name_map_, ki)), ++nwritten;
-    LOG_DEBUG("nw: %zu. no: %zu. nb: %zu.\n", nwritten, num_occ, name_map_->n_buckets);
+    LOG_DEBUG("nw: %zu. no: %zu. cl: %zu. nb: %zu.\n", nwritten, num_occ, ceil_, name_map_->n_buckets);
     assert(nwritten == num_occ);
     khash_write_impl(tax_map_, fp);
     fclose(fp);
@@ -91,19 +92,32 @@ bool Taxonomy::operator==(Taxonomy &other) const {
     if(ceil_ != other.ceil_) {LOG_DEBUG("ceil %zu, %zu\n", ceil_, other.ceil_); return false; }
     if(!_kh_eq(tax_map_, other.tax_map_)) return false;
     if(!_kh_eq(name_map_, other.name_map_)) return false;
-    if(name_ != other.name_) return false;
+    if(name_ != other.name_) {
+        LOG_DEBUG("name %s != %s\n", name_.data(), other.name_.data());
+        return false;
+    }
     khiter_t ki, ki2;
-    for(ki = 0; ki != kh_end(tax_map_); ++ki) {
-        if(kh_exist(tax_map_, ki)) {
-            if((ki2 = kh_get(p, other.tax_map_, kh_key(tax_map_, ki))) == kh_end(other.tax_map_)) return false;
-            if(kh_val(tax_map_, ki) != kh_val(other.tax_map_, ki2)) return false;
+    size_t missing1(0), missing2(0);
+    for(ki = 0; ki != kh_end(other.name_map_); ++ki) {
+        if(kh_exist(other.name_map_, ki)) {
+            fprintf(stderr, "{'%s': %u}\n", kh_key(other.name_map_, ki), kh_val(other.name_map_, ki));
+            if(kh_get(name, name_map_, kh_key(other.name_map_, ki)) == kh_end(name_map_)) {
+                ++missing1;
+            }
         }
     }
-    for(ki = 0; ki != kh_end(name_map_); ++ki)
-        if(kh_exist(name_map_, ki))
+    for(ki = 0; ki != kh_end(name_map_); ++ki) {
+        if(kh_exist(name_map_, ki)) {
             if((ki2 = kh_get(name, other.name_map_, kh_key(name_map_, ki))) == kh_end(other.name_map_) ||
-                    kh_val(name_map_, ki) != kh_val(other.name_map_, ki2))
-                return false;
+                    kh_val(name_map_, ki) != kh_val(other.name_map_, ki2)) {
+                LOG_DEBUG("key %s missing from other\n", kh_key(name_map_, ki));
+                ++missing2;
+            }
+        }
+    }
+    if(missing1 || missing2) {
+        return false;
+    }
     return true;
 }
 

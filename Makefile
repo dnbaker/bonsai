@@ -13,7 +13,7 @@ CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread -lhll -lcrypto
 LD=-L.
 
-OBJS=$(patsubst %.c,%.o,$(wildcard lib/*.c) klib/kthread.o) $(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
+OBJS=$(patsubst %.c,%.o,$(wildcard lib/*.c) klib/kthread.o) $(patsubst %.cpp,%.o,$(wildcard lib/*.cpp)) klib/kstring.o
 
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 

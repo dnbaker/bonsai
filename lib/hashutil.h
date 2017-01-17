@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <cinttypes>
+#include <cstring>
 
 #include <string>
 
@@ -24,22 +25,16 @@ namespace cuckoofilter {
 #define TO_STRING(x) STRINGIZER(x)
 
 static inline int putu128(__uint128_t big, FILE *fp) {
-  size_t rc = 0;
-  size_t i = 0;
-  if (big >> 64) {
-    char buf[40];
-    while (big / P10_UINT64) {
-      rc += sprintf(buf + E10_UINT64 * i, "%." TO_STRING(E10_UINT64) PRIu64, (uint64_t)(big % P10_UINT64));
-      ++i;
-      big /= P10_UINT64;
+    char buf[40]{0}, *p(buf);
+    while(big > 0) *p++ = (uint64_t)big % 10 + '0', big /= 10;
+    p[1] = '\0';
+    const unsigned diff(p - buf);
+    for(unsigned i(0), e(diff >> 1); i != e; ++i) {
+        const int8_t t(buf[i]);
+        buf[i] = buf[diff - i - 1];
+        buf[diff - i - 1] = t;
     }
-    rc += fprintf(fp, "%" PRIu64, (uint64_t)big);
-    while (i--) {
-      fwrite(buf + E10_UINT64 * i, sizeof(char), E10_UINT64, fp);
-      ++rc;
-    }
-  } else rc += fprintf(fp, "%" PRIu64, (uint64_t)big);
-  return rc;
+    return fputs(buf, fp) + fputc('\n', fp);
 }
 
 class HashUtil {
@@ -74,18 +69,8 @@ class HashUtil {
 
   // See Martin Dietzfelbinger, "Universal hashing and k-wise independent random
   // variables via integer arithmetic without primes".
-  static uint64_t TwoIndependentMultiplyShift(uint64_t key) {
-    const uint64_t SEED[4] = {0x818c3f78ull, 0x672f4a3aull, 0xabd04d69ull,
-                              0x12b51f95ull};
-    const unsigned __int128 m =
-        *reinterpret_cast<const unsigned __int128 *>(&SEED[0]);
-/*
-    const unsigned __int128 m =
-        *reinterpret_cast<const unsigned __int128 *>(&SEED[0]);
-*/
-    const unsigned __int128 a =
-        *reinterpret_cast<const unsigned __int128 *>(&SEED[2]);
-    return (a + m * key) >> 64;
+  static inline uint64_t TwoIndependentMultiplyShift(uint64_t key) {
+    return (uint64_t)((((unsigned __int128)0x12b51f95ull << 64) | 0xabd04d69ull) + (((unsigned __int128)0x672f4a3aull << 64) | 0x818c3f78ull) * key);
   }
 
  private:

@@ -1,5 +1,6 @@
 #include "util.h"
 #include <set>
+#include <cassert>
 
 namespace emp {
 
@@ -78,8 +79,10 @@ khash_t(name) *build_name_hash(const char *fn) {
         kh_key(ret, ki) = (char *)malloc(namelen + 1);
         memcpy((void*)kh_key(ret, ki), buf, namelen);
        ((char *)kh_key(ret, ki))[namelen] = '\0';
-        kh_val(ret, ki) = atoi(++p);
+        kh_val(ret, ki) = atoi(p + 1);
     }
+    for(khiter_t ki(0); ki != kh_end(ret); ++ki)
+        if(kh_exist(ret, ki)) {assert(kh_key(ret, ki));}
     fclose(fp);
     free(buf);
     return ret;

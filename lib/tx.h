@@ -55,6 +55,7 @@ public:
         ceil_(ceil ? ceil: tax_map_->n_buckets << 1),
         name_(*name ? name: rand_string(20))
     {
+        LOG_DEBUG("Ceil: %" PRIu64". n buckets: %" PRIu64 "\n", ceil_, tax_map_->n_buckets);
     }
     // Binary constructor
     Taxonomy(const char *path, unsigned ceil=0);
@@ -175,15 +176,18 @@ class bitmap_t {
 
     bitmap_t(kgset_t &set): set_(set) {
         auto tmp(fill(set));
+        size_t n_passed(0), total(tmp.size());
         for(auto &i: tmp) {
             const unsigned bitsum(vec_popcnt(i.second));
             if(bitsum == 1 || bitsum == set.paths_.size()) {
                 //LOG_DEBUG("not unique. bitsum: %u. size: %zu\n", bitsum, set.paths_.size());
                 continue;
             }
-            else {LOG_DEBUG("bitsum: %u\n", bitsum);}
+            ++n_passed;
             core_.emplace(i.first, i.second);
         }
+        LOG_DEBUG("Keeping %zu of %zu kmers for bit patterns which are not exactly compressed by the taxonomy heuristic.\n",
+                  n_passed, total);
     }
     count::Counter<std::vector<std::uint64_t>> to_counter() {
         count::Counter<std::vector<std::uint64_t>> ret;
