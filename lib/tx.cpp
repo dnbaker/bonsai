@@ -7,6 +7,7 @@ void kg_helper(void *data_, long index, int tid) {
     Encoder<lex_score> enc(data->sp_);
     khash_t(all) *h(data->core_[index]);
     gzFile fp(gzopen(data->paths_[index].data(), "rb"));
+    if(!fp) LOG_EXIT("Could not open file at %s\n", data->paths_[index].data());
     kseq_t *ks(kseq_init(fp));
     uint64_t min;
     int khr;
@@ -18,6 +19,7 @@ void kg_helper(void *data_, long index, int tid) {
     }
     kseq_destroy(ks);
     gzclose(fp);
+    LOG_DEBUG("Finished up processing index %ld\n", index);
 }
 
 void Taxonomy::add_node_impl(const char *node_name, const unsigned node_id, const unsigned parent) {
@@ -46,10 +48,11 @@ void Taxonomy::write(const char *fn) const {
     fwrite(&n_syn_,  sizeof(n_syn_), 1, fp);
     fwrite(&ceil_,   sizeof(ceil_), 1, fp);
     size_t nwritten(0);
+    fprintf(fp, "%s\n", name_.data());
     for(khiter_t ki(0); ki != kh_end(name_map_); ++ki)
         if(kh_exist(name_map_, ki))
             fprintf(fp, "%s\t%u\n", kh_key(name_map_, ki), kh_val(name_map_, ki)), ++nwritten;
-    LOG_DEBUG("nw: %zu. no: %zu. nb: %zu.\n", nwritten, num_occ, name_map_->n_buckets);
+    LOG_DEBUG("nw: %zu. no: %zu. cl: %zu. nb: %zu.\n", nwritten, num_occ, ceil_, name_map_->n_buckets);
     assert(nwritten == num_occ);
     khash_write_impl(tax_map_, fp);
     fclose(fp);
@@ -65,7 +68,10 @@ Taxonomy::Taxonomy(const char *path, unsigned ceil): name_map_(kh_init(name)) {
     fread(&n_syn_,  sizeof(n_syn_), 1, fp);
     fread(&ceil_,   sizeof(ceil_),  1, fp);
     kh_resize(name, name_map_, n);
-    LOG_DEBUG("n: %zu. syn: %zu. ceil: %zu\n", n, n_syn_, ceil_);
+    fgets(ts, sizeof(ts) - 1, fp);
+    *(strchr(ts, '\n')) = '\0';
+    name_ = ts;
+    LOG_DEBUG("n: %zu. syn: %zu. ceil: %zu. name: %s\n", n, n_syn_, ceil_, name_.data());
 
     for(uint64_t i(0); i < n; ++i) {
         fgets(ts, sizeof(ts) - 1, fp);
@@ -75,31 +81,52 @@ Taxonomy::Taxonomy(const char *path, unsigned ceil): name_map_(kh_init(name)) {
         *p = '\0';
         kh_key(name_map_, ki) = strdup(ts);
     }
-    exit(1);
 
     tax_map_ = khash_load_impl<khash_t(p)>(fp);
     fclose(fp);
     ceil_ = ceil ? ceil: tax_map_->n_buckets << 1;
 }
 
-template<typename T>
-unsigned popcount(T val) {
-    return __builtin_popcount(val);
+bool Taxonomy::operator==(Taxonomy &other) const {
+    if(n_syn_ != other.n_syn_) {LOG_DEBUG("syn\n"); return false;}
+    if(ceil_ != other.ceil_) {LOG_DEBUG("ceil %zu, %zu\n", ceil_, other.ceil_); return false; }
+    if(!_kh_eq(tax_map_, other.tax_map_)) return false;
+    if(!_kh_eq(name_map_, other.name_map_)) return false;
+    if(name_ != other.name_) {
+        LOG_DEBUG("name %s != %s\n", name_.data(), other.name_.data());
+        return false;
+    }
+    khiter_t ki, ki2;
+    size_t missing1(0), missing2(0);
+    for(ki = 0; ki != kh_end(other.name_map_); ++ki) {
+        if(kh_exist(other.name_map_, ki)) {
+            fprintf(stderr, "{'%s': %u}\n", kh_key(other.name_map_, ki), kh_val(other.name_map_, ki));
+            if(kh_get(name, name_map_, kh_key(other.name_map_, ki)) == kh_end(name_map_)) {
+                ++missing1;
+            }
+        }
+    }
+    for(ki = 0; ki != kh_end(name_map_); ++ki) {
+        if(kh_exist(name_map_, ki)) {
+            if((ki2 = kh_get(name, other.name_map_, kh_key(name_map_, ki))) == kh_end(other.name_map_) ||
+                    kh_val(name_map_, ki) != kh_val(other.name_map_, ki2)) {
+                LOG_DEBUG("key %s missing from other\n", kh_key(name_map_, ki));
+                ++missing2;
+            }
+        }
+    }
+    if(missing1 || missing2) {
+        return false;
+    }
+    return true;
 }
 
-template<>
-unsigned popcount(unsigned long long val) {
-    return __builtin_popcountll(val);
-}
-
-template<>
-unsigned popcount(unsigned long val) {
-    return __builtin_popcountl(val);
-}
-
-uint64_t vec_popcnt(std::vector<uint64_t> &vec) {
-    uint64_t ret(vec[0]);
-    for(size_t i(1), end(vec.size()); i < end; ++i) ret += popcount(vec[i]);
+std::string rand_string(size_t n) {
+    std::string ret;
+    ret.reserve(n);
+    static const char set[] = "abcdefghijklmnopqrstuvwxyz123456";
+    while(ret.size() < n) ret += set[rand() & 31];
+    assert(ret.size() == n);
     return ret;
 }
 

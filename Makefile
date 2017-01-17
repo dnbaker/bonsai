@@ -1,6 +1,6 @@
 .PHONY=all tests clean obj unit_tests
-CXX=g++-mp-6
-CC=gcc-mp-6
+CXX=g++
+CC=gcc
 WARNINGS=-Wall -pedantic -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
@@ -10,10 +10,10 @@ OPT= $(DBG) -O3 -funroll-loops -fno-asynchronous-unwind-tables -ffast-math \
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++14 $(WARNINGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
-LIB=-lz -pthread -lhll
+LIB=-lz -pthread -lhll -lcrypto
 LD=-L.
 
-OBJS=$(patsubst %.c,%.o,$(wildcard lib/*.c) klib/kthread.o) $(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
+OBJS=$(patsubst %.c,%.o,$(wildcard lib/*.c) klib/kthread.o) $(patsubst %.cpp,%.o,$(wildcard lib/*.cpp)) klib/kstring.o
 
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 
@@ -50,7 +50,8 @@ obj: $(OBJS) $(EXEC_OBJS) libhll.a
 tests: clean unit_tests
 
 unit_tests: $(OBJS) $(TEST_OBJS) libhll.a
-	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
+	#$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(INCLUDE) test/test_tax.o test/test_main.o $(LD) $(OBJS) -o $@ $(LIB)
 
 
 clean:
