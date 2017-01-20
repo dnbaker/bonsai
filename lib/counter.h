@@ -15,12 +15,14 @@
 class rand_holder {
     void *random_;
 public:
-    rand_holder():
-        random_(get_random_key_for_clhash(UINT64_C(0x23a23cf5033c3c81),UINT64_C(0xb3816f6a2c68e530)))
+    rand_holder(): random_(get_random_key_for_clhash(UINT64_C(0x23a23cf5033c3c81),
+                                                     UINT64_C(0xb3816f6a2c68e530)))
     {
     }
+
     void *get() const {return random_;}
-    ~rand_holder() {free(random_);}
+
+    ~rand_holder()    {free(random_);}
 };
 
 const static rand_holder RAND;
@@ -50,45 +52,35 @@ std::string vec2str(const std::vector<T> &vec) {
     return ret;
 }
 
+template<typename Test, template<typename...> class Ref>
+struct is_specialization : std::false_type {};
 
-template<typename T>
-struct vecc_t {
-    const T *vec_;
-    size_t count_;
-    vecc_t(const T *vec, const size_t count): vec_(vec), count_(count) {}
-    inline bool operator<(const vecc_t &other) {
-        return count_ < other.count_;
-    }
-};
+template<template<typename...> class Ref, typename... Args>
+struct is_specialization<Ref<Args...>, Ref>: std::true_type {};
+
+
+//template<typename T>
 
 template<typename T, class Hash=std::hash<T>>
 class Counter {
-    std::size_t n_;
+    std::size_t                                               n_;
+    std::size_t                                           nelem_;
     std::unordered_map<T, std::size_t, Hash>                map_;
     std::unique_ptr<std::unordered_map<unsigned, unsigned>> hist_;
+
 public:
-    Counter(): n_(0), hist_(std::make_unique<std::unordered_map<unsigned, unsigned>>()) {}
+    Counter(): n_(0), nelem_(0), hist_(std::make_unique<std::unordered_map<unsigned, unsigned>>()) {}
 
     //template<typename = typename std::enable_if<std::is_class<T>::value>::type>
     void add(T &elem) {
         auto match(map_.find(elem));
-        if(match == map_.end()) {
-            const size_t old(map_.size());
-            LOG_DEBUG("New!\n");
-            map_.emplace(elem, 1);
-            if(map_.size() == old) {
-                LOG_DEBUG("Insert failed");
-            } else {
-                LOG_DEBUG("New size: %zu\n", map_.size());
-                for(auto &i: map_) {
-                    fprintf(stderr, "first value in key %zu, count: %zu\n", (size_t)i.first[0], i.second);
-                }
-            }
-        } else {
-            ++match->second;
-            LOG_DEBUG("Found! New count: %zu\n", match->second);
-        }
+        if(match == map_.end()) map_.emplace(elem, 1);
+        else ++match->second;
         ++n_;
+    }
+
+    void set_nelem(std::size_t nelem) {
+        nelem_ = nelem;
     }
 
     template<class C>
@@ -125,36 +117,50 @@ public:
         for(auto count: counts) ret += fprintf(fp, "%u\t%u\n", count, hist_->find(count)->second);
         return ret;
     }
-    //template<typename = std::enable_if<std::is_same<std::vector<std::uint64_t>, T>::value>>
-    void print_counts(FILE *fp) {
-        fprintf(stderr, "fileno: %i. pointer: %p\n", fileno(fp), (void *)fp);
+    void print_counts(FILE *fp, const size_t nelem) {
+        struct vecc_t {
+            const T *vec_;
+            size_t count_;
+            vecc_t(const T *vec, const size_t count): vec_(vec), count_(count) {}
+            inline bool operator<(const vecc_t &other) {
+                return count_ < other.count_;
+            }
+        };
         kstring_t ks{0, 0, 0};
         size_t sum(0);
-        std::vector<vecc_t<T>> vc;
+        std::vector<vecc_t> vc;
         vc.reserve(map_.size());
         for(auto &i: map_) vc.emplace_back(&i.first, i.second);
         std::sort(std::begin(vc), std::end(vc));
         fprintf(stderr, "Sorted array of vc's of size %zu\n", vc.size());
         for(const auto &i: vc) {
-            const std::vector<std::uint64_t> &vec(*i.vec_);
+            size_t n(0);
+            const T &vec(*i.vec_);
             for(const auto j: vec) {
                 sum += j;
                 auto k(j);
-                for(uint64_t i(0); i < 64; ++i) {
+                for(uint64_t i(0); i < std::min(CHAR_BIT * sizeof(j), nelem - n); ++i) {
                     kputc('0' + (k&1), &ks);
                     k >>= 1;
+#if 0
+                    if(++n >= nelem) {
+                        ksprintf(&ks, "\t%zu\n", i.count_);
+                        goto end;
+                    }
+#endif
                 }
             }
             ksprintf(&ks, "\t%zu\n", i.count_);
         }
+    
         if(ks.s) {
-            fprintf(stderr, "Made buf: %s\n", ks.s);
             fwrite(ks.s, 1, ks.l, fp);
             free(ks.s);
         }
-        fprintf(stderr, "Max count: %zu. Min: %zu\n", vc.size() ? vc[vc.size() - 1].count_: 0ul, vc.size() ? vc[0].count_: 0ul);
+        //fprintf(stderr, "Max count: %zu. Min: %zu\n", vc.size() ? vc[vc.size() - 1].count_: 0ul, vc.size() ? vc[0].count_: 0ul);
     }
 };
+
 
 
 template<typename T>

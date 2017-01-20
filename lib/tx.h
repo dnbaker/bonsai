@@ -162,7 +162,7 @@ class bitmap_t {
         for(auto &i: tmp) {
             bitsum = vec_popcnt(i.second);
             if(bitsum != 1 && bitsum != set.paths_.size()) {
-#if !NEBUG
+#if !NDEBUG
                 ++n_passed;
                 //LOG_DEBUG("Number passed: %zu. bitsum: %u\n", n_passed, bitsum);
 #endif

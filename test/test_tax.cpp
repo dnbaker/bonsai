@@ -1,10 +1,8 @@
 #include "test/catch.hpp"
 
 #include "lib/tx.h"
-#include "lib/hashutil.h"
 using namespace emp;
 
-#if 0
 TEST_CASE("tax") {
     Taxonomy tax("ref/nodes.dmp", "ref/nameidmap.txt");
     tax.write("test_tax.tx");
@@ -16,7 +14,7 @@ TEST_CASE("tax") {
     std::vector<std::string> paths;
     {
         kstring_t ks{0, 0, 0};
-        const char cmd[] {"ls ref/protozoa/ | grep fna.gz | head -n 4"};
+        const char cmd[] {"ls ref/viral/ | grep fna.gz | head -n 40"};
         fprintf(stderr, "cmd: %s\n", cmd);
         FILE *fp(popen(cmd, "r"));
         if(fp == nullptr) throw "a party";//throw std::system_error(1, std::string("Could not call command '") + cmd + "'\n");
@@ -26,10 +24,10 @@ TEST_CASE("tax") {
         ssize_t len;
         size_t size;
         char *buf(nullptr);
-        const std::string prefix("ref/protozoa/");
+        const std::string prefix("ref/viral/");
         while((len = getline(&buf, &size, fp)) >= 0) {
             buf[len - 1] = '\0';
-            LOG_DEBUG("Item found at %s\n", buf);
+            fprintf(stderr, "Item found at %s\n", buf);
             paths.emplace_back(prefix + buf);
         }
         free(buf);
@@ -41,8 +39,7 @@ TEST_CASE("tax") {
     count::Counter<std::vector<std::uint64_t>> counts(bitmap_t(set).to_counter());
     LOG_DEBUG("Weight: %zu. Number of bit patterns: %zu. Total weight of all bit patterns: %zu\n", set.weight(), counts.size(), counts.total());
 
-    counts.print_counts(stderr);
-
+    counts.print_counts(stderr, paths.size());
     counts.print_hist(stderr);
     std::vector<std::uint64_t> thing;
     for(size_t i(0); i < 1 << 16; ++i) thing.push_back(((uint64_t)rand() << 32) | rand());
@@ -50,12 +47,10 @@ TEST_CASE("tax") {
 #if 0
     unsigned __int128 i(((unsigned __int128)0x12b51f95ull << 64) | 0xabd04d69ull),
                       j(((unsigned __int128)0x672f4a3aull << 64) | 0x818c3f78ull);
-    cuckoofilter::putu128(i, stdout);
-    cuckoofilter::putu128(j, stdout);
 #endif
 }
-#endif
 
+#if 0
 TEST_CASE("bitstrings") {
     std::vector<std::uint64_t> v1, v2;
     for(auto i: {1,177,123232,1222, 3344411, 11232}) v1.emplace_back(i), v2.emplace_back(i);
@@ -64,3 +59,4 @@ TEST_CASE("bitstrings") {
     counter.add(v2);
     counter.print_hist(stderr);
 }
+#endif
