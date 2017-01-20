@@ -1,6 +1,8 @@
 #include "test/catch.hpp"
 
 #include "lib/tx.h"
+#include "lib/bitmap.h"
+#include "lib/tree_climber.h"
 using namespace emp;
 
 TEST_CASE("tax") {
@@ -15,10 +17,8 @@ TEST_CASE("tax") {
     {
         kstring_t ks{0, 0, 0};
         const char cmd[] {"ls ref/viral/ | grep fna.gz | head -n 40"};
-        fprintf(stderr, "cmd: %s\n", cmd);
         FILE *fp(popen(cmd, "r"));
         if(fp == nullptr) throw "a party";//throw std::system_error(1, std::string("Could not call command '") + cmd + "'\n");
-        fprintf(stderr, "opened file: %s\n", cmd);
         int c;
         size_t ind(0);
         ssize_t len;
@@ -27,7 +27,6 @@ TEST_CASE("tax") {
         const std::string prefix("ref/viral/");
         while((len = getline(&buf, &size, fp)) >= 0) {
             buf[len - 1] = '\0';
-            fprintf(stderr, "Item found at %s\n", buf);
             paths.emplace_back(prefix + buf);
         }
         free(buf);
@@ -43,7 +42,7 @@ TEST_CASE("tax") {
     counts.print_hist(stderr);
     std::vector<std::uint64_t> thing;
     for(size_t i(0); i < 1 << 16; ++i) thing.push_back(((uint64_t)rand() << 32) | rand());
-    REQUIRE(spop(thing) == vec_popcnt(thing));
+    REQUIRE(spop(thing) == popcnt::vec_popcnt(thing));
 #if 0
     unsigned __int128 i(((unsigned __int128)0x12b51f95ull << 64) | 0xabd04d69ull),
                       j(((unsigned __int128)0x672f4a3aull << 64) | 0x818c3f78ull);

@@ -9,6 +9,7 @@
 #include "lib/feature_min.h"
 #include "lib/util.h"
 #include "lib/counter.h"
+#include "lib/bits.h"
 
 template<typename T>
 size_t get_n_occ(T *hash) {
@@ -21,42 +22,7 @@ size_t get_n_occ(T *hash) {
 namespace emp {
 
 std::string rand_string(size_t n);
-uint64_t vec_popcnt(const std::string &vec);
 
-template<typename T>
-constexpr unsigned popcount(T val) {
-    return __builtin_popcount(val);
-}
-
-template<>
-constexpr unsigned popcount(char val) {
-    return __builtin_popcount((int)val);
-}
-
-template<>
-constexpr unsigned popcount(unsigned long long val) {
-    return __builtin_popcountll(val);
-}
-
-template<>
-constexpr unsigned popcount(unsigned long val) {
-    return __builtin_popcountl(val);
-}
-
-template<typename T>
-std::uint64_t vec_popcnt(T &container) {
-    auto i(container.cbegin());
-    std::uint64_t ret(popcount(*i));
-    while(++i != container.cend()) ret += popcount(*i);
-    return ret;
-}
-
-template<typename T>
-uint64_t vec_popcnt(T *p, size_t l) {
-    std::uint64_t ret(popcount(*p));
-    while(l--) ret += popcount(*++p);
-    return ret;
-}
 
 class Taxonomy {
     khash_t(p)    *tax_map_;
@@ -98,10 +64,7 @@ struct kg_data {
 };
 void kg_helper(void *data_, long index, int tid);
 
-class bitmap_t;
-
 class kgset_t {
-    friend bitmap_t;
 
     std::vector<khash_t(all) *> core_;
     std::vector<std::string>   &paths_;
@@ -112,7 +75,14 @@ public:
         kg_data data{core_, paths, sp};
         kt_for(num_threads, &kg_helper, (void *)&data, core_.size());
     }
+    std::vector<khash_t(all) *> &get_core() {
+        return core_;
+    }
+    std::vector<std::string> &get_paths() {
+        return paths_;
+    }
     kgset_t(std::vector<std::string> &paths, Spacer &sp, int num_threads=-1): paths_(paths) {
+        core_.reserve(paths_.size());
         for(size_t i(0), end(paths.size()); i != end; ++i) core_.emplace_back(kh_init(all));
         fill(paths, sp, num_threads);
     }
@@ -128,58 +98,6 @@ public:
     }
 };
 
-class bitmap_t {
-    std::unordered_map<uint64_t, std::vector<std::uint64_t>> core_;
-    kgset_t &set_;
-
-    public:
-
-    std::unordered_map<std::uint64_t, std::vector<std::uint64_t>> fill(kgset_t &set) {
-        std::unordered_map<std::uint64_t, std::vector<std::uint64_t>> tmp;
-        const unsigned len((set.paths_.size() + 63) >> 6);
-        khash_t(all) *h;
-
-        for(size_t i(0); i < set.core_.size(); ++i) {
-            h = set.core_[i];
-            for(khiter_t ki(0); ki != kh_end(h); ++ki) {
-                if(kh_exist(h, ki)) {
-                    auto m(tmp.find(kh_key(h, ki)));
-                    if(m == tmp.end()) m = tmp.emplace(kh_key(h, ki),
-                                                       std::move(std::vector<std::uint64_t>(len))).first;
-                    m->second[i >> 6] |= 1u << (i & 63u);
-                }
-            }
-        }
-        return tmp;
-    }
-
-    bitmap_t(kgset_t &set): set_(set) {
-        auto tmp(fill(set));
-#if !NDEBUG
-        size_t n_passed(0), total(tmp.size());
-#endif
-        unsigned bitsum;
-        for(auto &i: tmp) {
-            bitsum = vec_popcnt(i.second);
-            if(bitsum != 1 && bitsum != set.paths_.size()) {
-#if !NDEBUG
-                ++n_passed;
-                //LOG_DEBUG("Number passed: %zu. bitsum: %u\n", n_passed, bitsum);
-#endif
-                core_.emplace(i.first, i.second);
-            }
-        }
-        LOG_DEBUG("Keeping %zu of %zu kmers for bit patterns which are not exactly compressed by the taxonomy heuristic.\n",
-                  n_passed, total);
-    }
-    count::Counter<std::vector<std::uint64_t>> to_counter() {
-        count::Counter<std::vector<std::uint64_t>> ret;
-        for(auto &pair: core_) ret.add(pair.second);
-        ret.set_nelem(set_.size());
-        return ret;
-    }
-};
-
 
 template<typename T>
 constexpr unsigned lazy_popcnt(T val);
@@ -187,7 +105,7 @@ constexpr unsigned lazy_popcnt(T val);
 template<typename T>
 constexpr size_t spop(T &container) {
     auto i(container.cbegin());
-    std::uint64_t ret(popcount(*i));
+    std::uint64_t ret(popcnt::popcount(*i));
     while(++i != container.cend()) ret += lazy_popcnt(*i);
     return ret;
 }
@@ -215,10 +133,10 @@ constexpr unsigned lazy_popcnt(T val) {
     return ret;
 }
 
-static_assert(lazy_popcnt(37774) == popcount(37774), "popcnt failed");
-static_assert(lazy_popcnt(3773374) == popcount(3773374), "popcnt failed");
-static_assert(lazy_popcnt(0xff4cfa44) == popcount(0xff4cfa44), "popcnt failed");
-static_assert(lazy_popcnt(0x1319) == popcount(0x1319), "popcnt failed");
+static_assert(lazy_popcnt(37774) == popcnt::popcount(37774), "popcnt failed");
+static_assert(lazy_popcnt(3773374) == popcnt::popcount(3773374), "popcnt failed");
+static_assert(lazy_popcnt(0xff4cfa44) == popcnt::popcount(0xff4cfa44), "popcnt failed");
+static_assert(lazy_popcnt(0x1319) == popcnt::popcount(0x1319), "popcnt failed");
 
 template<typename T>
 int _kh_eq(T *h1, T *h2) {

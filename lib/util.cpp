@@ -4,7 +4,7 @@
 
 namespace emp {
 
-size_t count_lines(const char *fn) {
+size_t count_lines(const char *fn) noexcept {
     FILE *fp(fopen(fn, "r"));
     size_t bufsz = 4096;
     char *buf((char *)malloc(bufsz));
@@ -22,7 +22,7 @@ size_t count_lines(const char *fn) {
 // though it uses less than half the memory. The thing is, taxonomic trees
 // aren't that deep.
 // We don't gain much from optimizing that.
-uint32_t lca(khash_t(p) *map, uint32_t a, uint32_t b) {
+uint32_t lca(khash_t(p) *map, uint32_t a, uint32_t b) noexcept {
     // Use std::set to use RB trees for small set rather than hash table.
     std::set<uint32_t> nodes;
     khint_t ki;
@@ -46,7 +46,7 @@ uint32_t lca(khash_t(p) *map, uint32_t a, uint32_t b) {
     return 1;
 }
 
-unsigned node_depth(khash_t(p) *map, uint32_t a) {
+unsigned node_depth(khash_t(p) *map, uint32_t a) noexcept {
     unsigned ret(0);
     khint_t ki;
     while(a) {
@@ -60,7 +60,7 @@ unsigned node_depth(khash_t(p) *map, uint32_t a) {
     return ret;
 }
 
-khash_t(name) *build_name_hash(const char *fn) {
+khash_t(name) *build_name_hash(const char *fn) noexcept {
     size_t bufsz(2048), namelen;
     char *buf((char *)malloc(bufsz));
     ssize_t len;
@@ -88,14 +88,14 @@ khash_t(name) *build_name_hash(const char *fn) {
     return ret;
 }
 
-void destroy_name_hash(khash_t(name) *hash) {
+void destroy_name_hash(khash_t(name) *hash) noexcept {
     for(khint_t ki(kh_begin(hash)); ki != kh_end(hash); ++ki)
         if(kh_exist(hash, ki))
             free((void *)kh_key(hash, ki));
     kh_destroy(name, hash);
 }
 
-khash_t(p) *build_parent_map(const char *fn) {
+khash_t(p) *build_parent_map(const char *fn) noexcept {
     size_t nlines(count_lines(fn));
     FILE *fp(fopen(fn, "r"));
     khash_t(p) *ret(kh_init(p));
@@ -117,7 +117,7 @@ khash_t(p) *build_parent_map(const char *fn) {
     return ret;
 }
 
-void kset_union(khash_t(all) *a, khash_t(all) *b) {
+void kset_union(khash_t(all) *a, khash_t(all) *b) noexcept {
     khint_t ki2;
     int khr;
     for(ki2 = kh_begin(b); ki2 != kh_end(b); ++ki2)
@@ -129,7 +129,7 @@ void kset_union(khash_t(all) *a, khash_t(all) *b) {
  // return leaf of highest weighted leaf-to-root path.
  // Taken, slightly modified from Kraken
 uint32_t resolve_tree(std::map<uint32_t, uint32_t> &hit_counts,
-                      khash_t(p) *parent_map)
+                      khash_t(p) *parent_map) noexcept
 {
   std::set<uint32_t> max_taxa;
   uint32_t max_taxon(0), max_score(0);
@@ -170,7 +170,7 @@ uint32_t resolve_tree(std::map<uint32_t, uint32_t> &hit_counts,
   return max_taxon;
 }
 
-#define _KHD(x) template<> void khash_destroy(khash_t(x) *map) {kh_destroy(x, map);}
+#define _KHD(x) template<> void khash_destroy(khash_t(x) *map) noexcept {kh_destroy(x, map);}
 
 _KHD(all)
 _KHD(c)

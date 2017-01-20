@@ -125,15 +125,5 @@ std::string rand_string(size_t n) {
     return ret;
 }
 
-uint64_t vec_popcnt(const char *p, const size_t l) {
-    uint64_t *arr((uint64_t *)p), ret(0);
-    const uint64_t nloops((l + 7ul) >> 3);
-    for(size_t i(0); i < nloops; ++i)  ret += popcount(arr[i]);
-    return ret;
-}
-
-uint64_t vec_popcnt(const std::string &vec) {
-    return vec_popcnt(vec.data(), vec.size());
-}
 
 } // namespace emp

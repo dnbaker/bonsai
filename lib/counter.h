@@ -134,15 +134,18 @@ public:
         vc.reserve(map_.size());
         for(auto &i: map_) vc.emplace_back(&i.first, i.second);
         std::sort(std::begin(vc), std::end(vc));
-        fprintf(stderr, "Sorted array of vc's of size %zu\n", vc.size());
+        ksprintf(&ks, "#Number of distinct patterns: %zu\n", vc.size());
+        ksprintf(&ks, "#Pattern\tCount\tNumber of bits set in pattern\n");
         for(const auto &i: vc) {
             size_t n(0);
             const T &vec(*i.vec_);
+            size_t pc(0);
             for(const auto j: vec) {
                 sum += j;
                 auto k(j);
                 for(uint64_t i(0); i < std::min(CHAR_BIT * sizeof(j), nelem_ - n); ++i) {
                     kputc('0' + (k&1), &ks);
+                    pc += k&1;
                     k >>= 1;
 #if 0
                     if(++n >= nelem_) {
@@ -152,7 +155,7 @@ public:
 #endif
                 }
             }
-            ksprintf(&ks, "\t%zu\n", i.count_);
+            ksprintf(&ks, "\t%zu\t%zu\n", i.count_, pc);
         }
     
         if(ks.s) {
