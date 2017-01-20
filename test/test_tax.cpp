@@ -39,7 +39,7 @@ TEST_CASE("tax") {
     count::Counter<std::vector<std::uint64_t>> counts(bitmap_t(set).to_counter());
     LOG_DEBUG("Weight: %zu. Number of bit patterns: %zu. Total weight of all bit patterns: %zu\n", set.weight(), counts.size(), counts.total());
 
-    counts.print_counts(stderr, paths.size());
+    counts.print_counts(stderr);
     counts.print_hist(stderr);
     std::vector<std::uint64_t> thing;
     for(size_t i(0); i < 1 << 16; ++i) thing.push_back(((uint64_t)rand() << 32) | rand());

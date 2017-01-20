@@ -41,7 +41,7 @@ libhll.a:
 obj: $(OBJS) $(EXEC_OBJS) libhll.a
 
 clhash.o: clhash/src/clhash.c
-	cd clhash && make && cd .. && mv clhash/clhash.o .
+	cd clhash && git checkout mac && make && cd .. && mv clhash/clhash.o .
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB)

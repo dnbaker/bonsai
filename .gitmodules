@@ -7,3 +7,9 @@
 [submodule "hll"]
 	path = hll
 	url = https://github.com/dnbh/hll
+[submodule "clhash"]
+	path = clhash
+	url = https://github.com/lemire/clhash
+[submodule "cppitertools"]
+	path = cppitertools
+	url = https://github.com/ryanhaining/cppitertools

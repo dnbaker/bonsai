@@ -175,6 +175,7 @@ class bitmap_t {
     count::Counter<std::vector<std::uint64_t>> to_counter() {
         count::Counter<std::vector<std::uint64_t>> ret;
         for(auto &pair: core_) ret.add(pair.second);
+        ret.set_nelem(set_.size());
         return ret;
     }
 };

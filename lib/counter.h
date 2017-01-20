@@ -4,6 +4,7 @@
 #include <typeinfo>
 #include <cstddef>
 #include <cstdlib>
+#include <climits>
 #include <memory>
 #include <set>
 #include <unordered_map>
@@ -117,7 +118,8 @@ public:
         for(auto count: counts) ret += fprintf(fp, "%u\t%u\n", count, hist_->find(count)->second);
         return ret;
     }
-    void print_counts(FILE *fp, const size_t nelem) {
+
+    void print_counts(FILE *fp) const {
         struct vecc_t {
             const T *vec_;
             size_t count_;
@@ -139,11 +141,11 @@ public:
             for(const auto j: vec) {
                 sum += j;
                 auto k(j);
-                for(uint64_t i(0); i < std::min(CHAR_BIT * sizeof(j), nelem - n); ++i) {
+                for(uint64_t i(0); i < std::min(CHAR_BIT * sizeof(j), nelem_ - n); ++i) {
                     kputc('0' + (k&1), &ks);
                     k >>= 1;
 #if 0
-                    if(++n >= nelem) {
+                    if(++n >= nelem_) {
                         ksprintf(&ks, "\t%zu\n", i.count_);
                         goto end;
                     }
@@ -157,14 +159,8 @@ public:
             fwrite(ks.s, 1, ks.l, fp);
             free(ks.s);
         }
-        //fprintf(stderr, "Max count: %zu. Min: %zu\n", vc.size() ? vc[vc.size() - 1].count_: 0ul, vc.size() ? vc[0].count_: 0ul);
     }
 };
-
-
-
-template<typename T>
-size_t unique(T &vec, Counter<uint64_t> &c);
 
 } // namespace count
 
