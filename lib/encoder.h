@@ -30,11 +30,11 @@ static INLINE int is_lt(T i, T j, UNUSED(void *data)) {
     return i < j;
 }
 
-static INLINE uint64_t lex_score(uint64_t i, UNUSED(void *data)) {
+static INLINE std::uint64_t lex_score(std::uint64_t i, UNUSED(void *data)) {
     return i;
 }
 
-static INLINE uint64_t hash_score(uint64_t i, void *data) {
+static INLINE std::uint64_t hash_score(std::uint64_t i, void *data) {
     khash_t(64) *hash((khash_t(64) *)data);
     khint_t k1;
     if(unlikely((k1 = kh_get(64, hash, i)) == kh_end(hash))) goto fail;
@@ -58,10 +58,10 @@ static INLINE uint64_t hash_score(uint64_t i, void *data) {
  *
  * BF signals overflow.
  */
-template<uint64_t (*score)(uint64_t, void *)=lex_score>
+template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
 class Encoder {
     const char *s_; // String from which we are encoding our kmers.
-    size_t l_; // Length of the string
+    std::size_t l_; // Length of the string
     const Spacer sp_; // Defines window size, spacing, and kmer size.
     int pos_; // Current position within the string s_ we're working with.
     void *data_; // A void pointer for using with scoring. Needed for hash_score.
@@ -79,7 +79,7 @@ public:
         }
         return t1;
     }
-    Encoder(char *s, size_t l, const Spacer &sp, void *data=nullptr):
+    Encoder(char *s, std::size_t l, const Spacer &sp, void *data=nullptr):
       s_(s),
       l_(l),
       sp_(sp),
@@ -96,9 +96,9 @@ public:
     }
 
     // Assign functions: These tell the encoder to fetch kmers from this string.
-    // kstring and kseq are overloads which call assign(char *s, size_t l) on
+    // kstring and kseq are overloads which call assign(char *s, std::size_t l) on
     // the correct portions of the structs.
-    INLINE void assign(char *s, size_t l) {
+    INLINE void assign(char *s, std::size_t l) {
         s_ = s; l_ = l; pos_ = 0;
         qmap_.reset();
         assert(l_ >= sp_.c_ || !has_next_kmer());
@@ -107,10 +107,10 @@ public:
     INLINE void assign(kseq_t    *ks) {assign(ks->seq.s, ks->seq.l);}
 
     // Encodes a kmer starting at `start` within string `s_`.
-    INLINE uint64_t kmer(unsigned start) {
+    INLINE std::uint64_t kmer(unsigned start) {
         assert(start <= l_ - sp_.c_ + 1);
         if(l_ < sp_.c_) return BF;
-        uint64_t new_kmer(cstr_lut[s_[start]]);
+        std::uint64_t new_kmer(cstr_lut[s_[start]]);
         for(const auto s: sp_.s_) {
             new_kmer <<= 2;
             start += s;
@@ -122,30 +122,30 @@ public:
     }
     // When we encode kmers, we XOR it with this XOR_MASK for good key dispersion
     // in spite of potential redundacies in the sequence.
-    INLINE uint64_t decode(uint64_t kmer) {return kmer ^ XOR_MASK;}
+    INLINE std::uint64_t decode(std::uint64_t kmer) {return kmer ^ XOR_MASK;}
     // Whether or not an additional kmer is present in the sequence being encoded.
     INLINE int has_next_kmer() {
-        return (int)pos_ < (ssize_t)((ssize_t)l_ - sp_.c_ + 1);
+        return (int)pos_ < (std::size_t)((std::size_t)l_ - sp_.c_ + 1);
     }
     // This fetches our next kmer for our window. It is immediately placed in the qmap_t,
     // which is a tree map containing kmers and scores so we can keep track of the best-scoring
     // kmer in the window.
-    INLINE uint64_t next_kmer() {
+    INLINE std::uint64_t next_kmer() {
         assert(has_next_kmer());
         return kmer(pos_++);
     }
     // This is the actual point of entry for fetching our minimizers.
     // It wraps encoding and scoring a kmer, updates qmap, and returns the minimizer
     // for the next window.
-    INLINE uint64_t next_minimizer() {
+    INLINE std::uint64_t next_minimizer() {
         assert(has_next_kmer());
-        const uint64_t k(kmer(pos_++)), kscore(score(k, data_));
+        const std::uint64_t k(kmer(pos_++)), kscore(score(k, data_));
         return qmap_.next_value(k, kscore);
     }
 };
 
 
-template<uint64_t (*score)(uint64_t, void *)>
+template<std::uint64_t (*score)(std::uint64_t, void *)>
 khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
                               void *data=nullptr) {
 
@@ -154,7 +154,7 @@ khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
     kseq_t *ks(kseq_init(fp));
     khash_t(all) *ret(kh_init(all));
     int khr;
-    uint64_t min;
+    std::uint64_t min;
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
         while(enc.has_next_kmer()) {
@@ -168,15 +168,15 @@ khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
     return ret;
 }
 
-template<uint64_t (*score)(uint64_t, void *)>
+template<std::uint64_t (*score)(std::uint64_t, void *)>
 hll::hll_t hllcount_lmers(const std::string &path, const Spacer &space,
-                          size_t np=22, void *data=nullptr) {
+                          std::size_t np=22, void *data=nullptr) {
 
     Encoder<score> enc(nullptr, 0, space, data);
     gzFile fp(gzopen(path.data(), "rb"));
     kseq_t *ks(kseq_init(fp));
     hll::hll_t ret(np);
-    uint64_t min;
+    std::uint64_t min;
     //fprintf(stderr, "About to start loop. gzfp %p, ksfp %p.\n", (void *)fp, (void *)ks);
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
@@ -197,18 +197,18 @@ hll::hll_t hllcount_lmers(const std::string &path, const Spacer &space,
     return ret;
 }
 
-template<uint64_t (*score)(uint64_t, void *)=lex_score>
-size_t count_cardinality(const std::vector<std::string> paths,
+template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
+std::size_t count_cardinality(const std::vector<std::string> paths,
                          unsigned k, uint16_t w, spvec_t spaces,
                          void *data=nullptr, int num_threads=-1) {
     // Default to using all available threads.
     if(num_threads < 0) num_threads = sysconf(_SC_NPROCESSORS_ONLN);
     const Spacer space(k, w, spaces);
-    size_t submitted(0), completed(0), todo(paths.size());
+    std::size_t submitted(0), completed(0), todo(paths.size());
     std::vector<std::future<khash_t(all) *>> futures;
     std::vector<khash_t(all) *> hashes;
     // Submit the first set of jobs
-    for(size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
+    for(std::size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
         futures.emplace_back(std::async(
           std::launch::async, hashcount_lmers<score>, paths[i], space, data));
         ++submitted;
@@ -243,23 +243,23 @@ size_t count_cardinality(const std::vector<std::string> paths,
     for(auto i(hashes.begin() + 1), end = hashes.end(); i != end; ++i) {
         kset_union(hashes[0], *i);
     }
-    size_t ret(hashes[0]->n_occupied);
+    std::size_t ret(hashes[0]->n_occupied);
     for(auto i: hashes) kh_destroy(all, i);
     return ret;
 }
 
-template<uint64_t (*score)(uint64_t, void *)=lex_score>
-size_t estimate_cardinality(const std::vector<std::string> &paths,
+template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
+std::size_t estimate_cardinality(const std::vector<std::string> &paths,
                             unsigned k, uint16_t w, spvec_t spaces,
-                            void *data=nullptr, int num_threads=-1, size_t np=23) {
+                            void *data=nullptr, int num_threads=-1, std::size_t np=23) {
     // Default to using all available threads.
     if(num_threads < 0) num_threads = sysconf(_SC_NPROCESSORS_ONLN);
     const Spacer space(k, w, spaces);
-    size_t submitted(0), completed(0), todo(paths.size());
+    std::size_t submitted(0), completed(0), todo(paths.size());
     std::vector<std::future<hll::hll_t>> futures;
     std::vector<hll::hll_t> hlls;
     // Submit the first set of jobs
-    for(size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
+    for(std::size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
         futures.emplace_back(std::async(
           std::launch::async, hllcount_lmers<score>, paths[i], space, np, data));
         ++submitted;
@@ -301,7 +301,7 @@ size_t estimate_cardinality(const std::vector<std::string> &paths,
     for(auto i(hlls.begin() + 1), end = hlls.end(); i != end; ++i) hlls[0] += *i;
     if(hlls.size() != todo) throw "a party!";
     hlls[0].sum();
-    return (size_t)hlls[0].report();
+    return (std::size_t)hlls[0].report();
 }
 
 } //namespace emp

@@ -6,7 +6,7 @@
 namespace emp {
 
 class bitmap_t {
-    std::unordered_map<uint64_t, std::vector<std::uint64_t>> core_;
+    std::unordered_map<std::uint64_t, std::vector<std::uint64_t>> core_;
     kgset_t &set_;
 
     public:
@@ -17,7 +17,7 @@ class bitmap_t {
         khash_t(all) *h;
         auto &vec(set.get_core());
 
-        for(size_t i(0); i < set.size(); ++i) {
+        for(std::size_t i(0); i < set.size(); ++i) {
             h = vec[i];
             for(khiter_t ki(0); ki != kh_end(h); ++ki) {
                 if(kh_exist(h, ki)) {
@@ -34,7 +34,7 @@ class bitmap_t {
     bitmap_t(kgset_t &set): set_(set) {
         auto tmp(fill(set));
 #if !NDEBUG
-        size_t n_passed(0), total(tmp.size());
+        std::size_t n_passed(0), total(tmp.size());
 #endif
         unsigned bitsum;
         for(auto &i: tmp) {

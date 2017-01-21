@@ -1,5 +1,5 @@
-#ifndef __DB_H__
-#define __DB_H__
+#ifndef _DB_H__
+#define _DB_H__
 
 #include <atomic>
 #include <zlib.h>
@@ -8,15 +8,15 @@
 #include "klib/kthread.h"
 
 namespace emp {
-void append_kraken_classification(const std::map<uint32_t, uint32_t> &hit_counts,
-                                  const std::vector<uint32_t> &taxa,
-                                  const uint32_t taxon, const uint32_t ambig_count, const uint32_t missing_count,
+void append_kraken_classification(const std::map<std::uint32_t, std::uint32_t> &hit_counts,
+                                  const std::vector<std::uint32_t> &taxa,
+                                  const std::uint32_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
                                   bseq1_t *bs, kstring_t *bks);
-void append_fastq_classification(const std::map<uint32_t, uint32_t> &hit_counts,
-                                 const std::vector<uint32_t> &taxa,
-                                 const uint32_t taxon, const uint32_t ambig_count, const uint32_t missing_count,
+void append_fastq_classification(const std::map<std::uint32_t, std::uint32_t> &hit_counts,
+                                 const std::vector<std::uint32_t> &taxa,
+                                 const std::uint32_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
                                  bseq1_t *bs, kstring_t *bks, const int verbose, const int is_paired);
-void append_taxa_runs(uint32_t taxon, const std::vector<uint32_t> &taxa, kstring_t *bks);
+void append_taxa_runs(std::uint32_t taxon, const std::vector<std::uint32_t> &taxa, kstring_t *bks);
 
 enum output_format {
     KRAKEN   = 1,
@@ -24,15 +24,15 @@ enum output_format {
     EMIT_ALL = 4
 };
 
-template<uint64_t (*score)(uint64_t, void *)=lex_score>
+template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
 struct ClassifierGeneric {
     khash_t(c) *db_;
     Spacer sp_;
     Encoder<score> enc_;
     int nt_;
     int output_flag_;
-    std::atomic<uint64_t> n_classified_;
-    std::atomic<uint64_t> n_unclassified_;
+    std::atomic<std::uint64_t> n_classified_;
+    std::atomic<std::uint64_t> n_unclassified_;
     public:
     void set_emit_all(bool setting);
     void set_emit_kraken(bool setting);
@@ -40,7 +40,7 @@ struct ClassifierGeneric {
     INLINE int get_emit_all()    {return output_flag_ & output_format::EMIT_ALL;}
     INLINE int get_emit_kraken() {return output_flag_ & output_format::KRAKEN;}
     INLINE int get_emit_fastq()  {return output_flag_ & output_format::FASTQ;}
-    ClassifierGeneric(khash_t(c) *map, spvec_t &spaces, uint8_t k, uint16_t wsz, int num_threads=16,
+    ClassifierGeneric(khash_t(c) *map, spvec_t &spaces, std::uint8_t k, std::uint16_t wsz, int num_threads=16,
                       bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false):
         db_(map),
         sp_(k, wsz, spaces),
@@ -53,7 +53,7 @@ struct ClassifierGeneric {
         set_emit_fastq(emit_fastq);
         set_emit_kraken(emit_kraken);
     }
-    ClassifierGeneric(const char *dbpath, spvec_t &spaces, uint8_t k, uint16_t wsz, int num_threads=16,
+    ClassifierGeneric(const char *dbpath, spvec_t &spaces, std::uint8_t k, std::uint16_t wsz, int num_threads=16,
                       bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false):
         ClassifierGeneric(khash_load<khash_t(c)>(dbpath), spaces, k, wsz, num_threads, emit_all, emit_fastq, emit_kraken) {
     }
@@ -61,33 +61,33 @@ struct ClassifierGeneric {
     }
 };
 
-template<uint64_t (*score)(uint64_t, void *)>
+template<std::uint64_t (*score)(std::uint64_t, void *)>
 void ClassifierGeneric<score>::set_emit_all(bool setting) {
     if(setting) output_flag_ |= output_format::EMIT_ALL;
     else        output_flag_ &= (~output_format::EMIT_ALL);
 }
 
-template<uint64_t (*score)(uint64_t, void *)>
+template<std::uint64_t (*score)(std::uint64_t, void *)>
 void ClassifierGeneric<score>::set_emit_kraken(bool setting) {
     if(setting) output_flag_ |= output_format::KRAKEN;
     else        output_flag_ &= (~output_format::KRAKEN);
 }
 
-template<uint64_t (*score)(uint64_t, void *)>
+template<std::uint64_t (*score)(std::uint64_t, void *)>
 void ClassifierGeneric<score>::set_emit_fastq(bool setting) {
     if(setting) output_flag_ |= output_format::FASTQ;
     else        output_flag_ &= (~output_format::FASTQ);
 }
 
-INLINE void append_taxa_run(const uint32_t last_taxa,
-                            const uint32_t taxa_run,
+INLINE void append_taxa_run(const std::uint32_t last_taxa,
+                            const std::uint32_t taxa_run,
                             kstring_t *bks) {
     // U for unclassified (unambiguous but not in database)
     // A for ambiguous: ambiguous nucleotides
     // Actual taxon otherwise.
     switch(last_taxa) {
         case 0:            kputc('U', bks); break;
-        case (uint32_t)-1: kputc('A', bks); break;
+        case (std::uint32_t)-1: kputc('A', bks); break;
         default:           kputuw(last_taxa, bks); break;
     }
 
@@ -95,7 +95,7 @@ INLINE void append_taxa_run(const uint32_t last_taxa,
 }
 
 
-INLINE void append_counts(uint32_t count, const char character, kstring_t *ks) {
+INLINE void append_counts(std::uint32_t count, const char character, kstring_t *ks) {
     if(count) {
         kputc(character, ks);
         kputc(':', ks);
@@ -105,21 +105,21 @@ INLINE void append_counts(uint32_t count, const char character, kstring_t *ks) {
 }
 
 using Classifier = ClassifierGeneric<lex_score>;
-template<uint64_t (*score)(uint64_t, void *)>
+template<std::uint64_t (*score)(std::uint64_t, void *)>
 unsigned classify_seq(ClassifierGeneric<score> &c, Encoder<score> &enc, khash_t(p) *taxmap, bseq1_t *bs, const int is_paired) {
     kstring_t bks{0, 0, bs->sam}; // For managing the output string for our read.
-    uint64_t kmer;
+    std::uint64_t kmer;
     khiter_t ki;
-    std::map<uint32_t, uint32_t> hit_counts;
-    std::map<uint32_t, uint32_t>::iterator it;
-    uint32_t ambig_count(0), missing_count(0), taxon(0);
-    std::vector<uint32_t> taxa;
-    const ssize_t reslen(bs->l_seq - c.sp_.c_ + 1);
+    std::map<std::uint32_t, std::uint32_t> hit_counts;
+    std::map<std::uint32_t, std::uint32_t>::iterator it;
+    std::uint32_t ambig_count(0), missing_count(0), taxon(0);
+    std::vector<std::uint32_t> taxa;
+    const std::size_t reslen(bs->l_seq - c.sp_.c_ + 1);
     taxa.reserve(reslen > 0 ? reslen: 0); // Reserve memory without initializing
 
     enc.assign(bs->seq, bs->l_seq);
     while(enc.has_next_kmer()) {
-        if((kmer = enc.next_kmer()) == BF) ++ambig_count, taxa.push_back((uint32_t)-1);
+        if((kmer = enc.next_kmer()) == BF) ++ambig_count, taxa.push_back((std::uint32_t)-1);
         // If the kmer is ambiguous, ignore it and move on.
         else {
             if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count, taxa.push_back(0);
@@ -139,7 +139,7 @@ unsigned classify_seq(ClassifierGeneric<score> &c, Encoder<score> &enc, khash_t(
     if(is_paired) {
         enc.assign((bs + 1)->seq, (bs + 1)->l_seq);
         while(enc.has_next_kmer()) {
-            if((kmer = enc.next_kmer()) == BF) ++ambig_count, taxa.push_back((uint32_t)-1);
+            if((kmer = enc.next_kmer()) == BF) ++ambig_count, taxa.push_back((std::uint32_t)-1);
             // If the kmer is ambiguous, ignore it and move on.
             else {
                 if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count, taxa.push_back(0);
@@ -180,7 +180,7 @@ struct kt_data {
     bseq1_t *bs_;
     unsigned per_set_;
     unsigned total_;
-    std::atomic<uint64_t> &retstr_size_;
+    std::atomic<std::uint64_t> &retstr_size_;
     int is_paired_;
 };
 }
@@ -190,7 +190,7 @@ inline void classify_seqs(Classifier &c, khash_t(p) *taxmap, bseq1_t *bs,
                           kstring_t *cks, const unsigned chunk_size, const unsigned per_set, const int is_paired) {
     assert(per_set && ((per_set & (per_set - 1)) == 0));
 
-    std::atomic<uint64_t> retstr_size(0);
+    std::atomic<std::uint64_t> retstr_size(0);
     kt_data data{c, taxmap, bs, per_set, chunk_size, retstr_size, is_paired};
     kt_for(c.nt_, &kt_for_helper, (void *)&data, chunk_size / per_set + 1);
     ks_resize(cks, retstr_size.load());
@@ -246,5 +246,5 @@ inline void process_dataset(Classifier &c, khash_t(p) *taxmap, const char *fq1, 
 
 } // namespace emp
 
-#endif // #ifndef __DB_H__
+#endif // #ifndef _DB_H__
 

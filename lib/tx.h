@@ -12,8 +12,8 @@
 #include "lib/bits.h"
 
 template<typename T>
-size_t get_n_occ(T *hash) {
-    size_t ret(0);
+std::size_t get_n_occ(T *hash) {
+    std::size_t ret(0);
     for(khiter_t ki(0); ki != kh_end(hash); ++ki) ret += !!kh_exist(hash, ki);
     return ret;
 }
@@ -21,14 +21,14 @@ size_t get_n_occ(T *hash) {
 
 namespace emp {
 
-std::string rand_string(size_t n);
+std::string rand_string(std::size_t n);
 
 
 class Taxonomy {
     khash_t(p)    *tax_map_;
     khash_t(name) *name_map_;
-    uint64_t       n_syn_;
-    uint64_t       ceil_;
+    std::uint64_t       n_syn_;
+    std::uint64_t       ceil_;
     std::string    name_;
 public:
     // Textual constructor
@@ -50,8 +50,8 @@ public:
     void write(const char *fn) const;
     void add_node_impl(const char *node_name, const unsigned node_id, const unsigned parent);
     void add_node(const char *node_name, const unsigned parent);
-    uint64_t get_syn_count() const {return n_syn_;}
-    uint64_t get_syn_ceil() const {return ceil_;}
+    std::uint64_t get_syn_count() const {return n_syn_;}
+    std::uint64_t get_syn_ceil() const {return ceil_;}
     int has_capacity() const {return n_syn_ + 1 <= ceil_;}
     bool operator==(Taxonomy &other) const;
 };
@@ -83,17 +83,17 @@ public:
     }
     kgset_t(std::vector<std::string> &paths, Spacer &sp, int num_threads=-1): paths_(paths) {
         core_.reserve(paths_.size());
-        for(size_t i(0), end(paths.size()); i != end; ++i) core_.emplace_back(kh_init(all));
+        for(std::size_t i(0), end(paths.size()); i != end; ++i) core_.emplace_back(kh_init(all));
         fill(paths, sp, num_threads);
     }
     ~kgset_t() {
         for(auto i: core_) khash_destroy(i);
     }
-    size_t size() const {return core_.size();}
+    std::size_t size() const {return core_.size();}
 
-    size_t weight() const {
-        size_t ret(core_[0]->n_occupied);
-        for(size_t i(1), e(core_.size()); i < e; ++i) ret += core_[i]->n_occupied;
+    std::size_t weight() const {
+        std::size_t ret(core_[0]->n_occupied);
+        for(std::size_t i(1), e(core_.size()); i < e; ++i) ret += core_[i]->n_occupied;
         return ret;
     }
 };
@@ -103,7 +103,7 @@ template<typename T>
 constexpr unsigned lazy_popcnt(T val);
 
 template<typename T>
-constexpr size_t spop(T &container) {
+constexpr std::size_t spop(T &container) {
     auto i(container.cbegin());
     std::uint64_t ret(popcnt::popcount(*i));
     while(++i != container.cend()) ret += lazy_popcnt(*i);

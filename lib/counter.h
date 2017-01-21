@@ -33,7 +33,7 @@ namespace std {
   template <typename T>
   struct hash<vector<T>>
   {
-    uint64_t operator()(const vector<T>& vec) const
+    std::uint64_t operator()(const vector<T>& vec) const
     {
         return clhash(RAND.get(), reinterpret_cast<const char *>(vec.data()), vec.size() * sizeof(T));
     }
@@ -122,14 +122,14 @@ public:
     void print_counts(FILE *fp) const {
         struct vecc_t {
             const T *vec_;
-            size_t count_;
-            vecc_t(const T *vec, const size_t count): vec_(vec), count_(count) {}
+            std::size_t count_;
+            vecc_t(const T *vec, const std::size_t count): vec_(vec), count_(count) {}
             inline bool operator<(const vecc_t &other) {
                 return count_ < other.count_;
             }
         };
         kstring_t ks{0, 0, 0};
-        size_t sum(0);
+        std::size_t sum(0);
         std::vector<vecc_t> vc;
         vc.reserve(map_.size());
         for(auto &i: map_) vc.emplace_back(&i.first, i.second);
@@ -137,13 +137,13 @@ public:
         ksprintf(&ks, "#Number of distinct patterns: %zu\n", vc.size());
         ksprintf(&ks, "#Pattern\tCount\tNumber of bits set in pattern\n");
         for(const auto &i: vc) {
-            size_t n(0);
+            std::size_t n(0);
             const T &vec(*i.vec_);
-            size_t pc(0);
+            std::size_t pc(0);
             for(const auto j: vec) {
                 sum += j;
                 auto k(j);
-                for(uint64_t i(0); i < std::min(CHAR_BIT * sizeof(j), nelem_ - n); ++i) {
+                for(std::uint64_t i(0); i < std::min(CHAR_BIT * sizeof(j), nelem_ - n); ++i) {
                     kputc('0' + (k&1), &ks);
                     pc += k&1;
                     k >>= 1;

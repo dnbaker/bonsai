@@ -64,7 +64,7 @@ int classify_main(int argc, char *argv[]) {
 int phase2_main(int argc, char *argv[]) {
     int c, mode(score_scheme::LEX), wsz(-1), num_threads(-1);
     unsigned k(31);
-    size_t start_size(1<<16);
+    std::size_t start_size(1<<16);
     std::string spacing, tax_path, seq2taxpath;
     // TODO: update documentation for tax_path and seq2taxpath options.
     if(argc < 4) {
@@ -156,10 +156,10 @@ int phase1_main(int argc, char *argv[]) {
     std::vector<std::string> inpaths(argv + optind + 3, argv + argc);
     {
         std::string tmp(inpaths[0]);
-        for(size_t i(1); i < inpaths.size(); ++i) tmp += ",", tmp += inpaths[i];
+        for(std::size_t i(1); i < inpaths.size(); ++i) tmp += ",", tmp += inpaths[i];
         //fprintf(stderr, "Trying to gather kmers from %s.\n", tmp.data());
     }
-    size_t hash_size(use_hll ? estimate_cardinality<lex_score>(inpaths, k, k, sv, nullptr, num_threads, 24): 1 << 16);
+    std::size_t hash_size(use_hll ? estimate_cardinality<lex_score>(inpaths, k, k, sv, nullptr, num_threads, 24): 1 << 16);
     if(use_hll) fprintf(stderr, "Estimated number of elements: %zu\n", hash_size);
 
     if(mode == score_scheme::LEX)

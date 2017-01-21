@@ -7,7 +7,7 @@ namespace emp {
 
 namespace popcnt {
 
-uint64_t vec_popcnt(const std::string &vec);
+std::uint64_t vec_popcnt(const std::string &vec);
 
 template<typename T>
 constexpr unsigned popcount(T val) noexcept {
@@ -37,7 +37,7 @@ std::uint64_t vec_popcnt(T &container) {
     return ret;
 }
 
-uint64_t vec_popcnt(std::uint64_t *p, size_t l);
+std::uint64_t vec_popcnt(std::uint64_t *p, std::size_t l);
 
 } //namespace popcnt
 

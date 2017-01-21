@@ -5,8 +5,8 @@
 namespace emp {
 
 
-uint32_t comb_size(const spvec_t &spaces) {
-    uint32_t ret(spaces.size() + 1); // Since there's 1 fewer entry in spaces
+std::uint32_t comb_size(const spvec_t &spaces) {
+    std::uint32_t ret(spaces.size() + 1); // Since there's 1 fewer entry in spaces
     // We then increment the size of our comb for each space.
     for(auto i: spaces) {
         ret += i;

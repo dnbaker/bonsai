@@ -4,12 +4,12 @@
 
 namespace emp {
 
-size_t count_lines(const char *fn) noexcept {
+std::size_t count_lines(const char *fn) noexcept {
     FILE *fp(fopen(fn, "r"));
-    size_t bufsz = 4096;
+    std::size_t bufsz = 4096;
     char *buf((char *)malloc(bufsz));
-    ssize_t len;
-    size_t n(0);
+    std::size_t len;
+    std::size_t n(0);
     while((len = getline(&buf, &bufsz, fp)) >= 0) ++n;
     free(buf);
     fclose(fp);
@@ -22,14 +22,14 @@ size_t count_lines(const char *fn) noexcept {
 // though it uses less than half the memory. The thing is, taxonomic trees
 // aren't that deep.
 // We don't gain much from optimizing that.
-uint32_t lca(khash_t(p) *map, uint32_t a, uint32_t b) noexcept {
+std::uint32_t lca(khash_t(p) *map, std::uint32_t a, std::uint32_t b) noexcept {
     // Use std::set to use RB trees for small set rather than hash table.
-    std::set<uint32_t> nodes;
+    std::set<std::uint32_t> nodes;
     khint_t ki;
     while(a) {
         nodes.insert(a);
         if((ki = kh_get(p, map, a)) == kh_end(map)) {
-            return (uint32_t)-1;
+            return (std::uint32_t)-1;
         }
         a = kh_val(map, ki);
     }
@@ -39,14 +39,14 @@ uint32_t lca(khash_t(p) *map, uint32_t a, uint32_t b) noexcept {
         }
         if((ki = kh_get(p, map, b)) == kh_end(map)) {
             fprintf(stderr, "Missing taxid %u. Abort!\n", b);
-            return (uint32_t)-1;
+            return (std::uint32_t)-1;
         }
         b = kh_val(map, ki);
     }
     return 1;
 }
 
-unsigned node_depth(khash_t(p) *map, uint32_t a) noexcept {
+unsigned node_depth(khash_t(p) *map, std::uint32_t a) noexcept {
     unsigned ret(0);
     khint_t ki;
     while(a) {
@@ -61,9 +61,9 @@ unsigned node_depth(khash_t(p) *map, uint32_t a) noexcept {
 }
 
 khash_t(name) *build_name_hash(const char *fn) noexcept {
-    size_t bufsz(2048), namelen;
+    std::size_t bufsz(2048), namelen;
     char *buf((char *)malloc(bufsz));
-    ssize_t len;
+    std::size_t len;
     FILE *fp(fopen(fn, "r"));
     khash_t(name) *ret(kh_init(name));
     kh_resize(name, ret, count_lines(fn));
@@ -96,13 +96,13 @@ void destroy_name_hash(khash_t(name) *hash) noexcept {
 }
 
 khash_t(p) *build_parent_map(const char *fn) noexcept {
-    size_t nlines(count_lines(fn));
+    std::size_t nlines(count_lines(fn));
     FILE *fp(fopen(fn, "r"));
     khash_t(p) *ret(kh_init(p));
     kh_resize(p, ret, nlines);
-    size_t bufsz = 4096;
+    std::size_t bufsz = 4096;
     char *buf((char *)malloc(bufsz));
-    ssize_t len;
+    std::size_t len;
     khint_t ki;
     int khr;
     while((len = getline(&buf, &bufsz, fp)) >= 0) {
@@ -128,16 +128,16 @@ void kset_union(khash_t(all) *a, khash_t(all) *b) noexcept {
  // Tree resolution: take all hit taxa (plus ancestors), then
  // return leaf of highest weighted leaf-to-root path.
  // Taken, slightly modified from Kraken
-uint32_t resolve_tree(std::map<uint32_t, uint32_t> &hit_counts,
+std::uint32_t resolve_tree(std::map<std::uint32_t, std::uint32_t> &hit_counts,
                       khash_t(p) *parent_map) noexcept
 {
-  std::set<uint32_t> max_taxa;
-  uint32_t max_taxon(0), max_score(0);
+  std::set<std::uint32_t> max_taxa;
+  std::uint32_t max_taxon(0), max_score(0);
   auto it(hit_counts.begin());
 
   // Sum each taxon's LTR path
   while (it != hit_counts.end()) {
-    uint32_t taxon(it->first), node(taxon), score(0);
+    std::uint32_t taxon(it->first), node(taxon), score(0);
     khiter_t ki;
     // Instead of while node > 0
     while(node) {

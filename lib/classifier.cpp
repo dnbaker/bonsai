@@ -5,7 +5,7 @@ namespace emp {
 
 void kt_for_helper(void *data_, long index, int tid) {
     kt_data *data((kt_data *)data_);
-    size_t retstr_size(0);
+    std::size_t retstr_size(0);
     const int inc(!!data->is_paired_ + 1);
     Encoder<lex_score> enc(data->c_.enc_);
     for(unsigned i(index * data->per_set_), end(std::min(i + data->per_set_, data->total_));
@@ -15,9 +15,9 @@ void kt_for_helper(void *data_, long index, int tid) {
     data->retstr_size_ += retstr_size;
 }
 
-void append_fastq_classification(const std::map<uint32_t, uint32_t> &hit_counts,
-                                 const std::vector<uint32_t> &taxa,
-                                 const uint32_t taxon, const uint32_t ambig_count, const uint32_t missing_count,
+void append_fastq_classification(const std::map<std::uint32_t, std::uint32_t> &hit_counts,
+                                 const std::vector<std::uint32_t> &taxa,
+                                 const std::uint32_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
                                  bseq1_t *bs, kstring_t *bks, const int verbose, const int is_paired) {
     char *cms, *cme; // comment start, comment end -- used for using comment in both output reads.
     kputs(bs->name, bks);
@@ -51,9 +51,9 @@ void append_fastq_classification(const std::map<uint32_t, uint32_t> &hit_counts,
     }
 }
 
-void append_kraken_classification(const std::map<uint32_t, uint32_t> &hit_counts,
-                                  const std::vector<uint32_t> &taxa,
-                                  const uint32_t taxon, const uint32_t ambig_count, const uint32_t missing_count,
+void append_kraken_classification(const std::map<std::uint32_t, std::uint32_t> &hit_counts,
+                                  const std::vector<std::uint32_t> &taxa,
+                                  const std::uint32_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
                                   bseq1_t *bs, kstring_t *bks) {
     kputc((taxon < 1) * ('U' - 'C') + 'C', bks);
     //kputc(taxon ? 'C': 'U', bks); Equivalent to above but without a branch.
@@ -70,9 +70,9 @@ void append_kraken_classification(const std::map<uint32_t, uint32_t> &hit_counts
     append_taxa_runs(taxon, taxa, bks);
 }
 
-void append_taxa_runs(uint32_t taxon, const std::vector<uint32_t> &taxa, kstring_t *bks) {
+void append_taxa_runs(std::uint32_t taxon, const std::vector<std::uint32_t> &taxa, kstring_t *bks) {
     if(taxon) {
-        uint32_t last_taxa(taxa[0]), taxa_run(1);
+        std::uint32_t last_taxa(taxa[0]), taxa_run(1);
         for(unsigned i(1), end(taxa.size()); i != end; ++i) {
             if(taxa[i] == last_taxa) ++taxa_run;
             else {

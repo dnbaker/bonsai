@@ -15,8 +15,8 @@ KSEQ_INIT(gzFile, gzread)
 
 struct kth {
     const std::string &path_;
-    std::map<size_t, size_t> &map_;
-    kth(const std::string &path, std::map<size_t, size_t> &map): path_(path), map_(map) {}
+    std::map<std::size_t, std::size_t> &map_;
+    kth(const std::string &path, std::map<std::size_t, std::size_t> &map): path_(path), map_(map) {}
 };
 
 void kfunc(void *data_, long index, int id) {
@@ -29,12 +29,12 @@ void kfunc(void *data_, long index, int id) {
 }
 
 int main(int argc, char **argv) {
-    size_t nthreads(16);
+    std::size_t nthreads(16);
 
     gzFile ofp(gzdopen(STDOUT_FILENO, "wT"));
 
-    std::unordered_map<size_t, size_t> data;
-    std::vector<std::map<size_t, size_t>> maps;
+    std::unordered_map<std::size_t, std::size_t> data;
+    std::vector<std::map<std::size_t, std::size_t>> maps;
     std::vector<std::string> paths;
     paths.reserve(argc - 1);
     
@@ -55,16 +55,16 @@ int main(int argc, char **argv) {
         paths.emplace_back(*p);
     }
 
-    for(size_t i(0); i < paths.size(); ++i) maps.emplace_back();
+    for(std::size_t i(0); i < paths.size(); ++i) maps.emplace_back();
     std::vector<kth> helpers;
     helpers.reserve(paths.size());
-    for(size_t i(0); i < paths.size(); ++i) helpers.emplace_back(paths[i], maps[i]);
+    for(std::size_t i(0); i < paths.size(); ++i) helpers.emplace_back(paths[i], maps[i]);
     fprintf(stderr, "Processing %zu paths.\n", paths.size());
     kt_for(nthreads, &kfunc, (void *)helpers.data(), paths.size());
     for(auto &kf: helpers)
         for(auto &pair: kf.map_)
             data[pair.first] += pair.second;
-    std::vector<size_t> lens;
+    std::vector<std::size_t> lens;
     lens.reserve(data.size());
     for(auto &pair: data) lens.emplace_back(pair.first);
     std::sort(lens.begin(), lens.end());

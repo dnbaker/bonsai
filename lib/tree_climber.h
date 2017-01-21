@@ -7,60 +7,52 @@ namespace emp {
 
 namespace tree {
 
+inline std::uint32_t get_parent(khash_t(p) *taxmap, std::uint32_t key) noexcept {
+    // Returns maximum value if not found.
+    khiter_t ki;
+    return ((ki = kh_get(p, taxmap, key)) != kh_end(taxmap)) ? kh_val(taxmap, ki)
+                                                             : std::numeric_limits<std::uint32_t>::max();
+}
+
 class SortedNodeGuide {
+
     std::vector<std::uint32_t> nodes_, offsets_;
+
 public:
+
     SortedNodeGuide(std::vector<std::uint32_t> &nodes, std::vector<std::uint32_t> & offsets):
         nodes_(std::move(nodes)), offsets_(std::move(offsets))
     {}
-};
 
-namespace {
-    uint32_t get_parent(khash_t(p) *taxmap, uint32_t key) {
-        khiter_t ki;
-        return ((ki = kh_get(p, taxmap, key)) != kh_end(taxmap)) ? kh_val(taxmap, ki): std::numeric_limits<uint32_t>::max();
+    SortedNodeGuide(khash_t(p) *taxmap) {
+        for(khiter_t ki(0); ki != kh_end(taxmap); ++ki)
+            if(kh_exist(taxmap, ki))
+                nodes_.push_back(kh_key(taxmap, ki));
+        std::sort(std::begin(nodes_), std::end(nodes_), [taxmap] (const std::uint32_t a, const std::uint32_t b) {
+            std::uint32_t aa(node_depth(taxmap, a)), bb(node_depth(taxmap, b));
+            if(aa != bb) return aa > bb;
+            if((aa = get_parent(taxmap, a)) != // Set and compare lexicographically by parents.
+               (bb = get_parent(taxmap, b)))
+                return aa < bb;
+            return a < b;
+        });
+        std::uint32_t u, last(std::numeric_limits<std::uint32_t>::max());
+        for(std::size_t i(0), e(nodes_.size()); i < e; ++i)
+            if((u = node_depth(taxmap, nodes_[i])) != last)
+                offsets_.push_back(i), last = u;
     }
-}
+
+    const std::vector<std::uint32_t> &get_nodes() { return nodes_;}
+    const std::vector<std::uint32_t> &get_offsets() { return offsets_;}
+};
 
 /*
  * In order to do this collapsing/traversal, we need to:
  *   1. Determine the order of the nodes which we'll need to visit.
  *   2. Determine which of them are in sets (and need to be processed together).
 */
-SortedNodeGuide sorted_nodes(khash_t(p) *taxmap) {
-    struct Node {
-        const std::uint32_t id_, depth_;
-        Node(std::uint32_t id, std::uint32_t depth): id_(id), depth_(depth) {}
-    };
-    std::vector<Node> nodes;
-    nodes.reserve(taxmap->n_occupied);
-    for(khiter_t ki(0); ki != kh_end(taxmap); ++ki)
-        if(kh_exist(taxmap, ki))
-            nodes.emplace_back(kh_key(taxmap, ki),
-                               node_depth(taxmap, kh_key(taxmap, ki)));
-    std::vector<std::uint32_t> ids;
-    for(khiter_t ki(0); ki != kh_end(taxmap); ++ki) if(kh_exist(taxmap, ki)) ids.push_back(kh_key(taxmap, ki));
-    std::sort(std::begin(ids), std::end(ids), [taxmap] (const std::uint32_t a, const std::uint32_t b) {
-        const uint32_t nda(node_depth(taxmap, a)), ndb(node_depth(taxmap, b));
-        if(nda != ndb) return nda > ndb;
-        return get_parent(taxmap, a) < get_parent(taxmap, b);
-    });
-#if 0
-    std::sort(std::begin(nodes), std::end(nodes), [taxmap] (const Node &a, const Node &b) {
-        if(a.depth_ != b.depth_) {
-            return a.depth_ > b.depth_;
-        }
-    });
-#endif
-    std::vector<std::uint32_t> offsets;
-    unsigned u, last(std::numeric_limits<uint32_t>::max());
-    for(size_t i(0); i < ids.size(); ++i) {
-        if((u = node_depth(taxmap, ids[i])) != last) {
-            offsets.push_back(i);
-            last = u;
-        }
-    }
-    return SortedNodeGuide(ids, offsets);
+inline std::vector<std::uint32_t> sorted_nodes(khash_t(p) *taxmap) {
+    return std::move(SortedNodeGuide(taxmap).get_nodes());
 }
 } // namespace tree
 

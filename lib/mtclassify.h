@@ -14,7 +14,7 @@ struct kt_data {
     bseq1_t *bs_;
     unsigned per_set_;
     unsigned total_;
-    std::atomic<uint64_t> &retstr_size_;
+    std::atomic<std::uint64_t> &retstr_size_;
 };
 }
 
@@ -25,7 +25,7 @@ INLINE void classify_seqs(Classifier &c, khash_t(p) *taxmap, bseq1_t *bs,
     static const unsigned ilog2ps(__builtin_ctz(per_set));
     assert(per_set && ((per_set & (per_set - 1)) == 0));
 
-    std::atomic<uint64_t> retstr_size(0);
+    std::atomic<std::uint64_t> retstr_size(0);
     kt_data data{c, taxmap, bs, per_set, chunk_size, retstr_size};
     kt_for(c.nt_, &kt_for_helper, (void *)&data, (chunk_size >> ilog2ps) + 1);
     ks_resize(cks, retstr_size);
@@ -35,7 +35,7 @@ INLINE void classify_seqs(Classifier &c, khash_t(p) *taxmap, bseq1_t *bs,
 
 void kt_for_helper(void *data_, long index, int tid) {
     kt_data *data((kt_data *)data_);
-    size_t retstr_size(0);
+    std::size_t retstr_size(0);
     for(unsigned i(index * data->per_set_), end(std::min(i + data->per_set_, data->total_));
             i < end; ++i)
         retstr_size += classify_seq(data->c_, data->taxmap, data->bs_ + i);

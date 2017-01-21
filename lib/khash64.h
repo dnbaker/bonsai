@@ -196,7 +196,7 @@ static const double __ac_HASH_UPPER = 0.77;
 
 // Thomas Wang hash
 // Original site down, available at https://naml.us/blog/tag/thomas-wang
-kh_inline uint64_t __ac_Wang64_hash(uint64_t key) {
+kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
   key = (~key) + (key << 21); // key = (key << 21) - key - 1;
   key = key ^ (key >> 24);
   key = (key + (key << 3)) + (key << 8); // key * 265
@@ -627,36 +627,36 @@ static kh_inline khint_t __ac_Wang_hash(khint_t key)
 
 
 #ifdef __cplusplus
-template<size_t nbits>
+template<std::size_t nbits>
 struct khkey_t {
-    __attribute__((packed)) uint64_t key_:nbits;
-    static const uint64_t max = (1ull << nbits) - 1;
+    __attribute__((packed)) std::uint64_t key_:nbits;
+    static const std::uint64_t max = (1ull << nbits) - 1;
 
-    kh_inline uint64_t operator=(uint64_t other) {
+    kh_inline std::uint64_t operator=(std::uint64_t other) {
         return key_ = other;
     }
-    kh_inline bool operator<=(uint64_t other) {
+    kh_inline bool operator<=(std::uint64_t other) {
         return key_ <= other;
     }
-    kh_inline bool operator>=(uint64_t other) {
+    kh_inline bool operator>=(std::uint64_t other) {
         return key_ >= other;
     }
-    kh_inline bool operator==(uint64_t other) {
+    kh_inline bool operator==(std::uint64_t other) {
         return key_ == other;
     }
-    kh_inline uint64_t operator+=(uint64_t other) {
+    kh_inline std::uint64_t operator+=(std::uint64_t other) {
         return key_ += other;
     }
-    kh_inline uint64_t operator-=(uint64_t other) {
+    kh_inline std::uint64_t operator-=(std::uint64_t other) {
         return key_ -= other;
     }
-    kh_inline uint64_t operator-(uint64_t other) {
+    kh_inline std::uint64_t operator-(std::uint64_t other) {
         return key_ - other;
     }
-    kh_inline uint64_t operator+(uint64_t other) {
+    kh_inline std::uint64_t operator+(std::uint64_t other) {
         return key_ + other;
     }
-    kh_inline uint64_t operator=(khkey_t<nbits> other) {
+    kh_inline std::uint64_t operator=(khkey_t<nbits> other) {
         return key_ = other.key_;
     }
     kh_inline bool operator<=(khkey_t<nbits> other) {
@@ -668,26 +668,26 @@ struct khkey_t {
     kh_inline bool operator==(khkey_t<nbits> other) {
         return key_ == other.key_;
     }
-    kh_inline uint64_t operator+=(khkey_t<nbits> other) {
+    kh_inline std::uint64_t operator+=(khkey_t<nbits> other) {
         return key_ += other.key_;
     }
-    kh_inline uint64_t operator-=(khkey_t<nbits> other) {
+    kh_inline std::uint64_t operator-=(khkey_t<nbits> other) {
         return key_ -= other.key_;
     }
-    kh_inline uint64_t operator-(khkey_t<nbits> other) {
+    kh_inline std::uint64_t operator-(khkey_t<nbits> other) {
         return key_ - other.key_;
     }
-    kh_inline uint64_t operator+(khkey_t<nbits> other) {
+    kh_inline std::uint64_t operator+(khkey_t<nbits> other) {
         return key_ + other.key_;
     }
-    kh_inline uint64_t operator++() {
+    kh_inline std::uint64_t operator++() {
         return ++key_;
     }
-    kh_inline uint64_t operator--() {
+    kh_inline std::uint64_t operator--() {
         return --key_;
     }
-    kh_inline operator uint64_t() {
-        return (uint64_t)key_;
+    kh_inline operator std::uint64_t() {
+        return (std::uint64_t)key_;
     }
 };
 

@@ -18,28 +18,28 @@ namespace emp {
 
 
 // Hash function taken from Murmurhash3, though we only hash a single single-bit element.
-template<typename T, size_t ns=4>
+template<typename T, std::size_t ns=4>
 struct cms_t {
-    const size_t sz_;
+    const std::size_t sz_;
     std::vector<T> bits_; // 2-d array of bits. Access position j within array i via bits_[j + i *sz_]
-    uint64_t seeds_[ns];
-    const size_t mask_;
+    std::uint64_t seeds_[ns];
+    const std::size_t mask_;
 
-    cms_t(size_t sz, uint32_t seedseed=137): // Lucky number
+    cms_t(std::size_t sz, std::uint32_t seedseed=137): // Lucky number
       sz_(roundup64(sz)), bits_(ns * sz_, 0), mask_(sz_ - 1)
     {
         assert(is_pow2(sz_));
         srand(seedseed);
-        for(auto &seed: seeds_) seed = ((uint64_t)rand() << 32) | rand();
+        for(auto &seed: seeds_) seed = ((std::uint64_t)rand() << 32) | rand();
     }
-    INLINE void add(uint64_t hashval, int val) {
+    INLINE void add(std::uint64_t hashval, int val) {
         // Multiply a produced hash
         unsigned i(0);
         for(auto seed: seeds_)
             bits_[((hashval ^ seed) & mask_) + sz_ * i++] += val;
     }
-    INLINE void add(uint64_t hashval) {add(hashval, 1);}
-    T query(uint64_t hashval) {
+    INLINE void add(std::uint64_t hashval) {add(hashval, 1);}
+    T query(std::uint64_t hashval) {
         T ret(std::numeric_limits<T>::max());
         unsigned i(0);
         for(auto seed: seeds_) {
@@ -52,7 +52,7 @@ struct cms_t {
     cms_t<T, ns> &operator+=(const cms_t<T, ns> &other) {
         if(other.sz_ != sz_) goto fail;
         for(unsigned i(0); i < ns; ++i) if(seeds_[i] != other.seeds_[i]) goto fail;
-        for(size_t i(0), end(bits_.size()); i < end; ++i) bits_[i] += other.bits_[i];
+        for(std::size_t i(0), end(bits_.size()); i < end; ++i) bits_[i] += other.bits_[i];
         return *this;
         fail:
         fprintf(stderr, "[%s]: cms_t's have different table sizes or seeds. Abort!\n", __func__);

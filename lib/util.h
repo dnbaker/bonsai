@@ -30,22 +30,22 @@
 namespace emp {
 
 KHASH_SET_INIT_INT64(all)
-KHASH_MAP_INIT_INT64(c, uint32_t)
-KHASH_MAP_INIT_INT64(64, uint64_t)
-KHASH_MAP_INIT_INT(p, uint32_t)
-KHASH_MAP_INIT_STR(name, uint32_t)
+KHASH_MAP_INIT_INT64(c, std::uint32_t)
+KHASH_MAP_INIT_INT64(64, std::uint64_t)
+KHASH_MAP_INIT_INT(p, std::uint32_t)
+KHASH_MAP_INIT_STR(name, std::uint32_t)
 
-size_t count_lines(const char *fn) noexcept;
+std::size_t count_lines(const char *fn) noexcept;
 khash_t(name) *build_name_hash(const char *fn) noexcept;
 void destroy_name_hash(khash_t(name) *hash) noexcept;
 khash_t(p) *build_parent_map(const char *fn) noexcept;
 // Resolve_tree is modified from Kraken 1 source code, which
 // is MIT-licensed. https://github.com/derrickwood/kraken
-uint32_t resolve_tree(std::map<uint32_t, uint32_t> &hit_counts,
+std::uint32_t resolve_tree(std::map<std::uint32_t, std::uint32_t> &hit_counts,
                       khash_t(p) *parent_map) noexcept;
 
 // Modified from bit-twiddling hacks to work with 64-bit integers.
-static INLINE size_t roundup64(size_t x) noexcept {
+static INLINE std::size_t roundup64(std::size_t x) noexcept {
     --x;
     x |= x >> 1;
     x |= x >> 2;
@@ -56,8 +56,8 @@ static INLINE size_t roundup64(size_t x) noexcept {
     return ++x;
 }
 
-INLINE uint64_t rand64() noexcept {
-    return (((uint64_t)rand()) << 32) | rand();
+INLINE std::uint64_t rand64() noexcept {
+    return (((std::uint64_t)rand()) << 32) | rand();
 }
 template <typename T> 
 void khash_destroy(T *map) noexcept {
@@ -94,9 +94,9 @@ void khash_write_impl(T *map, FILE *fp) noexcept {
 }
 
 template <typename T>
-size_t khash_write(T *map, const char *path) noexcept {
+std::size_t khash_write(T *map, const char *path) noexcept {
     FILE *fp(fopen(path, "wb"));
-    size_t ret(ftell(fp));
+    std::size_t ret(ftell(fp));
     fclose(fp);
     return ret;
 }
@@ -112,7 +112,7 @@ T *khash_load_impl(FILE *fp) noexcept {
     fread(&rex->n_occupied, 1, sizeof(rex->n_occupied), fp);
     fread(&rex->size, 1, sizeof(rex->size), fp);
     fread(&rex->upper_bound, 1, sizeof(rex->upper_bound), fp);
-    rex->flags = (uint32_t *)malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
+    rex->flags = (std::uint32_t *)malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
     rex->keys = (keytype_t *)malloc(sizeof(*rex->keys) * rex->n_buckets);
     rex->vals = (valtype_t *)malloc(sizeof(*rex->vals) * rex->n_buckets);
     fread(rex->flags, __ac_fsize(rex->n_buckets), sizeof(*rex->flags), fp);
@@ -131,8 +131,8 @@ T *khash_load(const char *path) noexcept {
 
 void kset_union(khash_t(all) *a, khash_t(all) *b) noexcept;
 
-uint32_t lca(khash_t(p) *map, uint32_t a, uint32_t b) noexcept;
-unsigned node_depth(khash_t(p) *map, uint32_t a) noexcept;
+std::uint32_t lca(khash_t(p) *map, std::uint32_t a, std::uint32_t b) noexcept;
+unsigned node_depth(khash_t(p) *map, std::uint32_t a) noexcept;
 
 } // namespace emp
 

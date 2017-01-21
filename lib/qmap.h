@@ -45,7 +45,7 @@ private:
 #else
     std::map<ElScore<T, ScoreType>, unsigned> map_;
 #endif
-    const size_t wsz_;  // window size to keep
+    const std::size_t wsz_;  // window size to keep
     public:
     INLINE void add(const ElScore<T, ScoreType> &el) {
         auto it(map_.lower_bound(el));
@@ -68,7 +68,7 @@ private:
     map_iterator end() {
         return map_.end();
     }
-    uint64_t next_value(const T el, const uint64_t score) {
+    std::uint64_t next_value(const T el, const std::uint64_t score) {
         list_.emplace_back(el, score);
         add(list_.back());
         if(list_.size() > wsz_) {
@@ -80,15 +80,15 @@ private:
         return list_.size() == wsz_ ? map_.begin()->first.el_: BF;
         // Signal a window that is not filled by 0xFFFFFFFFFFFFFFFF
     }
-    QueueMap(size_t wsz): wsz_(wsz) {}
+    QueueMap(std::size_t wsz): wsz_(wsz) {}
     void reset() {
         list_.clear();
         map_.clear();
     }
 };
 
-using qmap_t = QueueMap<uint64_t, uint64_t>;
-using elscore_t = ElScore<uint64_t, uint64_t>;
+using qmap_t = QueueMap<std::uint64_t, std::uint64_t>;
+using elscore_t = ElScore<std::uint64_t, std::uint64_t>;
 
 } // namespace emp
 

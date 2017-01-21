@@ -9,7 +9,7 @@ namespace emp {
 // This is our core 64-bit hash.
 // It has a 1-1 mapping from any one 64-bit integer to another
 // and can be inverted with irving_inv_hash.
-INLINE uint64_t wang_hash(uint64_t key) {
+INLINE std::uint64_t wang_hash(std::uint64_t key) {
   key = (~key) + (key << 21); // key = (key << 21) - key - 1;
   key = key ^ (key >> 24);
   key = (key + (key << 3)) + (key << 8); // key * 265
@@ -22,8 +22,8 @@ INLINE uint64_t wang_hash(uint64_t key) {
 
 // Geoffrey Irving
 // https://naml.us/blog/tag/thomas-wang
-INLINE uint64_t irving_inv_hash(uint64_t key) {
-  uint64_t tmp;
+INLINE std::uint64_t irving_inv_hash(std::uint64_t key) {
+  std::uint64_t tmp;
 
   // Invert key = key + (key << 31)
   tmp = key-(key<<31);
@@ -72,7 +72,7 @@ static INLINE int X31_hash_string(const char *s)
 // This is a 32-bit unsigned hash functionf or strings.
 #define DUFF
 static INLINE unsigned
-dbm_hash(register const char *str, register size_t len)
+dbm_hash(register const char *str, register std::size_t len)
 {
     register unsigned n = 0;
 

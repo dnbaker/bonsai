@@ -39,7 +39,7 @@
 namespace emp {
 
 
-static const uint32_t nucpos_arr_acgt[128] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+static const std::uint32_t nucpos_arr_acgt[128] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
         0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -85,17 +85,17 @@ static INLINE bool is_ready(std::future<R> const& f) {
 }
 
 // Jellyfish/Kraken
-static INLINE uint64_t reverse_complement(uint64_t kmer, uint8_t n) {
+static INLINE std::uint64_t reverse_complement(std::uint64_t kmer, uint8_t n) {
     kmer = ((kmer >> 2)  & 0x3333333333333333UL) | ((kmer & 0x3333333333333333UL) << 2);
     kmer = ((kmer >> 4)  & 0x0F0F0F0F0F0F0F0FUL) | ((kmer & 0x0F0F0F0F0F0F0F0FUL) << 4);
     kmer = ((kmer >> 8)  & 0x00FF00FF00FF00FFUL) | ((kmer & 0x00FF00FF00FF00FFUL) << 8);
     kmer = ((kmer >> 16) & 0x0000FFFF0000FFFFUL) | ((kmer & 0x0000FFFF0000FFFFUL) << 16);
     kmer = ( kmer >> 32                        ) | ( kmer                         << 32);
-    return (((uint64_t)-1) - kmer) >> (8 * sizeof(kmer) - (n << 1));
+    return (((std::uint64_t)-1) - kmer) >> (8 * sizeof(kmer) - (n << 1));
 }
 
-static INLINE uint64_t canonical_representation(uint64_t kmer, uint8_t n) {
-    const uint64_t revcom(reverse_complement(kmer, n));
+static INLINE std::uint64_t canonical_representation(std::uint64_t kmer, uint8_t n) {
+    const std::uint64_t revcom(reverse_complement(kmer, n));
     return kmer < revcom ? kmer : revcom;
 }
 

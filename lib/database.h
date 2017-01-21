@@ -52,7 +52,7 @@ struct Database {
     #endif
 
             LOG_DEBUG("Doing flags. N buckets: %zu. Elements to read: %zu\n", db_->n_buckets, __ac_fsize(db_->n_buckets));
-            db_->flags = (uint32_t *)malloc(sizeof(*db_->flags) * __ac_fsize(db_->n_buckets));
+            db_->flags = (std::uint32_t *)malloc(sizeof(*db_->flags) * __ac_fsize(db_->n_buckets));
             if(!db_->flags) LOG_EXIT("Could not allocate memory for flags.\n");
             fread(db_->flags, __ac_fsize(db_->n_buckets), sizeof(*(db_->flags)), fp);
 
