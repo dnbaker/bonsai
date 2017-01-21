@@ -14,6 +14,30 @@ inline std::uint32_t get_parent(khash_t(p) *taxmap, std::uint32_t key) noexcept 
                                                              : std::numeric_limits<std::uint32_t>::max();
 }
 
+template<typename T>
+int veccmp(const std::vector<T> &a, const std::vector<T> &b) {
+    // Return 0 if they are the same
+    // Return positive if a has only 1s that b doesn't and isn't missing any from b.
+    assert(a.size() == b.size());
+    std::bool avalid(true), bvalid(true);
+    for(std::size_t i(0), e(a.size()), i != e; ++i) {
+        auto tmpa(a & (~b));
+        auto tmpb(b & (~a));
+        if(tmpa && !tmpb) {
+            bvalid = false;
+        } else if(tmpb && !tmpa) {
+            avalid = false;
+        }
+    }
+    switch((avalid << 1) | bvalid) {
+        case 3: return  -1;
+        case 2: return  1;
+        case 1: return  2;
+        case 0: return  0;
+    }
+    // Returns -1 for the same, 0 for incomparable, 1 for a > b, 2 for b > a
+}
+
 class SortedNodeGuide {
 
     std::vector<std::uint32_t> nodes_, offsets_;
@@ -54,6 +78,7 @@ public:
 inline std::vector<std::uint32_t> sorted_nodes(khash_t(p) *taxmap) {
     return std::move(SortedNodeGuide(taxmap).get_nodes());
 }
+
 } // namespace tree
 
 } // namespace emp

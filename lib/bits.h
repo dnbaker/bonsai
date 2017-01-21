@@ -7,6 +7,7 @@ namespace emp {
 
 namespace popcnt {
 
+
 std::uint64_t vec_popcnt(const std::string &vec);
 
 template<typename T>
@@ -40,6 +41,7 @@ std::uint64_t vec_popcnt(T &container) {
 std::uint64_t vec_popcnt(std::uint64_t *p, std::size_t l);
 
 } //namespace popcnt
+
 
 } // namespace emp
 
