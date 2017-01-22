@@ -36,7 +36,7 @@ TEST_CASE("tax") {
     kgset_t set(paths, sp);
     REQUIRE(set.size() == paths.size());
     count::Counter<std::vector<std::uint64_t>> counts(bitmap_t(set).to_counter());
-    adjmap_t adj(adj_list(counts));
+    adjmap_t adj(counts);
     LOG_DEBUG("Weight: %zu. Number of bit patterns: %zu. Total weight of all bit patterns: %zu\n", set.weight(), counts.size(), counts.total());
 
     counts.print_counts(stderr);

@@ -18,7 +18,7 @@ int within_bounds(hll::hll_t &hll, double val) {
 
 std::vector<std::pair<uint64_t, uint64_t>> pairs {
     //{19, 27},
-    //{22, 29},
+    {22, 29},
     {15, 24}
     //{22, 32},
 };
@@ -32,17 +32,13 @@ std::vector<std::string> paths {
 TEST_CASE("hll") {
     //for(auto x: {8, 12, 16, 20, 24, 28, 32, 36, 42}) {
     for(auto &pair: pairs) {
-        size_t val(1ull << pair.second);
-        size_t hsz(pair.first);
+        const size_t hsz(pair.first), val(1ull << pair.second);
         hll::hll_t hll(hsz);
-        for(size_t i(0); i < val; ++i) {
-            hll.add(wang_hash(((uint64_t)rand() << 32) | rand()));
-        }
+        for(size_t i(0); i < val; ++i) hll.add(wang_hash(((uint64_t)rand() << 32) | rand()));
         //fprintf(stderr, "for x = %zu and value is %zu, est is %lf, with %lf. Within bounds for hsz %zu? %s\n",
         //        pair.second, val, hll.report(), hll.est_err(), hsz, within_bounds(hll, val) ? "true": "false");
-        if(std::abs(hll.report() - val) > hll.est_err()) {
+        if(std::abs(hll.report() - val) > hll.est_err())
             fprintf(stderr, "Warning: Failing for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
-        }
         REQUIRE(std::abs(hll.report() - val) <= hll.est_err());
     }
 }

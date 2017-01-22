@@ -5,8 +5,52 @@
 
 namespace emp {
 
-using adjmap_t = std::unordered_map<std::vector<std::uint64_t>, std::vector<std::vector<std::uint64_t>*>>;
-adjmap_t adj_list(count::Counter<std::vector<std::uint64_t>> &counts);
+// Vector comparison function
+template<typename T>
+int veccmp(const std::vector<T> &a, const std::vector<T> &b);
+
+
+template<typename T>
+class AdjacencyList {
+    std::unordered_map<T, std::vector<T*>> map_;
+    std::size_t m_, nelem_;
+
+public:
+
+    auto find(T &elem) const {return map_.find(elem);}
+    auto end()         const {return map_.end();}
+
+    // Could also use a tree map depending on the size of the graph/number of keys.
+    AdjacencyList(count::Counter<std::vector<std::uint64_t>> &counts):
+        m_(0), nelem_(counts.get_nelem()) {
+        std::set<T*> ptrs;
+        const auto map(counts.get_map());
+        for(auto i(map.cbegin()), ie(map.cend()); i != ie; ++i) {
+            ++m_;
+            auto j(i);
+            while(++j != map.cend()) {
+                typename std::unordered_map<T, std::vector<T*>>::iterator m;
+                switch(veccmp(i->first, j->first)) {
+                    case 1:
+                        if((m = map_.find(i->first)) == map_.end())
+                                map_[i->first].push_back(const_cast<std::vector<std::uint64_t> *>(&j->first));
+                        else m->second.push_back(const_cast<std::vector<std::uint64_t> *>(&j->first));
+                        break;
+                    case 2:
+                        if((m = map_.find(j->first)) == map_.end())
+                                map_[j->first].push_back(const_cast<std::vector<std::uint64_t> *>(&i->first));
+                        else m->second.push_back(const_cast<std::vector<std::uint64_t> *>(&i->first));
+                        break;
+                    case 0:        // They are identical: this shouldn't happen because of the way we iterate.
+                    case 3: break; // Do nothing: neither is a strict parent of the other.
+                }
+            }
+        }
+    }
+};
+
+using adjmap_t = AdjacencyList<std::vector<std::uint64_t>>;
+
 
 /*
  * We need to somehow build a tree of bitstrings:
@@ -81,7 +125,6 @@ class bitmap_t {
 
 std::uint64_t score_node_addn(std::vector<std::uint64_t> &bitstring,
                               adjmap_t &am, count::Counter<std::vector<std::uint64_t>> &counts);
-
 
 }
 
