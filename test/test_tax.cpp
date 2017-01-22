@@ -36,6 +36,7 @@ TEST_CASE("tax") {
     kgset_t set(paths, sp);
     REQUIRE(set.size() == paths.size());
     count::Counter<std::vector<std::uint64_t>> counts(bitmap_t(set).to_counter());
+    adjmap_t adj(adj_list(counts));
     LOG_DEBUG("Weight: %zu. Number of bit patterns: %zu. Total weight of all bit patterns: %zu\n", set.weight(), counts.size(), counts.total());
 
     counts.print_counts(stderr);
@@ -49,13 +50,10 @@ TEST_CASE("tax") {
 #endif
 }
 
-#if 0
 TEST_CASE("bitstrings") {
     std::vector<std::uint64_t> v1, v2;
     for(auto i: {1,177,123232,1222, 3344411, 11232}) v1.emplace_back(i), v2.emplace_back(i);
     count::Counter<std::vector<std::uint64_t>> counter;
     counter.add(v1);
     counter.add(v2);
-    counter.print_hist(stderr);
 }
-#endif

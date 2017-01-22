@@ -125,7 +125,7 @@ public:
     INLINE std::uint64_t decode(std::uint64_t kmer) {return kmer ^ XOR_MASK;}
     // Whether or not an additional kmer is present in the sequence being encoded.
     INLINE int has_next_kmer() {
-        return (int)pos_ < (std::size_t)((std::size_t)l_ - sp_.c_ + 1);
+        return (int)pos_ < (ssize_t)((std::size_t)l_ - sp_.c_ + 1);
     }
     // This fetches our next kmer for our window. It is immediately placed in the qmap_t,
     // which is a tree map containing kmers and scores so we can keep track of the best-scoring

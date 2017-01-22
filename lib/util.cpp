@@ -8,7 +8,7 @@ std::size_t count_lines(const char *fn) noexcept {
     FILE *fp(fopen(fn, "r"));
     std::size_t bufsz = 4096;
     char *buf((char *)malloc(bufsz));
-    std::size_t len;
+    ssize_t len;
     std::size_t n(0);
     while((len = getline(&buf, &bufsz, fp)) >= 0) ++n;
     free(buf);
@@ -63,7 +63,7 @@ unsigned node_depth(khash_t(p) *map, std::uint32_t a) noexcept {
 khash_t(name) *build_name_hash(const char *fn) noexcept {
     std::size_t bufsz(2048), namelen;
     char *buf((char *)malloc(bufsz));
-    std::size_t len;
+    ssize_t len;
     FILE *fp(fopen(fn, "r"));
     khash_t(name) *ret(kh_init(name));
     kh_resize(name, ret, count_lines(fn));
@@ -102,7 +102,7 @@ khash_t(p) *build_parent_map(const char *fn) noexcept {
     kh_resize(p, ret, nlines);
     std::size_t bufsz = 4096;
     char *buf((char *)malloc(bufsz));
-    std::size_t len;
+    ssize_t len;
     khint_t ki;
     int khr;
     while((len = getline(&buf, &bufsz, fp)) >= 0) {

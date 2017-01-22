@@ -5,6 +5,38 @@
 
 namespace emp {
 
+using adjmap_t = std::unordered_map<std::vector<std::uint64_t>, std::vector<std::vector<std::uint64_t>*>>;
+adjmap_t adj_list(count::Counter<std::vector<std::uint64_t>> &counts);
+
+/*
+ * We need to somehow build a tree of bitstrings:
+ * I want to try two data structures.
+ * First, I want to make a map from each bitstring to all of its descendents.
+ */
+template<typename T>
+int veccmp(const std::vector<T> &a, const std::vector<T> &b) {
+    // Return 0 if they are the same
+    // Return positive if a has only 1s that b doesn't and isn't missing any from b.
+    bool avalid(true), bvalid(true);
+    for(std::size_t i(0), e(a.size()); i != e; ++i) {
+        auto tmpa(a[i] & (~b[i]));
+        auto tmpb(b[i] & (~a[i]));
+        if(tmpa && !tmpb) {
+            bvalid = false;
+        } else if(tmpb && !tmpa) {
+            avalid = false;
+        }
+    }
+    switch((avalid << 1) | bvalid) {
+        default: case 3: return -1;
+        case 2: return  1;
+        case 1: return  2;
+        case 0: return  0;
+    }
+    return 0; // This never happens.
+    // Returns -1 for the same, 0 for incomparable, 1 for a > b, 2 for b > a
+}
+
 class bitmap_t {
     std::unordered_map<std::uint64_t, std::vector<std::uint64_t>> core_;
     kgset_t &set_;
@@ -33,31 +65,22 @@ class bitmap_t {
 
     bitmap_t(kgset_t &set): set_(set) {
         auto tmp(fill(set));
-#if !NDEBUG
-        std::size_t n_passed(0), total(tmp.size());
-#endif
         unsigned bitsum;
-        for(auto &i: tmp) {
-            bitsum = popcnt::vec_popcnt(i.second);
-            if(bitsum != 1 && bitsum != set.size()) {
-#if !NDEBUG
-                ++n_passed;
-                //LOG_DEBUG("Number passed: %zu. bitsum: %u\n", n_passed, bitsum);
-#endif
-                core_.emplace(i.first, i.second);
-            }
-        }
+        for(auto &i: tmp)
+            if((bitsum = popcnt::vec_popcnt(i.second)) != 1 &&
+                bitsum != set.size())
+                    core_.emplace(i.first, i.second);
         LOG_DEBUG("Keeping %zu of %zu kmers for bit patterns which are not exactly compressed by the taxonomy heuristic.\n",
                   n_passed, total);
     }
-    count::Counter<std::vector<std::uint64_t>> to_counter() {
-        count::Counter<std::vector<std::uint64_t>> ret;
-        for(auto &pair: core_) ret.add(pair.second);
-        ret.set_nelem(set_.size());
-        return ret;
-    }
+
+    count::Counter<std::vector<std::uint64_t>> to_counter();
 };
 
+
+
+std::uint64_t score_node_addn(std::vector<std::uint64_t> &bitstring,
+                              adjmap_t &am, count::Counter<std::vector<std::uint64_t>> &counts);
 
 
 }

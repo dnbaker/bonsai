@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
                 while(std::getline(ifs, tmp)) {
                     std::cout << tmp << '\n';
                     if(tmp[tmp.size() - 1] == '\n') tmp.pop_back();
-                    paths.push_back(std::move(tmp));
+                    paths.emplace_back(std::move(tmp));
                 }
             }
         }

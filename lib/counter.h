@@ -84,6 +84,8 @@ public:
         nelem_ = nelem;
     }
 
+    std::size_t get_nelem() const {return nelem_;}
+
     template<class C>
     void fill(C container) {
         for(auto i: container) add(i);
@@ -93,6 +95,9 @@ public:
     std::size_t total() const {return n_;}
     auto begin()        const {return map_.begin();}
     auto end()          const {return map_.end();}
+    auto find(T &elem)  const {return map_.find(elem);}
+
+    const std::unordered_map<T, std::size_t, Hash> &get_map() { return map_;}
 
     template<typename = std::enable_if<std::is_same<std::vector<std::uint64_t>, T>::value>>
     std::unordered_map<unsigned, unsigned> *make_hist() {
