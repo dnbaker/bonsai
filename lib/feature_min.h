@@ -118,7 +118,7 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
     for(std::size_t i(0); i < todo; ++i) counters[i] = kh_init(all), kh_resize(all, counters[i], start_size);
 
     // Submit the first set of jobs
-    for(int i(0); i < num_threads && i < (std::size_t)todo; ++i) {
+    for(int i(0); i < num_threads && i < (ssize_t)todo; ++i) {
         futures.emplace_back(std::async(
           std::launch::async, fill_set_genome<score>, fns.at(i).data(), sp, counters[i], i, (void *)full_map));
         ++submitted;
@@ -175,7 +175,7 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
 
     // Submit the first set of jobs
     std::set<std::size_t> subbed, used;
-    for(int i(0); i < num_threads && i < (std::size_t)todo; ++i) {
+    for(int i(0); i < num_threads && i < (ssize_t)todo; ++i) {
         LOG_DEBUG("Launching thread to read from file %s.\n", fns[i].data());
         futures.emplace_back(std::async(
           std::launch::async, fill_set_genome<score>, fns[i].data(), sp, counters[i], i, nullptr));
@@ -247,7 +247,7 @@ khash_t(c) *lca_map(std::vector<std::string> fns, khash_t(p) *tax_map,
 
     // Submit the first set of jobs
     std::set<std::size_t> subbed, used;
-    for(int i(0); i < num_threads && i < (std::size_t)todo; ++i) {
+    for(int i(0); i < num_threads && i < (ssize_t)todo; ++i) {
         LOG_DEBUG("Launching thread to read from file %s.\n", fns[i].data());
         futures.emplace_back(std::async(
           std::launch::async, fill_set_genome<score>, fns[i].data(), sp, counters[i], i, nullptr));
