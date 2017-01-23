@@ -14,8 +14,8 @@ std::uint32_t comb_size(const spvec_t &spaces) {
     return ret;
 }
 
-spvec_t parse_spacing(const char *ss) {
-    if(!ss) LOG_EXIT("Space string is null. Cannot set spacing.\n");
+spvec_t parse_spacing(const char *ss, unsigned k) {
+    if(!ss) return spvec_t(k - 1, 0); // No spaces
 
     spvec_t ret;
     while(ss && *ss) {

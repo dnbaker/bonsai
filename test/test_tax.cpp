@@ -39,15 +39,11 @@ TEST_CASE("tax") {
     adjmap_t adj(counts);
     LOG_DEBUG("Weight: %zu. Number of bit patterns: %zu. Total weight of all bit patterns: %zu\n", set.weight(), counts.size(), counts.total());
 
-    counts.print_counts(stderr);
-    counts.print_hist(stderr);
+    //counts.print_counts(stderr);
+    //counts.print_hist(stderr);
     std::vector<std::uint64_t> thing;
     for(size_t i(0); i < 1 << 16; ++i) thing.push_back(((uint64_t)rand() << 32) | rand());
     REQUIRE(spop(thing) == popcnt::vec_popcnt(thing));
-#if 0
-    unsigned __int128 i(((unsigned __int128)0x12b51f95ull << 64) | 0xabd04d69ull),
-                      j(((unsigned __int128)0x672f4a3aull << 64) | 0x818c3f78ull);
-#endif
 }
 
 TEST_CASE("bitstrings") {

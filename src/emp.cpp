@@ -151,7 +151,7 @@ int phase1_main(int argc, char *argv[]) {
     khash_t(p) *taxmap(taxmap_preparsed ? khash_load<khash_t(p)>(argv[optind + 1])
                                         : build_parent_map(argv[optind + 1]));
     LOG_DEBUG("Loaded tax\n");
-    spvec_t sv(parse_spacing(spacing.data()));
+    spvec_t sv(parse_spacing(spacing.data(), k));
     Spacer sp(k, wsz, sv);
     std::vector<std::string> inpaths(argv + optind + 3, argv + argc);
     {

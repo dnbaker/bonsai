@@ -61,7 +61,7 @@ static INLINE std::uint64_t hash_score(std::uint64_t i, void *data) {
 template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
 class Encoder {
     const char *s_; // String from which we are encoding our kmers.
-    std::size_t l_; // Length of the string
+    std::int64_t l_; // Length of the string
     const Spacer sp_; // Defines window size, spacing, and kmer size.
     int pos_; // Current position within the string s_ we're working with.
     void *data_; // A void pointer for using with scoring. Needed for hash_score.
@@ -125,7 +125,8 @@ public:
     INLINE std::uint64_t decode(std::uint64_t kmer) {return kmer ^ XOR_MASK;}
     // Whether or not an additional kmer is present in the sequence being encoded.
     INLINE int has_next_kmer() {
-        return (int)pos_ < (ssize_t)((std::size_t)l_ - sp_.c_ + 1);
+        return pos_ < l_ - sp_.c_ + 1;
+        static_assert(std::is_same<decltype((std::int64_t)l_ - sp_.c_ + 1), std::int64_t>::value, "is not same");
     }
     // This fetches our next kmer for our window. It is immediately placed in the qmap_t,
     // which is a tree map containing kmers and scores so we can keep track of the best-scoring

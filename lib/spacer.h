@@ -12,7 +12,7 @@ namespace emp {
 typedef std::vector<std::uint8_t> spvec_t;
 
 std::uint32_t comb_size(const spvec_t &spaces);
-spvec_t parse_spacing(const char *space_string);
+spvec_t parse_spacing(const char *space_string, unsigned k);
 struct Spacer {
     static const std::uint32_t max_k = 31;
     // Instance variables
@@ -37,7 +37,7 @@ public:
         }
     }
     Spacer(unsigned k, std::uint16_t w, const char *space_string):
-        Spacer(k, w, parse_spacing(space_string))
+        Spacer(k, w, parse_spacing(space_string, k))
     {
     }
     void write(std::uint64_t kmer, FILE *fp=stdout) const {

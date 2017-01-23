@@ -1,7 +1,7 @@
-.PHONY=all tests clean obj unit_tests
+.PHONY=all tests clean obj
 CXX=g++
 CC=gcc
-WARNINGS=-Wall -Wextra -Wno-char-subscripts \
+WARNINGS=-Werror -Wall -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
          # -pedantic
@@ -58,7 +58,7 @@ tests: clean unit_tests
 
 unit_tests: $(OBJS) $(TEST_OBJS) libhll.a
 	#$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
-	$(CXX) $(CXXFLAGS) $(INCLUDE) test/test_tax.o test/test_main.o $(LD) $(OBJS) -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
 
 
 clean:
