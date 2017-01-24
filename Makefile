@@ -6,8 +6,8 @@ WARNINGS=-Werror -Wall -Wextra -Wno-char-subscripts \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
          # -pedantic
 DBG= -DNDEBUG # -fno-inline
-OPT:= $(DBG) -O3 -funroll-loops -fno-asynchronous-unwind-tables -ffast-math \
-			-pipe -fno-strict-aliasing -march=native -mpclmul # -Wa,-q #-flto#  -mavx512f # -msse2
+OPT:= -O3 -funroll-loops -fno-asynchronous-unwind-tables -ffast-math \
+      -pipe -fno-strict-aliasing -march=native -mpclmul # -Wa,-q #-flto#  -mavx512f # -msse2
 OS:=$(shell uname)
 ifeq ($(OS),Darwin)
 	OPT := $(OPT) -Wa,-q
@@ -33,7 +33,7 @@ INCLUDE=-I. -Ilib
 
 
 
-all: $(OBJS) $(EX) unit_tests
+all: $(OBJS) $(EX) unit
 
 libhll.a:
 	cd hll && make && cp libhll.a ..
@@ -46,23 +46,25 @@ clhash.o: clhash/src/clhash.c
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB)
 
-#%.o: %.h %.cpp
-%.o: %.cpp
+test/%.o: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
+
 %: src/%.o $(OBJS) libhll.a
-	$(CXX) $(CXXFLAGS) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
 
-tests: clean unit_tests
+tests: clean unit
 
-unit_tests: $(OBJS) $(TEST_OBJS) libhll.a
+unit: $(OBJS) $(TEST_OBJS) libhll.a
 	#$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
 
 
 clean:
-	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) unit_tests lib/*o src/*o libhll.a \
+	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o src/*o libhll.a \
 	&& cd hll && make clean && cd ..
 
 mostlyclean: clean

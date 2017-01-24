@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cmath>
 #include <string>
+#include <unordered_set>
 #include "hll/hll.h"
 #include "lib/encoder.h"
 
@@ -17,31 +18,46 @@ int within_bounds(hll::hll_t &hll, double val) {
 }
 
 std::vector<std::pair<uint64_t, uint64_t>> pairs {
-    //{19, 27},
-    {23, 26},
-    {15, 19}
+    {17, 24},
+    {8, 14},
+    {12, 17},
+    {15, 19},
     //{22, 32},
+    {22, 30}
 };
 std::vector<std::string> paths {
     "test/GCF_000302455.1_ASM30245v1_genomic.fna.gz",
     "test/GCF_000762265.1_ASM76226v1_genomic.fna.gz",
     "test/GCF_000953115.1_DSM1535_genomic.fna.gz",
     "test/GCF_001723155.1_ASM172315v1_genomic.fna.gz"
+    "test/GCF_fake.fna.gz"
 };
 
+#if 0
 TEST_CASE("hll") {
     //for(auto x: {8, 12, 16, 20, 24, 28, 32, 36, 42}) {
+    bool pass(1);
     for(auto &pair: pairs) {
         const size_t hsz(pair.first), val(1ull << pair.second);
         hll::hll_t hll(hsz);
-        for(size_t i(0); i < val; ++i) hll.add(wang_hash(((uint64_t)rand() << 32) | rand()));
-        //fprintf(stderr, "for x = %zu and value is %zu, est is %lf, with %lf. Within bounds for hsz %zu? %s\n",
-        //        pair.second, val, hll.report(), hll.est_err(), hsz, within_bounds(hll, val) ? "true": "false");
-        if(std::abs(hll.report() - val) > hll.est_err())
-            fprintf(stderr, "Warning: Failing for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
-        REQUIRE(std::abs(hll.report() - val) <= hll.est_err());
+#if CRAZY
+        std::unordered_set<decltype(pair.first)> t;
+        std::uint64_t r;
+        while(t.size() < val)
+            if(t.find(r = ((uint64_t)rand() << 32) | rand()) == t.end())
+                t.insert(r), hll.add(wang_hash(r));
+#else
+    for(size_t i(0); i != val; ++i) hll.add(wang_hash(((uint64_t)rand() << 32) | rand()));
+#endif
+        if(!hll.within_bounds(val))
+            fprintf(stderr, "Warning: Failing for %u, %u, with bound %lf not matching expected %lf. (val: %zu)\n",
+                    (unsigned)pair.first, (unsigned)pair.second,
+                    std::abs(hll.report() - val), hll.est_err(), val),
+            pass = 0;
     }
+    REQUIRE(pass);
 }
+#endif
 
 TEST_CASE("phll") {
     spvec_t vec;

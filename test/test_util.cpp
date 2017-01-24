@@ -18,7 +18,7 @@ TEST_CASE("Khash writes and reads correcly") {
     ti = khash_load<khash_t(c)>("zomg");
     system("rm zomg");
     for(size_t i(0); i < th->n_buckets; ++i) {
-        //REQUIRE(th->flags[__ac_fsize(i)] == ti->flags[__ac_fsize(i)]);
+        REQUIRE(th->flags[__ac_fsize(i)] == ti->flags[__ac_fsize(i)]);
         REQUIRE(th->vals[i] == ti->vals[i]);
         REQUIRE(th->keys[i] == ti->keys[i]);
     }
@@ -28,7 +28,7 @@ TEST_CASE("Khash writes and reads correcly") {
 }
 
 TEST_CASE("roundup64") {
-    for(size_t i(0); i < 1 << 4; ++i) {
+    for(size_t i(0); i < 1 << 10; ++i) {
         size_t d(((uint64_t)rand() << 32) | rand());
         if(is_pow2(d)) d = i;
         REQUIRE(__builtin_clzll(d) - 1 == __builtin_clzll(roundup64(d)));

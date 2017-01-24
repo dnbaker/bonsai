@@ -10,7 +10,6 @@ TEST_CASE("tax") {
     tax.write("test_tax.tx");
     Taxonomy tax2("test_tax.tx");
     REQUIRE(tax == tax2);
-    LOG_DEBUG("Got here\n");
     spvec_t v{3, 7, 1, 0, 4};
     while(v.size() < 12) v.push_back(0);
     std::vector<std::string> paths;
@@ -37,7 +36,7 @@ TEST_CASE("tax") {
     REQUIRE(set.size() == paths.size());
     count::Counter<std::vector<std::uint64_t>> counts(bitmap_t(set).to_counter());
     adjmap_t adj(counts);
-    LOG_DEBUG("Weight: %zu. Number of bit patterns: %zu. Total weight of all bit patterns: %zu\n", set.weight(), counts.size(), counts.total());
+    //LOG_DEBUG("Weight: %zu. Number of bit patterns: %zu. Total weight of all bit patterns: %zu\n", set.weight(), counts.size(), counts.total());
 
     //counts.print_counts(stderr);
     //counts.print_hist(stderr);

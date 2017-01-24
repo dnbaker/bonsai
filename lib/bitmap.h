@@ -110,10 +110,18 @@ class bitmap_t {
     bitmap_t(kgset_t &set): set_(set) {
         auto tmp(fill(set));
         unsigned bitsum;
+#if !NDEBUG
+        size_t n_passed(0);
+        size_t total(tmp.size());
+#endif
         for(auto &i: tmp)
             if((bitsum = popcnt::vec_popcnt(i.second)) != 1 &&
                 bitsum != set.size())
+#if !NDEBUG
+                    core_.emplace(i.first, i.second), ++n_passed;
+#else
                     core_.emplace(i.first, i.second);
+#endif
         LOG_DEBUG("Keeping %zu of %zu kmers for bit patterns which are not exactly compressed by the taxonomy heuristic.\n",
                   n_passed, total);
     }

@@ -96,6 +96,7 @@ void khash_write_impl(T *map, FILE *fp) noexcept {
 template <typename T>
 std::size_t khash_write(T *map, const char *path) noexcept {
     FILE *fp(fopen(path, "wb"));
+    khash_write_impl(map, fp);
     std::size_t ret(ftell(fp));
     fclose(fp);
     return ret;
@@ -112,6 +113,7 @@ T *khash_load_impl(FILE *fp) noexcept {
     fread(&rex->n_occupied, 1, sizeof(rex->n_occupied), fp);
     fread(&rex->size, 1, sizeof(rex->size), fp);
     fread(&rex->upper_bound, 1, sizeof(rex->upper_bound), fp);
+    LOG_DEBUG("buckets: %zu. nocc: %zu. size: %zu. ub: %zu\n", (size_t)rex->n_buckets, size_t(rex->n_occupied), size_t(rex->size), size_t(rex->upper_bound));
     rex->flags = (std::uint32_t *)malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
     rex->keys = (keytype_t *)malloc(sizeof(*rex->keys) * rex->n_buckets);
     rex->vals = (valtype_t *)malloc(sizeof(*rex->vals) * rex->n_buckets);
