@@ -1,7 +1,7 @@
 .PHONY=all tests clean obj
 CXX=g++
 CC=gcc
-WARNINGS=-Werror -Wall -Wextra -Wno-char-subscripts \
+WARNINGS=-Wall -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
          # -pedantic

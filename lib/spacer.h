@@ -29,7 +29,6 @@ public:
       w_(std::max((int)c_, (int)w))
     {
         if(k > max_k) LOG_EXIT("Provided k %u greater than max %u.\n", k_, max_k);
-        LOG_DEBUG("k: %u. w: %u. comb: %u.\n", k_, w_, c_);
         for(auto &i: s_) ++i; // Convert differences into offsets
         if(s_.size() + 1 != k) {
             LOG_EXIT("Error: input vector must have size 1 less than k. k: %u. size: %zu.\n",

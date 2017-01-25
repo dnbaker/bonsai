@@ -219,7 +219,7 @@ inline void process_dataset(Classifier &c, khash_t(p) *taxmap, const char *fq1, 
     gzFile ifp1(gzopen(fq1, "rb")), ifp2(fq2 ? gzopen(fq2, "rb"): nullptr);
     kseq_t *ks1(kseq_init(ifp1)), *ks2(ifp2 ? kseq_init(ifp2): nullptr);
     del_data dd{nullptr, per_set, chunk_size};
-    kstring_t cks{0, 300, (char *)malloc(301 * sizeof(char))};
+    kstring_t cks{0, 256, (char *)malloc(256 * sizeof(char))};
     const int is_paired(!!fq2);
     while((dd.seqs_ = bseq_read(chunk_size, &nseq, (void *)ks1, (void *)ks2))) {
         LOG_INFO("Read %i seqs with chunk size %u\n", nseq, chunk_size);
