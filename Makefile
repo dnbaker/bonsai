@@ -7,10 +7,12 @@ WARNINGS=-Werror -Wall -Wextra -Wno-char-subscripts \
          # -pedantic
 DBG= -DNDEBUG # -fno-inline
 OPT:= -O3 -funroll-loops -fno-asynchronous-unwind-tables -ffast-math \
-      -pipe -fno-strict-aliasing -march=native -mpclmul # -Wa,-q #-flto#  -mavx512f # -msse2
+      -pipe -fno-strict-aliasing -march=native -mpclmul
 OS:=$(shell uname)
 ifeq ($(OS),Darwin)
 	OPT := $(OPT) -Wa,-q
+else
+    OPT := $(OPT) -flto
 endif
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++14 $(WARNINGS)

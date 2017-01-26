@@ -9,7 +9,7 @@
 	url = https://github.com/dnbh/hll
 [submodule "clhash"]
 	path = clhash
-	url = https://github.com/lemire/clhash
+	url = https://github.com/dnbh/clhash
 [submodule "cppitertools"]
 	path = cppitertools
 	url = https://github.com/ryanhaining/cppitertools
