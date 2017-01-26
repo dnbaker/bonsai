@@ -72,8 +72,16 @@ class Counter {
 public:
     Counter(): n_(0), nelem_(0), hist_(std::make_unique<std::unordered_map<unsigned, unsigned>>()) {}
 
-    //template<typename = typename std::enable_if<std::is_class<T>::value>::type>
-    void add(T &elem) {
+    template<typename Q=T>
+    void add(const typename std::enable_if<std::is_fundamental<Q>::value, Q>::type elem) {
+        auto match(map_.find(elem));
+        if(match == map_.end()) map_.emplace(elem, 1);
+        else ++match->second;
+        ++n_;
+    }
+
+    template<typename Q=T>
+    void add(const typename std::enable_if<!std::is_fundamental<Q>::value, Q>::type &elem) {
         auto match(map_.find(elem));
         if(match == map_.end()) map_.emplace(elem, 1);
         else ++match->second;
