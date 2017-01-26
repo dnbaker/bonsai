@@ -14,7 +14,6 @@ TEST_CASE("tax") {
     while(v.size() < 12) v.push_back(0);
     std::vector<std::string> paths;
     {
-        kstring_t ks{0, 0, 0};
         const char cmd[] {"ls ref/viral/ | grep fna.gz | head -n 40"};
         FILE *fp(popen(cmd, "r"));
         if(fp == nullptr) throw "a party";//throw std::system_error(1, std::string("Could not call command '") + cmd + "'\n");

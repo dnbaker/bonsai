@@ -9,8 +9,8 @@
 #include <set>
 #include <unordered_map>
 #include <vector>
-#include "klib/kstring.h"
 #include "lib/logutil.h"
+#include "lib/ks.h"
 #include "clhash/include/clhash.h"
 
 class rand_holder {
@@ -72,8 +72,16 @@ class Counter {
 public:
     Counter(): n_(0), nelem_(0), hist_(std::make_unique<std::unordered_map<unsigned, unsigned>>()) {}
 
-    //template<typename = typename std::enable_if<std::is_class<T>::value>::type>
-    void add(T &elem) {
+    template<typename Q=T>
+    void add(const typename std::enable_if<std::is_fundamental<Q>::value, Q>::type elem) {
+        auto match(map_.find(elem));
+        if(match == map_.end()) map_.emplace(elem, 1);
+        else ++match->second;
+        ++n_;
+    }
+
+    template<typename Q=T>
+    void add(const typename std::enable_if<!std::is_fundamental<Q>::value, Q>::type &elem) {
         auto match(map_.find(elem));
         if(match == map_.end()) map_.emplace(elem, 1);
         else ++match->second;
@@ -133,14 +141,14 @@ public:
                 return count_ < other.count_;
             }
         };
-        kstring_t ks{0, 0, 0};
+        ks::KString ks;
         std::size_t sum(0);
         std::vector<vecc_t> vc;
         vc.reserve(map_.size());
         for(auto &i: map_) vc.emplace_back(&i.first, i.second);
         std::sort(std::begin(vc), std::end(vc));
-        ksprintf(&ks, "#Number of distinct patterns: %zu\n", vc.size());
-        ksprintf(&ks, "#Pattern\tCount\tNumber of bits set in pattern\n");
+        ksprintf(ks, "#Number of distinct patterns: %zu\n", vc.size());
+        ksprintf(ks, "#Pattern\tCount\tNumber of bits set in pattern\n");
         for(const auto &i: vc) {
             std::size_t n(0);
             const T &vec(*i.vec_);
@@ -149,24 +157,21 @@ public:
                 sum += j;
                 auto k(j);
                 for(std::uint64_t i(0); i < std::min(CHAR_BIT * sizeof(j), nelem_ - n); ++i) {
-                    kputc('0' + (k&1), &ks);
+                    kputc('0' + (k&1), ks);
                     pc += k&1;
                     k >>= 1;
 #if 0
                     if(++n >= nelem_) {
-                        ksprintf(&ks, "\t%zu\n", i.count_);
+                        ksprintf(ks, "\t%zu\n", i.count_);
                         goto end;
                     }
 #endif
                 }
             }
-            ksprintf(&ks, "\t%zu\t%zu\n", i.count_, pc);
+            ksprintf(ks, "\t%zu\t%zu\n", i.count_, pc);
         }
     
-        if(ks.s) {
-            fwrite(ks.s, 1, ks.l, fp);
-            free(ks.s);
-        }
+        if(ks.size()) fwrite(ks.data(), 1, ks.size(), fp);
     }
 };
 

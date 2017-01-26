@@ -6,6 +6,7 @@
 #include "encoder.h"
 #include "feature_min.h"
 #include "klib/kthread.h"
+#include "lib/ks.h"
 
 namespace emp {
 void append_kraken_classification(const std::map<std::uint32_t, std::uint32_t> &hit_counts,
@@ -107,14 +108,14 @@ INLINE void append_counts(std::uint32_t count, const char character, kstring_t *
 using Classifier = ClassifierGeneric<lex_score>;
 template<std::uint64_t (*score)(std::uint64_t, void *)>
 unsigned classify_seq(ClassifierGeneric<score> &c, Encoder<score> &enc, khash_t(p) *taxmap, bseq1_t *bs, const int is_paired) {
-    kstring_t bks{0, 0, bs->sam}; // For managing the output string for our read.
     std::uint64_t kmer;
     khiter_t ki;
     std::map<std::uint32_t, std::uint32_t> hit_counts;
     std::map<std::uint32_t, std::uint32_t>::iterator it;
     std::uint32_t ambig_count(0), missing_count(0), taxon(0);
-    std::vector<std::uint32_t> taxa;
+    ks::KString bks(bs->sam);
     const std::size_t reslen(bs->l_seq - c.sp_.c_ + 1);
+    std::vector<std::uint32_t> taxa;
     taxa.reserve(reslen > 0 ? reslen: 0); // Reserve memory without initializing
 
     enc.assign(bs->seq, bs->l_seq);
@@ -162,15 +163,16 @@ unsigned classify_seq(ClassifierGeneric<score> &c, Encoder<score> &enc, khash_t(
     else                                           ++c.n_unclassified_;
     if(c.get_emit_all() || taxon) {
         if(c.get_emit_fastq()) {
-            append_fastq_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, &bks, c.get_emit_kraken(), is_paired);
+            append_fastq_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks, c.get_emit_kraken(), is_paired);
         } else if(c.get_emit_kraken()) {
-            append_kraken_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, &bks);
+            append_kraken_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks);
         }
         // Else just increase quantitation... But that requires some kind of lock-free hash table for counting.
         // Use Jellyfish?
     }
-    bs->sam = bks.s;
-    return bs->l_sam = bks.l;
+    bs->l_sam = bks.size();
+    bs->sam   = bks.release();
+    return bs->l_sam;
 }
 
 namespace {
@@ -219,28 +221,22 @@ inline void process_dataset(Classifier &c, khash_t(p) *taxmap, const char *fq1, 
     gzFile ifp1(gzopen(fq1, "rb")), ifp2(fq2 ? gzopen(fq2, "rb"): nullptr);
     kseq_t *ks1(kseq_init(ifp1)), *ks2(ifp2 ? kseq_init(ifp2): nullptr);
     del_data dd{nullptr, per_set, chunk_size};
-    kstring_t cks{0, 300, (char *)malloc(301 * sizeof(char))};
+    ks::KString cks(256u);
     const int is_paired(!!fq2);
     while((dd.seqs_ = bseq_read(chunk_size, &nseq, (void *)ks1, (void *)ks2))) {
         LOG_INFO("Read %i seqs with chunk size %u\n", nseq, chunk_size);
         // Classify
-        classify_seqs(c, taxmap, dd.seqs_, &cks, nseq, per_set, is_paired);
+        classify_seqs(c, taxmap, dd.seqs_, cks, nseq, per_set, is_paired);
         // Write out
-        //DBKS(&cks);
-        fwrite(cks.s, cks.l, 1, out);
+        fwrite(cks.data(), 1, cks.size(), out);
         // Delete
         kt_for(c.nt_, &kt_del_helper, (void *)&dd, nseq / per_set + 1);
-        //for(int i(0); i < nseq; ++i) {
-        //    bseq_destroy(dd.seqs_ + i);
-        //}
-        // Delete/prepare for next iteration
-        cks.l = 0;
+        cks.clear();
         free(dd.seqs_);
     }
     // Clean up.
     gzclose(ifp1); gzclose(ifp2);
     kseq_destroy(ks1); kseq_destroy(ks2);
-    free(cks.s);
 }
 
 
