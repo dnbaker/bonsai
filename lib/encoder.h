@@ -1,5 +1,5 @@
-#ifndef _ENCODER_H_
-#define _ENCODER_H_
+#ifndef _EMP_ENCODER_H__
+#define _EMP_ENCODER_H__
 #include <thread>
 #include <future>
 #include <limits>
@@ -306,4 +306,4 @@ std::size_t estimate_cardinality(const std::vector<std::string> &paths,
 }
 
 } //namespace emp
-#endif // _ENCODER_H_
+#endif // _EMP_ENCODER_H__

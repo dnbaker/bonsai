@@ -1,5 +1,5 @@
-#ifndef _KMER_UTIL_H_
-#define _KMER_UTIL_H_
+#ifndef _KMER_UTIL_H__
+#define _KMER_UTIL_H__
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -101,4 +101,4 @@ static INLINE std::uint64_t canonical_representation(std::uint64_t kmer, uint8_t
 
 } // namespace emp
 
-#endif //ifndef _KMER_UTIL_H_
+#endif //ifndef _KMER_UTIL_H__

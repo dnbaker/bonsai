@@ -1,5 +1,5 @@
-#ifndef QMAP_H_
-#define QMAP_H_
+#ifndef _QMAP_H__
+#define _QMAP_H__
 
 #include <cstdint>
 #include <cstdio>
@@ -92,4 +92,4 @@ using elscore_t = ElScore<std::uint64_t, std::uint64_t>;
 
 } // namespace emp
 
-#endif //ifndef QMAP_H_
+#endif //ifndef _QMAP_H__

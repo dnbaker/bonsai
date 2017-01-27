@@ -1,5 +1,5 @@
-#ifndef COUNTER_H__
-#define COUNTER_H__
+#ifndef _COUNTER_H__
+#define _COUNTER_H__
 #include <algorithm>
 #include <typeinfo>
 #include <cstddef>
@@ -177,4 +177,4 @@ public:
 
 } // namespace count
 
-#endif  // COUNTER_H__
+#endif  // _COUNTER_H__

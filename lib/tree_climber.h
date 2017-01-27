@@ -1,5 +1,5 @@
-#ifndef _TREE_CLIMBER_H__
-#define _TREE_CLIMBER_H__
+#ifndef TREE_CLIMBER_H__
+#define TREE_CLIMBER_H__
 
 #include "lib/tx.h"
 
@@ -60,4 +60,4 @@ inline std::vector<std::uint32_t> sorted_nodes(khash_t(p) *taxmap) {
 
 } // namespace emp
 
-#endif // #ifndef _TREE_CLIMBER_H__
+#endif // #ifndef TREE_CLIMBER_H__

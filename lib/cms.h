@@ -1,5 +1,5 @@
-#ifndef _CMS_H_
-#define _CMS_H_
+#ifndef _EMP_CMS_H__
+#define _EMP_CMS_H__
 #include <cstdint>
 #include <cinttypes>
 #include <cstdio>
@@ -63,4 +63,4 @@ struct cms_t {
 
 } //namspace emp
 
-#endif // #ifndef _CMS_H_
+#endif // #ifndef _EMP_CMS_H__

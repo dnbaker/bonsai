@@ -1,5 +1,5 @@
-#ifndef TX_H__
-#define TX_H__
+#ifndef _TX_H__
+#define _TX_H__
 #include <stdexcept>
 #include <thread>
 #include <unordered_map>
@@ -146,4 +146,4 @@ int _kh_eq(T *h1, T *h2) {
 
 } // namespace emp
 
-#endif // #ifndef TX_H__
+#endif // #ifndef _TX_H__

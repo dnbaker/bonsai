@@ -6,6 +6,24 @@ from subprocess import check_call as cc, CalledProcessError
 argv = sys.argv
 
 
+
+def is_valid_gzip(fn):
+    '''
+    We could instead use gunzip -t to check, but that actual requires
+    iterating through the whole file, which is very slow. This is lazy,
+    but at least it makes sure that it's a gzip file.
+    '''
+    import gzip
+    with gzip.open(fn) as f:
+        try:
+            f.readline()
+            return True
+        except:
+            stderr.write("File at %s could not be read from.\n" % fn)
+            raise
+
+'''
+
 def isvalid_gzip(fn):
     try:
         cc("gunzip -t " + fn, shell=True)
@@ -13,7 +31,7 @@ def isvalid_gzip(fn):
     except CalledProcessError:
         print("Corrupted file ", fn, ". Delete, try again.")
         return False
-
+'''
 
 def xfirstline(fn):
     # Works on python3, not 2.

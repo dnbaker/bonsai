@@ -1,5 +1,5 @@
-#ifndef _KSEQ_DECLARE_
-#define _KSEQ_DECLARE_
+#ifndef _KSEQ_DECLARE__
+#define _KSEQ_DECLARE__
 #include <zlib.h>
 #include "klib/kseq.h"
 #include <stdlib.h>
@@ -59,4 +59,4 @@ static inline void bseq_destroy(bseq1_t *bs) {
 }
 #endif
 
-#endif
+#endif // #ifndef _KSEQ_DECLARE__

@@ -1,5 +1,5 @@
-#ifndef _SPACE_UTIL_H
-#define _SPACE_UTIL_H
+#ifndef _EMP_SPACE_H__
+#define _EMP_SPACE_H__
 
 #include <vector>
 #include <string>
@@ -70,4 +70,4 @@ public:
 
 } // namespace emp
 
-#endif // #ifndef _SPACE_UTIL_H
+#endif // #ifndef _EMP_SPACE_H__

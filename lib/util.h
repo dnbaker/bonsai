@@ -1,5 +1,5 @@
-#ifndef _KPG_UTIL_H_
-#define _KPG_UTIL_H_
+#ifndef _EMP_UTIL_H__
+#define _EMP_UTIL_H__
 #include <cstdlib>
 #include <cstdio>
 #include <cinttypes>
@@ -138,4 +138,4 @@ unsigned node_depth(khash_t(p) *map, std::uint32_t a) noexcept;
 
 } // namespace emp
 
-#endif // #ifdef _KPG_UTIL_H_
+#endif // #ifdef _EMP_UTIL_H__

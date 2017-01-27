@@ -1,5 +1,5 @@
-#ifndef MT_CLASSIFY_H
-#define MT_CLASSIFY_H
+#ifndef _MT_CLASSIFY_H__
+#define _MT_CLASSIFY_H__
 
 #include "lib/db.h"
 #include "klib/kthread.h"
@@ -44,4 +44,4 @@ void kt_for_helper(void *data_, long index, int tid) {
 
 } // namespace emp
 
-#endif
+#endif // #ifndef _MT_CLASSIFY_H__

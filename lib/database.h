@@ -1,5 +1,5 @@
-#ifndef __DB_IO_H__
-#define __DB_IO_H__
+#ifndef _DATABASE_H__
+#define _DATABASE_H__
 
 
 /* CVS Version Info
@@ -115,5 +115,5 @@ struct Database {
 #undef __fw
 
 
-#endif /* ifndef __DB_IO_H__ */
+#endif /* ifndef _DATABASE_H__ */
 

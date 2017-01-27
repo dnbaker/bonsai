@@ -1,5 +1,5 @@
-#ifndef _FEATURE_MIN_
-#define _FEATURE_MIN_
+#ifndef _FEATURE_MIN__
+#define _FEATURE_MIN__
 
 #include "encoder.h"
 #include "spacer.h"
@@ -362,4 +362,4 @@ khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map
 }
 
 } // namespace emp
-#endif // #ifdef _FEATURE_MIN_
+#endif // #ifdef _FEATURE_MIN__
