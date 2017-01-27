@@ -33,22 +33,26 @@ def xfirstline(fn):
         sys.exit(main())
 
 
+FTP_BASENAME = "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/"
 
 ALL_CLADES_MAP = {
-    "archaea": "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/archaea/",
-    "bacteria": "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/bacteria/",
-    "fungi": "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/fungi/",
-    "viral": "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/viral/",
-    "plant": "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/plant/",
-    "protozoa": "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/protozoa/",
-    "human": "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/vertebrate_mammalian/Homo_sapiens",
-    "vertebrate_mammalian": "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/vertebrate_mammalian/",
-    "vertebrate_other": "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/vertebrate_other/"
+    "archaea": FTP_BASENAME + "archaea/",
+    "bacteria": FTP_BASENAME + "bacteria/",
+    "fungi": FTP_BASENAME + "fungi/",
+    "viral": FTP_BASENAME + "viral/",
+    "plant": FTP_BASENAME + "plant/",
+    "protozoa": FTP_BASENAME + "protozoa/",
+    "human": FTP_BASENAME + "vertebrate_mammalian/Homo_sapiens",
+    "vertebrate_mammalian": FTP_BASENAME + "vertebrate_mammalian/",
+    "vertebrate_other": FTP_BASENAME + "vertebrate_other/"
 }
 
 DEFAULT_CLADES = [
     "archaea", "bacteria", "viral", "human"
 ]
+
+DEFAULT_CLADES_STR = ", ".join(DEFAULT_CLADES)
+ALL_CLADES_STR = ", ".join(ALL_CLADES_MAP.keys())
 
 TAX_PATH = "ftp://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz"
 
@@ -77,15 +81,11 @@ def parse_assembly(fn, fnidmap):
         if len(s) < 14:
             print(s)
             raise Exception("Not long enough")
-        if ("latest" not in line
-                or (("Complete Genome" not in line and
-                                     "GRCh" not in line
-                     and s[13] != "Full")) or any(i in line.lower() for
-                                                  i in ["supercontig", "scaffold"])):
-            print("Failing line %s" % line[:-1])
+        if ("latest" not in line or
+                (("Complete Genome" not in line and
+                  "GRCh" not in line and s[13] != "Full")) or
+                any(i in line.lower() for i in ["supercontig", "scaffold"])):
             continue
-        print(line)
-        print("s-2:", s[-2], s, len(s))
         fn = "%s_genomic.fna.gz" % ([i for i in s[19].split("/") if i][-1])
         fnidmap[fn] = int(s[5])
         to_fetch.append(s[-2] + "/" + fn)
@@ -118,11 +118,14 @@ def getopts():
     a.add_argument("--idmap", "-m", help="Path to which to write nameidmap.",
                    default="nameidmap.txt")
     a.add_argument("--ref", "-r", help="Name of folder for references.")
-    a.add_argument("clades", nargs="+", help="Clades to use.")
+    a.add_argument("clades", nargs="+", help="Clades to use."
+                   " default includes %s. all includes %s." % (
+                        DEFAULT_CLADES_STR, ALL_CLADES_STR))
     a.add_argument("--threads", "-p",
                    help="Number of threads to use while downloading.",
                    type=int, default=16)
     return a.parse_args()
+
 
 def main():
     global TAX_PATH
@@ -134,9 +137,14 @@ def main():
         os.makedirs(ref)
     clades = args.clades if args.clades else DEFAULT_CLADES
     for clade in clades:
-        print(clade)
-        assert clade in ALL_CLADES_MAP or clade in ["all", "default"]
+        try:
+            assert clade in ALL_CLADES_MAP or clade in ["all", "default"]
+        except AssertionError:
+            print("Clade %s not 'all', 'default', or one of the valid "
+                  "clades: %s" % (clade, ALL_CLADES_STR))
+            sys.exit(1)
     to_dl = get_clade_map(clades)
+    print("About to download clades %s" % ", ".join(to_dl))
     nameidmap = {}
     for clade in to_dl:
         cladeidmap = {}
@@ -156,9 +164,9 @@ def main():
                     cc("rm " + fn, shell=True)
         print(to_dl[clade])
         cstrs = [("curl %s -o %s/%s/%s" %
-                 (s, ref, clade, s.split("/")[-1])) for s in to_dl[clade]
-                  if not os.path.isfile("%s/%s/%s" % (ref, clade,
-                                                       s.split("/")[-1]))]
+                 (s, ref, clade, s.split("/")[-1])) for
+                 s in to_dl[clade] if not os.path.isfile(
+                     "%s/%s/%s" % (ref, clade, s.split("/")[-1]))]
         # If nodes.dmp hasn't been downloaded, grab it.
         if not os.path.isfile("%s/nodes.dmp" % ref):
             cstrs.append("curl {tax_path} -o {ref}/"
@@ -168,11 +176,13 @@ def main():
         spoool.map(retry_cc, cstrs)
         # Replace pathnames with seqids
         for fn in list(cladeidmap.keys()):
-            cladeidmap[xfirstline("/".join([ref, clade, fn])).decode().split()[0][1:]] = cladeidmap[fn]
+            cladeidmap[xfirstline("/".join(
+                [ref, clade, fn]
+            )).decode().split()[0][1:]] = cladeidmap[fn]
             del cladeidmap[fn]
         nameidmap.update(cladeidmap)
     print("Done with all clades")
-    with open(ref + "/" +  args.idmap, "w") as f:
+    with open(ref + "/" + args.idmap, "w") as f:
         fw = f.write
         for k, v in nameidmap.items():
             fw(k + "\t" + str(v) + "\n")
