@@ -13,6 +13,12 @@ def is_valid_gzip(fn):
     iterating through the whole file, which is very slow. This is lazy,
     but at least it makes sure that it's a gzip file.
     '''
+    try:
+        cc("zcat %s | head &>/dev/null" % fn, shell=True)
+        return True
+    except CalledProcessError:
+        return False
+    """
     import gzip
     with gzip.open(fn) as f:
         try:
@@ -21,10 +27,11 @@ def is_valid_gzip(fn):
         except:
             stderr.write("File at %s could not be read from.\n" % fn)
             raise
+    """
 
 '''
 
-def isvalid_gzip(fn):
+def is_valid_gzip(fn):
     try:
         cc("gunzip -t " + fn, shell=True)
         return True
@@ -35,7 +42,7 @@ def isvalid_gzip(fn):
 
 def xfirstline(fn):
     # Works on python3, not 2.
-    if not isvalid_gzip(fn):
+    if not is_valid_gzip(fn):
         cc("rm " + fn, shell=True)
         sys.exit(main())
     if sys.version_info[0] == 3:
@@ -178,7 +185,7 @@ def main():
         for s in to_dl[clade]:
             fn = "%s/%s/%s" % (ref, clade, s.split("/")[-1])
             if os.path.isfile(fn):
-                if not isvalid_gzip(fn):
+                if not is_valid_gzip(fn):
                     cc("rm " + fn, shell=True)
         print(to_dl[clade])
         cstrs = [("curl %s -o %s/%s/%s" %

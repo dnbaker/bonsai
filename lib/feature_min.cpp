@@ -36,7 +36,7 @@ void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *
     _DBP(ret);
     int khr;
     khiter_t kif, kir;
-    if(!mode) throw "a party!";
+    if(!mode) LOG_EXIT("Mode %i in score scheme is not good.\n");
     LOG_DEBUG("Size of set: %zu\n", kh_size(set));
     for(khiter_t ki(0); ki != kh_end(set); ++ki) {
         if(!kh_exist(set, ki) ||

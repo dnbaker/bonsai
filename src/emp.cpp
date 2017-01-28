@@ -98,8 +98,8 @@ int phase2_main(int argc, char *argv[]) {
     std::vector<std::string> inpaths(argv + optind + 2, argv + argc);
     khash_t(p) *taxmap(lex ? build_parent_map(argv[optind]): (tax_path.empty() ? nullptr: build_parent_map(tax_path.data())));
     phase2_map.db_ = lex
-        ? minimized_map<hash_score>(inpaths, phase1_map.db_, sp, num_threads, start_size, mode)
-        : lca_map<lex_score>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads);
+        ? lca_map<lex_score>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads)
+        : minimized_map<hash_score>(inpaths, phase1_map.db_, sp, num_threads, start_size, mode);
     // Write minimized map
     phase2_map.write(argv[optind + 1]);
     if(taxmap) kh_destroy(p, taxmap);
