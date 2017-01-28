@@ -91,15 +91,23 @@ int phase2_main(int argc, char *argv[]) {
     }
     if(wsz < 0 || wsz < (int)k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
     const int lex(score_scheme::LEX == mode);
-    Database<khash_t(64)> phase1_map(lex ? Database<khash_t(64)>(k, wsz, spvec_t(k - 1, 0)): Database<khash_t(64)>(argv[optind]));
-    Spacer sp(k, wsz, lex ? phase1_map.s_
-                          : spvec_t(k - 1, 0));
+    if(lex) {
+        if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for lexicographic mode for final database generation.");
+        Spacer sp(k, wsz, spvec_t(k - 1, 0));
+        Database<khash_t(c)>  phase2_map(sp);
+        std::vector<std::string> inpaths(argv + optind + 2, argv + argc);
+        khash_t(p) *taxmap(build_parent_map(argv[optind]));
+        phase2_map.db_ = lca_map<lex_score>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads);
+        phase2_map.write(argv[optind + 1]);
+        kh_destroy(p, taxmap);
+        return EXIT_SUCCESS;
+    }
+    Database<khash_t(64)> phase1_map(Database<khash_t(64)>(argv[optind]));
+    Spacer sp(k, wsz, phase1_map.s_);
     Database<khash_t(c)>  phase2_map(phase1_map);
     std::vector<std::string> inpaths(argv + optind + 2, argv + argc);
-    khash_t(p) *taxmap(lex ? build_parent_map(argv[optind]): (tax_path.empty() ? nullptr: build_parent_map(tax_path.data())));
-    phase2_map.db_ = lex
-        ? lca_map<lex_score>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads)
-        : minimized_map<hash_score>(inpaths, phase1_map.db_, sp, num_threads, start_size, mode);
+    khash_t(p) *taxmap(tax_path.empty() ? nullptr: build_parent_map(tax_path.data()));
+    phase2_map.db_ = minimized_map<hash_score>(inpaths, phase1_map.db_, sp, num_threads, start_size, mode);
     // Write minimized map
     phase2_map.write(argv[optind + 1]);
     if(taxmap) kh_destroy(p, taxmap);

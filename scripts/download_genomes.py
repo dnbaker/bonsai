@@ -2,21 +2,30 @@
 import sys
 import multiprocessing
 import gzip
+import os
 from subprocess import check_call as cc, CalledProcessError
 argv = sys.argv
 
 
 
-def is_valid_gzip(fn):
+def is_valid_gzip(fn, lazy=False):
     '''
     We could instead use gunzip -t to check, but that actual requires
     iterating through the whole file, which is very slow. This is lazy,
     but at least it makes sure that it's a gzip file.
     '''
+    if lazy:
+        try:
+            cc("zcat %s | head &>/dev/null" % fn, shell=True)
+            return True
+        except CalledProcessError:
+            return False
+    # else
     try:
-        cc("zcat %s | head &>/dev/null" % fn, shell=True)
+        cc("gunzip -t " + fn, shell=True)
         return True
     except CalledProcessError:
+        print("Corrupted file ", fn, ". Delete, try again.")
         return False
     """
     import gzip
@@ -29,16 +38,6 @@ def is_valid_gzip(fn):
             raise
     """
 
-'''
-
-def is_valid_gzip(fn):
-    try:
-        cc("gunzip -t " + fn, shell=True)
-        return True
-    except CalledProcessError:
-        print("Corrupted file ", fn, ". Delete, try again.")
-        return False
-'''
 
 def xfirstline(fn):
     # Works on python3, not 2.
@@ -149,7 +148,18 @@ def getopts():
     a.add_argument("--threads", "-p",
                    help="Number of threads to use while downloading.",
                    type=int, default=16)
+    a.add_argument("--lazy", "-l", default=False, type=bool, help="Don't check full gzipped file contents.")
     return a.parse_args()
+
+
+def check_path(fn, lazy=False):
+    if os.path.isfile(fn):
+        if not is_valid_gzip(fn, lazy=lazy):
+            cc("rm " + fn, shell=True)
+
+
+def check_path_lazy(path):
+    check_path(path, lazy=True)
 
 
 def main():
@@ -157,7 +167,6 @@ def main():
     tax_path = TAX_PATH  # Make global variable local
     args = getopts()
     ref = args.ref if args.ref else "ref"
-    import os
     if not os.path.isdir(ref):
         os.makedirs(ref)
     clades = args.clades if args.clades else DEFAULT_CLADES
@@ -182,11 +191,10 @@ def main():
             cc(cstr, shell=True)
         to_dl[clade] = parse_assembly("%s/%s/as.%s.txt" %
                                       (ref, clade, clade), cladeidmap)
-        for s in to_dl[clade]:
-            fn = "%s/%s/%s" % (ref, clade, s.split("/")[-1])
-            if os.path.isfile(fn):
-                if not is_valid_gzip(fn):
-                    cc("rm " + fn, shell=True)
+        spoool = multiprocessing.Pool(args.threads)
+        spoool.map(check_path_lazy if args.lazy else check_path,
+                   ("/".join([ref, clade, s.split("/")[-1]]) for
+                    s in to_dl[clade]))
         print(to_dl[clade])
         cstrs = [("curl %s -o %s/%s/%s" %
                  (s, ref, clade, s.split("/")[-1])) for
@@ -197,7 +205,6 @@ def main():
             cstrs.append("curl {tax_path} -o {ref}/"
                          "taxdump.tgz && tar -zxvf {ref}/taxdump.tgz"
                          " && mv nodes.dmp {ref}/nodes.dmp".format(**locals()))
-        spoool = multiprocessing.Pool(args.threads)
         spoool.map(retry_cc, cstrs)
         # Replace pathnames with seqids
         for fn in list(cladeidmap.keys()):
