@@ -13,3 +13,6 @@
 [submodule "cppitertools"]
 	path = cppitertools
 	url = https://github.com/ryanhaining/cppitertools
+[submodule "kraken"]
+	path = kraken
+	url = https://github.com/derrickwood/kraken

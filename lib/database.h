@@ -69,7 +69,7 @@ struct Database {
         LOG_DEBUG("Read database!\n");
         fclose(fp);
     }
-    Database(unsigned k, unsigned w, spvec_t &s, unsigned owns=1, T *db=nullptr):
+    Database(unsigned k, unsigned w, const spvec_t &s, unsigned owns=1, T *db=nullptr):
         k_(k), w_(w), db_(db), owns_hash_(owns), s_(s)
     {
     }
@@ -105,6 +105,14 @@ struct Database {
         fwrite(db_->keys, db_->n_buckets, sizeof(*db_->keys), ofp);
         fwrite(db_->vals, db_->n_buckets, sizeof(*db_->vals), ofp);
         fclose(ofp);
+    }
+
+    template<typename Q=T>
+    typename std::enable_if<std::is_same<khash_t(c), Q>::value, std::uint32_t>::type
+    get_lca(std::uint64_t kmer) {
+        khiter_t ki;
+        return ((ki = kh_get(c, db_, kmer)) == kh_end(db_)) ? kh_val(db_, ki)
+                                                            : -1u;
     }
 };
 

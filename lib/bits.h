@@ -21,7 +21,7 @@ constexpr unsigned popcount(char val) noexcept {
 }
 
 template<>
-constexpr unsigned popcount(uint64_t val) noexcept {
+constexpr unsigned popcount(unsigned long long val) noexcept {
 #if HANDROLLED
 	val = (val & 0x5555555555555555ULL) + ((val >>  1) & 0x5555555555555555ULL);
 	val = (val & 0x3333333333333333ULL) + ((val >>  2) & 0x3333333333333333ULL);

@@ -116,14 +116,4 @@ bool Taxonomy::operator==(Taxonomy &other) const {
     return true;
 }
 
-std::string rand_string(std::size_t n) {
-    std::string ret;
-    ret.reserve(n);
-    static const char set[] = "abcdefghijklmnopqrstuvwxyz123456";
-    while(ret.size() < n) ret += set[rand() & 31];
-    assert(ret.size() == n);
-    return ret;
-}
-
-
 } // namespace emp

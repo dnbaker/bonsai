@@ -35,6 +35,7 @@ KHASH_MAP_INIT_INT64(64, std::uint64_t)
 KHASH_MAP_INIT_INT(p, std::uint32_t)
 KHASH_MAP_INIT_STR(name, std::uint32_t)
 
+std::string rand_string(std::size_t n);
 std::size_t count_lines(const char *fn) noexcept;
 khash_t(name) *build_name_hash(const char *fn) noexcept;
 void destroy_name_hash(khash_t(name) *hash) noexcept;

@@ -170,6 +170,16 @@ std::uint32_t resolve_tree(std::map<std::uint32_t, std::uint32_t> &hit_counts,
   return max_taxon;
 }
 
+std::string rand_string(std::size_t n) {
+    std::string ret;
+    ret.reserve(n);
+    static const char set[] = "abcdefghijklmnopqrstuvwxyz123456";
+    while(ret.size() < n) ret += set[rand() & 31];
+    assert(ret.size() == n);
+    return ret;
+}
+
+
 #define _KHD(x) template<> void khash_destroy(khash_t(x) *map) noexcept {kh_destroy(x, map);}
 
 _KHD(all)

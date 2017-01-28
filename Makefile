@@ -7,6 +7,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
          # -pedantic
 DBG= -DNDEBUG # -fno-inline
 OPT:= -O3 -funroll-loops -fno-asynchronous-unwind-tables -ffast-math \
+	  -fopenmp \
       -pipe -fno-strict-aliasing -march=native -mpclmul
 OS:=$(shell uname)
 ifeq ($(OS),Darwin)

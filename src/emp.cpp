@@ -90,13 +90,14 @@ int phase2_main(int argc, char *argv[]) {
         }
     }
     if(wsz < 0 || wsz < (int)k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
-    LOG_DEBUG("mode: %i. wsz: %u\n", mode, wsz);
-    Database<khash_t(64)> phase1_map(argv[optind]);
+    const int lex(score_scheme::LEX == mode);
+    Database<khash_t(64)> phase1_map(lex ? Database<khash_t(64)>(k, wsz, spvec_t(k - 1, 0)): Database<khash_t(64)>(argv[optind]));
+    Spacer sp(k, wsz, lex ? phase1_map.s_
+                          : spvec_t(k - 1, 0));
     Database<khash_t(c)>  phase2_map(phase1_map);
-    Spacer                        sp(k, wsz, phase1_map.s_);
     std::vector<std::string> inpaths(argv + optind + 2, argv + argc);
-    khash_t(p) *taxmap(tax_path.empty() ? nullptr: build_parent_map(tax_path.data()));
-    phase2_map.db_ = mode == score_scheme::LEX
+    khash_t(p) *taxmap(lex ? build_parent_map(argv[optind]): (tax_path.empty() ? nullptr: build_parent_map(tax_path.data())));
+    phase2_map.db_ = lex
         ? minimized_map<hash_score>(inpaths, phase1_map.db_, sp, num_threads, start_size, mode)
         : lca_map<lex_score>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads);
     // Write minimized map

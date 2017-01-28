@@ -21,7 +21,6 @@ std::size_t get_n_occ(T *hash) {
 
 namespace emp {
 
-std::string rand_string(std::size_t n);
 
 
 class Taxonomy {
