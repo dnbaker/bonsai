@@ -30,8 +30,28 @@ std::vector<std::string> paths {
     "test/GCF_000762265.1_ASM76226v1_genomic.fna.gz",
     "test/GCF_000953115.1_DSM1535_genomic.fna.gz",
     "test/GCF_001723155.1_ASM172315v1_genomic.fna.gz"
-    "test/GCF_fake.fna.gz"
 };
+
+TEST_CASE("hll") {
+    std::vector<std::pair<uint64_t, uint64_t>> pairs {
+        {19, 24},
+        {22, 26},
+        {15, 21}
+    };
+    //for(auto x: {8, 12, 16, 20, 24, 28, 32, 36, 42}) {
+    for(const auto &pair: pairs) {
+        const size_t val(1ull << pair.second), hsz(pair.first);
+        hll::hll_t hll(hsz);
+        for(size_t i(0); i < val; ++i) {
+            hll.add(wang_hash(((uint64_t)rand() << 32) | rand()));
+        }
+        hll.sum();
+        if(std::abs(hll.report() - val) > hll.est_err()) {
+            fprintf(stderr, "Warning: Failing for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
+        }
+        REQUIRE(std::abs(hll.report() - val) <= hll.est_err());
+    }
+}
 
 #if 0
 TEST_CASE("hll") {
@@ -57,7 +77,6 @@ TEST_CASE("hll") {
     }
     REQUIRE(pass);
 }
-#endif
 
 TEST_CASE("phll") {
     spvec_t vec;
@@ -79,3 +98,4 @@ TEST_CASE("Invert Wang") {
         REQUIRE(irving_inv_hash(wang_hash(r)) == r);
     }
 }
+#endif

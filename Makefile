@@ -63,7 +63,7 @@ tests: clean unit
 
 unit: $(OBJS) $(TEST_OBJS) libhll.a
 	#$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
-	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(INCLUDE) test/test_hll.o test/test_main.o $(LD) $(OBJS) -o $@ $(LIB)
 
 
 clean:

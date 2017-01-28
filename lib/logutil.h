@@ -6,9 +6,6 @@
 #include <cstdio>
 #include <cstdarg>
 
-#ifndef _LOG_MACRO_DEFS_
-#define _LOG_MACRO_DEFS_
-
 #define _FUNCTION_MACRO_ __PRETTY_FUNCTION__
 #define LOG_INFO(...) log_info(__func__, ##__VA_ARGS__);
 #define LOG_WARNING(...) log_warning(_FUNCTION_MACRO_, ##__VA_ARGS__);
@@ -60,7 +57,5 @@ static inline void log_assert(const char *func, int line, int assertion, const c
         exit(EXIT_FAILURE);
     }
 }
-
-#endif // #ifdef _LOG_MACRO_DEFS_
 
 #endif /* #ifndef _LOG_UTIL_H__ */
