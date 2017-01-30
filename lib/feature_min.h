@@ -69,8 +69,8 @@ int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret) {
 
 template<std::uint64_t (*score)(std::uint64_t, void *)>
 std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, std::size_t index, void *data) {
-    LOG_DEBUG("ret hash set: %p. Index: %zu\n", (void *)ret, index);
     LOG_ASSERT(ret);
+    fprintf(stderr, "Filling from genome at path %s\n", path);
     gzFile ifp(gzopen(path, "rb"));
     if(!ifp) {
         fprintf(stderr, "Could not open file %s for index %zu. Abort!\n", path, index);
@@ -88,6 +88,7 @@ std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *re
     }
     kseq_destroy(ks);
     gzclose(ifp);
+    fprintf(stderr, "Set of size %lu filled from genome at path %s\n", kh_size(ret), path);
     return index;
 }
 
@@ -240,6 +241,7 @@ khash_t(c) *lca_map(std::vector<std::string> fns, khash_t(p) *tax_map,
     khash_t(all) **counters((khash_t(all) **)malloc(sizeof(khash_t(all) *) * todo));
     khash_t(c) *ret(kh_init(c));
     kh_resize(c, ret, start_size);
+    LOG_DEBUG("Building name hash from %s\n", seq2tax_path);
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
     std::vector<std::future<std::size_t>> futures;
 

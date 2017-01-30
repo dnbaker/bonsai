@@ -7,7 +7,6 @@ from subprocess import check_call as cc, CalledProcessError
 argv = sys.argv
 
 
-
 def is_valid_gzip(fn, lazy=False):
     '''
     We could instead use gunzip -t to check, but that actual requires
@@ -23,6 +22,7 @@ def is_valid_gzip(fn, lazy=False):
     # else
     try:
         cc("gunzip -t " + fn, shell=True)
+        print(fn + "is valid")
         return True
     except CalledProcessError:
         print("Corrupted file ", fn, ". Delete, try again.")
@@ -116,7 +116,7 @@ def parse_assembly(fn, fnidmap):
     return to_fetch
 
 
-def retry_cc(cstr):
+def retry_cc(cstr, die=True):
     print("Starting retry_cc")
     RETRY_LIMIT = 10
     r = 0
@@ -129,9 +129,15 @@ def retry_cc(cstr):
             print("retry number", r)
             r += 1
             if r == RETRY_LIMIT:
-                raise Exception("Could not download via %s "
-                                "even after %i attempts." % (cstr,
-                                                             RETRY_LIMIT))
+                if die:
+                    raise Exception(
+                        "Could not download via %s "
+                        "even after %i attempts." % (cstr, RETRY_LIMIT))
+                else:
+                    sys.stderr.write(
+                        "Could not download %s even after %i attempts" % (
+                            cstr, RETRY_LIMIT))
+                return
             continue
     print("Success with %s" % cstr)
 
@@ -148,11 +154,13 @@ def getopts():
     a.add_argument("--threads", "-p",
                    help="Number of threads to use while downloading.",
                    type=int, default=16)
-    a.add_argument("--lazy", "-l", default=False, type=bool, help="Don't check full gzipped file contents.")
+    a.add_argument("--lazy", "-l", default=False, type=bool,
+                   help="Don't check full gzipped file contents.")
     return a.parse_args()
 
 
 def check_path(fn, lazy=False):
+    print("Checking path " + fn)
     if os.path.isfile(fn):
         if not is_valid_gzip(fn, lazy=lazy):
             cc("rm " + fn, shell=True)

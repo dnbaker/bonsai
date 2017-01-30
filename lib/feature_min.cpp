@@ -131,7 +131,9 @@ void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, std::uin
 }
 
 std::uint32_t get_taxid(const char *fn, khash_t(name) *name_hash) {
+    LOG_DEBUG("Grabbing from %s, testing with %p\n", fn, (void *)name_hash);
     gzFile fp(gzopen(fn, "rb"));
+    if(fp == nullptr) LOG_EXIT("Could not read from file %s\n", fn);
     static const std::size_t bufsz(2048);
     khint_t ki;
     char buf[bufsz];

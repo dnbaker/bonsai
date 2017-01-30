@@ -96,6 +96,7 @@ int phase2_main(int argc, char *argv[]) {
         Spacer sp(k, wsz, spvec_t(k - 1, 0));
         Database<khash_t(c)>  phase2_map(sp);
         std::vector<std::string> inpaths(argv + optind + 2, argv + argc);
+        LOG_DEBUG("Parent map bulding from %s\n", argv[optind]);
         khash_t(p) *taxmap(build_parent_map(argv[optind]));
         phase2_map.db_ = lca_map<lex_score>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads);
         phase2_map.write(argv[optind + 1]);

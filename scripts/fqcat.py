@@ -43,7 +43,7 @@ def make_output(paths, outpath):
     if is_valid_gzip(outpath):
         [cc("rm -f " + path, shell=True) for path in paths]
     return outpath
-    
+
 
 def process_folder(path, fn1=None, fn2=None):
     import glob
@@ -57,7 +57,8 @@ def process_folder(path, fn1=None, fn2=None):
             return ([i for i in already_done if "_R1_" in i][0],
                     [i for i in already_done if "_R2_" in i][0])
         else:
-            raise FileNotFoundError("Could not find any files in the folder" + path)
+            raise FileNotFoundError("Could not find any files in the folder" +
+                                     path)
     for fq in fqs:
         if not is_valid_gzip(fq):
             raise SystemError("File %s is not a valid gzip file. Abort!" % fq)
@@ -87,6 +88,7 @@ def getopts():
                    help="Number of threads to use.",
                    type=int, default=8)
     return a.parse_args()
+
 
 def main():
     opts = getopts()
