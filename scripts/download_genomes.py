@@ -19,42 +19,25 @@ def is_valid_gzip(fn, lazy=False):
             return True
         except CalledProcessError:
             return False
-    # else
     try:
         cc("gunzip -t " + fn, shell=True)
-        print(fn + "is valid")
+        print(fn + " is valid")
         return True
     except CalledProcessError:
         print("Corrupted file ", fn, ". Delete, try again.")
         return False
-    """
-    import gzip
-    with gzip.open(fn) as f:
-        try:
-            f.readline()
-            return True
-        except:
-            stderr.write("File at %s could not be read from.\n" % fn)
-            raise
-    """
 
 
 def xfirstline(fn):
     # Works on python3, not 2.
     if not is_valid_gzip(fn):
         cc("rm " + fn, shell=True)
-        sys.exit(main())
-    if sys.version_info[0] == 3:
-        if(open(fn, "rb").read(2) == b"\x1f\x8b"):
-            return gzip.open(fn).readline()
-    else:
-        if(open(fn, "rb").read(2) == "\x1f\x8b"):
-            return gzip.open(fn).readline()
-    try:
-        return next(open(fn))
-    except StopIteration:
-        cc("rm " + fn, shell=True)
-        sys.exit(main())
+        raise SystemError("File %s invalid" % fn)
+    return next((gzip.open if
+                 open(fn, "rb").read(2) == (b"\x1f\x8b" if
+                                            sys.version_info[0] == 3
+                                            else "\x1f\x8b")
+                 else open)(fn))
 
 
 FTP_BASENAME = "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/"

@@ -4,6 +4,7 @@ import multiprocessing
 import gzip
 import os
 from subprocess import check_call as cc, CalledProcessError
+from download_genomes import is_valid_gzip, xfirstline
 argv = sys.argv
 
 
@@ -33,20 +34,6 @@ def as2dict(path):
             continue
         ret[xfirstline(fn)[1:].split()[0].decode()] = taxid
     return ret
-
-
-def xfirstline(fn):
-    if sys.version_info[0] == 3:
-        if(open(fn, "rb").read(2) == b"\x1f\x8b"):
-            return gzip.open(fn).readline()
-    else:
-        if(open(fn, "rb").read(2) == "\x1f\x8b"):
-            return gzip.open(fn).readline()
-    try:
-        return next(open(fn))
-    except StopIteration:
-        cc("rm " + fn, shell=True)
-        sys.exit(main())
 
 
 FTP_BASENAME = "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/"
