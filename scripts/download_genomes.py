@@ -4,7 +4,12 @@ import multiprocessing
 import gzip
 import os
 from subprocess import check_call as cc, CalledProcessError
+from enum import IntEnum
 argv = sys.argv
+
+class ExitCodes(IntEnum):
+    EXIT_SUCCESS = 0
+    EXIT_FAILURE = 1
 
 
 def is_valid_gzip(fn, lazy=False):
@@ -167,7 +172,7 @@ def main():
         except AssertionError:
             print("Clade %s not 'all', 'default', or one of the valid "
                   "clades: %s" % (clade, ALL_CLADES_STR))
-            sys.exit(1)
+            sys.exit(ExitCodes.EXIT_FAILURE)
     to_dl = get_clade_map(clades)
     print("About to download clades %s" % ", ".join(to_dl))
     nameidmap = {}
@@ -209,7 +214,7 @@ def main():
         fw = f.write
         for k, v in nameidmap.items():
             fw(k + "\t" + str(v) + "\n")
-    return 0
+    return ExitCodes.EXIT_SUCCESS
 
 
 if __name__ == "__main__":

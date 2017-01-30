@@ -2,12 +2,13 @@
 #define TREE_CLIMBER_H__
 
 #include "lib/tx.h"
+#include "lib/database.h"
 
 namespace emp {
 
 namespace tree {
 
-inline std::uint32_t get_parent(khash_t(p) *taxmap, std::uint32_t key) noexcept {
+INLINE std::uint32_t get_parent(khash_t(p) *taxmap, std::uint32_t key) noexcept {
     // Returns maximum value if not found.
     khiter_t ki;
     return ((ki = kh_get(p, taxmap, key)) != kh_end(taxmap)) ? kh_val(taxmap, ki)
@@ -55,6 +56,8 @@ public:
 inline std::vector<std::uint32_t> sorted_nodes(khash_t(p) *taxmap) {
     return std::move(SortedNodeGuide(taxmap).get_nodes());
 }
+
+size_t invert_lca_map(Database<khash_t(c)> &db, const char *path);
 
 } // namespace tree
 

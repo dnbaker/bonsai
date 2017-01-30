@@ -35,7 +35,7 @@ class QueueMap {
     // I could make this more efficient by using pointers instead of
     // ElScore structs.
     // *maybe* TODO
-    // Could also easily templatify this module for other windowing tasks.
+    //
     typedef typename std::map<ElScore<T, ScoreType>, unsigned>::iterator map_iterator;
     std::list<ElScore<T, ScoreType>> list_;
 #if !NDEBUG
@@ -47,6 +47,7 @@ private:
 #endif
     const std::size_t wsz_;  // window size to keep
     public:
+    QueueMap(std::size_t wsz): wsz_(wsz) {}
     INLINE void add(const ElScore<T, ScoreType> &el) {
         auto it(map_.lower_bound(el));
         if(it != map_.end()) {
@@ -80,7 +81,6 @@ private:
         return list_.size() == wsz_ ? map_.begin()->first.el_: BF;
         // Signal a window that is not filled by 0xFFFFFFFFFFFFFFFF
     }
-    QueueMap(std::size_t wsz): wsz_(wsz) {}
     void reset() {
         list_.clear();
         map_.clear();

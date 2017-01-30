@@ -70,25 +70,35 @@ int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret) {
 template<std::uint64_t (*score)(std::uint64_t, void *)>
 std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, std::size_t index, void *data) {
     LOG_ASSERT(ret);
-    LOG_DEBUG("Filling from genome at path %s\n", path);
+    LOG_INFO("Filling from genome at path %s\n", path);
     gzFile ifp(gzopen(path, "rb"));
     if(!ifp) {
         fprintf(stderr, "Could not open file %s for index %zu. Abort!\n", path, index);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     Encoder<score> enc(0, 0, sp, data);
     kseq_t *ks(kseq_init(ifp));
     int khr; // khash return value. Unused, really.
     std::uint64_t kmer;
-    while(kseq_read(ks) >= 0) {
-        enc.assign(ks);
-        while(enc.has_next_kmer())
-            if((kmer = enc.next_minimizer()) != BF)
-                kh_put(all, ret, kmer, &khr);
+    if(sp.w_ > sp.k_) {
+        while(kseq_read(ks) >= 0) {
+            enc.assign(ks);
+            while(enc.has_next_kmer()) {
+                if((kmer = enc.next_minimizer()) != BF)
+                    kh_put(all, ret, kmer, &khr);
+            }
+        }
+    } else {
+        while(kseq_read(ks) >= 0) {
+            enc.assign(ks);
+            while(enc.has_next_kmer())
+                if((kmer = enc.next_minimizer()) != BF)
+                    kh_put(all, ret, kmer, &khr);
+        }
     }
     kseq_destroy(ks);
     gzclose(ifp);
-    LOG_DEBUG("Set of size %lu filled from genome at path %s\n", kh_size(ret), path);
+    LOG_INFO("Set of size %lu filled from genome at path %s\n", kh_size(ret), path);
     return index;
 }
 
@@ -273,8 +283,8 @@ khash_t(c) *lca_map(std::vector<std::string> fns, khash_t(p) *tax_map,
                   std::launch::async, fill_set_genome<score>, fns[submitted].data(),
                   sp, counters[submitted], submitted, nullptr);
                 subbed.insert(submitted);
-                LOG_INFO("Submitted for %zu. Updating map for %zu. Total completed/all: %zu/%zu\n",
-                         submitted, index, completed, todo);
+                LOG_INFO("Submitted for %zu. Updating map for %zu. Total completed/all: %zu/%zu. Total size: %zu\n",
+                         submitted, index, completed, todo, kh_size(ret));
                 ++submitted, ++completed;
                 const std::uint32_t taxid(get_taxid(fns[index].data(), name_hash));
                 LOG_DEBUG("Just fetched taxid from file %s %u.\n", fns[index].data(), taxid);
