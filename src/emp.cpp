@@ -124,7 +124,7 @@ int hll_main(int argc, char *argv[]) {
         usage:
         LOG_EXIT("NotImplementedError: Add usage, pls.");
     }
-    while((c = getopt(argc, argv, "s:S:p:k:tfh?")) >= 0) {
+    while((c = getopt(argc, argv, "w:s:S:p:k:tfh?")) >= 0) {
         switch(c) {
             case 'h': case '?': goto usage;
             case 'k': k = atoi(optarg); break;

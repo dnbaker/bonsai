@@ -8,7 +8,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 DBG:= # -DNDEBUG # -fno-inline
 OPT:= -O3 -funroll-loops -fno-asynchronous-unwind-tables -ffast-math \
 	  -fopenmp \
-      -pipe -fno-strict-aliasing -march=native -mpclmul
+      -pipe -fno-strict-aliasing -march=native -mpclmul # -DNOT_MEMORY_HOG
 OS:=$(shell uname)
 ifeq ($(OS),Darwin)
 	OPT := $(OPT) -Wa,-q

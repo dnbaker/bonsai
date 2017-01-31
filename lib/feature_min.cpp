@@ -43,20 +43,11 @@ void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *
                kh_get(c, ret, kh_key(set, ki)) != kh_end(ret))
             continue;
             // If the key is already in the main map, what's the problem?
-        if((kif = kh_get(64, full_map, kh_key(set, ki))) == kh_end(full_map))
+        if(unlikely((kif = kh_get(64, full_map, kh_key(set, ki))) == kh_end(full_map)))
             LOG_EXIT("Missing kmer from database... Check for matching spacer and kmer size.\n");
         kir = kh_put(c, ret, kh_key(full_map, kif), &khr);
         kh_val(ret, kir) = kh_val(full_map, kif);
-        if(kh_size(ret) % 100000 == 0) {
-            LOG_DEBUG("Final hash size %zu\n", kh_size(ret));
-        }
-        // Try to prune master database as we build the other database.
-        // Once an element is placed in our database, we no longer need it.
-#if 0
-        kh_del(64, full_map, kif);
-        if(full_map->n_occupied < (full_map->n_buckets >> 1) * __ac_HASH_UPPER)
-            kh_resize(64, full_map, full_map->n_buckets >> 1);
-#endif
+        if(unlikely(kh_size(ret) % 1000000 == 0)) LOG_INFO("Final hash size %zu\n", kh_size(ret));
     }
     return;
 }
@@ -90,7 +81,7 @@ void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, std::uin
                 k2 = kh_put(64, kc, kh_key(set, ki), &khr);
                 kh_val(kc, k2) = TDencode(node_depth(tax, kh_val(kc, ki)), kh_val(kc, ki));
 #if !NDEBUG
-                if(kh_size(kc) % 100000 == 0) fprintf(stderr, "Final hash size %zu\n", kh_size(kc));
+                if(unlikely(kh_size(kc) % 1000000 == 0)) LOG_INFO("Final hash size %zu\n", kh_size(kc));
 #endif
             } else if(kh_val(kc, k2) != taxid) {
                 val = lca(tax, taxid, kh_val(kc, k2));
@@ -115,12 +106,9 @@ void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, std::uin
             if((k2 = kh_get(c, kc, kh_key(set, ki))) == kh_end(kc)) {
                 k2 = kh_put(c, kc, kh_key(set, ki), &khr);
                 kh_val(kc, k2) = taxid;
-#if !NDEBUG
-                if(kh_size(kc) % 100000 == 0) fprintf(stderr, "Final hash size %zu\n", kh_size(kc));
-#endif
+                if(unlikely(kh_size(kc) % 1000000 == 0)) LOG_INFO("Final hash size %zu\n", kh_size(kc));
             } else if(kh_val(kc, k2) != taxid) {
-                val = lca(tax, taxid, kh_val(kc, k2));
-                if(val == (std::uint32_t)-1) {
+                if(unlikely((val = lca(tax, taxid, kh_val(kc, k2))) == UINT32_C(-1))) {
                     kh_val(kc, k2) = 1;
                     LOG_WARNING("Missing taxid %u. Setting lca \n", taxid);
                 } else kh_val(kc, k2) = val;
@@ -131,7 +119,6 @@ void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, std::uin
 }
 
 std::uint32_t get_taxid(const char *fn, khash_t(name) *name_hash) {
-    LOG_DEBUG("Grabbing from %s, testing with %p\n", fn, (void *)name_hash);
     gzFile fp(gzopen(fn, "rb"));
     if(fp == nullptr) LOG_EXIT("Could not read from file %s\n", fn);
     static const std::size_t bufsz(2048);
