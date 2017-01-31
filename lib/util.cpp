@@ -71,18 +71,20 @@ khash_t(name) *build_name_hash(const char *fn) noexcept {
     int khr;
     khint_t ki;
     while((len = getline(&buf, &bufsz, fp)) >= 0) {
-        switch(*buf) case '\n': case '#': continue;
+        switch(*buf) case '\0': case '\n': case '#': continue;
         p = strchr(buf, '\t');
         *p = 0;
         ki = kh_put(name, ret, buf, &khr);
-        namelen = p - buf;
-        kh_key(ret, ki) = (char *)malloc(namelen + 1);
-        memcpy((void*)kh_key(ret, ki), buf, namelen);
-       ((char *)kh_key(ret, ki))[namelen] = '\0';
+        if(khr == 0) { // Key already present.
+            LOG_INFO("Key %s already present. Updating value from %i to %s\n", kh_key(ret, ki), kh_val(ret, ki), p + 1);
+        }  else {
+            namelen = p - buf;
+            kh_key(ret, ki) = (char *)malloc(namelen + 1);
+            memcpy((void*)kh_key(ret, ki), buf, namelen);
+           ((char *)kh_key(ret, ki))[namelen] = '\0';
+        }
         kh_val(ret, ki) = atoi(p + 1);
     }
-    for(khiter_t ki(0); ki != kh_end(ret); ++ki)
-        if(kh_exist(ret, ki)) {assert(kh_key(ret, ki));}
     fclose(fp);
     free(buf);
     return ret;

@@ -83,7 +83,7 @@ std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *re
     if(sp.w_ > sp.k_) {
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
-            while(enc.has_next_kmer()) {
+            while(likely(enc.has_next_kmer())) {
                 if((kmer = enc.next_minimizer()) != BF)
                     kh_put(all, ret, kmer, &khr);
             }
@@ -91,8 +91,8 @@ std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *re
     } else {
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
-            while(enc.has_next_kmer())
-                if((kmer = enc.next_minimizer()) != BF)
+            while(likely(enc.has_next_kmer()))
+                if((kmer = enc.next_kmer()) != BF)
                     kh_put(all, ret, kmer, &khr);
         }
     }
