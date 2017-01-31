@@ -6,22 +6,24 @@
 
 using namespace emp;
 
+using namespace std::literals;
+
 int classify_main(int argc, char *argv[]) {
     int co, num_threads(16), emit_kraken(1), emit_fastq(0), emit_all(0), chunk_size(1 << 20), per_set(32);
     FILE *ofp(stdout);
     if(argc < 4) {
         usage:
-        fprintf(stderr, "Usage:\n%s <dbpath> <tax_path> <inr1.fq> [Optional: <inr2.fq>]\n"
-                        "Flags:\n-o:\tRedirect output to path instead of stdout.\n"
-                        "-c:\tSet chunk size. Default: %i\n"
-                        "-a:\tEmit all records, not just classified.\n"
-                        "-p:\tSet number of threads. Default: 16.\n"
-                        "-k:\tEmit kraken-style output.\n"
-                        "-K:\tDo not emit kraken-style output.\n"
-                        "-f:\tEmit fastq-style output.\n"
-                        "-K:\tDo not emit fastq-formatted output.\n"
-                        "\nIf -f and -k are set, full kraken output will be contained in the fastq comment field."
-                        "\n  Default: kraken-style only output.\n",
+        std::fprintf(stderr, "Usage:\n%s <dbpath> <tax_path> <inr1.fq> [Optional: <inr2.fq>]\n"
+                             "Flags:\n-o:\tRedirect output to path instead of stdout.\n"
+                             "-c:\tSet chunk size. Default: %i\n"
+                             "-a:\tEmit all records, not just classified.\n"
+                             "-p:\tSet number of threads. Default: 16.\n"
+                             "-k:\tEmit kraken-style output.\n"
+                             "-K:\tDo not emit kraken-style output.\n"
+                             "-f:\tEmit fastq-style output.\n"
+                             "-K:\tDo not emit fastq-formatted output.\n"
+                             "\nIf -f and -k are set, full kraken output will be contained in the fastq comment field."
+                             "\n  Default: kraken-style only output.\n",
                  *argv, 1 << 14);
         exit(EXIT_FAILURE);
     }
@@ -62,18 +64,17 @@ int classify_main(int argc, char *argv[]) {
 }
 
 int phase2_main(int argc, char *argv[]) {
-    int c, mode(score_scheme::LEX), wsz(-1), num_threads(-1), use_hll(0);
-    unsigned k(31);
+    int c, mode(score_scheme::LEX), wsz(-1), num_threads(-1), use_hll(0), k(31);
     std::size_t start_size(1<<16);
     std::string spacing, tax_path, seq2taxpath;
     // TODO: update documentation for tax_path and seq2taxpath options.
     if(argc < 4) {
         usage:
-        fprintf(stderr, "Usage: %s <flags> [tax_path if lex else <phase1map.path>] <out.path> <paths>\nFlags:\n"
-                "-k: Set k.\n"
-                "-p: Number of threads\n"
-                "-t: Build for taxonomic minimizing\n-f: Build for feature minimizing\n"
-                , *argv);
+        std::fprintf(stderr, "Usage: %s <flags> [tax_path if lex else <phase1map.path>] <out.path> <paths>\nFlags:\n"
+                     "-k: Set k.\n"
+                     "-p: Number of threads\n"
+                     "-t: Build for taxonomic minimizing\n-f: Build for feature minimizing\n"
+                     , *argv);
         exit(EXIT_FAILURE);
     }
     while((c = getopt(argc, argv, "w:M:S:p:k:T:tfHh?")) >= 0) {
@@ -90,10 +91,9 @@ int phase2_main(int argc, char *argv[]) {
             case 'H': use_hll = 1; break;
         }
     }
-    if(wsz < 0 || wsz < (int)k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
-    const int lex(score_scheme::LEX == mode);
+    if(wsz < 0 || wsz < k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
     std::vector<std::string> inpaths(argv + optind + 2, argv + argc);
-    if(lex) {
+    if(score_scheme::LEX == mode) {
         if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for lexicographic mode for final database generation.");
         Spacer sp(k, wsz, spvec_t(k - 1, 0));
         Database<khash_t(c)>  phase2_map(sp);
@@ -107,7 +107,6 @@ int phase2_main(int argc, char *argv[]) {
     }
     Database<khash_t(64)> phase1_map(Database<khash_t(64)>(argv[optind]));
     Spacer sp(k, wsz, phase1_map.s_);
-    //std::size_t hash_size(use_hll ? estimate_cardinality<lex_score>(inpaths, k, k, sp.s_, nullptr, num_threads, 24): 1 << 16);
     Database<khash_t(c)>  phase2_map(phase1_map);
     khash_t(p) *taxmap(tax_path.empty() ? nullptr: build_parent_map(tax_path.data()));
     phase2_map.db_ = minimized_map<hash_score>(inpaths, phase1_map.db_, sp, num_threads, start_size, mode);
@@ -117,40 +116,65 @@ int phase2_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
-int phase1_main(int argc, char *argv[]) {
-    int c, taxmap_preparsed(0), use_hll(0), mode(score_scheme::LEX), wsz(-1);
 
-    unsigned k(31);
-    int num_threads(-1);
+int hll_main(int argc, char *argv[]) {
+    int c, wsz(-1), k(31), num_threads(-1), sketch_size(24);
     std::string spacing;
+    if(argc < 2) {
+        usage:
+        LOG_EXIT("NotImplementedError: Add usage, pls.");
+    }
+    while((c = getopt(argc, argv, "s:S:p:k:tfh?")) >= 0) {
+        switch(c) {
+            case 'h': case '?': goto usage;
+            case 'k': k = atoi(optarg); break;
+            case 'p': num_threads = atoi(optarg); break;
+            case 's': spacing = optarg; break;
+            case 'S': sketch_size = atoi(optarg); break;
+            case 'w': wsz = atoi(optarg); break;
+        }
+    }
+    if(wsz < k) wsz = k;
+    std::vector<std::string> inpaths(argv + optind, argv + argc);
+    spvec_t sv(spacing.empty() ? spvec_t(k - 1, 0): parse_spacing(spacing.data(), k));
+    std::size_t est(estimate_cardinality<lex_score>(inpaths, k, wsz, sv, nullptr, num_threads, sketch_size));
+    std::fprintf(stderr, "Estimated number of unique exact matches: %zu\n", est);
+    return EXIT_SUCCESS;
+}
+
+int phase1_main(int argc, char *argv[]) {
+    int c, taxmap_preparsed(0), use_hll(0), mode(score_scheme::LEX), wsz(-1), k(31), num_threads(-1), sketch_size(24);
+    std::string spacing;
+
     if(argc < 5) {
         usage:
-        fprintf(stderr, "Usage: %s <flags> <seq2tax.path> <taxmap.path> <out.path> <paths>\nFlags:\n"
-                "-k: Set k.\n"
-                "-p: Number of threads.\n-S: add a spacer of the format "
-                "<int>,<int>,<int>, (...), where each integer is the number of spaces"
-                "between successive bases included in the seed. There must be precisely k - 1"
-                "elements in this list. Use this option multiple times to specify multiple seeds.\n"
-                "-s: add a spacer of the format <int>x<int>,<int>x<int>,"
-                "..., where the first integer corresponds to the space "
-                "between bases repeated the second integer number of times.\n"
-                "-t: Build for taxonomic minimizing.\n-f: Build for feature minimizing.\n"
-                "-H: Estimate rather than count kmers exactly before building map.\n"
-                "-T: Path to taxonomy map to load, if you've preparsed it. Not really worth it, building from scratch is fast.\n"
-                "-d: Write out in database format version 1.\n"
-                , *argv);
+        std::fprintf(stderr, "Usage: %s <flags> <seq2tax.path> <taxmap.path> <out.path> <paths>\nFlags:\n"
+                     "-k: Set k.\n"
+                     "-p: Number of threads.\n-S: add a spacer of the format "
+                     "<int>,<int>,<int>, (...), where each integer is the number of spaces"
+                     "between successive bases included in the seed. There must be precisely k - 1"
+                     "elements in this list. Use this option multiple times to specify multiple seeds.\n"
+                     "-s: add a spacer of the format <int>x<int>,<int>x<int>,"
+                     "..., where the first integer corresponds to the space "
+                     "between bases repeated the second integer number of times.\n"
+                     "-S: Set HyperLogLog sketch size. For very large cardinalities, this may need to be increased for accuracy.\n"
+                     "-t: Build for taxonomic minimizing.\n-f: Build for feature minimizing.\n"
+                     "-H: Estimate rather than count kmers exactly before building map.\n"
+                     "-T: Path to taxonomy map to load, if you've preparsed it. Not really worth it, building from scratch is fast.\n"
+                     "-d: Write out in database format version 1.\n"
+                     , *argv);
         exit(EXIT_FAILURE);
     }
-    if(std::string("lca") == argv[0])
-        fprintf(stderr, "[W:%s] lca subcommand has been renamed phase1. "
-                        "This has been deprecated and will be removed.\n", __func__);
+    if("lca"s == argv[0])
+        std::fprintf(stderr, "[W:%s] lca subcommand has been renamed phase1. "
+                             "This has been deprecated and will be removed.\n", __func__);
     while((c = getopt(argc, argv, "s:S:p:k:tfTHh?")) >= 0) {
         switch(c) {
             case 'h': case '?': goto usage;
             case 'k': k = atoi(optarg); break;
             case 'p': num_threads = atoi(optarg); break;
             case 's': spacing = optarg; break;
-            case 'S': spacing = optarg; break;
+            case 'S': sketch_size = atoi(optarg); break;
             case 'T': taxmap_preparsed = 1; break;
             case 'H': use_hll = 1; break;
             case 't': mode = score_scheme::TAX_DEPTH; break;
@@ -159,20 +183,13 @@ int phase1_main(int argc, char *argv[]) {
         }
     }
     if(wsz < 0) wsz = k;
-    LOG_DEBUG("Loading tax\n");
     khash_t(p) *taxmap(taxmap_preparsed ? khash_load<khash_t(p)>(argv[optind + 1])
                                         : build_parent_map(argv[optind + 1]));
-    LOG_DEBUG("Loaded tax\n");
     spvec_t sv(parse_spacing(spacing.data(), k));
     Spacer sp(k, wsz, sv);
     std::vector<std::string> inpaths(argv + optind + 3, argv + argc);
-    {
-        std::string tmp(inpaths[0]);
-        for(std::size_t i(1); i < inpaths.size(); ++i) tmp += ",", tmp += inpaths[i];
-        //fprintf(stderr, "Trying to gather kmers from %s.\n", tmp.data());
-    }
-    std::size_t hash_size(use_hll ? estimate_cardinality<lex_score>(inpaths, k, k, sv, nullptr, num_threads, 24): 1 << 16);
-    if(use_hll) fprintf(stderr, "Estimated number of elements: %zu\n", hash_size);
+    std::size_t hash_size(use_hll ? estimate_cardinality<lex_score>(inpaths, k, k, sv, nullptr, num_threads, sketch_size): 1 << 16);
+    if(use_hll) std::fprintf(stderr, "Estimated number of elements: %zu\n", hash_size);
 
     if(mode == score_scheme::LEX)
         LOG_EXIT("No phase1 required for lexicographic. Use phase2 instead.\n");
@@ -196,11 +213,12 @@ static std::vector<std::pair<std::string, int (*)(int, char **)>> mains {
     {"phase2", phase2_main},
     {"p2",     phase2_main},
     {"lca", phase1_main},
+    {"hll", hll_main},
     {"classify", classify_main}
 };
 int main(int argc, char *argv[]) {
     
     if(argc > 1) for(auto &i: mains) if(i.first == argv[1]) return i.second(argc - 1, argv + 1);
-    fprintf(stderr, "No valid subcommand provided. Options: phase1, phase2, classify\n");
+    std::fprintf(stderr, "No valid subcommand provided. Options: phase1, phase2, classify, hll\n");
     return EXIT_FAILURE;
 }

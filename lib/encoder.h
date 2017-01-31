@@ -251,8 +251,8 @@ std::size_t count_cardinality(const std::vector<std::string> paths,
 
 template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
 std::size_t estimate_cardinality(const std::vector<std::string> &paths,
-                            unsigned k, uint16_t w, spvec_t spaces,
-                            void *data=nullptr, int num_threads=-1, std::size_t np=23) {
+                                 unsigned k, uint16_t w, spvec_t spaces,
+                                 void *data=nullptr, int num_threads=-1, std::size_t np=23) {
     // Default to using all available threads.
     if(num_threads < 0) num_threads = sysconf(_SC_NPROCESSORS_ONLN);
     const Spacer space(k, w, spaces);
@@ -273,6 +273,7 @@ std::size_t estimate_cardinality(const std::vector<std::string> &paths,
             if(submitted == todo) break;
             if(is_ready(*f)) {
                 hlls.push_back(f->get());
+                LOG_DEBUG("Latest estimate: %lf\n", hlls[hlls.size() - 1].report());
                 futures.erase(f);
                 int success(0), tries(0);
                 while(!success) {
