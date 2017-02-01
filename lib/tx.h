@@ -11,6 +11,7 @@
 #include "lib/counter.h"
 #include "lib/bits.h"
 
+
 template<typename T>
 std::size_t get_n_occ(T *hash) {
     std::size_t ret(0);
@@ -22,6 +23,7 @@ std::size_t get_n_occ(T *hash) {
 namespace emp {
 
 
+using namespace std::literals;
 
 class Taxonomy {
     khash_t(p)    *tax_map_;
@@ -36,7 +38,7 @@ public:
         name_map_(build_name_hash(name_path)),
         n_syn_(0),
         ceil_(ceil ? ceil: tax_map_->n_buckets << 1),
-        name_(*name ? name: rand_string(20))
+        name_(*name ? name: "Taxonomy "s + rand_string(20))
     {
         LOG_DEBUG("Ceil: %" PRIu64 ". n buckets: %" PRIu64 "\n", ceil_, tax_map_->n_buckets);
     }
@@ -53,6 +55,12 @@ public:
     std::uint64_t get_syn_ceil() const {return ceil_;}
     int has_capacity() const {return n_syn_ + 1 <= ceil_;}
     bool operator==(Taxonomy &other) const;
+    operator khash_t(p) *() {
+        return tax_map_;
+    }
+    operator khash_t(name) *() {
+        return name_map_;
+    }
 };
 
 
@@ -116,10 +124,10 @@ constexpr unsigned lazy_popcnt(T val) {
     while(val) {
         switch(val & 0xFu) {
 #ifdef SANITY
-            case 1: case 2: case 4: case 8: ++ret; break;
+            case 1: case 2: case 4: case 8:                   ++ret;    break;
             case 3: case 5: case 6: case 9: case 10: case 12: ret += 2; break;
-            case 7: case 11: case 13: case 14: ret += 3; break;
-            case 15: ret += 4; break;
+            case 7: case 11: case 13: case 14:                ret += 3; break;
+            case 15:                                          ret += 4; break;
 #else
             case 15:                                          ++ret;
             case 7: case 11: case 13: case 14:                ++ret;

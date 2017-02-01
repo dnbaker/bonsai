@@ -27,6 +27,15 @@
 #  endif
 #endif
 
+
+#define TIME_CODE(code, name) do \
+{                         \
+    auto i(std::chrono::system_clock::now());\
+    { code }\
+    auto j(std::chrono::system_clock::now());\
+    fprintf(stderr, "Task %s took %lf\ns", name, std::chrono::duration<double>(j - i).count());\
+} while(0)
+
 namespace emp {
 
 KHASH_SET_INIT_INT64(all)

@@ -33,9 +33,9 @@ std::vector<std::string> paths {
 
 TEST_CASE("hll") {
     std::vector<std::pair<uint64_t, uint64_t>> pairs {
-        {19, 24},
-        {22, 26},
         {22, 36},
+        {22, 26},
+        {19, 24},
         {15, 21}
     };
     //for(auto x: {8, 12, 16, 20, 24, 28, 32, 36, 42}) {
