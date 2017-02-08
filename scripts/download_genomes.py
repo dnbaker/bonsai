@@ -24,6 +24,7 @@ def is_valid_gzip(fn, lazy=False):
             return True
         except CalledProcessError:
             return False
+    # lazy has already returned. This is the "else".
     try:
         cc("gunzip -t " + fn, shell=True)
         print(fn + " is valid")
@@ -38,11 +39,10 @@ def xfirstline(fn):
     if not is_valid_gzip(fn):
         cc("rm " + fn, shell=True)
         raise SystemError("File %s invalid" % fn)
-    return next((gzip.open if
-                 open(fn, "rb").read(2) == (b"\x1f\x8b" if
-                                            sys.version_info[0] == 3
-                                            else "\x1f\x8b")
-                 else open)(fn))
+    first_two = open(fn, "rb").read(2)
+    if isinstance(first_two, bytes):
+        first_two = first_two.decode()
+    return (gzip.open if first_two == "\x1f\x8b" else open)(fn)
 
 
 FTP_BASENAME = "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/"
@@ -93,10 +93,10 @@ def parse_assembly(fn, fnidmap):
         if len(s) < 14:
             print(s)
             raise Exception("Not long enough")
-        if ("latest" not in line or
+        if ("latest" not in line or  # Complete genome
                 (("Complete Genome" not in line and
                   "GRCh" not in line and s[13] != "Full")) or
-                any(i in line.lower() for i in ["supercontig", "scaffold"])):
+                any(i in line.lower() for i in ["chromosome", "supercontig", "scaffold"])):
             continue
         fn = "%s_genomic.fna.gz" % ([i for i in s[19].split("/") if i][-1])
         fnidmap[fn] = int(s[5])

@@ -42,8 +42,8 @@ FTP_BASENAME = "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/"
 def main():
     args = getopts()
     master = {}
-    spoool = multiprocessing.Pool(args.threads)
-    mini_dicts = (spoool.map if args.threads > 1 else map)(as2dict, args.paths)
+    mini_dicts = (multiprocessing.Pool(args.threads).map if args.threads > 1
+                  else map)(as2dict, args.paths)
     with open(args.out, "w") if args.out else sys.stdout as outfile:
         of = outfile.write
         for mini in mini_dicts:
