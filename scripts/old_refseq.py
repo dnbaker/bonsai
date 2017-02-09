@@ -47,7 +47,7 @@ def parse_gi2tax(path, acceptable_taxids=set()):
 
 
 def append_old_to_new(gi2tax_map, newmap, concat_map, folder=FOLDER):
-    paths = co("find %s -name '*.fna'", shell=True)
+    paths = co("find %s -name '*.fna'" % folder, shell=True)
     if isinstance(paths, bytes):
         paths = paths.decode()
     paths = paths.split()
@@ -81,12 +81,21 @@ def get_acceptable_taxids():
     cc("rm tax_summary.txt", shell=True)
 
 
+def fetch_i100(folder):
+    if not os.path.isdir(folder + "/i100"):
+        os.makedirs(folder + "/i100")
+    cstr = ("wget -N -m -np -nd -e robots=off -P %s/i100 -A .gz "
+            "http://www.bork.embl.de/~mende/simulated_data/")
+    cc(cstr, shell=True)
+
+
 def fetch_genomes(folder, names=NAMES):
     for name in names:
         ftp_path = "/".join([ARCHIVE_BASE, name])
-        cstr = ("wget -m -np -nd -e robots=off -P"
+        cstr = ("wget -N -m -np -nd -e robots=off -P"
                 " %s/%s -A .fna,.fna.gz %s") % (folder, name, ftp_path)
         cc(cstr, shell=True)
+    fetch_i100(folder)
 
 
 def main():
