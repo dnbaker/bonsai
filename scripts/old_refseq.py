@@ -16,7 +16,7 @@ ARCHIVE_BASE = "ftp://ftp.ncbi.nlm.nih.gov/genomes/archive/"
 
 GI2TAX_MAP_PATH = "ftp.ncbi.nih.gov/pub/taxonomy/gi_taxid_nucl.dmp.gz"
 
-FOLDER = "old_ref"
+FOLDER = "ref/old"
 
 
 def get_gi2tax(folder="oldref"):
@@ -34,7 +34,7 @@ def parse_gi2tax(path):
     ret = {}
     for line in open(path):
         toks = line.split()
-        ret[int(toks[0])] = int(toks[1])
+        ret[toks[0]] = int(toks[1])
     return ret
 
 
