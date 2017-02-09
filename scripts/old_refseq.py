@@ -85,7 +85,7 @@ def fetch_i100(folder):
     if not os.path.isdir(folder + "/i100"):
         os.makedirs(folder + "/i100")
     cstr = ("wget -N -m -np -nd -e robots=off -P %s/i100 -A .gz "
-            "http://www.bork.embl.de/~mende/simulated_data/")
+            "http://www.bork.embl.de/~mende/simulated_data/") % folder
     cc(cstr, shell=True)
 
 

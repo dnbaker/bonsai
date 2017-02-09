@@ -63,10 +63,22 @@ int classify_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
+std::vector<std::string> get_paths(const char *path) {
+    gzFile fp(gzopen(path, "rb"));
+    char buf[1024], *line;
+    std::vector<std::string> ret;
+    while((line = gzgets(fp, buf, sizeof buf))) {
+        ret.emplace_back(line);
+        ret[ret.size() - 1].pop_back();
+    }
+    gzclose(fp);
+    return ret;
+}
+
 int phase2_main(int argc, char *argv[]) {
     int c, mode(score_scheme::LEX), wsz(-1), num_threads(-1), use_hll(0), k(31);
     std::size_t start_size(1<<16);
-    std::string spacing, tax_path, seq2taxpath;
+    std::string spacing, tax_path, seq2taxpath, paths_file;
     // TODO: update documentation for tax_path and seq2taxpath options.
     if(argc < 4) {
         usage:
@@ -74,10 +86,11 @@ int phase2_main(int argc, char *argv[]) {
                      "-k: Set k.\n"
                      "-p: Number of threads\n"
                      "-t: Build for taxonomic minimizing\n-f: Build for feature minimizing\n"
+                     "-F: Load paths from file provided instead further arguments on the command-line.\n"
                      , *argv);
         exit(EXIT_FAILURE);
     }
-    while((c = getopt(argc, argv, "w:M:S:p:k:T:tfHh?")) >= 0) {
+    while((c = getopt(argc, argv, "w:M:S:p:k:T:F:tfHh?")) >= 0) {
         switch(c) {
             case 'h': case '?': goto usage;
             case 'k': k = atoi(optarg); break;
@@ -89,10 +102,13 @@ int phase2_main(int argc, char *argv[]) {
             case 'T': tax_path = optarg; break;
             case 'M': seq2taxpath = optarg; break;
             case 'H': use_hll = 1; break;
+            case 'F': paths_file = optarg; break;
         }
     }
     if(wsz < 0 || wsz < k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
-    std::vector<std::string> inpaths(argv + optind + 2, argv + argc);
+    std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
+                                                       : std::vector<std::string>(argv + optind + 2, argv + argc));
+
     if(score_scheme::LEX == mode) {
         if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for lexicographic mode for final database generation.");
         Spacer sp(k, wsz, spvec_t(k - 1, 0));
@@ -195,7 +211,7 @@ int phase1_main(int argc, char *argv[]) {
         LOG_EXIT("No phase1 required for lexicographic. Use phase2 instead.\n");
     auto mapbuilder(mode == score_scheme::TAX_DEPTH ? taxdepth_map<lex_score>
                                                     : ftct_map<lex_score>);
- 
+
     Database<khash_t(64)> db(sp, 1, mapbuilder(inpaths, taxmap, argv[optind], sp, num_threads, hash_size));
     for(auto &i: db.s_) {
         LOG_DEBUG("Decrementing value %i to %i\n", i, i - 1);
@@ -217,7 +233,7 @@ static std::vector<std::pair<std::string, int (*)(int, char **)>> mains {
     {"classify", classify_main}
 };
 int main(int argc, char *argv[]) {
-    
+
     if(argc > 1) for(auto &i: mains) if(i.first == argv[1]) return i.second(argc - 1, argv + 1);
     std::fprintf(stderr, "No valid subcommand provided. Options: phase1, phase2, classify, hll\n");
     return EXIT_FAILURE;

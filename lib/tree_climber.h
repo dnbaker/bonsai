@@ -22,17 +22,17 @@ khash_t(p) *pruned_taxmap(std::vector<std::string> &paths, khash_t(p) *taxmap, k
     for(auto &path: paths) found.insert(get_taxid(path.data(), name_hash));
     for(auto i: found) {
         keep.insert(i);
-        if(unlikely(ki1 = kh_get(p, taxmap, i)) == kh_end(taxmap)) LOG_EXIT("Missing taxid. IMPOCEROUS\n");
+        ki1 = kh_get(p, taxmap, i);
         i = kh_val(taxmap, ki1);
         while(i) {
             keep.insert(i);
-            if(unlikely(ki1 = kh_get(p, taxmap, i)) == kh_end(taxmap)) LOG_EXIT("Missing taxid. IMPOCEROUS\n");
+            ki1 = kh_get(p, taxmap, i);
             i = kh_val(taxmap, ki1);
         }
     }
     int khr;
     khash_t(p) *ret(kh_init(p));
-    for(auto i: keep) {
+    for(const auto i: keep) {
         ki1 = kh_put(p, ret, i, &khr);
         ki2 = kh_get(p, taxmap, i);
         kh_val(ret, ki1) = kh_val(taxmap, ki2);

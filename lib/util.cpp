@@ -25,6 +25,7 @@ std::size_t count_lines(const char *fn) noexcept {
 std::uint32_t lca(khash_t(p) *map, std::uint32_t a, std::uint32_t b) noexcept {
     // Use std::set to use RB trees for small set rather than hash table.
     std::set<std::uint32_t> nodes;
+    if(a == b) return a;
     khint_t ki;
     while(a) {
         nodes.insert(a);
@@ -38,7 +39,7 @@ std::uint32_t lca(khash_t(p) *map, std::uint32_t a, std::uint32_t b) noexcept {
             return b;
         }
         if((ki = kh_get(p, map, b)) == kh_end(map)) {
-            fprintf(stderr, "Missing taxid %u. Abort!\n", b);
+            fprintf(stderr, "Missing taxid %u. Returning -1!\n", b);
             return (std::uint32_t)-1;
         }
         b = kh_val(map, ki);
