@@ -27,10 +27,10 @@ def is_valid_gzip(fn, lazy=False):
     # lazy has already returned. This is the "else".
     try:
         cc("gunzip -t " + fn, shell=True)
-        print(fn + " is valid")
+        sys.stderr.write(fn + " is valid")
         return True
     except CalledProcessError:
-        print("Corrupted file ", fn, ". Delete, try again.")
+        sys.stderr.write("Corrupted file ", fn, ". Delete, try again.")
         return False
 
 

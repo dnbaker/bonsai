@@ -16,9 +16,37 @@ INLINE std::uint32_t get_parent(khash_t(p) *taxmap, std::uint32_t key) noexcept 
 }
 
 
+khash_t(p) *pruned_taxmap(std::vector<std::string> &paths, khash_t(p) *taxmap, khash_t(name) *name_hash) {
+    std::set<std::uint32_t> found, keep;
+    std::uint64_t ki1, ki2;
+    for(auto &path: paths) found.insert(get_taxid(path.data(), name_hash));
+    for(auto i: found) {
+        keep.insert(i);
+        if(unlikely(ki1 = kh_get(p, taxmap, i)) == kh_end(taxmap)) LOG_EXIT("Missing taxid. IMPOCEROUS\n");
+        i = kh_val(taxmap, ki1);
+        while(i) {
+            keep.insert(i);
+            if(unlikely(ki1 = kh_get(p, taxmap, i)) == kh_end(taxmap)) LOG_EXIT("Missing taxid. IMPOCEROUS\n");
+            i = kh_val(taxmap, ki1);
+        }
+    }
+    int khr;
+    khash_t(p) *ret(kh_init(p));
+    for(auto i: keep) {
+        ki1 = kh_put(p, ret, i, &khr);
+        ki2 = kh_get(p, taxmap, i);
+        kh_val(ret, ki1) = kh_val(taxmap, ki2);
+    }
+    return ret;
+}
+
+
+
+
 class SortedNodeGuide {
 
     std::vector<std::uint32_t> nodes_, offsets_;
+    std::vector<std::uint32_t> parent_map_;
 
 public:
 
@@ -27,9 +55,14 @@ public:
     {}
 
     SortedNodeGuide(khash_t(p) *taxmap) {
-        for(khiter_t ki(0); ki != kh_end(taxmap); ++ki)
-            if(kh_exist(taxmap, ki))
+        std::unordered_map<std::uint32_t, std::uint32_t> tmp;
+        nodes_.reserve(kh_size(taxmap));
+        for(khiter_t ki(0); ki != kh_end(taxmap); ++ki) {
+            if(kh_exist(taxmap, ki)) {
                 nodes_.push_back(kh_key(taxmap, ki));
+                tmp.emplace(kh_key(taxmap, ki), nodes_.size() - 1); // Convert this back into proper parent map.
+            }
+        }
         std::sort(std::begin(nodes_), std::end(nodes_), [taxmap] (const std::uint32_t a, const std::uint32_t b) {
             std::uint32_t aa(node_depth(taxmap, a)), bb(node_depth(taxmap, b));
             if(aa != bb) return aa > bb;
@@ -46,6 +79,9 @@ public:
 
     const std::vector<std::uint32_t> &get_nodes() { return nodes_;}
     const std::vector<std::uint32_t> &get_offsets() { return offsets_;}
+    int lt(std::uint32_t a, std::uint32_t b) {
+        return -1;
+    }
 };
 
 /*
