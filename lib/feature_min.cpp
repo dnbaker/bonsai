@@ -127,7 +127,7 @@ std::uint32_t get_taxid(const char *fn, khash_t(name) *name_hash) {
     char *line(gzgets(fp, buf, bufsz));
     char *p(++line);
     std::uint32_t ret;
-    while(!isspace(*p)) ++p;
+    while(!std::isspace(*p)) ++p;
     *p = 0;
     if(unlikely((ki = kh_get(name, name_hash, line)) == kh_end(name_hash))) {
         fprintf(stderr, "Missing taxid for %s.\n", line);
