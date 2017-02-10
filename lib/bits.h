@@ -11,41 +11,42 @@ namespace popcnt {
 std::uint64_t vec_popcnt(const std::string &vec);
 
 template<typename T>
-constexpr unsigned popcount(T val) noexcept {
+INLINE unsigned popcount(T val) noexcept {
     return __builtin_popcount(val);
 }
 
 template<>
-constexpr unsigned popcount(char val) noexcept {
+INLINE unsigned popcount(char val) noexcept {
     return __builtin_popcount((int)val);
 }
 
 template<>
-constexpr unsigned popcount(unsigned long long val) noexcept {
-#if HANDROLLED
-	val = (val & 0x5555555555555555ULL) + ((val >>  1) & 0x5555555555555555ULL);
-	val = (val & 0x3333333333333333ULL) + ((val >>  2) & 0x3333333333333333ULL);
-	val = (val & 0x0F0F0F0F0F0F0F0FULL) + ((val >>  4) & 0x0F0F0F0F0F0F0F0FULL);
-	return (val * 0x0101010101010101ULL) >> 56;
-#else
-    return __builtin_popcountll(val);
-#endif
+INLINE unsigned popcount(unsigned long long val) noexcept {
+// From cqf https://github.com/splatlab/cqf/
+    asm("popcnt %[val], %[val]"
+            : [val] "+r" (val)
+            :
+            : "cc");
+    return val;
 }
 
+
 template<>
-constexpr unsigned popcount(unsigned long val) noexcept {
+INLINE unsigned popcount(unsigned long val) noexcept {
     return __builtin_popcountl(val);
 }
 
 template<typename T>
-std::uint64_t vec_popcnt(T &container) {
-    auto i(container.cbegin());
+INLINE std::uint64_t vec_popcnt(T &container) {
+    const auto i(container.cbegin());
     std::uint64_t ret(popcount(*i));
     while(++i != container.cend()) ret += popcount(*i);
     return ret;
 }
 
 std::uint64_t vec_popcnt(std::uint64_t *p, std::size_t l);
+
+// Note: This could be further optimized 
 
 } //namespace popcnt
 

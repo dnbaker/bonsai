@@ -107,16 +107,15 @@ public:
 
 
 template<typename T>
-constexpr unsigned lazy_popcnt(T val);
-
-template<typename T>
 constexpr std::size_t spop(T &container) {
+    assert(container.size());
     auto i(container.cbegin());
     std::uint64_t ret(popcnt::popcount(*i));
-    while(++i != container.cend()) ret += lazy_popcnt(*i);
+    while(++i != container.cend()) ret += popcnt::popcount(*i);
     return ret;
 }
 
+#if 0
 
 template<typename T>
 constexpr unsigned lazy_popcnt(T val) {
@@ -144,6 +143,7 @@ static_assert(lazy_popcnt(37774) == popcnt::popcount(37774), "popcnt failed");
 static_assert(lazy_popcnt(3773374) == popcnt::popcount(3773374), "popcnt failed");
 static_assert(lazy_popcnt(0xff4cfa44) == popcnt::popcount(0xff4cfa44), "popcnt failed");
 static_assert(lazy_popcnt(0x1319) == popcnt::popcount(0x1319), "popcnt failed");
+#endif
 
 template<typename T>
 int _kh_eq(T *h1, T *h2) {

@@ -16,8 +16,9 @@ std::uint64_t vec_popcnt(const char *p, const std::size_t l) {
 }
 
 std::uint64_t vec_popcnt(std::uint64_t *p, std::size_t l) {
+    if(unlikely(l == 0)) return 0;
     std::uint64_t ret(popcount(*p));
-    while(l--) ret += popcount(*++p);
+    while(--l) ret += popcount(*++p);
     return ret;
 }
 
