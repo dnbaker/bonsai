@@ -9,8 +9,8 @@ void kt_for_helper(void *data_, long index, int tid) {
     const int inc(!!data->is_paired_ + 1);
     Encoder<lex_score> enc(data->c_.enc_);
     for(unsigned i(index * data->per_set_), end(std::min(i + data->per_set_, data->total_));
-            i < end; i += inc) {
-        retstr_size += classify_seq(data->c_, enc, data->taxmap, data->bs_ + i, data->is_paired_);
+        i < end; i += inc) {
+            retstr_size += classify_seq(data->c_, enc, data->taxmap, data->bs_ + i, data->is_paired_);
     }
     data->retstr_size_ += retstr_size;
 }
@@ -89,8 +89,8 @@ void append_taxa_runs(std::uint32_t taxon, const std::vector<std::uint32_t> &tax
 void kt_del_helper(void *data_, long index, int tid) {
     del_data *data((del_data *)data_);
     for(unsigned i(index * data->per_set_), end(std::min(i + data->per_set_, data->total_));
-            i < end; ++i)
-        bseq_destroy(data->seqs_ + i);
+        i < end; ++i)
+            bseq_destroy(data->seqs_ + i);
 }
 
 } // namespace emp
