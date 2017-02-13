@@ -34,7 +34,7 @@ struct Database {
     spvec_t s_;
 
     Database(const char *fn): owns_hash_(1) {
-        FILE *fp(fopen(fn, "rb"));
+        std::FILE *fp(std::fopen(fn, "rb"));
         if (fp) {
             __fr(k_, fp);
             __fr(w_, fp);
@@ -67,7 +67,7 @@ struct Database {
             fread(db_->vals, db_->n_buckets, sizeof(*db_->vals), fp);
         } else LOG_EXIT("Could not open %s for reading.\n", fn);
         LOG_DEBUG("Read database!\n");
-        fclose(fp);
+        std::fclose(fp);
     }
     Database(unsigned k, unsigned w, const spvec_t &s, unsigned owns=1, T *db=nullptr):
         k_(k), w_(w), db_(db), owns_hash_(owns), s_(s)
@@ -92,7 +92,7 @@ struct Database {
         if(owns_hash_) khash_destroy(db_);
     }
     void write(const char *fn) {
-        FILE *ofp(fopen(fn, "wb"));
+        std::FILE *ofp(std::fopen(fn, "wb"));
         if(!ofp) LOG_EXIT("Could not open %s for reading.\n", fn);
         for(khiter_t ki(0); ki != kh_end(db_); ++ki)
             if(!kh_exist(db_, ki))
@@ -104,7 +104,7 @@ struct Database {
         fwrite(db_->flags, __ac_fsize(db_->n_buckets), sizeof(*db_->flags), ofp);
         fwrite(db_->keys, db_->n_buckets, sizeof(*db_->keys), ofp);
         fwrite(db_->vals, db_->n_buckets, sizeof(*db_->vals), ofp);
-        fclose(ofp);
+        std::fclose(ofp);
     }
 
     template<typename Q=T>

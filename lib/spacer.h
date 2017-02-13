@@ -39,7 +39,7 @@ public:
         Spacer(k, w, parse_spacing(space_string, k))
     {
     }
-    void write(std::uint64_t kmer, FILE *fp=stdout) const {
+    void write(std::uint64_t kmer, std::FILE *fp=stdout) const {
         kmer ^= XOR_MASK;
         int offset = ((k_ - 1) << 1);
         fputc(num2nuc((kmer >> offset) & 0x3u), fp);

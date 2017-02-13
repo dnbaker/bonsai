@@ -41,11 +41,11 @@ void Taxonomy::add_node(const char *node_name, const unsigned parent) {
 
 
 void Taxonomy::write(const char *fn) const {
-    FILE *fp(fopen(fn, "wb"));
+    std::FILE *fp(std::fopen(fn, "wb"));
     const std::uint64_t num_occ(name_map_->n_occupied);
-    fwrite(&num_occ, sizeof(num_occ), 1, fp);
-    fwrite(&n_syn_,  sizeof(n_syn_), 1, fp);
-    fwrite(&ceil_,   sizeof(ceil_), 1, fp);
+    std::fwrite(&num_occ, sizeof(num_occ), 1, fp);
+    std::fwrite(&n_syn_,  sizeof(n_syn_), 1, fp);
+    std::fwrite(&ceil_,   sizeof(ceil_), 1, fp);
     std::size_t nwritten(0);
     fprintf(fp, "%s\n", name_.data());
     for(khiter_t ki(0); ki != kh_end(name_map_); ++ki) {
@@ -58,18 +58,18 @@ void Taxonomy::write(const char *fn) const {
     LOG_DEBUG("nw: %zu. no: %zu. cl: %zu. nb: %zu.\n", nwritten, num_occ, ceil_, name_map_->n_buckets);
     assert(nwritten == num_occ);
     khash_write_impl(tax_map_, fp);
-    fclose(fp);
+    std::fclose(fp);
 }
 
 Taxonomy::Taxonomy(const char *path, unsigned ceil): name_map_(kh_init(name)) {
     int khr;
     khiter_t ki;
-    FILE *fp(fopen(path, "rb"));
+    std::FILE *fp(std::fopen(path, "rb"));
     char ts[1 << 10], *p;
     std::uint64_t n;
-    fread(&n,       sizeof(n),      1, fp);
-    fread(&n_syn_,  sizeof(n_syn_), 1, fp);
-    fread(&ceil_,   sizeof(ceil_),  1, fp);
+    std::fread(&n,       sizeof(n),      1, fp);
+    std::fread(&n_syn_,  sizeof(n_syn_), 1, fp);
+    std::fread(&ceil_,   sizeof(ceil_),  1, fp);
     kh_resize(name, name_map_, n);
     fgets(ts, sizeof(ts) - 1, fp);
     *(strchr(ts, '\n')) = '\0';
@@ -86,7 +86,7 @@ Taxonomy::Taxonomy(const char *path, unsigned ceil): name_map_(kh_init(name)) {
     }
 
     tax_map_ = khash_load_impl<khash_t(p)>(fp);
-    fclose(fp);
+    std::fclose(fp);
     ceil_ = ceil ? ceil: tax_map_->n_buckets << 1;
 }
 

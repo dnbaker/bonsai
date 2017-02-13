@@ -215,7 +215,7 @@ void kt_del_helper(void *data_, long index, int tid);
 #endif
 
 inline void process_dataset(Classifier &c, khash_t(p) *taxmap, const char *fq1, const char *fq2,
-                     FILE *out, unsigned chunk_size,
+                     std::FILE *out, unsigned chunk_size,
                      unsigned per_set) {
     int nseq(0);
     gzFile ifp1(gzopen(fq1, "rb")), ifp2(fq2 ? gzopen(fq2, "rb"): nullptr);

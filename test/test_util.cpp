@@ -22,7 +22,7 @@ TEST_CASE("Khash writes and reads correcly") {
         REQUIRE(th->vals[i] == ti->vals[i]);
         REQUIRE(th->keys[i] == ti->keys[i]);
     }
-    //fclose(fp);
+    //std::fclose(fp);
     kh_destroy(c, th);
     kh_destroy(c, ti);
 }

@@ -12,7 +12,7 @@ using namespace std::literals;
 
 int classify_main(int argc, char *argv[]) {
     int co, num_threads(16), emit_kraken(1), emit_fastq(0), emit_all(0), chunk_size(1 << 20), per_set(32);
-    FILE *ofp(stdout);
+    std::FILE *ofp(stdout);
     if(argc < 4) {
         usage:
         std::fprintf(stderr, "Usage:\n%s <dbpath> <tax_path> <inr1.fq> [Optional: <inr2.fq>]\n"
@@ -39,7 +39,7 @@ int classify_main(int argc, char *argv[]) {
             case 'K': emit_kraken = 0; break;
             case 'k': emit_kraken = 1; break;
             case 'p': num_threads = atoi(optarg); break;
-            case 'o': ofp = fopen(optarg, "w"); break;
+            case 'o': ofp = std::fopen(optarg, "w"); break;
             case 'S': per_set = atoi(optarg); break;
         }
     }
@@ -59,7 +59,7 @@ int classify_main(int argc, char *argv[]) {
     // index argc is null when argc - optind == 3.
     process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3],
                     ofp, chunk_size, per_set);
-    if(ofp != stdout) fclose(ofp);
+    if(ofp != stdout) std::fclose(ofp);
     kh_destroy(p, taxmap);
     LOG_INFO("Successfully completed classify!\n");
     return EXIT_SUCCESS;

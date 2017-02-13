@@ -119,7 +119,7 @@ public:
         return hist_.get();
     }
 
-    int print_hist(FILE *fp) {
+    int print_hist(std::FILE *fp) {
         if(hist_->empty()) make_hist();
         int ret(0);
         std::set<unsigned> countset;
@@ -132,7 +132,7 @@ public:
         return ret;
     }
 
-    void print_counts(FILE *fp) const {
+    void print_counts(std::FILE *fp) const {
         struct vecc_t {
             const T *vec_;
             std::size_t count_;

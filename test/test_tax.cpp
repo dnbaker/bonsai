@@ -15,7 +15,7 @@ TEST_CASE("tax") {
     std::vector<std::string> paths;
     {
         const char cmd[] {"ls ref/viral/ | grep fna.gz | head -n 40"};
-        FILE *fp(popen(cmd, "r"));
+        std::FILE *fp(popen(cmd, "r"));
         if(fp == nullptr) throw "a party";//throw std::system_error(1, std::string("Could not call command '") + cmd + "'\n");
         int c;
         size_t ind(0);
@@ -28,7 +28,7 @@ TEST_CASE("tax") {
             paths.emplace_back(prefix + buf);
         }
         free(buf);
-        fclose(fp);
+        std::fclose(fp);
     }
     Spacer sp(13, 13, v);
     kgset_t set(paths, sp);

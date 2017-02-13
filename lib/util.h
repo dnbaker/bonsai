@@ -93,7 +93,7 @@ void print_khash(T *rex) noexcept {
   fwrite(&(item), 1, sizeof(item), fp)
 
 template<typename T>
-void khash_write_impl(T *map, FILE *fp) noexcept {
+void khash_write_impl(T *map, std::FILE *fp) noexcept {
     __fw(map->n_buckets, fp);
     __fw(map->n_occupied, fp);
     __fw(map->size, fp);
@@ -105,17 +105,17 @@ void khash_write_impl(T *map, FILE *fp) noexcept {
 
 template <typename T>
 std::size_t khash_write(T *map, const char *path) noexcept {
-    FILE *fp(fopen(path, "wb"));
+    std::FILE *fp(std::fopen(path, "wb"));
     khash_write_impl(map, fp);
     std::size_t ret(ftell(fp));
-    fclose(fp);
+    std::fclose(fp);
     return ret;
 }
 
 #undef __fw
 
 template <typename T>
-T *khash_load_impl(FILE *fp) noexcept {
+T *khash_load_impl(std::FILE *fp) noexcept {
     T *rex((T *)calloc(1, sizeof(T)));
     typedef typename std::remove_pointer<decltype(rex->keys)>::type keytype_t;
     typedef typename std::remove_pointer<decltype(rex->vals)>::type valtype_t;
@@ -135,9 +135,9 @@ T *khash_load_impl(FILE *fp) noexcept {
 
 template <typename T>
 T *khash_load(const char *path) noexcept {
-    FILE *fp(fopen(path, "rb"));
+    std::FILE *fp(std::fopen(path, "rb"));
     T *rex(khash_load_impl<T>(fp));
-    fclose(fp);
+    std::fclose(fp);
     return rex;
 }
 
