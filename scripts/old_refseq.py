@@ -33,16 +33,18 @@ def get_gi2tax(folder=FOLDER):
 
 
 def parse_gi2tax(path, acceptable_taxids=set()):
+    print("parsing gi2tax")
     ret = {}
-    for line in open(path):
+    for linenum, line in enumerate(open(path)):
         toks = line.split()
         taxid = int(toks[1])
         if taxid not in acceptable_taxids:
             continue
         ret[int(toks[0])] = int(toks[1])
-        if len(ret) % 5000000 == 0:
-            stderr.write("%i members of 587716298 loaded "
-                         "into gi2tax map\n" % len(ret))
+        if linenum % 5000000 == 0:
+            stderr.write("%i lines of 587716298 processed "
+                         "into gi2tax map, now of size %i\n" %
+                         (linenum, len(ret)))
     return ret
 
 
@@ -54,6 +56,7 @@ def append_old_to_new(gi2tax_map, newmap, concat_map, folder=FOLDER):
     ofh = open(concat_map, "w")
     ofw = ofh.write
     for path in paths:
+        sys.stderr.write("Processing path %s" % path)
         fl = xfirstline(path)
         ofw("%s\t%i\n" % (fl.split()[1], gi2tax_map[int(fl.split("|")[1])]))
     ofh.close()
@@ -66,6 +69,7 @@ def getopts():
     a.add_argument("--folder", default=FOLDER)
     a.add_argument("--new-refseq-nameid-map", "-N", default="ref/nameidmap.txt")
     a.add_argument("--combined-nameid-map", "-c", required=True)
+    a.add_argument("--no-download", '-D', default=False, action="store_true")
     return a.parse_args()
 
 
@@ -101,8 +105,11 @@ def fetch_genomes(folder, names=NAMES):
 def main():
     args = getopts()
     gi2tax = get_gi2tax(args.folder)
-    fetch_genomes(args.folder)
+    if args.no_download is False:
+        fetch_genomes(args.folder)
+    print("Getting acceptable taxids")
     acceptable_taxids = get_acceptable_taxids()
+    print("Appending old to new")
     concat = append_old_to_new(parse_gi2tax(gi2tax), args.new_refseq_nameid_map,
                                args.combined_nameid_map, args.folder)
     nl = int(co("wc -l %s" % concat, shell=True).decode().split()[0])

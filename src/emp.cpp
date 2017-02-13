@@ -2,6 +2,8 @@
 #include "lib/util.h"
 #include "lib/database.h"
 #include "lib/classifier.h"
+#include "lib/tree_climber.h"
+#include "lib/bitmap.h"
 #include "lib/tx.h"
 
 using namespace emp;
@@ -223,6 +225,38 @@ int phase1_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
+void metatree_usage(char *arg) {
+    std::fprintf(stderr, "Usage: %s <db.path> <taxmap> <nameidmap> <out_taxmap> <out_taxkey>\n"
+                         "\n"
+                         "-F: Parse file paths from file instead of further arguments at command-line.\n"
+                 , arg);
+    exit(EXIT_FAILURE);
+}
+
+int metatree_main(int argc, char *argv[]) {
+    if(argc < 5) metatree_usage(*argv);
+    int c;
+    std::string paths_file;
+    while((c = getopt(argc, argv, "F:h?")) >= 0) {
+        switch(c) {
+            case '?': case 'h': metatree_usage(*argv);
+            case 'F': paths_file = optarg; break;
+        }
+    }
+    Database<khash_t(c)> db(argv[optind]);
+    khash_t(p) *tmp_taxmap(build_parent_map(argv[optind + 1]));
+    khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));
+    std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
+                                                       : std::vector<std::string>(argv + optind + 5, argv + argc));
+    if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
+    khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, tmp_taxmap, name_hash));
+    kh_destroy(p, tmp_taxmap);
+    tree::SortedNodeGuide guide(taxmap);
+    destroy_name_hash(name_hash);
+    kh_destroy(p, taxmap);
+    return EXIT_SUCCESS;
+}
+
 static std::vector<std::pair<std::string, int (*)(int, char **)>> mains {
     {"phase1", phase1_main},
     {"p1",     phase1_main},
@@ -230,11 +264,12 @@ static std::vector<std::pair<std::string, int (*)(int, char **)>> mains {
     {"p2",     phase2_main},
     {"lca", phase1_main},
     {"hll", hll_main},
+    {"metatree", metatree_main},
     {"classify", classify_main}
 };
 int main(int argc, char *argv[]) {
 
     if(argc > 1) for(auto &i: mains) if(i.first == argv[1]) return i.second(argc - 1, argv + 1);
-    std::fprintf(stderr, "No valid subcommand provided. Options: phase1, phase2, classify, hll\n");
+    std::fprintf(stderr, "No valid subcommand provided. Options: phase1, phase2, classify, hll, metatree\n");
     return EXIT_FAILURE;
 }

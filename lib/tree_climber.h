@@ -16,32 +16,7 @@ INLINE std::uint32_t get_parent(khash_t(p) *taxmap, std::uint32_t key) noexcept 
 }
 
 
-khash_t(p) *pruned_taxmap(std::vector<std::string> &paths, khash_t(p) *taxmap, khash_t(name) *name_hash) {
-    std::set<std::uint32_t> found, keep;
-    std::uint64_t ki1, ki2;
-    for(auto &path: paths) found.insert(get_taxid(path.data(), name_hash));
-    for(auto i: found) {
-        keep.insert(i);
-        ki1 = kh_get(p, taxmap, i);
-        i = kh_val(taxmap, ki1);
-        while(i) {
-            keep.insert(i);
-            ki1 = kh_get(p, taxmap, i);
-            i = kh_val(taxmap, ki1);
-        }
-    }
-    int khr;
-    khash_t(p) *ret(kh_init(p));
-    for(const auto i: keep) {
-        ki1 = kh_put(p, ret, i, &khr);
-        ki2 = kh_get(p, taxmap, i);
-        kh_val(ret, ki1) = kh_val(taxmap, ki2);
-    }
-    return ret;
-}
-
-
-
+khash_t(p) *pruned_taxmap(std::vector<std::string> &paths, khash_t(p) *taxmap, khash_t(name) *name_hash);
 
 class SortedNodeGuide {
 
@@ -94,6 +69,7 @@ inline std::vector<std::uint32_t> sorted_nodes(khash_t(p) *taxmap) {
 }
 
 size_t invert_lca_map(Database<khash_t(c)> &db, const char *path);
+
 
 } // namespace tree
 

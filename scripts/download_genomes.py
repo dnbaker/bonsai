@@ -30,19 +30,16 @@ def is_valid_gzip(fn, lazy=False):
         sys.stderr.write(fn + " is valid")
         return True
     except CalledProcessError:
-        sys.stderr.write("Corrupted file ", fn, ". Delete, try again.")
+        sys.stderr.write("Corrupted file " +  fn + ". Delete, try again.")
         return False
 
 
 def xfirstline(fn):
     # Works on python3, not 2.
-    if not is_valid_gzip(fn):
-        cc("rm " + fn, shell=True)
-        raise SystemError("File %s invalid" % fn)
     first_two = open(fn, "rb").read(2)
     if isinstance(first_two, bytes):
         first_two = first_two.decode()
-    return (gzip.open if first_two == "\x1f\x8b" else open)(fn)
+    return next((gzip.open if first_two == "\x1f\x8b" else open)(fn))
 
 
 FTP_BASENAME = "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/"

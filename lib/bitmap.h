@@ -72,10 +72,10 @@ int veccmp(const std::vector<T> &a, const std::vector<T> &b) {
         }
     }
     switch((avalid << 1) | bvalid) {
-        default: case 3: return -1;
         case 2: return  1;
         case 1: return  2;
-        case 0: return  0;
+        case 3: return 0;
+        case 0: return 3;
     }
     return 0; // This never happens.
     // Returns -1 for the same, 0 for incomparable, 1 for a > b, 2 for b > a

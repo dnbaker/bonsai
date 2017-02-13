@@ -38,7 +38,7 @@ INLINE unsigned popcount(unsigned long val) noexcept {
 
 template<typename T>
 INLINE std::uint64_t vec_popcnt(T &container) {
-    const auto i(container.cbegin());
+    auto i(container.cbegin());
     std::uint64_t ret(popcount(*i));
     while(++i != container.cend()) ret += popcount(*i);
     return ret;
