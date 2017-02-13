@@ -2,8 +2,8 @@
 
 namespace emp { namespace tree {
 
-std::size_t invert_lca_map(Database<khash_t(c)> &db, const char *folder) {
-    std::size_t ret(0);
+std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *folder) {
+    std::vector<std::string> ret;
     std::unordered_map<std::uint32_t, std::FILE *> ofps;
     khash_t(c) *map(db.db_); // Does not own; shorthand.
     for(khiter_t ki(0); ki != kh_end(map); ++ki) {
@@ -12,9 +12,10 @@ std::size_t invert_lca_map(Database<khash_t(c)> &db, const char *folder) {
         if(m == ofps.end()) {
             char buf[64];
             std::sprintf(buf, "%s/%u.kmers.bin", folder, kh_val(map, ki));
+            ret.emplace_back(buf);
             m = ofps.emplace(kh_val(map, ki), std::fopen(buf, "wb")).first;
         }
-        ret += std::fwrite(&kh_key(map, ki), sizeof(kh_key(map, ki)), 1, m->second);
+        std::fwrite(&kh_key(map, ki), sizeof(kh_key(map, ki)), 1, m->second);
     }
     for(auto &pair: ofps) std::fclose(pair.second);
     return ret;

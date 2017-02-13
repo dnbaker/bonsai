@@ -260,16 +260,10 @@ int metatree_main(int argc, char *argv[]) {
     Spacer sp(k, w, v);
     std::vector<std::uint32_t> nodes(std::move(guide.get_nodes()));
     std::vector<std::uint32_t> offsets(std::move(guide.get_offsets()));
-    tree::invert_lca_map(db, folder.data());
+    offsets.insert(offsets.begin(), 0);
+    std::vector<std::string> to_fetch(tree::invert_lca_map(db, folder.data()));
     std::size_t ind(0);
     for(int i(0), e(offsets.size() - 1); i != e; ++i) {
-        char buf[128];
-        std::vector<std::string> to_fetch;
-        while(ind < offsets[i]) {
-            std::sprintf(buf, "%s/%u.kmers.bin", folder.data(), nodes[ind]);
-            to_fetch.emplace_back(buf);
-            ++ind;
-        }
         count::Counter<std::vector<std::uint64_t>> counts; // TODO: make binary dump version of this.
         adjmap_t adj(counts);
     }

@@ -42,9 +42,7 @@ def parse_gi2tax(path, acceptable_taxids=set()):
                          (linenum, len(ret)))
         toks = line.split()
         taxid = int(toks[1])
-        if taxid in acceptable_taxids:
-            print("Acceptable taxid!")
-        else:
+        if taxid not in acceptable_taxids:
             continue
         ret[int(toks[0])] = taxid
     return ret
@@ -58,12 +56,17 @@ def append_old_to_new(gi2tax_map, newmap, concat_map, folder=FOLDER):
     ofh = open(concat_map, "w")
     ofw = ofh.write
     print("Length of accepted things: %i" % len(gi2tax_map))
+    missing = set()
     for path in paths:
         sys.stderr.write("Processing path %s" % path)
         fl = xfirstline(path)
         name = fl.split()[1]
         key = int(fl.split("|")[1])
-        ofw("%s\t%i\n" % (fl.split()[1], gi2tax_map[int(fl.split("|")[1])]))
+        try:
+            ofw("%s\t%i\n" % (fl.split()[1], gi2tax_map[int(fl.split("|")[1])]))
+        except KeyError:
+            missing.add(int(fl.split("|")[1]))
+    print("Missing: " + str(missing))
     ofh.close()
     cc("cat %s >> %s" % (newmap, concat_map), shell=True)
     return concat_map
@@ -74,11 +77,29 @@ def getopts():
     a.add_argument("--folder", default=FOLDER)
     a.add_argument("--new-refseq-nameid-map", "-N", default="ref/nameidmap.txt")
     a.add_argument("--combined-nameid-map", "-c", required=True)
+    a.add_argument("--taxonomy", "-t", required=True)
     a.add_argument("--no-download", '-D', default=False, action="store_true")
     return a.parse_args()
 
 
-def get_acceptable_taxids():
+def build_full_taxmap(ncbi_tax_path):
+    ret = {}
+    for line in open(ncbi_tax_path):
+        a, b = map(int, line.split("|")[:2])
+        ret[a] = b
+    return ret
+
+
+def fill_set_from_tax(tax, taxmap):
+    ret = {tax}
+    get = taxmap.get(tax)
+    while get and get > 1:
+        ret.add(get)
+        get = taxmap.get(get)
+    return ret
+
+
+def get_acceptable_taxids(taxmap):
     ret = set()
     path = "ftp://ftp.ncbi.nlm.nih.gov/genomes/archive/old_refseq/Bacteria/summary.txt"
     cc("curl %s > tax_summary.txt" % path, shell=True)
@@ -86,9 +107,15 @@ def get_acceptable_taxids():
         toks = line.split()
         if toks[0] == "Accession":
             continue
-        ret.add(int(toks[3]))
+        tax = int(toks[3])
+        if tax in ret:
+            continue
+        else:
+            ret |= fill_set_from_tax(tax, taxmap)
+            print("Size of ret: %i" % len(ret))
     print("Acceptable:", ret)
     # cc("rm tax_summary.txt", shell=True)
+    return ret
 
 
 def fetch_i100(folder):
@@ -114,9 +141,11 @@ def main():
     if args.no_download is False:
         fetch_genomes(args.folder)
     print("Getting acceptable taxids")
-    acceptable_taxids = get_acceptable_taxids()
+    taxmap = build_full_taxmap(args.taxonomy)
+    acceptable_taxids = get_acceptable_taxids(taxmap)
     print("Appending old to new")
-    concat = append_old_to_new(parse_gi2tax(gi2tax), args.new_refseq_nameid_map,
+    concat = append_old_to_new(parse_gi2tax(gi2tax, acceptable_taxids),
+                               args.new_refseq_nameid_map,
                                args.combined_nameid_map, args.folder)
     nl = int(co("wc -l %s" % concat, shell=True).decode().split()[0])
     sys.stderr.write("Concatenated file of total lines "

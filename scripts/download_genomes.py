@@ -160,6 +160,14 @@ def main():
     tax_path = TAX_PATH  # Make global variable local
     args = getopts()
     ref = args.ref if args.ref else "ref"
+    print(argv[1])
+    if argv[1:] and argv[1] == "nodes":
+        if not os.path.isfile("%s/nodes.dmp" % ref):
+            cc("curl {tax_path} -o {ref}/"
+               "taxdump.tgz && tar -zxvf {ref}/taxdump.tgz"
+               " && mv nodes.dmp {ref}/nodes.dmp".format(**locals()),
+                shell=True)
+            return 0
     if not os.path.isdir(ref):
         os.makedirs(ref)
     clades = args.clades if args.clades else DEFAULT_CLADES
