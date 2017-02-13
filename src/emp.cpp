@@ -247,7 +247,7 @@ int metatree_main(int argc, char *argv[]) {
             case 'k': k = atoi(optarg); break;
         }
     }
-    spvec_t v(spacing.size() ? parse_spacing(spacing.data()): spvec_t(k - 1, 0));
+    spvec_t v(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Database<khash_t(c)> db(argv[optind]);
     khash_t(p) *tmp_taxmap(build_parent_map(argv[optind + 1]));
     khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));
