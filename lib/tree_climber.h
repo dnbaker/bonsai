@@ -68,7 +68,7 @@ inline std::vector<std::uint32_t> sorted_nodes(khash_t(p) *taxmap) {
     return std::move(SortedNodeGuide(taxmap).get_nodes());
 }
 
-size_t invert_lca_map(Database<khash_t(c)> &db, const char *path);
+size_t invert_lca_map(Database<khash_t(c)> &db, const char *folder);
 
 
 } // namespace tree

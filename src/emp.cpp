@@ -235,14 +235,19 @@ void metatree_usage(char *arg) {
 
 int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
-    int c;
-    std::string paths_file;
-    while((c = getopt(argc, argv, "F:h?")) >= 0) {
+    int c, k(31), w(31);
+    std::string paths_file, folder, spacing;
+    while((c = getopt(argc, argv, "w:k:s:f:F:h?")) >= 0) {
         switch(c) {
             case '?': case 'h': metatree_usage(*argv);
+            case 'f': folder = optarg; break;
             case 'F': paths_file = optarg; break;
+            case 'w': w = atoi(optarg); break;
+            case 's': spacing = optarg; break;
+            case 'k': k = atoi(optarg); break;
         }
     }
+    spvec_t v(spacing.size() ? parse_spacing(spacing.data()): spvec_t(k - 1, 0));
     Database<khash_t(c)> db(argv[optind]);
     khash_t(p) *tmp_taxmap(build_parent_map(argv[optind + 1]));
     khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));
@@ -252,6 +257,23 @@ int metatree_main(int argc, char *argv[]) {
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, tmp_taxmap, name_hash));
     kh_destroy(p, tmp_taxmap);
     tree::SortedNodeGuide guide(taxmap);
+    Spacer sp(k, w, v);
+    std::vector<std::uint32_t> nodes(std::move(guide.get_nodes()));
+    std::vector<std::uint32_t> offsets(std::move(guide.get_offsets()));
+    tree::invert_lca_map(db, folder.data());
+    std::size_t ind(0);
+    for(int i(0), e(offsets.size() - 1); i != e; ++i) {
+        char buf[128];
+        std::vector<std::string> to_fetch;
+        while(ind < offsets[i]) {
+            std::sprintf(buf, "%s/%u.kmers.bin", folder.data(), nodes[ind]);
+            to_fetch.emplace_back(buf);
+            ++ind;
+        }
+        count::Counter<std::vector<std::uint64_t>> counts; // TODO: make binary dump version of this.
+        adjmap_t adj(counts);
+    }
+
     destroy_name_hash(name_hash);
     kh_destroy(p, taxmap);
     return EXIT_SUCCESS;

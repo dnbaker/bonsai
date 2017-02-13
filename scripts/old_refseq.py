@@ -36,15 +36,17 @@ def parse_gi2tax(path, acceptable_taxids=set()):
     print("parsing gi2tax")
     ret = {}
     for linenum, line in enumerate(open(path)):
-        toks = line.split()
-        taxid = int(toks[1])
-        if taxid not in acceptable_taxids:
-            continue
-        ret[int(toks[0])] = int(toks[1])
-        if linenum % 5000000 == 0:
+        if linenum % 500000 == 0:
             stderr.write("%i lines of 587716298 processed "
                          "into gi2tax map, now of size %i\n" %
                          (linenum, len(ret)))
+        toks = line.split()
+        taxid = int(toks[1])
+        if taxid in acceptable_taxids:
+            print("Acceptable taxid!")
+        else:
+            continue
+        ret[int(toks[0])] = taxid
     return ret
 
 
@@ -55,9 +57,12 @@ def append_old_to_new(gi2tax_map, newmap, concat_map, folder=FOLDER):
     paths = paths.split()
     ofh = open(concat_map, "w")
     ofw = ofh.write
+    print("Length of accepted things: %i" % len(gi2tax_map))
     for path in paths:
         sys.stderr.write("Processing path %s" % path)
         fl = xfirstline(path)
+        name = fl.split()[1]
+        key = int(fl.split("|")[1])
         ofw("%s\t%i\n" % (fl.split()[1], gi2tax_map[int(fl.split("|")[1])]))
     ofh.close()
     cc("cat %s >> %s" % (newmap, concat_map), shell=True)
@@ -82,7 +87,8 @@ def get_acceptable_taxids():
         if toks[0] == "Accession":
             continue
         ret.add(int(toks[3]))
-    cc("rm tax_summary.txt", shell=True)
+    print("Acceptable:", ret)
+    # cc("rm tax_summary.txt", shell=True)
 
 
 def fetch_i100(folder):
