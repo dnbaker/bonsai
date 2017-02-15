@@ -60,10 +60,11 @@ def append_old_to_new(gi2tax_map, newmap, concat_map, folder=FOLDER):
     for path in paths:
         sys.stderr.write("Processing path %s" % path)
         fl = xfirstline(path)
-        name = fl.split()[1]
-        key = int(fl.split("|")[1])
+        ptoks = fl.split("|")
+        name = ptoks[3]
+        key = int(ptoks[1])
         try:
-            ofw("%s\t%i\n" % (fl.split()[1], gi2tax_map[int(fl.split("|")[1])]))
+            ofw("%s\t%i\n" % (name, gi2tax_map[key]))
         except KeyError:
             missing.add(int(fl.split("|")[1]))
     print("Missing: " + str(missing))

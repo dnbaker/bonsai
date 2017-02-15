@@ -30,7 +30,7 @@ TEST_CASE("Khash writes and reads correcly") {
 TEST_CASE("roundup64") {
     for(size_t i(0); i < 1 << 10; ++i) {
         size_t d(((uint64_t)rand() << 32) | rand());
-        if(is_pow2(d)) d = i;
+        if(is_pow2(d)) --d;
         REQUIRE(__builtin_clzll(d) - 1 == __builtin_clzll(roundup64(d)));
         if(is_pow2(d)) continue;
         REQUIRE(__builtin_clzll(d) - 1 == __builtin_clzll(roundup64(d)));

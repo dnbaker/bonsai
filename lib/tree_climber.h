@@ -64,12 +64,9 @@ public:
  *   1. Determine the order of the nodes which we'll need to visit.
  *   2. Determine which of them are in sets (and need to be processed together).
 */
-inline std::vector<std::uint32_t> sorted_nodes(khash_t(p) *taxmap) {
-    return std::move(SortedNodeGuide(taxmap).get_nodes());
-}
-
 std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *folder);
 
+std::vector<std::uint64_t> load_binary_kmers(const char *path);
 
 } // namespace tree
 

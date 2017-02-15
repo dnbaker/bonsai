@@ -247,10 +247,10 @@ int metatree_main(int argc, char *argv[]) {
             case 'k': k = atoi(optarg); break;
         }
     }
+    khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));
     spvec_t v(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Database<khash_t(c)> db(argv[optind]);
     khash_t(p) *tmp_taxmap(build_parent_map(argv[optind + 1]));
-    khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 5, argv + argc));
     if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");

@@ -72,6 +72,7 @@ khash_t(name) *build_name_hash(const char *fn) noexcept {
     int khr;
     khint_t ki;
     while((len = getline(&buf, &bufsz, fp)) >= 0) {
+        LOG_DEBUG("line: %s", buf);
         switch(*buf) case '\0': case '\n': case '#': continue;
         p = strchr(buf, '\t');
         *p = 0;

@@ -126,15 +126,25 @@ std::uint32_t get_taxid(const char *fn, khash_t(name) *name_hash) {
     char buf[bufsz];
     char *line(gzgets(fp, buf, bufsz));
     char *p(++line);
-    std::uint32_t ret;
-    while(!std::isspace(*p)) ++p;
-    *p = 0;
+    if(strchr(p, '|')) {
+        // Handle old refseq.
+        p = strchr(p, '|');
+        p = strchr(p, '|');
+        p = strchr(p, '|') + 1; // Now p is at the accession.
+        char *q(strchr(p, '|'));
+        if(q == nullptr) LOG_EXIT("Malformed line %s", buf);
+        *q = 0;
+        line = p;
+    } else {
+        while(!std::isspace(*p)) ++p;
+        *p = 0;
+    }
     if(unlikely((ki = kh_get(name, name_hash, line)) == kh_end(name_hash))) {
         fprintf(stderr, "Missing taxid for %s.\n", line);
         exit(EXIT_FAILURE);
-    } else ret = kh_val(name_hash, ki);
+    }
     gzclose(fp);
-    return ret;
+    return kh_val(name_hash, ki);
 }
 
 
