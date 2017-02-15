@@ -52,18 +52,18 @@ struct Database {
     #endif
 
             LOG_DEBUG("Doing flags. N buckets: %zu. Elements to read: %zu\n", db_->n_buckets, __ac_fsize(db_->n_buckets));
-            db_->flags = (std::uint32_t *)malloc(sizeof(*db_->flags) * __ac_fsize(db_->n_buckets));
+            db_->flags = (std::uint32_t *)std::malloc(sizeof(*db_->flags) * __ac_fsize(db_->n_buckets));
             if(!db_->flags) LOG_EXIT("Could not allocate memory for flags.\n");
             fread(db_->flags, __ac_fsize(db_->n_buckets), sizeof(*(db_->flags)), fp);
 
             LOG_DEBUG("Doing keys\n");
             typedef typename std::remove_pointer<decltype(db_->keys)>::type keytype_t;
-            db_->keys = (keytype_t *)malloc(sizeof(*db_->keys) * db_->n_buckets);
+            db_->keys = (keytype_t *)std::malloc(sizeof(*db_->keys) * db_->n_buckets);
             fread(db_->keys, db_->n_buckets, sizeof(*db_->keys), fp);
 
             LOG_DEBUG("Doing vals\n");
             typedef typename std::remove_pointer<decltype(db_->vals)>::type valtype_t;
-            db_->vals = (valtype_t *)malloc(sizeof(*db_->keys) * db_->n_buckets);
+            db_->vals = (valtype_t *)std::malloc(sizeof(*db_->keys) * db_->n_buckets);
             fread(db_->vals, db_->n_buckets, sizeof(*db_->vals), fp);
         } else LOG_EXIT("Could not open %s for reading.\n", fn);
         LOG_DEBUG("Read database!\n");

@@ -12,7 +12,7 @@ class KString {
 
 public:
 
-    explicit KString(std::size_t size): ks_({0, size, size ? (char *)malloc(size): nullptr}) {}
+    explicit KString(std::size_t size): ks_({0, size, size ? (char *)std::malloc(size): nullptr}) {}
     explicit KString(std::size_t used, std::size_t max, char *str): ks_({used, max, str}) {}
     explicit KString(char *str): ks_({0, 0, str}) {}
     KString(): KString(0u, 0u, nullptr) {}

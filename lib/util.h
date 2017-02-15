@@ -124,9 +124,9 @@ T *khash_load_impl(std::FILE *fp) noexcept {
     fread(&rex->size, 1, sizeof(rex->size), fp);
     fread(&rex->upper_bound, 1, sizeof(rex->upper_bound), fp);
     LOG_DEBUG("buckets: %zu. nocc: %zu. size: %zu. ub: %zu\n", (size_t)rex->n_buckets, size_t(rex->n_occupied), size_t(rex->size), size_t(rex->upper_bound));
-    rex->flags = (std::uint32_t *)malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
-    rex->keys = (keytype_t *)malloc(sizeof(*rex->keys) * rex->n_buckets);
-    rex->vals = (valtype_t *)malloc(sizeof(*rex->vals) * rex->n_buckets);
+    rex->flags = (std::uint32_t *)std::malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
+    rex->keys = (keytype_t *)std::malloc(sizeof(*rex->keys) * rex->n_buckets);
+    rex->vals = (valtype_t *)std::malloc(sizeof(*rex->vals) * rex->n_buckets);
     fread(rex->flags, __ac_fsize(rex->n_buckets), sizeof(*rex->flags), fp);
     fread(rex->keys, 1, rex->n_buckets * sizeof(*rex->keys), fp);
     fread(rex->vals, 1, rex->n_buckets * sizeof(*rex->vals), fp);

@@ -116,7 +116,7 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
                           khash_t(64) *full_map,
                           const Spacer &sp, int num_threads, std::size_t start_size=1<<16, int mode=score_scheme::LEX) {
     std::size_t submitted(0), completed(0), todo(fns.size());
-    khash_t(all) **counters((khash_t(all) **)malloc(sizeof(khash_t(all) *) * todo));
+    std::vector<khash_t(all) *> counters(todo, nullptr);
     khash_t(c) *ret(kh_init(c));
     kh_resize(c, ret, start_size);
     std::vector<std::future<std::size_t>> futures;
@@ -166,7 +166,6 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
     LOG_DEBUG("Finished minimized map building! Subbed %zu, completed %zu.\n", submitted, completed);
 
     // Clean up
-    free(counters);
     LOG_DEBUG("Cleaned up after LCA map building!\n")
     return ret;
 }

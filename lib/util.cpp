@@ -7,7 +7,7 @@ namespace emp {
 std::size_t count_lines(const char *fn) noexcept {
     std::FILE *fp(std::fopen(fn, "r"));
     std::size_t bufsz = 4096;
-    char *buf((char *)malloc(bufsz));
+    char *buf((char *)std::malloc(bufsz));
     ssize_t len;
     std::size_t n(0);
     while((len = getline(&buf, &bufsz, fp)) >= 0) ++n;
@@ -63,7 +63,7 @@ unsigned node_depth(khash_t(p) *map, std::uint32_t a) noexcept {
 
 khash_t(name) *build_name_hash(const char *fn) noexcept {
     std::size_t bufsz(2048), namelen;
-    char *buf((char *)malloc(bufsz));
+    char *buf((char *)std::malloc(bufsz));
     ssize_t len;
     std::FILE *fp(std::fopen(fn, "r"));
     khash_t(name) *ret(kh_init(name));
@@ -81,7 +81,7 @@ khash_t(name) *build_name_hash(const char *fn) noexcept {
             LOG_INFO("Key %s already present. Updating value from %i to %s\n", kh_key(ret, ki), kh_val(ret, ki), p + 1);
         }  else {
             namelen = p - buf;
-            kh_key(ret, ki) = (char *)malloc(namelen + 1);
+            kh_key(ret, ki) = (char *)std::malloc(namelen + 1);
             memcpy((void*)kh_key(ret, ki), buf, namelen);
            ((char *)kh_key(ret, ki))[namelen] = '\0';
         }
@@ -105,7 +105,7 @@ khash_t(p) *build_parent_map(const char *fn) noexcept {
     khash_t(p) *ret(kh_init(p));
     kh_resize(p, ret, nlines);
     std::size_t bufsz = 4096;
-    char *buf((char *)malloc(bufsz));
+    char *buf((char *)std::malloc(bufsz));
     ssize_t len;
     khint_t ki;
     int khr;
