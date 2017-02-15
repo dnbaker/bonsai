@@ -1,21 +1,6 @@
 #ifndef _DATABASE_H__
 #define _DATABASE_H__
 
-
-/* CVS Version Info
-   $Id: $
-*/
-
-/*! @file db_io.h
-    @brief
-    @author Aaron Carass
-    @created Sat 19 Nov 2016 12:57:32 PM EST
-    @edited Tue 22 Nov 2016 02:56:07 PM EST
-
-
-*/
-
-
 #include "lib/spacer.h"
 #include <cinttypes>
 
