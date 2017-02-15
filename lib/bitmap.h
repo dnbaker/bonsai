@@ -111,8 +111,8 @@ class bitmap_t {
         auto tmp(fill(set));
         unsigned bitsum;
 #if !NDEBUG
-        size_t n_passed(0);
-        size_t total(tmp.size());
+        std::size_t n_passed(0);
+        std::size_t total(tmp.size());
 #endif
         for(auto &i: tmp)
             if((bitsum = popcnt::vec_popcnt(i.second)) != 1 &&

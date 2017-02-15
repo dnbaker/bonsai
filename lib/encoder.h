@@ -45,8 +45,8 @@ static INLINE std::uint64_t hash_score(std::uint64_t i, void *data) {
             if(kh_key(hash, k1) == i) __ac_set_isdel_false(hash->flags, k1);
             return kh_val(hash, k1);
         }
-        fprintf(stderr, "i: %" PRIu64 "\n", i);
-        exit(EXIT_FAILURE);
+        std::fprintf(stderr, "i: %" PRIu64 "\n", i);
+        std::exit(EXIT_FAILURE);
         return 0uL;
 }
 
@@ -178,23 +178,23 @@ hll::hll_t hllcount_lmers(const std::string &path, const Spacer &space,
     kseq_t *ks(kseq_init(fp));
     hll::hll_t ret(np);
     std::uint64_t min;
-    //fprintf(stderr, "About to start loop. gzfp %p, ksfp %p.\n", (void *)fp, (void *)ks);
+    //std::fprintf(stderr, "About to start loop. gzfp %p, ksfp %p.\n", (void *)fp, (void *)ks);
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
-        //fprintf(stderr, "Assignd to kseq. name: %s.\n", ks->name.s);
+        //std::fprintf(stderr, "Assignd to kseq. name: %s.\n", ks->name.s);
         while(enc.has_next_kmer()) {
-        //fprintf(stderr, "Has!: %s.\n", ks->name.s);
+        //std::fprintf(stderr, "Has!: %s.\n", ks->name.s);
             if((min = enc.next_minimizer()) != BF) {
-                //fprintf(stderr, "kmer encoded: %s.\n", space.to_string(min).data());
+                //std::fprintf(stderr, "kmer encoded: %s.\n", space.to_string(min).data());
                 ret.add(wang_hash(min));
             }
         }
     }
-    //fprintf(stderr, "Cleaning up!\n");
+    //std::fprintf(stderr, "Cleaning up!\n");
     kseq_destroy(ks);
     gzclose(fp);
-    //fprintf(stderr, "Estimated: %lf with %zu.\n", ret.report(), np);
-    //fprintf(stderr, "Exiting!\n");
+    //std::fprintf(stderr, "Estimated: %lf with %zu.\n", ret.report(), np);
+    //std::fprintf(stderr, "Exiting!\n");
     return ret;
 }
 

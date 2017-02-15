@@ -170,9 +170,8 @@ unsigned classify_seq(ClassifierGeneric<score> &c, Encoder<score> &enc, khash_t(
         // Else just increase quantitation... But that requires some kind of lock-free hash table for counting.
         // Use Jellyfish?
     }
-    bs->l_sam = bks.size();
     bs->sam   = bks.release();
-    return bs->l_sam;
+    return bs->l_sam = bks.size();
 }
 
 namespace {
@@ -228,7 +227,7 @@ inline void process_dataset(Classifier &c, khash_t(p) *taxmap, const char *fq1, 
         // Classify
         classify_seqs(c, taxmap, dd.seqs_, cks, nseq, per_set, is_paired);
         // Write out
-        fwrite(cks.data(), 1, cks.size(), out);
+        std::fwrite(cks.data(), 1, cks.size(), out);
         // Delete
         kt_for(c.nt_, &kt_del_helper, (void *)&dd, nseq / per_set + 1);
         cks.clear();

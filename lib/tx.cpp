@@ -35,7 +35,7 @@ void Taxonomy::add_node(const char *node_name, const unsigned parent) {
     unsigned new_id(1);
     assert(kh_get(p, tax_map_, 1) != kh_end(tax_map_)); // Need to have the root in the tree.
     while(kh_get(p, tax_map_, new_id) != kh_end(tax_map_))
-        new_id = rand();
+        new_id = std::rand();
     add_node_impl(node_name, new_id, parent);
 }
 

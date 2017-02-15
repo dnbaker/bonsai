@@ -14,16 +14,16 @@
 #include "clhash/include/clhash.h"
 
 class rand_holder {
-    void *random_;
+    const void *random_;
 public:
     rand_holder(): random_(get_random_key_for_clhash(UINT64_C(0x23a23cf5033c3c81),
                                                      UINT64_C(0xb3816f6a2c68e530)))
     {
     }
 
-    void *get() const {return random_;}
+    const void *get() const {return random_;}
 
-    ~rand_holder()    {free(random_);}
+    ~rand_holder()    {std::free(const_cast<void *>(random_));}
 };
 
 const static rand_holder RAND;
@@ -33,7 +33,7 @@ namespace std {
   template <typename T>
   struct hash<vector<T>>
   {
-    std::uint64_t operator()(const vector<T>& vec) const
+    uint64_t operator()(const vector<T>& vec) const
     {
         return clhash(RAND.get(), reinterpret_cast<const char *>(vec.data()), vec.size() * sizeof(T));
     }
@@ -64,9 +64,9 @@ struct is_specialization<Ref<Args...>, Ref>: std::true_type {};
 
 template<typename T, class Hash=std::hash<T>>
 class Counter {
-    std::size_t                                               n_;
-    std::size_t                                           nelem_;
-    std::unordered_map<T, std::size_t, Hash>                map_;
+    std::size_t                                                n_;
+    std::size_t                                            nelem_;
+    std::unordered_map<T, std::size_t, Hash>                 map_;
     std::unique_ptr<std::unordered_map<unsigned, unsigned>> hist_;
 
 public:
@@ -74,9 +74,14 @@ public:
 
     template<typename Q=T>
     void add(const typename std::enable_if<std::is_fundamental<Q>::value, Q>::type elem) {
+#if __GNUC__ >= 7
+        if(auto match = map_.find(elem); match == map_.end()) map_.emplace(elem, 1);
+        else                                          ++match->second;
+#else
         auto match(map_.find(elem));
         if(match == map_.end()) map_.emplace(elem, 1);
-        else ++match->second;
+        else                    ++match->second;
+#endif
         ++n_;
     }
 
@@ -127,7 +132,7 @@ public:
             countset.insert(i.first);
         std::vector<unsigned> counts(countset.begin(), countset.end());
         std::sort(counts.begin(), counts.end());
-        fputs("#Count\tNumber of occurrences\n", fp);
+        std::fputs("#Count\tNumber of occurrences\n", fp);
         for(auto count: counts) ret += fprintf(fp, "%u\t%u\n", count, hist_->find(count)->second);
         return ret;
     }
@@ -171,7 +176,7 @@ public:
             ksprintf(ks, "\t%zu\t%zu\n", i.count_, pc);
         }
     
-        if(ks.size()) fwrite(ks.data(), 1, ks.size(), fp);
+        if(ks.size()) std::fwrite(ks.data(), 1, ks.size(), fp);
     }
 };
 

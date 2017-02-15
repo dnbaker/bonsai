@@ -8,7 +8,7 @@ int main(int argc, char *argv[]) {
     if(argc < 2) {
         usage:
         fprintf(stderr, "Usage: %s <in.txt> out.tax\n" , *argv);
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
     while((c = getopt(argc, argv, "h?")) >= 0)
         switch(c)

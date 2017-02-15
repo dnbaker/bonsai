@@ -53,7 +53,7 @@ unsigned node_depth(khash_t(p) *map, std::uint32_t a) noexcept {
     while(a) {
         if((ki = kh_get(p, map, a)) == kh_end(map)) {
             fprintf(stderr, "Tax ID %u missing. Abort!\n", a);
-            exit(1);
+            std::exit(1);
         }
         a = kh_val(map, ki);
         ++ret;
@@ -72,7 +72,6 @@ khash_t(name) *build_name_hash(const char *fn) noexcept {
     int khr;
     khint_t ki;
     while((len = getline(&buf, &bufsz, fp)) >= 0) {
-        LOG_DEBUG("line: %s", buf);
         switch(*buf) case '\0': case '\n': case '#': continue;
         p = strchr(buf, '\t');
         *p = 0;
@@ -178,7 +177,7 @@ std::string rand_string(std::size_t n) {
     std::string ret;
     ret.reserve(n);
     static const char set[] = "abcdefghijklmnopqrstuvwxyz123456";
-    while(ret.size() < n) ret += set[rand() & 31];
+    while(ret.size() < n) ret += set[std::rand() & 31];
     assert(ret.size() == n);
     return ret;
 }

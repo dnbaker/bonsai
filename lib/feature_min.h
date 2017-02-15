@@ -74,7 +74,7 @@ std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *re
     gzFile ifp(gzopen(path, "rb"));
     if(!ifp) {
         fprintf(stderr, "Could not open file %s for index %zu. Abort!\n", path, index);
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
     Encoder<score> enc(0, 0, sp, data);
     kseq_t *ks(kseq_init(ifp));

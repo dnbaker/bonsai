@@ -19,8 +19,8 @@
 #include "lib/spacer.h"
 #include <cinttypes>
 
-#define __fr(item, fp) fread(&(item), 1, sizeof(item), fp)
-#define __fw(item, fp) fwrite(&(item), 1, sizeof(item), fp)
+#define __fr(item, fp) std::fread(&(item), 1, sizeof(item), fp)
+#define __fw(item, fp) std::fwrite(&(item), 1, sizeof(item), fp)
 
 namespace emp {
 
@@ -40,7 +40,7 @@ struct Database {
             __fr(w_, fp);
             s_ = spvec_t(k_ - 1);
             LOG_DEBUG("reading %zu bytes from file for vector, with %zu reserved\n", s_.size(), s_.capacity());
-            fread(s_.data(), s_.size(), sizeof(uint8_t), fp);
+            std::fread(s_.data(), s_.size(), sizeof(uint8_t), fp);
     #if !NDEBUG
             LOG_DEBUG("vec size: %u\n", s_.size());
             for(auto i: s_) fprintf(stderr, "Value in vector is %u\n", (unsigned)i);
@@ -54,17 +54,17 @@ struct Database {
             LOG_DEBUG("Doing flags. N buckets: %zu. Elements to read: %zu\n", db_->n_buckets, __ac_fsize(db_->n_buckets));
             db_->flags = (std::uint32_t *)std::malloc(sizeof(*db_->flags) * __ac_fsize(db_->n_buckets));
             if(!db_->flags) LOG_EXIT("Could not allocate memory for flags.\n");
-            fread(db_->flags, __ac_fsize(db_->n_buckets), sizeof(*(db_->flags)), fp);
+            std::fread(db_->flags, __ac_fsize(db_->n_buckets), sizeof(*(db_->flags)), fp);
 
             LOG_DEBUG("Doing keys\n");
             typedef typename std::remove_pointer<decltype(db_->keys)>::type keytype_t;
             db_->keys = (keytype_t *)std::malloc(sizeof(*db_->keys) * db_->n_buckets);
-            fread(db_->keys, db_->n_buckets, sizeof(*db_->keys), fp);
+            std::fread(db_->keys, db_->n_buckets, sizeof(*db_->keys), fp);
 
             LOG_DEBUG("Doing vals\n");
             typedef typename std::remove_pointer<decltype(db_->vals)>::type valtype_t;
             db_->vals = (valtype_t *)std::malloc(sizeof(*db_->keys) * db_->n_buckets);
-            fread(db_->vals, db_->n_buckets, sizeof(*db_->vals), fp);
+            std::fread(db_->vals, db_->n_buckets, sizeof(*db_->vals), fp);
         } else LOG_EXIT("Could not open %s for reading.\n", fn);
         LOG_DEBUG("Read database!\n");
         std::fclose(fp);
@@ -99,11 +99,11 @@ struct Database {
                 kh_key(db_, ki) = kh_val(db_, ki) = 0;
         __fw(k_, ofp);
         __fw(w_, ofp);
-        fwrite(s_.data(), s_.size(), sizeof(uint8_t), ofp);
-        fwrite(db_, 1, sizeof(*db_), ofp);
-        fwrite(db_->flags, __ac_fsize(db_->n_buckets), sizeof(*db_->flags), ofp);
-        fwrite(db_->keys, db_->n_buckets, sizeof(*db_->keys), ofp);
-        fwrite(db_->vals, db_->n_buckets, sizeof(*db_->vals), ofp);
+        std::fwrite(s_.data(), s_.size(), sizeof(uint8_t), ofp);
+        std::fwrite(db_, 1, sizeof(*db_), ofp);
+        std::fwrite(db_->flags, __ac_fsize(db_->n_buckets), sizeof(*db_->flags), ofp);
+        std::fwrite(db_->keys, db_->n_buckets, sizeof(*db_->keys), ofp);
+        std::fwrite(db_->vals, db_->n_buckets, sizeof(*db_->vals), ofp);
         std::fclose(ofp);
     }
 

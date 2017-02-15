@@ -27,7 +27,7 @@ int classify_main(int argc, char *argv[]) {
                              "\nIf -f and -k are set, full kraken output will be contained in the fastq comment field."
                              "\n  Default: kraken-style only output.\n",
                  *argv, 1 << 14);
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
     while((co = getopt(argc, argv, "c:p:o:S:afFkKh?")) >= 0) {
         switch(co) {
@@ -90,7 +90,7 @@ int phase2_main(int argc, char *argv[]) {
                      "-t: Build for taxonomic minimizing\n-f: Build for feature minimizing\n"
                      "-F: Load paths from file provided instead further arguments on the command-line.\n"
                      , *argv);
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
     while((c = getopt(argc, argv, "w:M:S:p:k:T:F:tfHh?")) >= 0) {
         switch(c) {
@@ -181,7 +181,7 @@ int phase1_main(int argc, char *argv[]) {
                      "-T: Path to taxonomy map to load, if you've preparsed it. Not really worth it, building from scratch is fast.\n"
                      "-d: Write out in database format version 1.\n"
                      , *argv);
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
     if("lca"s == argv[0])
         std::fprintf(stderr, "[W:%s] lca subcommand has been renamed phase1. "
@@ -230,7 +230,7 @@ void metatree_usage(char *arg) {
                          "\n"
                          "-F: Parse file paths from file instead of further arguments at command-line.\n"
                  , arg);
-    exit(EXIT_FAILURE);
+    std::exit(EXIT_FAILURE);
 }
 
 int metatree_main(int argc, char *argv[]) {

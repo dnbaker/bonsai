@@ -18,43 +18,43 @@
 #define LOG_ASSERT(condition) log_assert(_FUNCTION_MACRO_, __LINE__, ((std::uint64_t)(condition)), (#condition))
 
 static inline void log_debug(const char *func, int line, const char *fmt, ...) {
-    va_list args;
+    std::va_list args;
     va_start(args, fmt);
-    fprintf(stderr, "[D:%s:%d] ", func, line);
-    vfprintf(stderr, fmt, args);
+    std::fprintf(stderr, "[D:%s:%d] ", func, line);
+    std::vfprintf(stderr, fmt, args);
     va_end(args);
 }
 
 static inline void log_warning(const char *func, const char *fmt, ...) {
-    va_list args;
+    std::va_list args;
     va_start(args, fmt);
-    fprintf(stderr, "[W:%s] ", func);
-    vfprintf(stderr, fmt, args);
+    std::fprintf(stderr, "[W:%s] ", func);
+    std::vfprintf(stderr, fmt, args);
     va_end(args);
 }
 
 static inline void log_info(const char *func, const char *fmt, ...) {
-    va_list args;
+    std::va_list args;
     va_start(args, fmt);
-    fprintf(stderr, "[%s] ", func);
-    vfprintf(stderr, fmt, args);
+    std::fprintf(stderr, "[%s] ", func);
+    std::vfprintf(stderr, fmt, args);
     va_end(args);
 }
 
 static inline void log_error(const char *func, int line, const char *fmt, ...) {
-    va_list args;
+    std::va_list args;
     va_start(args, fmt);
-    fprintf(stderr, "[E:%s:%d] ", func, line);
-    vfprintf(stderr, fmt, args);
+    std::fprintf(stderr, "[E:%s:%d] ", func, line);
+    std::vfprintf(stderr, fmt, args);
     va_end(args);
-    exit(EXIT_FAILURE);
+    std::exit(EXIT_FAILURE);
 }
 
 static inline void log_assert(const char *func, int line, int assertion, const char *assert_str) {
     if(!assertion) {
-        fprintf(stderr, "[E:%s:%d] Assertion '%s' failed.\n",
+        std::fprintf(stderr, "[E:%s:%d] Assertion '%s' failed.\n",
                 func, line, assert_str);
-        exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE);
     }
 }
 

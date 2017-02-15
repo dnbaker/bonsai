@@ -67,7 +67,7 @@ static INLINE std::size_t roundup64(std::size_t x) noexcept {
 }
 
 INLINE std::uint64_t rand64() noexcept {
-    return (((std::uint64_t)rand()) << 32) | rand();
+    return (((std::uint64_t)std::rand()) << 32) | std::rand();
 }
 template <typename T> 
 void khash_destroy(T *map) noexcept {
@@ -85,12 +85,12 @@ void khash_destroy(khash_t(p) *map) noexcept;
 
 template <typename T>
 void print_khash(T *rex) noexcept {
-    fprintf(stderr, "n buckets %zu, nocc %zu, size %zu, upper bound %zu.\n",
-            rex->n_buckets, rex->n_occupied, rex->size, rex->upper_bound);
+    std::fprintf(stderr, "n buckets %zu, nocc %zu, size %zu, upper bound %zu.\n",
+                 rex->n_buckets, rex->n_occupied, rex->size, rex->upper_bound);
 }
 
 #define __fw(item, fp) \
-  fwrite(&(item), 1, sizeof(item), fp)
+  std::fwrite(&(item), 1, sizeof(item), fp)
 
 template<typename T>
 void khash_write_impl(T *map, std::FILE *fp) noexcept {
@@ -98,9 +98,9 @@ void khash_write_impl(T *map, std::FILE *fp) noexcept {
     __fw(map->n_occupied, fp);
     __fw(map->size, fp);
     __fw(map->upper_bound, fp);
-    fwrite(map->flags, __ac_fsize(map->n_buckets), sizeof(*map->flags), fp);
-    fwrite(map->keys, map->n_buckets, sizeof(*map->keys), fp);
-    fwrite(map->vals, map->n_buckets, sizeof(*map->vals), fp);
+    std::fwrite(map->flags, __ac_fsize(map->n_buckets), sizeof(*map->flags), fp);
+    std::fwrite(map->keys, map->n_buckets, sizeof(*map->keys), fp);
+    std::fwrite(map->vals, map->n_buckets, sizeof(*map->vals), fp);
 }
 
 template <typename T>
@@ -116,20 +116,20 @@ std::size_t khash_write(T *map, const char *path) noexcept {
 
 template <typename T>
 T *khash_load_impl(std::FILE *fp) noexcept {
-    T *rex((T *)calloc(1, sizeof(T)));
+    T *rex((T *)std::calloc(1, sizeof(T)));
     typedef typename std::remove_pointer<decltype(rex->keys)>::type keytype_t;
     typedef typename std::remove_pointer<decltype(rex->vals)>::type valtype_t;
-    fread(&rex->n_buckets, 1, sizeof(rex->n_buckets), fp);
-    fread(&rex->n_occupied, 1, sizeof(rex->n_occupied), fp);
-    fread(&rex->size, 1, sizeof(rex->size), fp);
-    fread(&rex->upper_bound, 1, sizeof(rex->upper_bound), fp);
+    std::fread(&rex->n_buckets, 1, sizeof(rex->n_buckets), fp);
+    std::fread(&rex->n_occupied, 1, sizeof(rex->n_occupied), fp);
+    std::fread(&rex->size, 1, sizeof(rex->size), fp);
+    std::fread(&rex->upper_bound, 1, sizeof(rex->upper_bound), fp);
     LOG_DEBUG("buckets: %zu. nocc: %zu. size: %zu. ub: %zu\n", (size_t)rex->n_buckets, size_t(rex->n_occupied), size_t(rex->size), size_t(rex->upper_bound));
     rex->flags = (std::uint32_t *)std::malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
     rex->keys = (keytype_t *)std::malloc(sizeof(*rex->keys) * rex->n_buckets);
     rex->vals = (valtype_t *)std::malloc(sizeof(*rex->vals) * rex->n_buckets);
-    fread(rex->flags, __ac_fsize(rex->n_buckets), sizeof(*rex->flags), fp);
-    fread(rex->keys, 1, rex->n_buckets * sizeof(*rex->keys), fp);
-    fread(rex->vals, 1, rex->n_buckets * sizeof(*rex->vals), fp);
+    std::fread(rex->flags, __ac_fsize(rex->n_buckets), sizeof(*rex->flags), fp);
+    std::fread(rex->keys, 1, rex->n_buckets * sizeof(*rex->keys), fp);
+    std::fread(rex->vals, 1, rex->n_buckets * sizeof(*rex->vals), fp);
     return rex;
 }
 

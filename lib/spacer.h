@@ -42,14 +42,14 @@ public:
     void write(std::uint64_t kmer, std::FILE *fp=stdout) const {
         kmer ^= XOR_MASK;
         int offset = ((k_ - 1) << 1);
-        fputc(num2nuc((kmer >> offset) & 0x3u), fp);
+        std::fputc(num2nuc((kmer >> offset) & 0x3u), fp);
         for(auto s: s_) {
             assert(offset >= 0);
             offset -= 2;
-            while(s-- > 1) fputc('-', fp);
-            fputc(num2nuc((kmer >> offset) & 0x3u), fp);
+            while(s-- > 1) std::fputc('-', fp);
+            std::fputc(num2nuc((kmer >> offset) & 0x3u), fp);
         }
-        fputc('\n', fp);
+        std::fputc('\n', fp);
     }
     std::string to_string (std::uint64_t kmer) const {
         kmer ^= XOR_MASK;

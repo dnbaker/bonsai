@@ -69,6 +69,7 @@ private:
     map_iterator end() {
         return map_.end();
     }
+    // Do a std::enable_if that involves moving the element if it's by reference?
     std::uint64_t next_value(const T el, const std::uint64_t score) {
         list_.emplace_back(el, score);
         add(list_.back());
