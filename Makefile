@@ -6,7 +6,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
          # -pedantic
 DBG:= # -DNDEBUG # -fno-inline
-OPT:= -O3 -funroll-loops -fno-asynchronous-unwind-tables -ffast-math \
+OPT:= -O3 -funroll-loops -ffast-math \
 	  -fopenmp \
       -pipe -fno-strict-aliasing -march=native -mpclmul # -DNOT_MEMORY_HOG
 OS:=$(shell uname)
@@ -33,8 +33,6 @@ HEADERS=lib/encoder.h lib/kmerutil.h lib/spacer.h lib/misc.h \
         lib/cms.h lib/kseq_declare.h lib/feature_min.h hll/hll.h lib/hash.h lib/db.h
 
 INCLUDE=-I. -Ilib
-
-
 
 all: $(OBJS) $(EX) unit
 

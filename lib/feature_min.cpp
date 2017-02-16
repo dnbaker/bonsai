@@ -1,5 +1,6 @@
 #include <cctype>
 #include "feature_min.h"
+#include <cstring>
 
 namespace emp {
 
@@ -126,13 +127,10 @@ std::uint32_t get_taxid(const char *fn, khash_t(name) *name_hash) {
     char buf[bufsz];
     char *line(gzgets(fp, buf, bufsz));
     char *p(++line);
-    if(strchr(p, '|')) {
-        // Handle old refseq.
-        p = strchr(p, '|');
-        p = strchr(p, '|');
-        p = strchr(p, '|') + 1; // Now p is at the accession.
-        char *q(strchr(p, '|'));
-        if(q == nullptr) LOG_EXIT("Malformed line %s", buf);
+    if(std::strchr(p, '|')) {
+        p = std::strrchr(p, '|');
+        while(*--p != '|');
+        char *q(std::strchr(++p, '|'));
         *q = 0;
         line = p;
     } else {
@@ -140,8 +138,9 @@ std::uint32_t get_taxid(const char *fn, khash_t(name) *name_hash) {
         *p = 0;
     }
     if(unlikely((ki = kh_get(name, name_hash, line)) == kh_end(name_hash))) {
-        fprintf(stderr, "Missing taxid for %s.\n", line);
-        std::exit(EXIT_FAILURE);
+        LOG_WARNING("Missing taxid for %s, '%s'.\n", buf, line);
+        gzclose(fp);
+        return UINT32_C(-1);
     }
     gzclose(fp);
     return kh_val(name_hash, ki);

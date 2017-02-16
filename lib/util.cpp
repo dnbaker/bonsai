@@ -148,7 +148,6 @@ std::uint32_t resolve_tree(std::map<std::uint32_t, std::uint32_t> &hit_counts,
         ki = kh_get(p, parent_map, node);
         node = kh_val(parent_map, ki);
     }
-  
     if (score > max_score) {
       max_taxa.clear();
       max_score = score;
@@ -159,7 +158,6 @@ std::uint32_t resolve_tree(std::map<std::uint32_t, std::uint32_t> &hit_counts,
         max_taxa.insert(max_taxon);
       max_taxa.insert(taxon);
     }
-  
     ++it;
   }
   // If two LTR paths are tied for max, return LCA of all

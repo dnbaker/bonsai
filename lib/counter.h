@@ -89,7 +89,7 @@ public:
     void add(const typename std::enable_if<!std::is_fundamental<Q>::value, Q>::type &elem) {
         auto match(map_.find(elem));
         if(match == map_.end()) map_.emplace(elem, 1);
-        else ++match->second;
+        else                    ++match->second;
         ++n_;
     }
 

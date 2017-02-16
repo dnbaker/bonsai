@@ -175,7 +175,7 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
                           const char *seq2tax_path, const Spacer &sp,
                           int num_threads, std::size_t start_size=1<<10) {
     std::size_t submitted(0), completed(0), todo(fns.size());
-    khash_t(all) **counters((khash_t(all) **)malloc(sizeof(khash_t(all) *) * todo));
+    std::vector<khash_t(all) *> counters(todo, nullptr);
     khash_t(64) *ret(kh_init(64));
     kh_resize(64, ret, start_size);
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
@@ -236,25 +236,24 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
 #endif
 
     // Clean up
-    free(counters);
     destroy_name_hash(name_hash);
     LOG_DEBUG("Cleaned up after LCA map building!\n")
     return ret;
 }
 
 template<std::uint64_t (*score)(std::uint64_t, void *)>
-khash_t(c) *lca_map(std::vector<std::string> fns, khash_t(p) *tax_map,
+khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
                     const char *seq2tax_path,
                     const Spacer &sp, int num_threads, std::size_t start_size=1<<10) {
     std::size_t submitted(0), completed(0), todo(fns.size());
-    khash_t(all) **counters((khash_t(all) **)malloc(sizeof(khash_t(all) *) * todo));
+    std::vector<khash_t(all) *> counters;
     khash_t(c) *ret(kh_init(c));
     kh_resize(c, ret, start_size);
-    LOG_DEBUG("Building name hash from %s\n", seq2tax_path);
+    counters.reserve(todo);
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
     std::vector<std::future<std::size_t>> futures;
 
-    for(std::size_t i(0), end(fns.size()); i != end; ++i) counters[i] = kh_init(all);
+    for(std::size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
 
     // Submit the first set of jobs
     std::set<std::size_t> subbed, used;
@@ -262,7 +261,6 @@ khash_t(c) *lca_map(std::vector<std::string> fns, khash_t(p) *tax_map,
         LOG_DEBUG("Launching thread to read from file %s.\n", fns[i].data());
         futures.emplace_back(std::async(
           std::launch::async, fill_set_genome<score>, fns[i].data(), sp, counters[i], i, nullptr));
-        //LOG_DEBUG("Submitted for %zu.\n", submitted);
         subbed.insert(submitted);
         ++submitted;
     }
@@ -270,6 +268,7 @@ khash_t(c) *lca_map(std::vector<std::string> fns, khash_t(p) *tax_map,
     // Daemon -- check the status of currently running jobs, submit new ones when available.
     while(submitted < todo) {
         LOG_DEBUG("Submitted %zu, todo %zu\n", submitted, todo);
+        std::uint32_t taxid;
         for(auto &f: futures) {
             if(is_ready(f)) {
                 if(submitted == todo) break;
@@ -285,9 +284,9 @@ khash_t(c) *lca_map(std::vector<std::string> fns, khash_t(p) *tax_map,
                 LOG_INFO("Submitted for %zu. Updating map for %zu. Total completed/all: %zu/%zu. Total size: %zu\n",
                          submitted, index, completed, todo, kh_size(ret));
                 ++submitted, ++completed;
-                const std::uint32_t taxid(get_taxid(fns[index].data(), name_hash));
-                LOG_DEBUG("Just fetched taxid from file %s %u.\n", fns[index].data(), taxid);
-                update_lca_map(ret, counters[index], tax_map, taxid);
+                if((taxid = get_taxid(fns[index].data(), name_hash)) == UINT32_C(-1)) {
+                    LOG_WARNING("Taxid for %s not listed in summary.txt. Not including.\n", fns[index].data());
+                } else update_lca_map(ret, counters[index], tax_map, taxid);
                 kh_destroy(all, counters[index]); // Destroy set once we're done with it.
             }
         }
@@ -298,20 +297,19 @@ khash_t(c) *lca_map(std::vector<std::string> fns, khash_t(p) *tax_map,
         const std::size_t index(f.get());
         if(used.find(index) != used.end()) continue;
         used.insert(index);
-        update_lca_map(ret, counters[index], tax_map, get_taxid(fns[index].data(), name_hash));
+        std::uint32_t taxid(get_taxid(fns[index].data(), name_hash));
+        if(taxid == UINT32_C(-1)) {
+            LOG_WARNING("Taxid for %s not listed in summary.txt. Not including.", fns[index].data());
+        } else update_lca_map(ret, counters[index], tax_map, taxid);
         kh_destroy(all, counters[index]);
         ++completed;
         LOG_DEBUG("Number left to do: %zu\n", todo - completed);
     }
     LOG_DEBUG("Finished LCA map building! Subbed %zu, completed %zu, size of futures %zu.\n", submitted, completed, used.size());
-#if !NDEBUG
-    for(std::size_t i(0); i < todo; ++i) assert(used.find(i) != used.end());
-#endif
 
     // Clean up
-    free(counters);
     destroy_name_hash(name_hash);
-    LOG_DEBUG("Cleaned up after LCA map building!\n")
+    LOG_DEBUG("Cleaned up after LCA map building!\n");
     return ret;
 }
 
@@ -319,7 +317,7 @@ template <std::uint64_t (*score)(std::uint64_t, void *)>
 khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, std::size_t start_size) {
     // Update this to include tax ids in the hash map.
     std::size_t submitted(0), completed(0), todo(fns.size());
-    khash_t(all) **counters((khash_t(all) **)malloc(sizeof(khash_t(all) *) * todo));
+    std::vector<khash_t(all) *> counters(todo, nullptr);
     khash_t(64) *ret(kh_init(64));
     kh_resize(64, ret, start_size);
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
@@ -367,7 +365,6 @@ khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map
     }
 
     // Clean up
-    free(counters);
     kh_destroy(name, name_hash);
     return ret;
 }

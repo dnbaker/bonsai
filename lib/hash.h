@@ -60,7 +60,7 @@ INLINE std::uint64_t irving_inv_hash(std::uint64_t key) {
 
 
 // Taken from khash. https://github.com/attractivechaos/klib
-static INLINE int X31_hash_string(const char *s) 
+static INLINE int X31_hash_string(const char *s)
 {
     int h = *s;
     if (h) for (++s ; *s; ++s) h = (h << 5) - h + *s;
