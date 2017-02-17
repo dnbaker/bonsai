@@ -80,6 +80,8 @@ def getopts():
     a.add_argument("--combined-nameid-map", "-c", required=True)
     a.add_argument("--taxonomy", "-t", required=True)
     a.add_argument("--no-download", '-D', default=False, action="store_true")
+    a.add_argument("--accessions", "-a", description="Path to file containing i100 genome accessions.")
+    raise NotImplementedError("I need to finish adding code for using accessions only in filtering.")
     return a.parse_args()
 
 
