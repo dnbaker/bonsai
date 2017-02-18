@@ -94,9 +94,12 @@ def main():
     opts = getopts()
     spoool = multiprocessing.Pool(opts.threads)
     ffqs = spoool.map(process_folder, opts.folders)
-    for ffqpair in ffqs:
-        stderr.write("Output files available at %s, %s" % ffqpair)
-    return 0
+    for index, ffqpair in enumerate(ffqs):
+        if ffqpair:
+            stderr.write("Output files available at %s, %s\n" % ffqpair)
+        else:
+            stderr.write("Error processing directory %s\n" % opts.folders[index])
+    return any(not x for x in ffqs))
     # Could be omitted by implicit return of None, which is coerced to 0
 
 if __name__ == "__main__":
