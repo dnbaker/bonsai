@@ -6,10 +6,9 @@ std::uint64_t adjlist_node_addn(std::vector<std::uint64_t> &bitstring,
                                 adjmap_t &am, count::Counter<std::vector<std::uint64_t>> &counts) {
     const auto m(am.find(bitstring));
     const auto node(counts.find(bitstring));
-    if(unlikely(m == am.end()))        return UINT64_C(-1);
-    if(unlikely(node == counts.end())) return UINT64_C(-1);
+    if(unlikely(m == am.end()) || node == counts.end()) return UINT64_C(-1);
     std::uint64_t ret(node->second);
-    for(auto i: m->second) ret += counts.find(*i)->second;
+    for(auto i: m->second) ret += counts.find(*i)->second; // TODO: Weight this by the number of flipped bits.
     return ret;
 }
 
