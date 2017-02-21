@@ -53,7 +53,7 @@ INLINE unsigned bitdiff(std::uint64_t a, std::uint64_t b) {
 template<typename T>
 std::uint64_t vec_bitdiff(T &a, T &b) {
     auto ai(a.cbegin()), bi(b.cbegin());
-    std::uint64_t ret(bitdiff(*a, *b));
+    std::uint64_t ret(bitdiff(*ai, *bi));
     while(++ai != a.cend() && ++bi != b.cend()) ret += bitdiff(*ai, *bi);
     return ret;
 }
