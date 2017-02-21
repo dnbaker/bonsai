@@ -30,14 +30,13 @@ INLINE unsigned popcount(unsigned long long val) noexcept {
     return val;
 }
 
-
 template<>
 INLINE unsigned popcount(unsigned long val) noexcept {
     return __builtin_popcountl(val);
 }
 
 template<typename T>
-INLINE std::uint64_t vec_popcnt(T &container) {
+std::uint64_t vec_popcnt(T &container) {
     auto i(container.cbegin());
     std::uint64_t ret(popcount(*i));
     while(++i != container.cend()) ret += popcount(*i);
@@ -45,8 +44,19 @@ INLINE std::uint64_t vec_popcnt(T &container) {
 }
 
 std::uint64_t vec_popcnt(std::uint64_t *p, std::size_t l);
-
-// Note: This could be further optimized 
+    
+    
+INLINE unsigned bitdiff(std::uint64_t a, std::uint64_t b) {
+    return popcount(a ^ b);
+}
+    
+template<typename T>
+std::uint64_t vec_bitdiff(T &a, T &b) {
+    auto ai(a.cbegin()), bi(b.cbegin());
+    std::uint64_t ret(bitdiff(*a, *b));
+    while(++ai != a.cend() && ++bi != b.cend()) ret += bitdiff(*ai, *bi);
+    return ret;
+}
 
 } //namespace popcnt
 
