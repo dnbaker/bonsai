@@ -15,7 +15,7 @@ Unit Tests
 =================
 We use the Catch testing framework. You can build and run the tests by:
 
-`make unit_tests`
+`make unit`
 
 
 Prior Work
