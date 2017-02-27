@@ -62,6 +62,7 @@ int veccmp(const std::vector<T> &a, const std::vector<T> &b) {
     // Return 0 if they are the same
     // Return positive if a has only 1s that b doesn't and isn't missing any from b.
     bool avalid(true), bvalid(true);
+    static const uint8_t ret[4]{3, 2, 1, 0};
     for(std::size_t i(0), e(a.size()); i != e; ++i) {
         auto tmpa(a[i] & (~b[i]));
         auto tmpb(b[i] & (~a[i]));
@@ -71,14 +72,7 @@ int veccmp(const std::vector<T> &a, const std::vector<T> &b) {
             avalid = false;
         }
     }
-    switch((avalid << 1) | bvalid) {
-        case 2: return  1;
-        case 1: return  2;
-        case 3: return 0;
-        case 0: return 3;
-    }
-    return 0; // This never happens.
-    // Returns -1 for the same, 0 for incomparable, 1 for a > b, 2 for b > a
+    return ret[(avalid << 1) | bvalid];
 }
 
 class bitmap_t {

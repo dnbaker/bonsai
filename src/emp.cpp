@@ -261,6 +261,8 @@ int metatree_main(int argc, char *argv[]) {
     std::vector<std::uint32_t> nodes(std::move(guide.get_nodes())), offsets(std::move(guide.get_offsets()));
     offsets.insert(offsets.begin(), 0);
     std::vector<std::string> to_fetch(tree::invert_lca_map(db, folder.data()));
+    LOG_INFO("I'm only performing the initial inversion at this stage.\n");
+    return EXIT_SUCCESS;
     std::size_t ind(0);
     for(int i(0), e(offsets.size() - 1); i != e; ++i) {
         count::Counter<std::vector<std::uint64_t>> counts; // TODO: make binary dump version of this.

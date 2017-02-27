@@ -62,6 +62,7 @@ unsigned node_depth(khash_t(p) *map, std::uint32_t a) noexcept {
 }
 
 khash_t(name) *build_name_hash(const char *fn) noexcept {
+    LOG_INFO("Parsing name hash from %s\n", fn);
     std::size_t bufsz(2048), namelen;
     char *buf((char *)std::malloc(bufsz));
     ssize_t len;

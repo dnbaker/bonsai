@@ -88,6 +88,7 @@ public:
     std::vector<std::string> &get_paths() {
         return paths_;
     }
+    // Encoding constructor
     kgset_t(std::vector<std::string> &paths, Spacer &sp, int num_threads=-1): paths_(paths) {
         core_.reserve(paths_.size());
         for(std::size_t i(0), end(paths.size()); i != end; ++i) core_.emplace_back(kh_init(all));
