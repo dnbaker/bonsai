@@ -258,8 +258,7 @@ int metatree_main(int argc, char *argv[]) {
     kh_destroy(p, tmp_taxmap);
     tree::SortedNodeGuide guide(taxmap);
     Spacer sp(k, w, v);
-    std::vector<std::uint32_t> nodes(std::move(guide.get_nodes()));
-    std::vector<std::uint32_t> offsets(std::move(guide.get_offsets()));
+    std::vector<std::uint32_t> nodes(std::move(guide.get_nodes())), offsets(std::move(guide.get_offsets()));
     offsets.insert(offsets.begin(), 0);
     std::vector<std::string> to_fetch(tree::invert_lca_map(db, folder.data()));
     std::size_t ind(0);

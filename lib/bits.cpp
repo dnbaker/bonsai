@@ -1,4 +1,5 @@
 #include "bits.h"
+#include <vector>
 
 namespace emp {
 
@@ -25,6 +26,8 @@ std::uint64_t vec_popcnt(std::uint64_t *p, std::size_t l) {
 std::uint64_t vec_popcnt(const std::string &vec) {
     return vec_popcnt(vec.data(), vec.size());
 }
+template<>
+std::uint64_t vec_bitdiff(std::vector<std::uint64_t> &a, std::vector<std::uint64_t> &b);
 
 } // namespace popcnt
 

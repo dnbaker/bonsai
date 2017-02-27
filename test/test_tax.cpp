@@ -50,4 +50,5 @@ TEST_CASE("bitstrings") {
     count::Counter<std::vector<std::uint64_t>> counter;
     counter.add(v1);
     counter.add(v2);
+    counter.print_vec();
 }

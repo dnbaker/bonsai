@@ -44,12 +44,11 @@ namespace std {
 
 namespace count {
 
-template<typename T>
-std::string vec2str(const std::vector<T> &vec) {
+template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type* dummy=nullptr>
+auto vec2str(const std::vector<T> &vec) -> std::string {
     std::string ret;
-    for(auto &i: vec) ret += std::to_string(i) + ", ";
-    ret.pop_back();
-    ret.pop_back();
+    for(const auto &i: vec) ret += std::to_string(i) + ", ";
+    ret.pop_back(), ret.pop_back();
     return ret;
 }
 
@@ -58,9 +57,6 @@ struct is_specialization : std::false_type {};
 
 template<template<typename...> class Ref, typename... Args>
 struct is_specialization<Ref<Args...>, Ref>: std::true_type {};
-
-
-//template<typename T>
 
 template<typename T, class Hash=std::hash<T>>
 class Counter {
@@ -135,6 +131,12 @@ public:
         std::fputs("#Count\tNumber of occurrences\n", fp);
         for(auto count: counts) ret += fprintf(fp, "%u\t%u\n", count, hist_->find(count)->second);
         return ret;
+    }
+
+    void print_vec() const {
+        for(const auto &i: map_) {
+            std::fprintf(stderr, "%s@%zu\n", vec2str(i.first).data(), i.second);
+        }
     }
 
     void print_counts(std::FILE *fp) const {
