@@ -262,13 +262,17 @@ int metatree_main(int argc, char *argv[]) {
     offsets.insert(offsets.begin(), 0);
     Database<khash_t(c)> db(argv[optind]);
     std::vector<std::string> to_fetch(tree::invert_lca_map(db, folder.data(), dry_run));
-    std::unordered_map<std::uint32_t, std::list<std::string>> tx2g(tax2genome_map(name_hash, inpaths));
+    std::unordered_map<std::uint32_t, std::forward_list<std::string>> tx2g(tax2genome_map(name_hash, inpaths));
     LOG_INFO("I'm only performing the initial inversion at this stage.\n");
     return EXIT_SUCCESS;
     std::size_t ind(0);
     for(int i(0), e(offsets.size() - 1); i != e; ++i) {
+        const std::uint32_t parent_tax(get_parent(nodes[offsets[i]], taxmap));
+        khash_t(all) *acceptable(kh_init(all));
+        fill_set_genome_container<lex_score>(tx2g[parent_tax], sp, acceptable, nullptr, nullptr);
         count::Counter<std::vector<std::uint64_t>> counts; // TODO: make binary dump version of this.
         adjmap_t adj(counts);
+        kh_destroy(all, acceptable);
     }
 
     destroy_name_hash(name_hash);

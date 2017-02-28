@@ -67,6 +67,20 @@ khash_t(p) *pruned_taxmap(std::vector<std::string> &paths, khash_t(p) *taxmap, k
     return ret;
 }
 
+khash_t(all) *load_binary_kmerset(const char *path) {
+    std::FILE *fp(fopen(path, "rb"));
+    khash_t(all) *ret(kh_init(all));
+    std::uint64_t n;
+    int khr;
+    std::fread(&n, 1, sizeof(n), fp);
+    kh_resize(all, ret, n);
+    while(std::fread(&n, 1, sizeof(std::uint64_t), fp) == sizeof(std::uint64_t))
+        kh_put(all, ret, n, &khr);
+    std::fclose(fp);
+    return ret;
+}
+
+
 std::vector<std::uint64_t> load_binary_kmers(const char *path) {
     std::FILE *fp(fopen(path, "rb"));
     std::vector<std::uint64_t> ret;

@@ -67,7 +67,7 @@ int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret) {
 }
 
 template<std::uint64_t (*score)(std::uint64_t, void *)>
-std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, std::size_t index, void *data) {
+std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, std::size_t index, void *data, khash_t(all) *acceptable=nullptr) {
     LOG_ASSERT(ret);
     LOG_INFO("Filling from genome at path %s\n", path);
     gzFile ifp(gzopen(path, "rb"));
@@ -82,23 +82,31 @@ std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *re
     if(sp.w_ > sp.k_) {
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
-            while(likely(enc.has_next_kmer())) {
+            while(likely(enc.has_next_kmer()))
                 if((kmer = enc.next_minimizer()) != BF)
-                    kh_put(all, ret, kmer, &khr);
-            }
+                    if(!acceptable || kh_get(all, acceptable, kmer) != kh_end(acceptable))
+                        kh_put(all, ret, kmer, &khr);
         }
     } else {
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
             while(likely(enc.has_next_kmer()))
                 if((kmer = enc.next_kmer()) != BF)
-                    kh_put(all, ret, kmer, &khr);
+                    if(!acceptable || kh_get(all, acceptable, kmer) != kh_end(acceptable))
+                        kh_put(all, ret, kmer, &khr);
         }
     }
     kseq_destroy(ks);
     gzclose(ifp);
     LOG_INFO("Set of size %lu filled from genome at path %s\n", kh_size(ret), path);
     return index;
+}
+
+template<std::uint64_t (*score)(std::uint64_t, void *), class Container>
+std::size_t fill_set_genome_container(Container container, const Spacer &sp, khash_t(all) *ret, void *data, khash_t(all) *acceptable=nullptr) {
+    for(std::string &str: container)
+        fill_set_genome(str.data(), sp, ret, data, acceptable);
+    return 0;
 }
 
 template<std::uint64_t (*score)(std::uint64_t, void *)>

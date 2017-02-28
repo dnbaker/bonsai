@@ -15,7 +15,8 @@ void kg_helper(void *data_, long index, int tid) {
         enc.assign(ks);
         while(enc.has_next_kmer())
             if((min = enc.next_minimizer()) != BF)
-                kh_put(all, h, min, &khr);
+                if(!data->acceptable_ || kh_get(all, data->acceptable_, min) != kh_end(data->acceptable_))
+                    kh_put(all, h, min, &khr);
     }
     kseq_destroy(ks);
     gzclose(fp);

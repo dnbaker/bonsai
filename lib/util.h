@@ -150,6 +150,12 @@ void kset_union(khash_t(all) *a, khash_t(all) *b) noexcept;
 std::uint32_t lca(khash_t(p) *map, std::uint32_t a, std::uint32_t b) noexcept;
 unsigned node_depth(khash_t(p) *map, std::uint32_t a) noexcept;
 std::unordered_map<std::uint32_t, std::forward_list<std::string>> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths);
+INLINE std::uint32_t get_parent(khash_t(p) *taxmap, std::uint32_t key) noexcept {
+    // Returns maximum value if not found.
+    khiter_t ki;
+    return ((ki = kh_get(p, taxmap, key)) != kh_end(taxmap)) ? kh_val(taxmap, ki)
+                                                             : std::numeric_limits<std::uint32_t>::max();
+}
 
 } // namespace emp
 

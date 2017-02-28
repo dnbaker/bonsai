@@ -68,6 +68,7 @@ struct kg_data {
     std::vector<khash_t(all) *> &core_;
     std::vector<std::string>    &paths_;
     Spacer                      &sp_;
+    khash_t(all)                *acceptable_;
 };
 void kg_helper(void *data_, long index, int tid);
 
@@ -75,11 +76,12 @@ class kgset_t {
 
     std::vector<khash_t(all) *> core_;
     std::vector<std::string>   &paths_;
+    khash_t(all)               *acceptable_;
 
 public:
     void fill(std::vector<std::string> &paths, Spacer &sp, int num_threads=-1) {
         if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
-        kg_data data{core_, paths, sp};
+        kg_data data{core_, paths, sp, acceptable_};
         kt_for(num_threads, &kg_helper, (void *)&data, core_.size());
     }
     std::vector<khash_t(all) *> &get_core() {
@@ -89,7 +91,7 @@ public:
         return paths_;
     }
     // Encoding constructor
-    kgset_t(std::vector<std::string> &paths, Spacer &sp, int num_threads=-1): paths_(paths) {
+    kgset_t(std::vector<std::string> &paths, Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr): paths_(paths), acceptable_(acc) {
         core_.reserve(paths_.size());
         for(std::size_t i(0), end(paths.size()); i != end; ++i) core_.emplace_back(kh_init(all));
         fill(paths, sp, num_threads);

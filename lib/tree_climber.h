@@ -8,12 +8,6 @@ namespace emp {
 
 namespace tree {
 
-INLINE std::uint32_t get_parent(khash_t(p) *taxmap, std::uint32_t key) noexcept {
-    // Returns maximum value if not found.
-    khiter_t ki;
-    return ((ki = kh_get(p, taxmap, key)) != kh_end(taxmap)) ? kh_val(taxmap, ki)
-                                                             : std::numeric_limits<std::uint32_t>::max();
-}
 
 
 khash_t(p) *pruned_taxmap(std::vector<std::string> &paths, khash_t(p) *taxmap, khash_t(name) *name_hash);
@@ -67,6 +61,7 @@ public:
 std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *folder, int prebuilt);
 
 std::vector<std::uint64_t> load_binary_kmers(const char *path);
+khash_t(all) *load_binary_kmerset(const char *path);
 
 } // namespace tree
 
