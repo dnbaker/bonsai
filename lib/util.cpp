@@ -212,15 +212,15 @@ std::uint32_t get_taxid(const char *fn, khash_t(name) *name_hash) {
 
 
 
-std::unordered_map<std::uint32_t, std::list<std::string>> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths) {
+std::unordered_map<std::uint32_t, std::forward_list<std::string>> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths) {
     std::uint32_t taxid;
-    std::unordered_map<std::uint32_t, std::list<std::string>> ret;
+    std::unordered_map<std::uint32_t, std::forward_list<std::string>> ret;
     ret.reserve(paths.size());
     for(const auto &path: paths) {
         taxid = get_taxid(path.data(), name_map);
         auto m(ret.find(taxid));
-        if(m == ret.end()) ret.emplace(taxid, std::list<std::string>{path});
-        else m->second.emplace_back(path);
+        if(m == ret.end()) ret.emplace(taxid, std::forward_list<std::string>{path});
+        else m->second.emplace_front(path);
     }
     return ret;
 }

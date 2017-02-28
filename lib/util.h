@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <type_traits>
 #include <map>
-#include <list>
+#include <forward_list>
 #include <vector>
 #include <unordered_map>
 #include "khash64.h"
@@ -149,7 +149,7 @@ void kset_union(khash_t(all) *a, khash_t(all) *b) noexcept;
 
 std::uint32_t lca(khash_t(p) *map, std::uint32_t a, std::uint32_t b) noexcept;
 unsigned node_depth(khash_t(p) *map, std::uint32_t a) noexcept;
-std::unordered_map<std::uint32_t, std::list<std::string>> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths);
+std::unordered_map<std::uint32_t, std::forward_list<std::string>> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths);
 
 } // namespace emp
 
