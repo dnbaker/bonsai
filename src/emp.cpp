@@ -267,9 +267,9 @@ int metatree_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
     std::size_t ind(0);
     for(int i(0), e(offsets.size() - 1); i != e; ++i) {
-        const std::uint32_t parent_tax(get_parent(nodes[offsets[i]], taxmap));
+        const std::uint32_t parent_tax(get_parent(taxmap, nodes[offsets[i]]));
         khash_t(all) *acceptable(kh_init(all));
-        fill_set_genome_container<lex_score>(tx2g[parent_tax], sp, acceptable, nullptr, nullptr);
+        fill_set_genome_container<lex_score>(tx2g[parent_tax], sp, acceptable, nullptr);
         count::Counter<std::vector<std::uint64_t>> counts; // TODO: make binary dump version of this.
         adjmap_t adj(counts);
         kh_destroy(all, acceptable);

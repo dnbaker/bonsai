@@ -67,7 +67,7 @@ int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret) {
 }
 
 template<std::uint64_t (*score)(std::uint64_t, void *)>
-std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, std::size_t index, void *data, khash_t(all) *acceptable=nullptr) {
+std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, std::size_t index, void *data) {
     LOG_ASSERT(ret);
     LOG_INFO("Filling from genome at path %s\n", path);
     gzFile ifp(gzopen(path, "rb"));
@@ -82,18 +82,17 @@ std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *re
     if(sp.w_ > sp.k_) {
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
-            while(likely(enc.has_next_kmer()))
+            while(likely(enc.has_next_kmer())) {
                 if((kmer = enc.next_minimizer()) != BF)
-                    if(!acceptable || kh_get(all, acceptable, kmer) != kh_end(acceptable))
-                        kh_put(all, ret, kmer, &khr);
+                    kh_put(all, ret, kmer, &khr);
+            }
         }
     } else {
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
             while(likely(enc.has_next_kmer()))
                 if((kmer = enc.next_kmer()) != BF)
-                    if(!acceptable || kh_get(all, acceptable, kmer) != kh_end(acceptable))
-                        kh_put(all, ret, kmer, &khr);
+                    kh_put(all, ret, kmer, &khr);
         }
     }
     kseq_destroy(ks);
@@ -103,9 +102,9 @@ std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *re
 }
 
 template<std::uint64_t (*score)(std::uint64_t, void *), class Container>
-std::size_t fill_set_genome_container(Container container, const Spacer &sp, khash_t(all) *ret, void *data, khash_t(all) *acceptable=nullptr) {
+std::size_t fill_set_genome_container(Container container, const Spacer &sp, khash_t(all) *ret, void *data) {
     for(std::string &str: container)
-        fill_set_genome(str.data(), sp, ret, data, acceptable);
+        fill_set_genome<score>(str.data(), sp, ret, 0, data);
     return 0;
 }
 
