@@ -197,6 +197,7 @@ std::uint32_t get_taxid(const char *fn, khash_t(name) *name_hash) {
         char *q(std::strchr(++p, '|'));
         *q = 0;
         line = p;
+        //if(strchr(p, '.')) *strchr(p, '.') = 0;
     } else {
         while(!std::isspace(*p)) ++p;
         *p = 0;
@@ -218,6 +219,8 @@ std::unordered_map<std::uint32_t, std::forward_list<std::string>> tax2genome_map
     ret.reserve(paths.size());
     for(const auto &path: paths) {
         taxid = get_taxid(path.data(), name_map);
+        if(taxid == UINT32_C(-1)) continue;
+        LOG_INFO("Found taxid %u\n", taxid);
         auto m(ret.find(taxid));
         if(m == ret.end()) ret.emplace(taxid, std::forward_list<std::string>{path});
         else m->second.emplace_front(path);

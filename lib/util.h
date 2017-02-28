@@ -9,6 +9,7 @@
 #include <forward_list>
 #include <vector>
 #include <unordered_map>
+#include <limits>
 #include "khash64.h"
 #include "lib/logutil.h"
 

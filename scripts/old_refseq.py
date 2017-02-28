@@ -56,7 +56,7 @@ def append_old_to_new(gi2tax_map, newmap, concat_map, folder=FOLDER):
     ofh = open(concat_map, "w")
     ofw = ofh.write
     print("Length of accepted things: %i" % len(gi2tax_map))
-    missing = set()
+    found, missing = set(), set()
     for path in paths:
         sys.stderr.write("Processing path %s" % path)
         fl = xfirstline(path)
@@ -64,13 +64,15 @@ def append_old_to_new(gi2tax_map, newmap, concat_map, folder=FOLDER):
         name = ptoks[3]
         key = int(ptoks[1])
         try:
-            ofw("%s\t%i\n" % (name, gi2tax_map[key]))
+            val = gi2tax_map[key]
+            ofw("%s\t%i\n" % (name, val))
+            found.add(path)
         except KeyError:
             missing.add(int(fl.split("|")[1]))
     print("Missing: " + str(missing))
     ofh.close()
     cc("cat %s >> %s" % (newmap, concat_map), shell=True)
-    return concat_map
+    return concat_map, found
 
 
 def getopts():
@@ -80,8 +82,8 @@ def getopts():
     a.add_argument("--combined-nameid-map", "-c", required=True)
     a.add_argument("--taxonomy", "-t", required=True)
     a.add_argument("--no-download", '-D', default=False, action="store_true")
-    a.add_argument("--accessions", "-a", description="Path to file containing i100 genome accessions.")
-    raise NotImplementedError("I need to finish adding code for using accessions only in filtering.")
+    a.add_argument("--accessions", "-a", help="Path to file containing i100 genome accessions.")
+    a.add_argument("--found", "-f", help="Path to write found files to.")
     return a.parse_args()
 
 
@@ -147,12 +149,15 @@ def main():
     taxmap = build_full_taxmap(args.taxonomy)
     acceptable_taxids = get_acceptable_taxids(taxmap)
     print("Appending old to new")
-    concat = append_old_to_new(parse_gi2tax(gi2tax, acceptable_taxids),
-                               args.new_refseq_nameid_map,
-                               args.combined_nameid_map, args.folder)
+    concat, found = append_old_to_new(parse_gi2tax(gi2tax, acceptable_taxids),
+                                      args.new_refseq_nameid_map,
+                                      args.combined_nameid_map, args.folder)
     nl = int(co("wc -l %s" % concat, shell=True).decode().split()[0])
     sys.stderr.write("Concatenated file of total lines "
                      "%i is written to %s.\n" % (nl, concat))
+    with open(args.found if args.found else "found_paths.txt", "w") as f:
+        for path in found:
+            f.write(path + "\n")
     return 0
     
 if __name__ == "__main__":
