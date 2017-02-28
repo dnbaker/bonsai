@@ -235,9 +235,9 @@ void metatree_usage(char *arg) {
 
 int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
-    int c, k(31), w(31);
+    int c, k(31), w(31), dry_run(0);
     std::string paths_file, folder, spacing;
-    while((c = getopt(argc, argv, "w:k:s:f:F:h?")) >= 0) {
+    while((c = getopt(argc, argv, "w:k:s:f:F:h?d")) >= 0) {
         switch(c) {
             case '?': case 'h': metatree_usage(*argv);
             case 'f': folder = optarg; break;
@@ -245,11 +245,11 @@ int metatree_main(int argc, char *argv[]) {
             case 'w': w = atoi(optarg); break;
             case 's': spacing = optarg; break;
             case 'k': k = atoi(optarg); break;
+            case 'd': dry_run = 1; break;
         }
     }
     khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));
     spvec_t v(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
-    Database<khash_t(c)> db(argv[optind]);
     khash_t(p) *tmp_taxmap(build_parent_map(argv[optind + 1]));
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 5, argv + argc));
@@ -260,7 +260,9 @@ int metatree_main(int argc, char *argv[]) {
     Spacer sp(k, w, v);
     std::vector<std::uint32_t> nodes(std::move(guide.get_nodes())), offsets(std::move(guide.get_offsets()));
     offsets.insert(offsets.begin(), 0);
-    std::vector<std::string> to_fetch(tree::invert_lca_map(db, folder.data()));
+    Database<khash_t(c)> db(argv[optind]);
+    std::vector<std::string> to_fetch(tree::invert_lca_map(db, folder.data(), dry_run));
+    std::unordered_map<std::uint32_t, std::list<std::string>> tx2g(tax2genome_map(name_hash, inpaths));
     LOG_INFO("I'm only performing the initial inversion at this stage.\n");
     return EXIT_SUCCESS;
     std::size_t ind(0);

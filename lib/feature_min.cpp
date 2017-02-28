@@ -119,32 +119,4 @@ void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, std::uin
     LOG_DEBUG("After updating with set of size %zu, total set current size is %zu.\n", kh_size(set), kh_size(kc));
 }
 
-std::uint32_t get_taxid(const char *fn, khash_t(name) *name_hash) {
-    gzFile fp(gzopen(fn, "rb"));
-    if(fp == nullptr) LOG_EXIT("Could not read from file %s\n", fn);
-    static const std::size_t bufsz(2048);
-    khint_t ki;
-    char buf[bufsz];
-    char *line(gzgets(fp, buf, bufsz));
-    char *p(++line);
-    if(std::strchr(p, '|')) {
-        p = std::strrchr(p, '|');
-        while(*--p != '|');
-        char *q(std::strchr(++p, '|'));
-        *q = 0;
-        line = p;
-    } else {
-        while(!std::isspace(*p)) ++p;
-        *p = 0;
-    }
-    if(unlikely((ki = kh_get(name, name_hash, line)) == kh_end(name_hash))) {
-        LOG_WARNING("Missing taxid for %s, '%s'.\n", buf, line);
-        gzclose(fp);
-        return UINT32_C(-1);
-    }
-    gzclose(fp);
-    return kh_val(name_hash, ki);
-}
-
-
 } //namespace emp

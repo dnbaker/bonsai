@@ -26,7 +26,6 @@ namespace emp {
 
 template<std::uint64_t (*score)(std::uint64_t, void *)>
 khash_t(64) *feature_count_map(std::vector<std::string> fns, const Spacer &sp, int num_threads=8);
-std::uint32_t get_taxid(const char *fn, khash_t(name) *name_hash);
 
 khash_t(c) *make_depth_hash(khash_t(c) *lca_map, khash_t(p) *tax_map);
 void lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map);

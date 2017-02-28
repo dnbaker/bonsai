@@ -2,31 +2,43 @@
 
 namespace emp { namespace tree {
 
-std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *folder) {
+std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *folder, int prebuilt) {
     std::vector<std::string> ret;
     std::unordered_map<std::uint32_t, std::FILE *> ofps;
     std::unordered_map<std::uint32_t, std::uint64_t> ofp_counts;
     khash_t(c) *map(db.db_); // Does not own; shorthand.
-    for(khiter_t ki(0); ki != kh_end(map); ++ki) {
-        if(!kh_exist(map, ki)) continue;
-        auto m(ofps.find(kh_val(map, ki)));
-        auto mc(ofp_counts.find(kh_val(map, ki)));
-        if(m == ofps.end()) {
-            char buf[64];
-            const std::uint64_t tmp(UINT64_C(-1));
-            std::sprintf(buf, "%s/%u.kmers.bin", folder, kh_val(map, ki));
-            ret.emplace_back(buf);
-            m = ofps.emplace(kh_val(map, ki), std::fopen(buf, "wb")).first;
-            mc = ofp_counts.emplace(kh_val(map, ki), 0).first;
-            std::fwrite(&tmp, 1, sizeof(tmp), m->second);
+    if(prebuilt == 0) {
+        for(khiter_t ki(0); ki != kh_end(map); ++ki) {
+            if(!kh_exist(map, ki)) continue;
+            auto m(ofps.find(kh_val(map, ki)));
+            auto mc(ofp_counts.find(kh_val(map, ki)));
+            if(m == ofps.end()) {
+                char buf[64];
+                const std::uint64_t tmp(UINT64_C(-1));
+                std::sprintf(buf, "%s/%u.kmers.bin", folder, kh_val(map, ki));
+                ret.emplace_back(buf);
+                m = ofps.emplace(kh_val(map, ki), std::fopen(buf, "wb")).first;
+                mc = ofp_counts.emplace(kh_val(map, ki), 0).first;
+                std::fwrite(&tmp, 1, sizeof(tmp), m->second);
+            }
+            std::fwrite(&kh_key(map, ki), sizeof(kh_key(map, ki)), 1, m->second);
+            ++mc->second;
         }
-        std::fwrite(&kh_key(map, ki), sizeof(kh_key(map, ki)), 1, m->second);
-        ++mc->second;
-    }
-    for(auto &pair: ofps) {
-        std::rewind(pair.second);
-        std::fwrite(&ofp_counts[pair.first], 1, sizeof(std::uint64_t), pair.second);
-        std::fclose(pair.second);
+        for(auto &pair: ofps) {
+            std::rewind(pair.second);
+            std::fwrite(&ofp_counts[pair.first], 1, sizeof(std::uint64_t), pair.second);
+            std::fclose(pair.second);
+        }
+    } else {
+        for(khiter_t ki(0); ki != kh_end(map); ++ki) {
+            if(!kh_exist(map, ki)) continue;
+            auto m(ofps.find(kh_val(map, ki)));
+            if(m == ofps.end()) {
+                char buf[64];
+                std::sprintf(buf, "%s/%u.kmers.bin", folder, kh_val(map, ki));
+                ret.emplace_back(buf);
+            }
+        }
     }
     return ret;
 }

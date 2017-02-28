@@ -1,6 +1,8 @@
 #include "util.h"
 #include <set>
 #include <cassert>
+#include <cstring>
+#include <zlib.h>
 
 namespace emp {
 
@@ -178,6 +180,48 @@ std::string rand_string(std::size_t n) {
     static const char set[] = "abcdefghijklmnopqrstuvwxyz123456";
     while(ret.size() < n) ret += set[std::rand() & 31];
     assert(ret.size() == n);
+    return ret;
+}
+
+std::uint32_t get_taxid(const char *fn, khash_t(name) *name_hash) {
+    gzFile fp(gzopen(fn, "rb"));
+    if(fp == nullptr) LOG_EXIT("Could not read from file %s\n", fn);
+    static const std::size_t bufsz(2048);
+    khint_t ki;
+    char buf[bufsz];
+    char *line(gzgets(fp, buf, bufsz));
+    char *p(++line);
+    if(std::strchr(p, '|')) {
+        p = std::strrchr(p, '|');
+        while(*--p != '|');
+        char *q(std::strchr(++p, '|'));
+        *q = 0;
+        line = p;
+    } else {
+        while(!std::isspace(*p)) ++p;
+        *p = 0;
+    }
+    if(unlikely((ki = kh_get(name, name_hash, line)) == kh_end(name_hash))) {
+        LOG_WARNING("Missing taxid for %s, '%s'.\n", buf, line);
+        gzclose(fp);
+        return UINT32_C(-1);
+    }
+    gzclose(fp);
+    return kh_val(name_hash, ki);
+}
+
+
+
+std::unordered_map<std::uint32_t, std::list<std::string>> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths) {
+    std::uint32_t taxid;
+    std::unordered_map<std::uint32_t, std::list<std::string>> ret;
+    ret.reserve(paths.size());
+    for(const auto &path: paths) {
+        taxid = get_taxid(path.data(), name_map);
+        auto m(ret.find(taxid));
+        if(m == ret.end()) ret.emplace(taxid, std::list<std::string>{path});
+        else m->second.emplace_back(path);
+    }
     return ret;
 }
 
