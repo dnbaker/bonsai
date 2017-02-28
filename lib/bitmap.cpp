@@ -10,7 +10,7 @@ std::uint64_t adjlist_node_addn(std::vector<std::uint64_t> &bitstring,
     const auto node(counts.find(bitstring));
     if(unlikely(m == am.end()) || node == counts.end()) return UINT64_C(-1);
     std::uint64_t ret(node->second * (nelem - popcnt::vec_popcnt(node->first)));
-    for(auto i: m->second) ret += counts.find(*i)->second * popcnt::vec_popcnt(*i);
+    for(const auto i: m->second) ret += counts.find(*i)->second * popcnt::vec_popcnt(*i);
     return ret;
 }
 

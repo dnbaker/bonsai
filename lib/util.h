@@ -131,7 +131,9 @@ T *khash_load_impl(std::FILE *fp) noexcept {
     LOG_DEBUG("buckets: %zu. nocc: %zu. size: %zu. ub: %zu\n", (size_t)rex->n_buckets, size_t(rex->n_occupied), size_t(rex->size), size_t(rex->upper_bound));
     rex->flags = (std::uint32_t *)std::malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
     rex->keys = (keytype_t *)std::malloc(sizeof(*rex->keys) * rex->n_buckets);
+    if(!rex->keys) std::fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->keys) * rex->n_buckets, sizeof(*rex->keys) * rex->n_buckets >> 30), exit(1);
     rex->vals = (valtype_t *)std::malloc(sizeof(*rex->vals) * rex->n_buckets);
+    if(!rex->vals) std::fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->vals) * rex->n_buckets, sizeof(*rex->vals) * rex->n_buckets >> 30), exit(1);
     std::fread(rex->flags, __ac_fsize(rex->n_buckets), sizeof(*rex->flags), fp);
     std::fread(rex->keys, 1, rex->n_buckets * sizeof(*rex->keys), fp);
     std::fread(rex->vals, 1, rex->n_buckets * sizeof(*rex->vals), fp);

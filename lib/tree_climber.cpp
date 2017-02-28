@@ -7,22 +7,29 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
     std::unordered_map<std::uint32_t, std::FILE *> ofps;
     std::unordered_map<std::uint32_t, std::uint64_t> ofp_counts;
     khash_t(c) *map(db.db_); // Does not own; shorthand.
+    assert(map);
+    std::string fld;
+    if(folder && *folder) fld = folder, fld += '/';
     if(prebuilt == 0) {
         for(khiter_t ki(0); ki != kh_end(map); ++ki) {
             if(!kh_exist(map, ki)) continue;
             auto m(ofps.find(kh_val(map, ki)));
             auto mc(ofp_counts.find(kh_val(map, ki)));
             if(m == ofps.end()) {
-                char buf[64];
+                LOG_DEBUG("Adding to map\n");
+                char buf[256];
                 const std::uint64_t tmp(UINT64_C(-1));
-                std::sprintf(buf, "%s/%u.kmers.bin", folder, kh_val(map, ki));
+                std::sprintf(buf, "%s%u.kmers.bin", fld.data(), kh_val(map, ki));
                 ret.emplace_back(buf);
                 m = ofps.emplace(kh_val(map, ki), std::fopen(buf, "wb")).first;
+                LOG_DEBUG("fp: %p. path: %s\n", (void*)m->second, ret[ret.size() - 1].data());
                 mc = ofp_counts.emplace(kh_val(map, ki), 0).first;
-                std::fwrite(&tmp, 1, sizeof(tmp), m->second);
+                if(std::fwrite(&tmp, 1, sizeof(tmp), m->second) != sizeof(tmp)) LOG_DEBUG("Could not write kmer to file %p\n", (void *)m->second);
             }
+            LOG_DEBUG("Added to map\n");
             std::fwrite(&kh_key(map, ki), sizeof(kh_key(map, ki)), 1, m->second);
             ++mc->second;
+            std::fprintf(stderr, "Position of file pointer: %zu\n", (std::size_t)ftell(m->second));
         }
         for(auto &pair: ofps) {
             std::rewind(pair.second);
@@ -34,8 +41,8 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
             if(!kh_exist(map, ki)) continue;
             auto m(ofps.find(kh_val(map, ki)));
             if(m == ofps.end()) {
-                char buf[64];
-                std::sprintf(buf, "%s/%u.kmers.bin", folder, kh_val(map, ki));
+                char buf[256];
+                std::sprintf(buf, "%s%u.kmers.bin", fld.data(), kh_val(map, ki));
                 ret.emplace_back(buf);
             }
         }

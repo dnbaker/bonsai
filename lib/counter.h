@@ -104,7 +104,7 @@ public:
     std::size_t total() const {return n_;}
     auto begin()        const {return map_.begin();}
     auto end()          const {return map_.end();}
-    auto find(T &elem)  const {return map_.find(elem);}
+    auto find(const T &elem)  const {return map_.find(elem);}
 
     const std::unordered_map<T, std::size_t, Hash> &get_map() { return map_;}
 
