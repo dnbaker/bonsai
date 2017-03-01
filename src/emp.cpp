@@ -268,7 +268,10 @@ int metatree_main(int argc, char *argv[]) {
     std::size_t ind(0);
     for(int i(0), e(offsets.size() - 1); i != e; ++i) {
         const std::uint32_t parent_tax(get_parent(taxmap, nodes[offsets[i]]));
-        khash_t(all) *acceptable(kh_init(all));
+        std::string parent_path(folder);
+        if(!parent_path.empty()) parent_path += '/';
+        parent_path += std::to_string(parent_tax) + ".kmers.bin";
+        khash_t(all) *acceptable(tree::load_binary_kmerset(parent_path.data()));
         fill_set_genome_container<lex_score>(tx2g[parent_tax], sp, acceptable, nullptr);
         count::Counter<std::vector<std::uint64_t>> counts; // TODO: make binary dump version of this.
         adjmap_t adj(counts);
@@ -279,6 +282,30 @@ int metatree_main(int argc, char *argv[]) {
     kh_destroy(p, taxmap);
     return EXIT_SUCCESS;
 }
+struct tmpstruct {
+    std::uint32_t el;
+    std::uint32_t count;
+    tmpstruct(unsigned el, std::size_t count): el(el), count(count) {}
+};
+
+int hist_main(int argc, char *argv[]) {
+    Database<khash_t(c)> db(argv[1]);
+    khash_t(c) *map(db.db_);
+    std::FILE *ofp(stdout);
+    count::Counter<std::uint32_t> counter;
+    if(argc > 2) ofp = std::fopen(argv[2], "w");
+    for(khiter_t ki(0); ki != kh_end(map); ++ki) if(kh_exist(map, ki)) counter.add(kh_val(map, ki));
+    auto &cmap(counter.get_map());
+    std::vector<tmpstruct> structs;
+    for(auto& i: cmap) structs.emplace_back(i.first, i.second);
+    std::sort(std::begin(structs), std::end(structs), [] (tmpstruct &a, tmpstruct &b) {
+        return a.count < b.count;
+    });
+    std::fputs("Name\tCount\n", ofp);
+    for(auto &i: structs) std::fprintf(ofp, "%u\t%u\n", i.el, i.count);
+    if(ofp != stdout) std::fclose(ofp);
+    return EXIT_SUCCESS;
+}
 
 static std::vector<std::pair<std::string, int (*)(int, char **)>> mains {
     {"phase1", phase1_main},
@@ -287,6 +314,7 @@ static std::vector<std::pair<std::string, int (*)(int, char **)>> mains {
     {"p2",     phase2_main},
     {"lca", phase1_main},
     {"hll", hll_main},
+    {"hist", hist_main},
     {"metatree", metatree_main},
     {"classify", classify_main}
 };

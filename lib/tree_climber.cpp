@@ -9,6 +9,7 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
     khash_t(c) *map(db.db_); // Does not own; shorthand.
     assert(map);
     std::string fld;
+    int fwritten;
     if(folder && *folder) fld = folder, fld += '/';
     if(prebuilt == 0) {
         for(khiter_t ki(0); ki != kh_end(map); ++ki) {
@@ -16,20 +17,41 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
             auto m(ofps.find(kh_val(map, ki)));
             auto mc(ofp_counts.find(kh_val(map, ki)));
             if(m == ofps.end()) {
-                LOG_DEBUG("Adding to map\n");
-                char buf[256];
+                LOG_DEBUG("Adding %u to map\n", kh_val(map, ki));
                 const std::uint64_t tmp(UINT64_C(-1));
+                char buf[256];
                 std::sprintf(buf, "%s%u.kmers.bin", fld.data(), kh_val(map, ki));
                 ret.emplace_back(buf);
                 m = ofps.emplace(kh_val(map, ki), std::fopen(buf, "wb")).first;
-                LOG_DEBUG("fp: %p. path: %s\n", (void*)m->second, ret[ret.size() - 1].data());
-                mc = ofp_counts.emplace(kh_val(map, ki), 0).first;
-                if(std::fwrite(&tmp, 1, sizeof(tmp), m->second) != sizeof(tmp)) LOG_DEBUG("Could not write kmer to file %p\n", (void *)m->second);
+                if(m->second == nullptr) {
+                    char buf2[512];
+                    std::sprintf(buf2, "Could not open file at path %s\n", buf);
+                    perror(buf2);
+                    exit(1);
+                }
+                LOG_DEBUG("Opened file at %s\n", buf);
+                mc = ofp_counts.emplace(kh_val(map, ki), 1).first;
+                fwritten = std::fwrite(&tmp, sizeof(tmp), 1, m->second);
+#if 0
+                if(fwritten != sizeof(tmp)) {
+                    char buf2[256];
+                    std::sprintf(buf2, "Could not write dummy value. Size written: %i\n", fwritten);
+                    perror(buf), exit(1);
+                }
+                LOG_DEBUG("Wrote one entry!\n");
+#endif
+            } else ++mc->second;
+            fwritten = std::fwrite(&kh_key(map, ki), sizeof(kh_key(map, ki)), 1, m->second);
+#if 0
+            if(fwritten != sizeof(kh_key(map, ki))) {
+                char buf2[256];
+                std::sprintf(buf2, "Could not write dummy value. Size written: %i. taxid: %u\n", fwritten, kh_val(map, ki));
+                perror(buf2), exit(1);
             }
-            LOG_DEBUG("Added to map\n");
-            std::fwrite(&kh_key(map, ki), sizeof(kh_key(map, ki)), 1, m->second);
-            ++mc->second;
-            std::fprintf(stderr, "Position of file pointer: %zu\n", (std::size_t)ftell(m->second));
+#endif
+#if !NDEBUG
+            if((ki & 0xFFFFFF) == 0) LOG_DEBUG("Processed %zu so far\n", (std::size_t)ki);
+#endif
         }
         for(auto &pair: ofps) {
             std::rewind(pair.second);
