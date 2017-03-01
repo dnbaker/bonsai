@@ -229,22 +229,22 @@ void metatree_usage(char *arg) {
     std::fprintf(stderr, "Usage: %s <db.path> <taxmap> <nameidmap> <out_taxmap> <out_taxkey>\n"
                          "\n"
                          "-F: Parse file paths from file instead of further arguments at command-line.\n"
+                         "-d: Do not perform inversion (assume it's already been done.)\n"
+                         "-F: Parse file paths from file instead of further arguments at command-line.\n"
+                         "-f: Store binary dumps in folder <arg>.\n"
                  , arg);
     std::exit(EXIT_FAILURE);
 }
 
 int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
-    int c, k(31), w(31), dry_run(0);
+    int c, dry_run(0);
     std::string paths_file, folder, spacing;
     while((c = getopt(argc, argv, "w:k:s:f:F:h?d")) >= 0) {
         switch(c) {
             case '?': case 'h': metatree_usage(*argv);
             case 'f': folder = optarg; break;
             case 'F': paths_file = optarg; break;
-            case 'w': w = atoi(optarg); break;
-            case 's': spacing = optarg; break;
-            case 'k': k = atoi(optarg); break;
             case 'd': dry_run = 1; break;
         }
     }
@@ -257,10 +257,11 @@ int metatree_main(int argc, char *argv[]) {
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, tmp_taxmap, name_hash));
     kh_destroy(p, tmp_taxmap);
     tree::SortedNodeGuide guide(taxmap);
-    Spacer sp(k, w, v);
+    Database<khash_t(c)> db(argv[optind]);
+    Spacer sp(db.k_, db.w_, db.s_);
+    for(auto &i: sp.s_) --i;
     std::vector<std::uint32_t> nodes(std::move(guide.get_nodes())), offsets(std::move(guide.get_offsets()));
     offsets.insert(offsets.begin(), 0);
-    Database<khash_t(c)> db(argv[optind]);
     std::vector<std::string> to_fetch(tree::invert_lca_map(db, folder.data(), dry_run));
     std::unordered_map<std::uint32_t, std::forward_list<std::string>> tx2g(tax2genome_map(name_hash, inpaths));
     LOG_INFO("I'm only performing the initial inversion at this stage.\n");

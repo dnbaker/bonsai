@@ -114,9 +114,9 @@ std::vector<std::uint64_t> load_binary_kmers(const char *path) {
     std::FILE *fp(fopen(path, "rb"));
     std::vector<std::uint64_t> ret;
     std::uint64_t n, ind(0);
-    std::fread(&n, 1, sizeof(n), fp);
+    std::fread(&n, sizeof(n), 1, fp);
     ret.resize(n); // Initializes to 0 unnecessarily. Better than passing it to a temporary variable every time, I think.
-    while(std::fread(ret.data() + ind++, 1, sizeof(std::uint64_t), fp) == sizeof(std::uint64_t));
+    while(std::fread(ret.data() + ind++, sizeof(std::uint64_t), 1, fp) == sizeof(std::uint64_t));
     std::fclose(fp);
     return ret;
 }

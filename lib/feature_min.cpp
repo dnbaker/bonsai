@@ -53,9 +53,7 @@ void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *
     return;
 }
 
-#if !NDEBUG
 #undef _DBP
-#endif
 
 khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, khash_t(p) *tax) {
     khash_t(64) *ret(kh_init(64));
