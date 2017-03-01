@@ -238,7 +238,7 @@ void metatree_usage(char *arg) {
 
 int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
-    int c, dry_run(0);
+    int c, dry_run(0), num_threads(-1);
     std::string paths_file, folder, spacing;
     while((c = getopt(argc, argv, "w:k:s:f:F:h?d")) >= 0) {
         switch(c) {
@@ -246,10 +246,10 @@ int metatree_main(int argc, char *argv[]) {
             case 'f': folder = optarg; break;
             case 'F': paths_file = optarg; break;
             case 'd': dry_run = 1; break;
+            case 'p': num_threads = atoi(optarg); break;
         }
     }
     khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));
-    spvec_t v(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     khash_t(p) *tmp_taxmap(build_parent_map(argv[optind + 1]));
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 5, argv + argc));
@@ -264,16 +264,16 @@ int metatree_main(int argc, char *argv[]) {
     offsets.insert(offsets.begin(), 0);
     std::vector<std::string> to_fetch(tree::invert_lca_map(db, folder.data(), dry_run));
     std::unordered_map<std::uint32_t, std::forward_list<std::string>> tx2g(tax2genome_map(name_hash, inpaths));
-    LOG_INFO("I'm only performing the initial inversion at this stage.\n");
-    return EXIT_SUCCESS;
     std::size_t ind(0);
     for(int i(0), e(offsets.size() - 1); i != e; ++i) {
-        const std::uint32_t parent_tax(get_parent(taxmap, nodes[offsets[i]]));
+        ind = offsets[i];
+        const std::uint32_t parent_tax(get_parent(taxmap, nodes[ind]));
         std::string parent_path(folder);
         if(!parent_path.empty()) parent_path += '/';
         parent_path += std::to_string(parent_tax) + ".kmers.bin";
         khash_t(all) *acceptable(tree::load_binary_kmerset(parent_path.data()));
-        fill_set_genome_container<lex_score>(tx2g[parent_tax], sp, acceptable, nullptr);
+        // I need to change this to use tax2genome map and to quit once it gets to the point that it isn't on the bottom of the tree.
+        kgset_t kgset(inpaths.begin() + ind, inpaths.begin() + offsets[i + 1], sp, num_threads, acceptable);
         count::Counter<std::vector<std::uint64_t>> counts; // TODO: make binary dump version of this.
         adjmap_t adj(counts);
         kh_destroy(all, acceptable);
@@ -283,11 +283,6 @@ int metatree_main(int argc, char *argv[]) {
     kh_destroy(p, taxmap);
     return EXIT_SUCCESS;
 }
-struct tmpstruct {
-    std::uint32_t el;
-    std::uint32_t count;
-    tmpstruct(unsigned el, std::size_t count): el(el), count(count) {}
-};
 
 int hist_main(int argc, char *argv[]) {
     Database<khash_t(c)> db(argv[1]);
@@ -297,9 +292,13 @@ int hist_main(int argc, char *argv[]) {
     if(argc > 2) ofp = std::fopen(argv[2], "w");
     for(khiter_t ki(0); ki != kh_end(map); ++ki) if(kh_exist(map, ki)) counter.add(kh_val(map, ki));
     auto &cmap(counter.get_map());
-    std::vector<tmpstruct> structs;
+    struct elcount {
+        std::uint32_t el; std::uint32_t count;
+        elcount(unsigned el, std::size_t count): el(el), count(count) {}
+    } __attribute__((packed));
+    std::vector<elcount> structs;
     for(auto& i: cmap) structs.emplace_back(i.first, i.second);
-    std::sort(std::begin(structs), std::end(structs), [] (tmpstruct &a, tmpstruct &b) {
+    std::sort(std::begin(structs), std::end(structs), [] (elcount &a, elcount &b) {
         return a.count < b.count;
     });
     std::fputs("Name\tCount\n", ofp);

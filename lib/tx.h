@@ -75,7 +75,7 @@ void kg_helper(void *data_, long index, int tid);
 class kgset_t {
 
     std::vector<khash_t(all) *> core_;
-    std::vector<std::string>   &paths_;
+    std::vector<std::string>    paths_;
     khash_t(all)               *acceptable_;
 
 public:
@@ -84,17 +84,18 @@ public:
         kg_data data{core_, paths, sp, acceptable_};
         kt_for(num_threads, &kg_helper, (void *)&data, core_.size());
     }
-    std::vector<khash_t(all) *> &get_core() {
-        return core_;
-    }
-    std::vector<std::string> &get_paths() {
-        return paths_;
+    std::vector<khash_t(all) *> &get_core()  {return core_;}
+    std::vector<std::string>    &get_paths() {return paths_;}
+    // Encoding constructor
+    kgset_t(typename std::vector<std::string>::iterator begin, typename std::vector<std::string>::iterator end,
+            Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr): paths_(begin, end), acceptable_(acc) {
+        core_.reserve(end - begin);
+        for(std::size_t i(0), end(paths_.size()); i != end; ++i) core_.emplace_back(kh_init(all));
+        fill(paths_, sp, num_threads);
     }
     // Encoding constructor
-    kgset_t(std::vector<std::string> &paths, Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr): paths_(paths), acceptable_(acc) {
-        core_.reserve(paths_.size());
-        for(std::size_t i(0), end(paths.size()); i != end; ++i) core_.emplace_back(kh_init(all));
-        fill(paths, sp, num_threads);
+    kgset_t(std::vector<std::string> &paths, Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr):
+        kgset_t(std::begin(paths), std::end(paths), sp, num_threads, acc) {
     }
     ~kgset_t() {
         for(auto i: core_) khash_destroy(i);
@@ -102,8 +103,9 @@ public:
     std::size_t size() const {return core_.size();}
 
     std::size_t weight() const {
-        std::size_t ret(core_[0]->n_occupied);
-        for(std::size_t i(1), e(core_.size()); i < e; ++i) ret += core_[i]->n_occupied;
+        if(!size()) return 0;
+        std::size_t ret(kh_size(core_[0]));
+        for(std::size_t i(1), e(core_.size()); i < e; ++i) ret += kh_size(core_[i]);
         return ret;
     }
 };
