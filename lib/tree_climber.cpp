@@ -32,7 +32,7 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
                 LOG_DEBUG("Opened file at %s\n", buf);
                 mc = ofp_counts.emplace(kh_val(map, ki), 1).first;
                 fwritten = std::fwrite(&tmp, sizeof(tmp), 1, m->second);
-#if 0
+#if 1
                 if(fwritten != sizeof(tmp)) {
                     char buf2[256];
                     std::sprintf(buf2, "Could not write dummy value. Size written: %i\n", fwritten);
@@ -42,7 +42,7 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
 #endif
             } else ++mc->second;
             fwritten = std::fwrite(&kh_key(map, ki), sizeof(kh_key(map, ki)), 1, m->second);
-#if 0
+#if 1
             if(fwritten != sizeof(kh_key(map, ki))) {
                 char buf2[256];
                 std::sprintf(buf2, "Could not write dummy value. Size written: %i. taxid: %u\n", fwritten, kh_val(map, ki));
