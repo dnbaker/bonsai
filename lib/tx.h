@@ -84,7 +84,7 @@ public:
         kg_data data{core_, paths, sp, acceptable_};
         kt_for(num_threads, &kg_helper, (void *)&data, core_.size());
     }
-    std::vector<khash_t(all) *> &get_core()  {return core_;}
+    const std::vector<khash_t(all) *> &get_core() const {return core_;}
     std::vector<std::string>    &get_paths() {return paths_;}
     // Encoding constructor
     kgset_t(typename std::vector<std::string>::iterator begin, typename std::vector<std::string>::iterator end,

@@ -14,30 +14,49 @@ template<typename T>
 class AdjacencyList {
     std::unordered_map<const T*, std::vector<const T*>> map_;
     std::size_t m_, nelem_;
+    const bool is_reverse_;
 
 public:
 
-    auto find(T *elem) const {return map_.find(elem);}
-    auto find(T &elem) const {return find(&elem);}
+    auto find(const T *elem) const {return map_.find(elem);}
+    auto find(const T &elem) const {return find(&elem);}
     auto end()         const {return map_.end();}
 
-    // Could also use a tree map depending on the size of the graph/number of keys.
-    AdjacencyList(count::Counter<T> &counts):
-        m_(0), nelem_(counts.get_nelem()) {
+    AdjacencyList(count::Counter<T> &counts, bool reverse=false):
+        m_(0), nelem_(counts.get_nelem()), is_reverse_(reverse) {
+        // O(n^2)
         std::set<T*> ptrs;
         auto &map(counts.get_map());
-        for(auto i(map.begin()), ie(map.end()); i != ie; ++i) {
-            ++m_;
-            auto j(i);
-            while(++j != map.end()) {
-                typename std::unordered_map<T*, std::vector<T*>>::iterator m;
-                switch(veccmp(i->first, j->first)) {
-                    case 1:
-                        map_[&i->first].push_back(&j->first);
-                        break;
-                    case 2:
-                        map_[&j->first].push_back(&i->first);
-                        break;
+        if(reverse == false) {
+            for(auto i(map.cbegin()), ie(map.cend()); i != ie; ++i) {
+                ++m_;
+                auto j(i);
+                while(++j != map.end()) {
+                    typename std::unordered_map<T*, std::vector<T*>>::iterator m;
+                    switch(veccmp(i->first, j->first)) {
+                        case 1:
+                            map_[&i->first].push_back(&j->first);
+                            break;
+                        case 2:
+                            map_[&j->first].push_back(&i->first);
+                            break;
+                    }
+                }
+            }
+        } else {
+            for(auto i(map.cbegin()), ie(map.cend()); i != ie; ++i) {
+                ++m_;
+                auto j(i);
+                while(++j != map.end()) {
+                    typename std::unordered_map<T*, std::vector<T*>>::iterator m;
+                    switch(veccmp(i->first, j->first)) {
+                        case 1:
+                            map_[&j->first].push_back(&i->first);
+                            break;
+                        case 2:
+                            map_[&i->first].push_back(&j->first);
+                            break;
+                    }
                 }
             }
         }
@@ -72,15 +91,13 @@ int veccmp(const std::vector<T> &a, const std::vector<T> &b) {
 
 class bitmap_t {
     std::unordered_map<std::uint64_t, std::vector<std::uint64_t>> core_;
-    kgset_t &set_;
 
-    public:
-
-    std::unordered_map<std::uint64_t, std::vector<std::uint64_t>> fill(kgset_t &set) {
+public:
+    std::unordered_map<std::uint64_t, std::vector<std::uint64_t>> fill(const kgset_t &set) {
         std::unordered_map<std::uint64_t, std::vector<std::uint64_t>> tmp;
         const unsigned len((set.size() + 63) >> 6);
         khash_t(all) *h;
-        auto &vec(set.get_core());
+        const auto &vec(set.get_core());
 
         for(std::size_t i(0); i < set.size(); ++i) {
             h = vec[i];
@@ -96,8 +113,8 @@ class bitmap_t {
         return tmp;
     }
 
-    bitmap_t(kgset_t &set): set_(set) {
-        auto tmp(fill(set));
+    bitmap_t(const kgset_t &set) {
+        const auto tmp(fill(set));
         unsigned bitsum;
 #if !NDEBUG
         std::size_t n_passed(0);
@@ -120,8 +137,8 @@ class bitmap_t {
 
 
 
-std::uint64_t score_node_addn(std::vector<std::uint64_t> &bitstring,
-                              adjmap_t &am, count::Counter<std::vector<std::uint64_t>> &counts);
+std::uint64_t score_node_addn(const std::vector<std::uint64_t> &bitstring,
+                              const adjmap_t &am, const count::Counter<std::vector<std::uint64_t>> &counts, std::size_t nelem);
 
 }
 

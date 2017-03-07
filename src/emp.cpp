@@ -261,21 +261,30 @@ int metatree_main(int argc, char *argv[]) {
     Spacer sp(db.k_, db.w_, db.s_);
     for(auto &i: sp.s_) --i;
     std::vector<std::uint32_t> nodes(std::move(guide.get_nodes())), offsets(std::move(guide.get_offsets()));
-    offsets.insert(offsets.begin(), 0);
+    offsets.insert(offsets.begin(), 0); // Bad complexity, but we only do it once.
     std::vector<std::string> to_fetch(tree::invert_lca_map(db, folder.data(), dry_run));
-    std::unordered_map<std::uint32_t, std::forward_list<std::string>> tx2g(tax2genome_map(name_hash, inpaths));
     std::size_t ind(0);
-    for(int i(0), e(offsets.size() - 1); i != e; ++i) {
+    for(int i(0), e(offsets.size() - 1); i < e; ++i) {
+        using indscore_t = std::pair<std::size_t, std::uint64_t>;
         ind = offsets[i];
         const std::uint32_t parent_tax(get_parent(taxmap, nodes[ind]));
         std::string parent_path(folder);
         if(!parent_path.empty()) parent_path += '/';
         parent_path += std::to_string(parent_tax) + ".kmers.bin";
         khash_t(all) *acceptable(tree::load_binary_kmerset(parent_path.data()));
-        // I need to change this to use tax2genome map and to quit once it gets to the point that it isn't on the bottom of the tree.
-        kgset_t kgset(inpaths.begin() + ind, inpaths.begin() + offsets[i + 1], sp, num_threads, acceptable);
-        count::Counter<std::vector<std::uint64_t>> counts; // TODO: make binary dump version of this.
-        adjmap_t adj(counts);
+        count::Counter<std::vector<std::uint64_t>> counts(bitmap_t(
+            kgset_t(inpaths.begin() + ind, inpaths.begin() + offsets[i + 1], sp, num_threads, acceptable)
+                                                                   ).to_counter());
+        adjmap_t fwd_adj(counts);
+        adjmap_t rev_adj(counts, true);
+        std::vector<indscore_t> scores;
+        std::size_t ci(0), nelem(offsets[i + 1] - ind);
+        for(auto &i: counts) {
+            scores.emplace_back(ci++, score_node_addn(i.first, fwd_adj, counts, nelem));
+        }
+        std::sort(scores.begin(), scores.end(), [](const indscore_t &a, const indscore_t &b) {
+            return a.second > b.second; // Puts top scorers first.
+        });
         kh_destroy(all, acceptable);
     }
 
