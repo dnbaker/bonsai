@@ -32,23 +32,18 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
                 LOG_DEBUG("Opened file at %s\n", buf);
                 mc = ofp_counts.emplace(kh_val(map, ki), 1).first;
                 fwritten = std::fwrite(&tmp, sizeof(tmp), 1, m->second);
-#if 1
-                if(fwritten != sizeof(tmp)) {
+                if(fwritten != 1) {
                     char buf2[256];
                     std::sprintf(buf2, "Could not write dummy value. Size written: %i\n", fwritten);
                     perror(buf), exit(1);
                 }
-                LOG_DEBUG("Wrote one entry!\n");
-#endif
             } else ++mc->second;
             fwritten = std::fwrite(&kh_key(map, ki), sizeof(kh_key(map, ki)), 1, m->second);
-#if 1
-            if(fwritten != sizeof(kh_key(map, ki))) {
+            if(fwritten != 1) {
                 char buf2[256];
                 std::sprintf(buf2, "Could not write dummy value. Size written: %i. taxid: %u\n", fwritten, kh_val(map, ki));
                 perror(buf2), exit(1);
             }
-#endif
 #if !NDEBUG
             if((ki & 0xFFFFFF) == 0) LOG_DEBUG("Processed %zu so far\n", (std::size_t)ki);
 #endif
@@ -59,11 +54,11 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
             std::fclose(pair.second);
         }
     } else {
+        char buf[256];
         for(khiter_t ki(0); ki != kh_end(map); ++ki) {
             if(!kh_exist(map, ki)) continue;
             auto m(ofps.find(kh_val(map, ki)));
             if(m == ofps.end()) {
-                char buf[256];
                 std::sprintf(buf, "%s%u.kmers.bin", fld.data(), kh_val(map, ki));
                 ret.emplace_back(buf);
             }
