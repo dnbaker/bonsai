@@ -9,13 +9,13 @@
 #include <set>
 
 // Decode 64-bit hash (contains both tax id and taxonomy depth for id)
-#define TDtax(key) ((std::uint32_t)key)
-#define TDdepth(key) ((std::uint32_t)~0 - (key >> 32))
-#define TDencode(depth, taxid) (((std::uint64_t)((std::uint32_t)~0 - depth) << 32) | taxid)
+#define TDtax(key) ((tax_t)key)
+#define TDdepth(key) ((tax_t)~0 - (key >> 32))
+#define TDencode(depth, taxid) (((std::uint64_t)((tax_t)~0 - depth) << 32) | taxid)
 
 // Decode 64-bit hash for feature counting.
 // TODO: add building of FeatureMin hash
-#define FMtax(key) ((std::uint32_t)key)
+#define FMtax(key) ((tax_t)key)
 #define FMcount(key) (key >> 32)
 
 #define FMencode(count, taxid) (((std::uint64_t)count << 32) | taxid)
@@ -32,11 +32,11 @@ void lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map);
 template<std::uint64_t (*score)(std::uint64_t, void *)>
 int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret);
 
-void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, std::uint32_t taxid);
-void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, std::uint32_t taxid);
+void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid);
+void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid);
 khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, khash_t(p) *tax);
 
-inline void update_feature_counter(khash_t(64) *kc, khash_t(p) *tax, khash_t(all) *set, const std::uint32_t taxid) {
+inline void update_feature_counter(khash_t(64) *kc, khash_t(p) *tax, khash_t(all) *set, const tax_t taxid) {
     int khr;
     khint_t k2;
     for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
@@ -218,7 +218,7 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
                 LOG_INFO("Submitted for %zu. Updating map for %zu. Total completed/all: %zu/%zu. Total size: %zu.\n",
                          submitted, index, completed, todo, kh_size(ret));
                 ++submitted, ++completed;
-                const std::uint32_t taxid(get_taxid(fns[index].data(), name_hash));
+                const tax_t taxid(get_taxid(fns[index].data(), name_hash));
                 LOG_DEBUG("Just fetched taxid from file %s %u.\n", fns[index].data(), taxid);
                 update_td_map(ret, counters[index], tax_map, taxid);
                 kh_destroy(all, counters[index]); // Destroy set once we're done with it.
@@ -274,7 +274,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
     // Daemon -- check the status of currently running jobs, submit new ones when available.
     while(submitted < todo) {
         LOG_DEBUG("Submitted %zu, todo %zu\n", submitted, todo);
-        std::uint32_t taxid;
+        tax_t taxid;
         for(auto &f: futures) {
             if(is_ready(f)) {
                 if(submitted == todo) break;
@@ -303,7 +303,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
         const std::size_t index(f.get());
         if(used.find(index) != used.end()) continue;
         used.insert(index);
-        std::uint32_t taxid(get_taxid(fns[index].data(), name_hash));
+        tax_t taxid(get_taxid(fns[index].data(), name_hash));
         if(taxid == UINT32_C(-1)) {
             LOG_WARNING("Taxid for %s not listed in summary.txt. Not including.", fns[index].data());
         } else update_lca_map(ret, counters[index], tax_map, taxid);
@@ -354,7 +354,7 @@ khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map
                   std::launch::async, fill_set_genome<score>, fns[submitted].data(),
                   sp, counters[submitted], submitted, nullptr);
                 ++submitted, ++completed;
-                const std::uint32_t taxid(get_taxid(fns[index].data(), name_hash));
+                const tax_t taxid(get_taxid(fns[index].data(), name_hash));
                 update_feature_counter(ret, tax_map, counters[index], taxid);
                 kh_destroy(all, counters[index]); // Destroy set once we're done with it.
             }
@@ -364,7 +364,7 @@ khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map
     // Join
     for(auto &f: futures) if(f.valid()) {
         const std::size_t index(f.get());
-        const std::uint32_t taxid(get_taxid(fns[index].data(), name_hash));
+        const tax_t taxid(get_taxid(fns[index].data(), name_hash));
         update_feature_counter(ret, tax_map, counters[index], taxid);
         kh_destroy(all, counters[index]);
         ++completed;

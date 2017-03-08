@@ -277,7 +277,18 @@ int metatree_main(int argc, char *argv[]) {
     for(auto &i: sp.s_) --i;
     std::vector<tax_t> nodes(std::move(guide.get_nodes())), offsets(std::move(guide.get_offsets()));
     offsets.insert(offsets.begin(), 0); // Bad complexity, but we only do it once.
-    std::vector<std::string> to_fetch(tree::invert_lca_map(db, folder.data(), dry_run));
+    std::vector<std::string> to_fetch;
+    if(!dry_run) to_fetch = std::move(tree::invert_lca_map(db, folder.data()));
+    else {
+        to_fetch.reserve(kh_size(taxmap));
+        char buf[256];
+        for(khiter_t ki(0); ki < kh_end(taxmap); ++ki) {
+            if(!kh_exist(taxmap, ki)) continue;
+            std::sprintf(buf, "%s%u.kmers.bin", folder.data(), kh_val(taxmap, ki));
+            if(access(buf, F_OK) != -1) to_fetch.emplace_back(buf); // Only add to list if file exists.
+        }
+    }
+    if(to_fetch.empty()) LOG_EXIT("No binary files to grab from.\n");
     LOG_DEBUG("Fetched! Making tx2g\n");
     std::size_t ind(0);
     std::set<indvec_t, indgt> vec_scores;
@@ -344,8 +355,8 @@ int hist_main(int argc, char *argv[]) {
     for(khiter_t ki(0); ki != kh_end(map); ++ki) if(kh_exist(map, ki)) counter.add(kh_val(map, ki));
     auto &cmap(counter.get_map());
     struct elcount {
-        std::uint32_t el; std::uint32_t count;
-        elcount(unsigned el, std::size_t count): el(el), count(count) {}
+        tax_t el; std::uint32_t count;
+        elcount(tax_t el, std::size_t count): el(el), count(count) {}
     } __attribute__((packed));
     std::vector<elcount> structs;
     for(auto& i: cmap) structs.emplace_back(i.first, i.second);

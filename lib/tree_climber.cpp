@@ -4,8 +4,8 @@ namespace emp { namespace tree {
 
 std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *folder, int prebuilt) {
     std::vector<std::string> ret;
-    std::unordered_map<std::uint32_t, std::FILE *> ofps;
-    std::unordered_map<std::uint32_t, std::uint64_t> ofp_counts;
+    std::unordered_map<tax_t, std::FILE *> ofps;
+    std::unordered_map<tax_t, std::uint64_t> ofp_counts;
     khash_t(c) *map(db.db_); // Does not own; shorthand.
     assert(map);
     std::string fld;
@@ -73,7 +73,7 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
 }
 
 khash_t(p) *pruned_taxmap(std::vector<std::string> &paths, khash_t(p) *taxmap, khash_t(name) *name_hash) {
-    std::set<std::uint32_t> found, keep;
+    std::set<tax_t> found, keep;
     std::uint64_t ki1, ki2;
     for(auto &path: paths) found.insert(get_taxid(path.data(), name_hash));
     for(auto i: found) {

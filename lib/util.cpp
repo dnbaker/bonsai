@@ -24,15 +24,15 @@ std::size_t count_lines(const char *fn) noexcept {
 // though it uses less than half the memory. The thing is, taxonomic trees
 // aren't that deep.
 // We don't gain much from optimizing that.
-std::uint32_t lca(khash_t(p) *map, std::uint32_t a, std::uint32_t b) noexcept {
+tax_t lca(khash_t(p) *map, tax_t a, tax_t b) noexcept {
     // Use std::set to use RB trees for small set rather than hash table.
-    std::set<std::uint32_t> nodes;
+    std::set<tax_t> nodes;
     if(a == b) return a;
     khint_t ki;
     while(a) {
         nodes.insert(a);
         if((ki = kh_get(p, map, a)) == kh_end(map)) {
-            return (std::uint32_t)-1;
+            return (tax_t)-1;
         }
         a = kh_val(map, ki);
     }
@@ -42,14 +42,14 @@ std::uint32_t lca(khash_t(p) *map, std::uint32_t a, std::uint32_t b) noexcept {
         }
         if((ki = kh_get(p, map, b)) == kh_end(map)) {
             fprintf(stderr, "Missing taxid %u. Returning -1!\n", b);
-            return (std::uint32_t)-1;
+            return (tax_t)-1;
         }
         b = kh_val(map, ki);
     }
     return 1;
 }
 
-unsigned node_depth(khash_t(p) *map, std::uint32_t a) noexcept {
+unsigned node_depth(khash_t(p) *map, tax_t a) noexcept {
     unsigned ret(0);
     khint_t ki;
     while(a) {
@@ -134,16 +134,16 @@ void kset_union(khash_t(all) *a, khash_t(all) *b) noexcept {
  // Tree resolution: take all hit taxa (plus ancestors), then
  // return leaf of highest weighted leaf-to-root path.
  // Taken, slightly modified from Kraken
-std::uint32_t resolve_tree(std::map<std::uint32_t, std::uint32_t> &hit_counts,
+tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
                       khash_t(p) *parent_map) noexcept
 {
-  std::set<std::uint32_t> max_taxa;
-  std::uint32_t max_taxon(0), max_score(0);
+  std::set<tax_t> max_taxa;
+  tax_t max_taxon(0), max_score(0);
   auto it(hit_counts.begin());
 
   // Sum each taxon's LTR path
   while (it != hit_counts.end()) {
-    std::uint32_t taxon(it->first), node(taxon), score(0);
+    tax_t taxon(it->first), node(taxon), score(0);
     khiter_t ki;
     // Instead of while node > 0
     while(node) {
@@ -183,7 +183,7 @@ std::string rand_string(std::size_t n) {
     return ret;
 }
 
-std::uint32_t get_taxid(const char *fn, khash_t(name) *name_hash) {
+tax_t get_taxid(const char *fn, khash_t(name) *name_hash) {
     gzFile fp(gzopen(fn, "rb"));
     if(fp == nullptr) LOG_EXIT("Could not read from file %s\n", fn);
     static const std::size_t bufsz(2048);
@@ -213,9 +213,9 @@ std::uint32_t get_taxid(const char *fn, khash_t(name) *name_hash) {
 
 
 
-std::unordered_map<std::uint32_t, std::forward_list<std::string>> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths) {
-    std::uint32_t taxid;
-    std::unordered_map<std::uint32_t, std::forward_list<std::string>> ret;
+std::unordered_map<tax_t, std::forward_list<std::string>> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths) {
+    tax_t taxid;
+    std::unordered_map<tax_t, std::forward_list<std::string>> ret;
     ret.reserve(paths.size());
     for(const auto &path: paths) {
         taxid = get_taxid(path.data(), name_map);

@@ -69,10 +69,10 @@ khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, khash_t(p) *tax) {
     return ret;
 }
 
-void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, std::uint32_t taxid) {
+void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid) {
     int khr;
     khint_t k2;
-    std::uint32_t val;
+    tax_t val;
     LOG_DEBUG("Adding set of size %zu t total set of current size %zu.\n", kh_size(set), kh_size(kc));
     for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
         if(kh_exist(set, ki)) {
@@ -84,7 +84,7 @@ void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, std::uin
 #endif
             } else if(kh_val(kc, k2) != taxid) {
                 val = lca(tax, taxid, kh_val(kc, k2));
-                if(val == (std::uint32_t)-1) {
+                if(val == (tax_t)-1) {
                     kh_val(kc, k2) = 1;
                     LOG_WARNING("Missing taxid %u. Setting lca to tree root\n", taxid);
                 } else kh_val(kc, k2) = TDencode(node_depth(tax, val), val);
@@ -95,10 +95,10 @@ void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, std::uin
 }
 
 
-void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, std::uint32_t taxid) {
+void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid) {
     int khr;
     khint_t k2;
-    std::uint32_t val;
+    tax_t val;
     LOG_DEBUG("Adding set of size %zu t total set of current size %zu.\n", kh_size(set), kh_size(kc));
     for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
         if(kh_exist(set, ki)) {

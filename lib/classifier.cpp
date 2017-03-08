@@ -15,9 +15,9 @@ void kt_for_helper(void *data_, long index, int tid) {
     data->retstr_size_ += retstr_size;
 }
 
-void append_fastq_classification(const std::map<std::uint32_t, std::uint32_t> &hit_counts,
-                                 const std::vector<std::uint32_t> &taxa,
-                                 const std::uint32_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
+void append_fastq_classification(const std::map<tax_t, std::uint32_t> &hit_counts,
+                                 const std::vector<tax_t> &taxa,
+                                 const tax_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
                                  bseq1_t *bs, kstring_t *bks, const int verbose, const int is_paired) {
     char *cms, *cme; // comment start, comment end -- used for using comment in both output reads.
     kputs(bs->name, bks);
@@ -51,9 +51,9 @@ void append_fastq_classification(const std::map<std::uint32_t, std::uint32_t> &h
     }
 }
 
-void append_kraken_classification(const std::map<std::uint32_t, std::uint32_t> &hit_counts,
-                                  const std::vector<std::uint32_t> &taxa,
-                                  const std::uint32_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
+void append_kraken_classification(const std::map<tax_t, std::uint32_t> &hit_counts,
+                                  const std::vector<tax_t> &taxa,
+                                  const tax_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
                                   bseq1_t *bs, kstring_t *bks) {
     kputc((taxon < 1) * ('U' - 'C') + 'C', bks);
     //kputc(taxon ? 'C': 'U', bks); Equivalent to above but without a branch.
@@ -70,9 +70,10 @@ void append_kraken_classification(const std::map<std::uint32_t, std::uint32_t> &
     append_taxa_runs(taxon, taxa, bks);
 }
 
-void append_taxa_runs(std::uint32_t taxon, const std::vector<std::uint32_t> &taxa, kstring_t *bks) {
+void append_taxa_runs(tax_t taxon, const std::vector<tax_t> &taxa, kstring_t *bks) {
     if(taxon) {
-        std::uint32_t last_taxa(taxa[0]), taxa_run(1);
+        tax_t last_taxa(taxa[0]);
+        unsigned taxa_run(1);
         for(unsigned i(1), end(taxa.size()); i != end; ++i) {
             if(taxa[i] == last_taxa) ++taxa_run;
             else {

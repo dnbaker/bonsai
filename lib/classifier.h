@@ -7,17 +7,18 @@
 #include "feature_min.h"
 #include "klib/kthread.h"
 #include "lib/ks.h"
+#include "lib/util.h"
 
 namespace emp {
-void append_kraken_classification(const std::map<std::uint32_t, std::uint32_t> &hit_counts,
-                                  const std::vector<std::uint32_t> &taxa,
-                                  const std::uint32_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
+void append_kraken_classification(const std::map<tax_t, std::uint32_t> &hit_counts,
+                                  const std::vector<tax_t> &taxa,
+                                  const tax_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
                                   bseq1_t *bs, kstring_t *bks);
-void append_fastq_classification(const std::map<std::uint32_t, std::uint32_t> &hit_counts,
+void append_fastq_classification(const std::map<tax_t, std::uint32_t> &hit_counts,
                                  const std::vector<std::uint32_t> &taxa,
-                                 const std::uint32_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
+                                 const tax_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
                                  bseq1_t *bs, kstring_t *bks, const int verbose, const int is_paired);
-void append_taxa_runs(std::uint32_t taxon, const std::vector<std::uint32_t> &taxa, kstring_t *bks);
+void append_taxa_runs(tax_t taxon, const std::vector<tax_t> &taxa, kstring_t *bks);
 
 enum output_format {
     KRAKEN   = 1,
@@ -80,7 +81,7 @@ void ClassifierGeneric<score>::set_emit_fastq(bool setting) {
     else        output_flag_ &= (~output_format::FASTQ);
 }
 
-INLINE void append_taxa_run(const std::uint32_t last_taxa,
+INLINE void append_taxa_run(const tax_t last_taxa,
                             const std::uint32_t taxa_run,
                             kstring_t *bks) {
     // U for unclassified (unambiguous but not in database)
@@ -88,7 +89,7 @@ INLINE void append_taxa_run(const std::uint32_t last_taxa,
     // Actual taxon otherwise.
     switch(last_taxa) {
         case 0:            kputc('U', bks); break;
-        case (std::uint32_t)-1: kputc('A', bks); break;
+        case (tax_t)-1:    kputc('A', bks); break;
         default:           kputuw(last_taxa, bks); break;
     }
 
@@ -110,17 +111,18 @@ template<std::uint64_t (*score)(std::uint64_t, void *)>
 unsigned classify_seq(ClassifierGeneric<score> &c, Encoder<score> &enc, khash_t(p) *taxmap, bseq1_t *bs, const int is_paired) {
     std::uint64_t kmer;
     khiter_t ki;
-    std::map<std::uint32_t, std::uint32_t> hit_counts;
-    std::map<std::uint32_t, std::uint32_t>::iterator it;
-    std::uint32_t ambig_count(0), missing_count(0), taxon(0);
+    std::map<tax_t, std::uint32_t> hit_counts;
+    std::map<tax_t, std::uint32_t>::iterator it;
+    std::uint32_t ambig_count(0), missing_count(0);
+    tax_t taxon(0);
     ks::KString bks(bs->sam);
     const std::size_t reslen(bs->l_seq - c.sp_.c_ + 1);
-    std::vector<std::uint32_t> taxa;
+    std::vector<tax_t> taxa;
     taxa.reserve(reslen > 0 ? reslen: 0); // Reserve memory without initializing
 
     enc.assign(bs->seq, bs->l_seq);
     while(enc.has_next_kmer()) {
-        if((kmer = enc.next_kmer()) == BF) ++ambig_count, taxa.push_back((std::uint32_t)-1);
+        if((kmer = enc.next_kmer()) == BF) ++ambig_count, taxa.push_back((tax_t)-1);
         // If the kmer is ambiguous, ignore it and move on.
         else {
             if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count, taxa.push_back(0);
@@ -140,7 +142,7 @@ unsigned classify_seq(ClassifierGeneric<score> &c, Encoder<score> &enc, khash_t(
     if(is_paired) {
         enc.assign((bs + 1)->seq, (bs + 1)->l_seq);
         while(enc.has_next_kmer()) {
-            if((kmer = enc.next_kmer()) == BF) ++ambig_count, taxa.push_back((std::uint32_t)-1);
+            if((kmer = enc.next_kmer()) == BF) ++ambig_count, taxa.push_back((tax_t)-1);
             // If the kmer is ambiguous, ignore it and move on.
             else {
                 if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count, taxa.push_back(0);

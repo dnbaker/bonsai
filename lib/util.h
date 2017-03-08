@@ -47,20 +47,20 @@ using tax_t = std::uint32_t;
 namespace emp {
 
 KHASH_SET_INIT_INT64(all)
-KHASH_MAP_INIT_INT64(c, std::uint32_t)
+KHASH_MAP_INIT_INT64(c, tax_t)
 KHASH_MAP_INIT_INT64(64, std::uint64_t)
-KHASH_MAP_INIT_INT(p, std::uint32_t)
-KHASH_MAP_INIT_STR(name, std::uint32_t)
+KHASH_MAP_INIT_INT(p, tax_t)
+KHASH_MAP_INIT_STR(name, tax_t)
 
 std::string rand_string(std::size_t n);
 std::size_t count_lines(const char *fn) noexcept;
 khash_t(name) *build_name_hash(const char *fn) noexcept;
 void destroy_name_hash(khash_t(name) *hash) noexcept;
 khash_t(p) *build_parent_map(const char *fn) noexcept;
-std::uint32_t get_taxid(const char *fn, khash_t(name) *name_hash);
+tax_t get_taxid(const char *fn, khash_t(name) *name_hash);
 // Resolve_tree is modified from Kraken 1 source code, which
 // is MIT-licensed. https://github.com/derrickwood/kraken
-std::uint32_t resolve_tree(std::map<std::uint32_t, std::uint32_t> &hit_counts,
+tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
                       khash_t(p) *parent_map) noexcept;
 
 // Modified from bit-twiddling hacks to work with 64-bit integers.
@@ -154,14 +154,14 @@ T *khash_load(const char *path) noexcept {
 
 void kset_union(khash_t(all) *a, khash_t(all) *b) noexcept;
 
-std::uint32_t lca(khash_t(p) *map, std::uint32_t a, std::uint32_t b) noexcept;
-unsigned node_depth(khash_t(p) *map, std::uint32_t a) noexcept;
-std::unordered_map<std::uint32_t, std::forward_list<std::string>> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths);
-INLINE std::uint32_t get_parent(khash_t(p) *taxmap, std::uint32_t key) noexcept {
+tax_t lca(khash_t(p) *map, tax_t a, tax_t b) noexcept;
+unsigned node_depth(khash_t(p) *map, tax_t a) noexcept;
+std::unordered_map<tax_t, std::forward_list<std::string>> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths);
+INLINE tax_t get_parent(khash_t(p) *taxmap, tax_t key) noexcept {
     // Returns maximum value if not found.
     khiter_t ki;
     return ((ki = kh_get(p, taxmap, key)) != kh_end(taxmap)) ? kh_val(taxmap, ki)
-                                                             : std::numeric_limits<std::uint32_t>::max();
+                                                             : std::numeric_limits<tax_t>::max();
 }
 
 } // namespace emp
