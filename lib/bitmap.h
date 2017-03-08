@@ -117,8 +117,7 @@ public:
         const auto tmp(fill(set));
         unsigned bitsum;
 #if !NDEBUG
-        std::size_t n_passed(0);
-        std::size_t total(tmp.size());
+        std::size_t n_passed(0), total(tmp.size());
 #endif
         for(auto &i: tmp)
             if((bitsum = popcnt::vec_popcnt(i.second)) != 1 &&

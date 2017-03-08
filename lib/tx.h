@@ -70,13 +70,24 @@ struct kg_data {
     Spacer                      &sp_;
     khash_t(all)                *acceptable_;
 };
+
+struct kg_list_data {
+    std::vector<khash_t(all) *> &core_;
+    std::vector<std::forward_list<std::string>*> &fl_;
+    Spacer                      &sp_;
+    khash_t(all)                *acceptable_;
+};
+
 void kg_helper(void *data_, long index, int tid);
+void kg_list_helper(void *data_, long index, int tid);
 
 class kgset_t {
 
     std::vector<khash_t(all) *> core_;
     std::vector<std::string>    paths_;
     khash_t(all)               *acceptable_;
+    std::unordered_map<std::uint32_t, std::forward_list<std::string>> *fl_;
+    std::vector<tax_t>         taxes_;
 
 public:
     void fill(std::vector<std::string> &paths, Spacer &sp, int num_threads=-1) {
@@ -84,11 +95,23 @@ public:
         kg_data data{core_, paths, sp, acceptable_};
         kt_for(num_threads, &kg_helper, (void *)&data, core_.size());
     }
+    void fill(std::unordered_map<std::uint32_t, std::forward_list<std::string>> &path_map, Spacer &sp, int num_threads=-1) {
+        if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
+        std::vector<std::forward_list<std::string>*> tmpfl;
+        taxes_.reserve(path_map.size());
+        for(auto &pair: path_map) {
+            taxes_.push_back(pair.first);
+            tmpfl.push_back(&pair.second);
+        }
+        kg_list_data data{core_, tmpfl, sp, acceptable_};
+        kt_for(num_threads, &kg_list_helper, (void *)&data, core_.size());
+    }
+    auto &get_taxes() {return taxes_;} // Who'd want that?
     const std::vector<khash_t(all) *> &get_core() const {return core_;}
     std::vector<std::string>    &get_paths() {return paths_;}
     // Encoding constructor
     kgset_t(typename std::vector<std::string>::iterator begin, typename std::vector<std::string>::iterator end,
-            Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr): paths_(begin, end), acceptable_(acc) {
+            Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr): paths_(begin, end), acceptable_(acc), fl_(nullptr) {
         core_.reserve(end - begin);
         for(std::size_t i(0), end(paths_.size()); i != end; ++i) core_.emplace_back(kh_init(all));
         fill(paths_, sp, num_threads);
@@ -96,6 +119,12 @@ public:
     // Encoding constructor
     kgset_t(std::vector<std::string> &paths, Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr):
         kgset_t(std::begin(paths), std::end(paths), sp, num_threads, acc) {
+    }
+    kgset_t(std::unordered_map<std::uint32_t, std::forward_list<std::string>> &list,
+            Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr): acceptable_(acc), fl_(&list) {
+        core_.reserve(list.size());
+        for(std::size_t i(0), end(paths_.size()); i != end; ++i) core_.emplace_back(kh_init(all));
+        fill(*fl_, sp, num_threads);
     }
     ~kgset_t() {
         for(auto i: core_) khash_destroy(i);

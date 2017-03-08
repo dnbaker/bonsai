@@ -22,6 +22,30 @@ void kg_helper(void *data_, long index, int tid) {
     gzclose(fp);
 }
 
+void kg_list_helper(void *data_, long index, int tid) {
+    kg_list_data *data((kg_list_data *)data_);
+    auto &list(*data->fl_[index]);
+    khash_t(all) *h(data->core_[index]);
+    Encoder<lex_score> enc(data->sp_);
+    for(auto &path: list) {
+        gzFile fp(gzopen(path.data(), "rb"));
+        if(!fp) LOG_EXIT("Could not open file at %s\n", path.data());
+        kseq_t *ks(kseq_init(fp));
+        std::uint64_t min;
+        int khr;
+        while(kseq_read(ks) >= 0) {
+            enc.assign(ks);
+            while(enc.has_next_kmer())
+                if((min = enc.next_minimizer()) != BF)
+                    if(!data->acceptable_ || kh_get(all, data->acceptable_, min) != kh_end(data->acceptable_))
+                        kh_put(all, h, min, &khr);
+        }
+        kseq_destroy(ks);
+        gzclose(fp);
+    }
+    
+}
+
 void Taxonomy::add_node_impl(const char *node_name, const unsigned node_id, const unsigned parent) {
     khint_t ki;
     int khr;

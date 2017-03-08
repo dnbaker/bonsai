@@ -236,6 +236,20 @@ void metatree_usage(char *arg) {
     std::exit(EXIT_FAILURE);
 }
 
+typedef std::tuple<int, std::vector<std::uint64_t>, std::uint64_t> indvec_t;
+
+struct indgt {
+    inline bool operator()(const indvec_t &a, const indvec_t &b) {
+        using std::get;
+        if(get<2>(a) !=get<2>(b)) return get<2>(a) > get<2>(b);
+        if(get<0>(a) != get<0>(b)) return get<0>(a) > get<0>(b);
+        for(unsigned i(0); i < get<1>(a).size(); ++i)
+            if(get<1>(a)[i] != get<1>(b)[i]) return get<1>(a)[i] > get<1>(b)[i];
+        return 0; // Identical, never happens.
+    }
+};
+
+
 int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
     int c, dry_run(0), num_threads(-1);
@@ -256,38 +270,50 @@ int metatree_main(int argc, char *argv[]) {
     if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, tmp_taxmap, name_hash));
     kh_destroy(p, tmp_taxmap);
+    std::size_t num_nodes(kh_size(taxmap));
+    kroundup64(num_nodes);
     tree::SortedNodeGuide guide(taxmap);
     Database<khash_t(c)> db(argv[optind]);
     Spacer sp(db.k_, db.w_, db.s_);
     for(auto &i: sp.s_) --i;
-    std::vector<std::uint32_t> nodes(std::move(guide.get_nodes())), offsets(std::move(guide.get_offsets()));
+    std::vector<tax_t> nodes(std::move(guide.get_nodes())), offsets(std::move(guide.get_offsets()));
     offsets.insert(offsets.begin(), 0); // Bad complexity, but we only do it once.
     std::vector<std::string> to_fetch(tree::invert_lca_map(db, folder.data(), dry_run));
     std::size_t ind(0);
+    std::set<indvec_t, indgt> vec_scores;
+    std::unordered_map<tax_t, std::forward_list<std::string>> tx2g(tax2genome_map(name_hash, inpaths));
+    for(auto &kv: tx2g)
+        for(auto &path: kv.second)
+            std::fprintf(stderr, "Taxid %u has path %s\n", kv.first, path.data());
+    return 1;
+    std::vector<std::vector<tax_t>> taxes;
+    std::vector<std::vector<std::string>> tax_paths;
     for(int i(0), e(offsets.size() - 1); i < e; ++i) {
-        using indscore_t = std::pair<std::size_t, std::uint64_t>;
         ind = offsets[i];
-        const std::uint32_t parent_tax(get_parent(taxmap, nodes[ind]));
+        std::set<tax_t> taxids(nodes.begin() + ind, nodes.begin() + offsets[i + 1]);
+        std::unordered_map<tax_t, std::forward_list<std::string>> range_map;
+        for(auto& pair: tx2g) {
+            if(taxids.find(pair.first) == taxids.end()) continue;
+            range_map.emplace(pair.first, pair.second);
+        }
+        // Handle sets of genomes which all match a taxonomy.
+        const tax_t parent_tax(get_parent(taxmap, nodes[ind]));
         std::string parent_path(folder);
         if(!parent_path.empty()) parent_path += '/';
         parent_path += std::to_string(parent_tax) + ".kmers.bin";
         khash_t(all) *acceptable(tree::load_binary_kmerset(parent_path.data()));
-        count::Counter<std::vector<std::uint64_t>> counts(bitmap_t(
-            kgset_t(inpaths.begin() + ind, inpaths.begin() + offsets[i + 1], sp, num_threads, acceptable)
-                                                                   ).to_counter());
+        kgset_t kgs(range_map, sp, num_threads, acceptable);
+        bitmap_t bitmap(kgs);
+        count::Counter<std::vector<std::uint64_t>> counts(bitmap.to_counter());
         adjmap_t fwd_adj(counts);
         adjmap_t rev_adj(counts, true);
-        std::vector<indscore_t> scores;
-        std::size_t ci(0), nelem(offsets[i + 1] - ind);
-        for(auto &i: counts) {
-            scores.emplace_back(ci++, score_node_addn(i.first, fwd_adj, counts, nelem));
+        for(auto &c: counts) {
+            vec_scores.emplace(std::make_tuple(i, c.first,
+                                               score_node_addn(c.first, fwd_adj, counts, range_map.size())));
         }
-        std::sort(scores.begin(), scores.end(), [](const indscore_t &a, const indscore_t &b) {
-            return a.second > b.second; // Puts top scorers first.
-        });
         kh_destroy(all, acceptable);
+        taxes.emplace_back(std::move(kgs.get_taxes()));
     }
-
     destroy_name_hash(name_hash);
     kh_destroy(p, taxmap);
     return EXIT_SUCCESS;

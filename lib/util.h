@@ -31,6 +31,10 @@
 #  endif
 #endif
 
+#ifndef TAXID_TYPEDEF
+#define TAXID_TYPEDEF
+using tax_t = std::uint32_t;
+#endif
 
 #define TIME_CODE(code, name) do \
 {                         \

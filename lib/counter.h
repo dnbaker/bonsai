@@ -39,6 +39,15 @@ namespace std {
     }
   };
 
+  template <typename T>
+  struct hash<pair<int, vector<T>>>
+  {
+    uint64_t operator()(const pair<int, vector<T>>& p) const
+    {
+        return clhash(RAND.get(), reinterpret_cast<const char *>(p.second.data()), p.second.size() * sizeof(T)) ^ ((std::uint64_t(p.first) << 32) | p.first);
+    }
+  };
+
 }
 
 
