@@ -15,9 +15,22 @@ public:
     explicit KString(std::size_t size): ks_({0, size, size ? (char *)std::malloc(size): nullptr}) {}
     explicit KString(std::size_t used, std::size_t max, char *str): ks_({used, max, str}) {}
     explicit KString(char *str): ks_({0, 0, str}) {}
-    KString(): KString(0u, 0u, nullptr) {}
+    KString(): KString(nullptr) {}
 
-    ~KString() {free (ks_.s);}
+    ~KString() {free(ks_.s);}
+    const auto operator->() const {
+        return const_cast<const kstring_t *>(&ks_);
+    }
+
+    kstring_t *operator->() {return &ks_;}
+
+    KString(const KString &other): ks_{other->l, other->m, (char *)std::malloc(other->m)} {
+        memcpy(ks_.s, other->s, other->m);
+    }
+    KString(KString &&other) {
+        memcpy(this, &other, sizeof(other));
+        memset(&other, 0, sizeof(other));
+    }
 
     int putc(int c) {return kputc(c, &ks_);}
     int putw(int c) {return kputw(c, &ks_);}
@@ -46,11 +59,8 @@ public:
     auto          end() const {return ks_.s + ks_.l;}
     const auto cbegin() const {return const_cast<const char *>(ks_.s);}
     const auto   cend() const {return const_cast<const char *>(ks_.s + ks_.l);}
-
-    const auto operator->() const {
-        return const_cast<const kstring_t *>(&ks_);
-    }
-    kstring_t *operator->() {return &ks_;}
+    void pop() {--ks_.l;}
+    void pop(std::size_t n) {ks_.l = ks_.l > n ? ks_.l - n: 0;}
 
     void clear() {
         ks_.l = 0;

@@ -230,7 +230,6 @@ void metatree_usage(char *arg) {
                          "\n"
                          "-F: Parse file paths from file instead of further arguments at command-line.\n"
                          "-d: Do not perform inversion (assume it's already been done.)\n"
-                         "-F: Parse file paths from file instead of further arguments at command-line.\n"
                          "-f: Store binary dumps in folder <arg>.\n"
                  , arg);
     std::exit(EXIT_FAILURE);
@@ -279,23 +278,27 @@ int metatree_main(int argc, char *argv[]) {
     std::vector<tax_t> nodes(std::move(guide.get_nodes())), offsets(std::move(guide.get_offsets()));
     offsets.insert(offsets.begin(), 0); // Bad complexity, but we only do it once.
     std::vector<std::string> to_fetch(tree::invert_lca_map(db, folder.data(), dry_run));
+    LOG_DEBUG("Fetched! Making tx2g\n");
     std::size_t ind(0);
     std::set<indvec_t, indgt> vec_scores;
     std::unordered_map<tax_t, std::forward_list<std::string>> tx2g(tax2genome_map(name_hash, inpaths));
+    LOG_DEBUG("Made! Printing\n");
     for(auto &kv: tx2g)
         for(auto &path: kv.second)
             std::fprintf(stderr, "Taxid %u has path %s\n", kv.first, path.data());
-    return 1;
     std::vector<std::vector<tax_t>> taxes;
-    std::vector<std::vector<std::string>> tax_paths;
+    std::vector<std::vector<std::forward_list<std::string>>> tax_paths;
     for(int i(0), e(offsets.size() - 1); i < e; ++i) {
+        LOG_DEBUG("Doing set %i of %i\n", i, e);
         ind = offsets[i];
         std::set<tax_t> taxids(nodes.begin() + ind, nodes.begin() + offsets[i + 1]);
         std::unordered_map<tax_t, std::forward_list<std::string>> range_map;
+        std::vector<std::forward_list<std::string>> list_vec;
         for(auto& pair: tx2g) {
             if(taxids.find(pair.first) == taxids.end()) continue;
             range_map.emplace(pair.first, pair.second);
         }
+        for(auto &pair: range_map) list_vec.push_back(pair.second); // Potentially expensive copy.
         // Handle sets of genomes which all match a taxonomy.
         const tax_t parent_tax(get_parent(taxmap, nodes[ind]));
         std::string parent_path(folder);
@@ -313,9 +316,22 @@ int metatree_main(int argc, char *argv[]) {
         }
         kh_destroy(all, acceptable);
         taxes.emplace_back(std::move(kgs.get_taxes()));
+        tax_paths.emplace_back(std::move(list_vec));
+    }
+    for(std::size_t i(0), e(taxes.size()); i < e; ++i) {
+        std::fprintf(stderr, "For range set %zu, we have:\n", i);
+        for(std::size_t j(0); j < taxes[i].size(); ++j) {
+            ks::KString ks;
+            ksprintf(ks, "Taxid %u, with ", taxes[i][j]);
+            for(auto &k: tax_paths[i][j]) ksprintf(ks, "%s, ", k.data());
+            ks.pop(); ks.pop();
+            kputc('\n', ks);
+            fwrite(ks.data(), 1, ks.size(), stderr);
+        }
     }
     destroy_name_hash(name_hash);
     kh_destroy(p, taxmap);
+    LOG_DEBUG("I ran to completion... How???\n");
     return EXIT_SUCCESS;
 }
 

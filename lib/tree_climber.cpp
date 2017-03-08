@@ -10,6 +10,9 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
     assert(map);
     std::string fld;
     int fwritten;
+#if !NDEBUG
+    std::size_t n_processed(0);
+#endif
     if(folder && *folder) fld = folder, fld += '/';
     if(prebuilt == 0) {
         for(khiter_t ki(0); ki != kh_end(map); ++ki) {
@@ -45,7 +48,7 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
                 perror(buf2), exit(1);
             }
 #if !NDEBUG
-            if((ki & 0xFFFFFF) == 0) LOG_DEBUG("Processed %zu so far\n", (std::size_t)ki);
+            if((++n_processed & 0xFFFFFF) == 0) LOG_DEBUG("Processed %zu so far\n", n_processed);
 #endif
         }
         for(auto &pair: ofps) {
@@ -54,6 +57,7 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
             std::fclose(pair.second);
         }
     } else {
+        LOG_DEBUG("Just getting filenames\n");
         char buf[256];
         for(khiter_t ki(0); ki != kh_end(map); ++ki) {
             if(!kh_exist(map, ki)) continue;
@@ -64,6 +68,7 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
             }
         }
     }
+    LOG_DEBUG("Got 'em!\n");
     return ret;
 }
 
