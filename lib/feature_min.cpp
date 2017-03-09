@@ -98,7 +98,6 @@ void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t ta
 void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid) {
     int khr;
     khint_t k2;
-    tax_t val;
     LOG_DEBUG("Adding set of size %zu t total set of current size %zu.\n", kh_size(set), kh_size(kc));
     for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
         if(kh_exist(set, ki)) {
@@ -114,5 +113,12 @@ void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t ta
     }
     LOG_DEBUG("After updating with set of size %zu, total set current size is %zu.\n", kh_size(set), kh_size(kc));
 }
+#if 0
+struct lca_helper {
+    const std::vector<std::string> &fns_;
+    khash_t(c)                     *ret_;
+    std::vector<khash_t(all) *>     hashes_;
+};
+#endif
 
 } //namespace emp
