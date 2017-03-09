@@ -215,6 +215,8 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 		khval_t *vals; \
 	} kh_##name##_t;
 
+// TODO: Add a mutex around kh_resize to be safe in resizing.
+
 #define __KHASH_PROTOTYPES(name, khkey_t, khval_t)	 					\
 	extern kh_##name##_t *kh_init_##name(void);							\
 	extern void kh_destroy_##name(kh_##name##_t *h);					\

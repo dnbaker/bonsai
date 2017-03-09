@@ -261,6 +261,9 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
 
     for(std::size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
 
+
+    // TODO: rewrite this using kt_for and use __sync_bool_compare_and_swap to update, eliminating the terrible threadscaling.
+
     // Submit the first set of jobs
     std::set<std::size_t> subbed, used;
     for(int i(0), e(std::min(num_threads, (int)todo)); i < e; ++i) {

@@ -115,7 +115,12 @@ int phase2_main(int argc, char *argv[]) {
         if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for lexicographic mode for final database generation.");
         Spacer sp(k, wsz, spvec_t(k - 1, 0));
         Database<khash_t(c)>  phase2_map(sp);
+#if 0
         std::size_t hash_size(use_hll ? estimate_cardinality<lex_score>(inpaths, k, k, sp.s_, nullptr, num_threads, 24): 1 << 16);
+#else
+        // Force using hll so that we can use __sync_bool_compare_and_swap to parallelize.
+        std::size_t hash_size(estimate_cardinality<lex_score>(inpaths, k, k, sp.s_, nullptr, num_threads, 24));
+#endif
         LOG_DEBUG("Parent map bulding from %s\n", argv[optind]);
         khash_t(p) *taxmap(build_parent_map(argv[optind]));
         phase2_map.db_ = lca_map<lex_score>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, hash_size);
