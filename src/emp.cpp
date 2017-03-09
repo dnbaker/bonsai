@@ -133,7 +133,7 @@ int phase2_main(int argc, char *argv[]) {
     Spacer sp(k, wsz, phase1_map.s_);
     Database<khash_t(c)>  phase2_map(phase1_map);
     khash_t(p) *taxmap(tax_path.empty() ? nullptr: build_parent_map(tax_path.data()));
-    phase2_map.db_ = minimized_map<hash_score>(inpaths, phase1_map.db_, sp, num_threads, start_size, mode);
+    phase2_map.db_ = minimized_map<hash_score>(inpaths, phase1_map.db_, sp, num_threads, start_size);
     // Write minimized map
     phase2_map.write(argv[optind + 1]);
     if(taxmap) kh_destroy(p, taxmap);

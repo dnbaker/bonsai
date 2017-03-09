@@ -31,23 +31,16 @@ khash_t(c) *make_depth_hash(khash_t(c) *lca_map, khash_t(p) *tax_map) {
 #define _DBP(h)
 #endif
 
-void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *ret, int mode) {
-    _DBP(set);
-    _DBP(full_map);
-    _DBP(ret);
-    int khr;
-    khiter_t kif, kir;
-    if(!mode) LOG_EXIT("Mode %i in score scheme is not good.\n");
+void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *ret) {
+    khiter_t kif;
     LOG_DEBUG("Size of set: %zu\n", kh_size(set));
     for(khiter_t ki(0); ki != kh_end(set); ++ki) {
-        if(!kh_exist(set, ki) ||
-               kh_get(c, ret, kh_key(set, ki)) != kh_end(ret))
+        if(!kh_exist(set, ki) || kh_get(c, ret, kh_key(set, ki)) != kh_end(ret))
             continue;
             // If the key is already in the main map, what's the problem?
         if(unlikely((kif = kh_get(64, full_map, kh_key(set, ki))) == kh_end(full_map)))
             LOG_EXIT("Missing kmer from database... Check for matching spacer and kmer size.\n");
-        kir = kh_put(c, ret, kh_key(full_map, kif), &khr);
-        kh_val(ret, kir) = kh_val(full_map, kif);
+        kh_set(c, ret, kh_key(full_map, kif), kh_val(full_map, kif));
         if(unlikely(kh_size(ret) % 1000000 == 0)) LOG_INFO("Final hash size %zu\n", kh_size(ret));
     }
     return;

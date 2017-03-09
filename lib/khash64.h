@@ -390,13 +390,14 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
         const khval_t old(kh_val(h, ki));\
         return __sync_bool_compare_and_swap(h->vals + ki, old, val);              \
     }\
-    SCOPE void kh_set_##name(kh_##name##_t *h, khkey_t key, const khval_t val, int *ret)\
+    SCOPE void kh_set_##name(kh_##name##_t *h, khkey_t key, const khval_t val)    \
     {\
         khint_t ki;\
         int khr;\
         if((ki = kh_get_##name(h, key)) == kh_end(h)) kh_put_##name(h, key, &khr);\
         const khval_t old(kh_val(h, ki));\
-        while(!__sync_bool_compare_and_swap(h->vals + ki, old, val));\
+        while(!__sync_bool_compare_and_swap(h->vals + ki, old, val))\
+            if(h->keys[ki] != key) ki = kh_get_##name(h, key);\
     }
 
 

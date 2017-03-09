@@ -116,66 +116,8 @@ khash_t(64) *ftct_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
     return feature_count_map<score>(fns, tax_map, seq2tax_path, sp, num_threads, start_size);
 }
 
-void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *ret, int mode);
+void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *ret);
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
-khash_t(c) *minimized_map(std::vector<std::string> fns,
-                          khash_t(64) *full_map,
-                          const Spacer &sp, int num_threads, std::size_t start_size=1<<16, int mode=score_scheme::LEX) {
-    std::size_t submitted(0), completed(0), todo(fns.size());
-    std::vector<khash_t(all) *> counters(todo, nullptr);
-    khash_t(c) *ret(kh_init(c));
-    kh_resize(c, ret, start_size);
-    std::vector<std::future<std::size_t>> futures;
-    //for(auto &i: fns) fprintf(stderr, "Filename: %s\n", i.data());
-
-    if(num_threads < 0) num_threads = 16;
-
-    LOG_DEBUG("Number of items to do: %zu\n", todo);
-
-    for(std::size_t i(0); i < todo; ++i) counters[i] = kh_init(all), kh_resize(all, counters[i], start_size);
-
-    // Submit the first set of jobs
-    for(int i(0), e(std::min(num_threads, (int)todo)); i < e; ++i) {
-        futures.emplace_back(std::async(
-          std::launch::async, fill_set_genome<score>, fns.at(i).data(), sp, counters[i], i, (void *)full_map));
-        ++submitted;
-    }
-
-    // Daemon -- check the status of currently running jobs, submit new ones when available.
-    while(submitted < todo) {
-        //LOG_DEBUG("Submitted %zu, todo %zu\n", submitted, todo);
-        for(auto f(futures.begin()), fend(futures.end()); f != fend; ++f) {
-            if(is_ready(*f)) {
-                const std::size_t index(f->get());
-                futures.erase(f);
-                futures.emplace_back(std::async(
-                     std::launch::async, fill_set_genome<score>, fns[submitted].data(),
-                     sp, counters[submitted], submitted, (void *)full_map));
-                LOG_INFO("Submitted for %zu. Updating map for %zu. Total completed/all: %zu/%zu. Current size: %zu\n",
-                         submitted, index, completed, todo, kh_size(ret));
-                ++submitted, ++completed;
-                update_minimized_map(counters[index], full_map, ret, mode);
-                kh_destroy(all, counters[index]); // Destroy set once we're done with it.
-                break;
-            }
-        }
-    }
-
-    // Join
-    for(auto &f: futures) if(f.valid()) {
-        const std::size_t index(f.get());
-        update_minimized_map(counters[index], full_map, ret, mode);
-        kh_destroy(all, counters[index]);
-        ++completed;
-        LOG_DEBUG("Number left to do: %zu\n", todo - completed);
-    }
-    LOG_DEBUG("Finished minimized map building! Subbed %zu, completed %zu.\n", submitted, completed);
-
-    // Clean up
-    LOG_DEBUG("Cleaned up after feature min map building!\n")
-    return ret;
-}
 
 template<typename T>
 struct helper {
@@ -185,6 +127,7 @@ struct helper {
     khash_t(name)                  *name_hash_;
     khash_t(p)                     *tax_map_;
     std::vector<khash_t(all) *>     hashes_;
+    void                           *data_;
 };
 using lca_helper = helper<khash_t(c)>;
 using td_helper  = helper<khash_t(64)>;
@@ -217,6 +160,32 @@ void lca_for_helper(void *data_, long index, int tid) {
     } else update_lca_map(ret, h, lh.tax_map_, taxid);
 }
 
+template<std::uint64_t (*score)(std::uint64_t, void *)>
+void min_for_helper(void *data_, long index, int tid) {
+    LOG_DEBUG("Helper with index %ld and tid %i starting\n", index, tid);
+    lca_helper &lh(*(lca_helper *)data_);
+    khash_t(all) *h(lh.hashes_[tid]);
+    khash_t(c) *ret(lh.ret_);
+    if(kh_size(h)) kh_clear(all, h);
+    fill_set_genome<score>(lh.fns_[index].data(), lh.sp_, h, index, (khash_t(64) *)lh.data_);
+    update_minimized_map(h, (khash_t(64) *)lh.data_, ret);
+}
+
+template<std::uint64_t (*score)(std::uint64_t, void *)>
+khash_t(c) *minimized_map(std::vector<std::string> fns,
+                          khash_t(64) *full_map,
+                          const Spacer &sp, int num_threads, std::size_t start_size) {
+    khash_t(c) *ret(kh_init(c));
+    kh_resize(c, ret, start_size);
+    std::vector<khash_t(all) *> counters;
+    counters.reserve(num_threads);
+    for(std::size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
+    lca_helper lh{sp, fns, ret, nullptr, nullptr, counters, (void *)full_map};
+    kt_for(num_threads, &min_for_helper<score>, (void *)&lh, fns.size());
+    LOG_DEBUG("Cleaned up after minimized map building! Size: %zu\n", kh_size(ret));
+    return ret;
+}
+
 
 template<std::uint64_t (*score)(std::uint64_t, void *)>
 khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
@@ -228,7 +197,7 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
     std::vector<khash_t(all) *> counters;
     counters.reserve(num_threads);
     for(std::size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
-    td_helper th{sp, fns, ret, name_hash, tax_map, counters};
+    td_helper th{sp, fns, ret, name_hash, tax_map, counters, nullptr};
     kt_for(num_threads, &td_for_helper<score>, (void *)&th, fns.size());
     destroy_name_hash(name_hash);
     LOG_DEBUG("Cleaned up after taxdepth map building!\n");
@@ -246,7 +215,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
     std::vector<khash_t(all) *> counters;
     counters.reserve(num_threads);
     for(std::size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
-    lca_helper lh{sp, fns, ret, name_hash, tax_map, counters};
+    lca_helper lh{sp, fns, ret, name_hash, tax_map, counters, nullptr};
     kt_for(num_threads, &lca_for_helper<score>, (void *)&lh, fns.size());
     destroy_name_hash(name_hash);
     LOG_DEBUG("Cleaned up after LCA map building! Size: %zu\n", kh_size(ret));
