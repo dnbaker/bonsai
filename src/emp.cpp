@@ -120,6 +120,7 @@ int phase2_main(int argc, char *argv[]) {
 #else
         // Force using hll so that we can use __sync_bool_compare_and_swap to parallelize.
         std::size_t hash_size(estimate_cardinality<lex_score>(inpaths, k, k, sp.s_, nullptr, num_threads, 24));
+        LOG_DEBUG("Estimated cardinality: %zu\n", hash_size);
 #endif
         LOG_DEBUG("Parent map bulding from %s\n", argv[optind]);
         khash_t(p) *taxmap(build_parent_map(argv[optind]));

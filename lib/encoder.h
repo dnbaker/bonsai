@@ -15,6 +15,8 @@
 #include "qmap.h"
 #include "spacer.h"
 #include "util.h"
+#include "klib/kthread.h"
+#include <mutex>
 
 
 namespace emp {
@@ -249,77 +251,38 @@ std::size_t count_cardinality(const std::vector<std::string> paths,
     return ret;
 }
 
+struct est_helper {
+    const Spacer                   &sp_;
+    const std::vector<std::string> &paths_;
+    std::mutex                     &m_;
+    const std::size_t               np_;
+    void                           *data_;
+    hll::hll_t                     &master_;
+};
+
+template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
+void est_helper_fn(void *data_, long index, int tid) {
+    est_helper &h(*(est_helper *)(data_));
+    hll::hll_t hll(hllcount_lmers<score>(h.paths_[index], h.sp_, h.np_, h.data_));
+    {
+        std::unique_lock<std::mutex> lock(h.m_);
+        h.master_ += hll;
+    }
+}
+
 template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
 std::size_t estimate_cardinality(const std::vector<std::string> &paths,
                                  unsigned k, uint16_t w, spvec_t spaces,
-                                 void *data=nullptr, int num_threads=-1, std::size_t np=23, const int high_memory=0) {
+                                 void *data=nullptr, int num_threads=-1, std::size_t np=23) {
     // Default to using all available threads.
     if(num_threads < 0) {
         num_threads = sysconf(_SC_NPROCESSORS_ONLN);
     }
     const Spacer space(k, w, spaces);
-    std::size_t submitted(0), completed(0), todo(paths.size());
-    std::vector<std::future<hll::hll_t>> futures;
-    std::vector<hll::hll_t> hlls;
-    // Submit the first set of jobs
-    for(std::size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
-        futures.emplace_back(std::async(
-          std::launch::async, hllcount_lmers<score>, paths[i], space, np, data));
-        ++submitted;
-    }
-    hll::hll_t master(np * (!high_memory));
-    LOG_DEBUG("About to start daemon.\n");
-    // Daemon -- check the status of currently running jobs, submit new ones when available.
-    while(submitted < todo) {
-        static const int max_retries = 10;
-        for(auto f(futures.begin()); f != futures.end(); ++f) {
-            if(submitted == todo) break;
-            if(is_ready(*f)) {
-                if(high_memory) hlls.push_back(f->get());
-                else            master += f->get();
-                futures.erase(f);
-#if !NDEBUG
-                master.sum();
-                LOG_DEBUG("Latest estimate: %lf\n", master.report());
-#endif
-                int success(0), tries(0);
-                while(!success) {
-                    try {
-                    futures.emplace_back(std::async(
-                      std::launch::async, hllcount_lmers<score>, paths[submitted],
-                      space, np, data));
-                    success = 1;
-                    ++submitted;
-                    ++completed;
-                    } catch(std::system_error &se) {
-                      LOG_DEBUG("System error: resource temporarily available. Retry #%i\n", ++tries);
-                      sleep(5);
-                      if(tries >= max_retries) {LOG_EXIT("Exceeded maximum retries\n"); throw;}
-                    }
-                }
-                break; // Iterators are invalid. Start again.
-            }
-        }
-    }
-    // Get values from the rest of these threads.
-    // Combine them all for a final count
-    // Note: This could be parallelized by dividing into subsets, summing those subsets,
-    // and then summing those sums. In practice, this is already obscenely fast.
-    if(high_memory) {
-        for(auto &f: futures) if(f.valid()) hlls.push_back(f.get());
-        for(auto i(hlls.begin() + 1), end = hlls.end(); i != end; ++i) hlls[0] += *i;
-        if(hlls.size() != todo) throw "a party!";
-        hlls[0].sum();
-        return (std::size_t)hlls[0].report();
-    }
-    for(auto f(std::begin(futures)); f != std::end(futures); ++f) {
-        if(f->valid()) {
-            hll::hll_t tmp(std::move(f->get()));
-            master += tmp;
-            master.sum();
-            LOG_DEBUG("Latest estimate: %lf\n", master.report());
-        }
-    }
+    hll::hll_t master(np);
+    std::mutex m;
+    est_helper helper{space, paths, m, np, data, master};
+    kt_for(num_threads, &est_helper_fn<score>, &helper, paths.size());
     master.sum();
     return (std::size_t)master.report();
 }

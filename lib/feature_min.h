@@ -259,6 +259,7 @@ struct lca_helper {
 
 template<std::uint64_t (*score)(std::uint64_t, void *)>
 void lca_for_helper(void *data_, long index, int tid) {
+    LOG_DEBUG("Helper with index %ld and tid %i starting\n", index, tid);
     lca_helper &lh(*(lca_helper *)data_);
     khash_t(all) *h(lh.hashes_[tid]);
     khash_t(c) *ret(lh.ret_);
