@@ -283,7 +283,6 @@ std::size_t estimate_cardinality(const std::vector<std::string> &paths,
     std::mutex m;
     est_helper helper{space, paths, m, np, data, master};
     kt_for(num_threads, &est_helper_fn<score>, &helper, paths.size());
-    master.sum();
     return (std::size_t)master.report();
 }
 

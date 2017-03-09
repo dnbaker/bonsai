@@ -177,85 +177,31 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
     return ret;
 }
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
-khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
-                          const char *seq2tax_path, const Spacer &sp,
-                          int num_threads, std::size_t start_size=1<<10) {
-    std::size_t submitted(0), completed(0), todo(fns.size());
-    std::vector<khash_t(all) *> counters(todo, nullptr);
-    khash_t(64) *ret(kh_init(64));
-    kh_resize(64, ret, start_size);
-    khash_t(name) *name_hash(build_name_hash(seq2tax_path));
-    std::vector<std::future<std::size_t>> futures;
-
-    for(std::size_t i(0), end(fns.size()); i != end; ++i) counters[i] = kh_init(all);
-
-    // Submit the first set of jobs
-    std::set<std::size_t> subbed, used;
-    for(int i(0), e(std::min(num_threads, (int)todo)); i < e; ++i) {
-        LOG_DEBUG("Launching thread to read from file %s.\n", fns[i].data());
-        futures.emplace_back(std::async(
-          std::launch::async, fill_set_genome<score>, fns[i].data(), sp, counters[i], i, nullptr));
-        //LOG_DEBUG("Submitted for %zu.\n", submitted);
-        subbed.insert(submitted);
-        ++submitted;
-    }
-
-    // Daemon -- check the status of currently running jobs, submit new ones when available.
-    while(submitted < todo) {
-        LOG_DEBUG("Submitted %zu, todo %zu\n", submitted, todo);
-        for(auto &f: futures) {
-            if(is_ready(f)) {
-                if(submitted == todo) break;
-                const std::size_t index(f.get());
-                if(used.find(index) != used.end()) continue;
-                used.insert(index);
-                if(subbed.find(submitted) != subbed.end()) throw "a party!";
-                LOG_DEBUG("Launching thread to read from file %s.\n", fns[submitted].data());
-                f = std::async(
-                  std::launch::async, fill_set_genome<score>, fns[submitted].data(),
-                  sp, counters[submitted], submitted, nullptr);
-                subbed.insert(submitted);
-                LOG_INFO("Submitted for %zu. Updating map for %zu. Total completed/all: %zu/%zu. Total size: %zu.\n",
-                         submitted, index, completed, todo, kh_size(ret));
-                ++submitted, ++completed;
-                const tax_t taxid(get_taxid(fns[index].data(), name_hash));
-                LOG_DEBUG("Just fetched taxid from file %s %u.\n", fns[index].data(), taxid);
-                update_td_map(ret, counters[index], tax_map, taxid);
-                kh_destroy(all, counters[index]); // Destroy set once we're done with it.
-            }
-        }
-    }
-
-    // Join
-    for(auto &f: futures) if(f.valid()) {
-        const std::size_t index(f.get());
-        if(used.find(index) != used.end()) continue;
-        used.insert(index);
-        update_td_map(ret, counters[index], tax_map, get_taxid(fns[index].data(), name_hash));
-        kh_destroy(all, counters[index]);
-        ++completed;
-        LOG_DEBUG("Number left to do: %zu\n", todo - completed);
-    }
-    LOG_DEBUG("Finished LCA map building! Subbed %zu, completed %zu, size of futures %zu.\n", submitted, completed, used.size());
-#if !NDEBUG
-    for(std::size_t i(0); i < todo; ++i) assert(used.find(i) != used.end());
-#endif
-
-    // Clean up
-    destroy_name_hash(name_hash);
-    LOG_DEBUG("Cleaned up after taxdepth map building!\n")
-    return ret;
-}
-
-struct lca_helper {
+template<typename T>
+struct helper {
     const Spacer                   &sp_;
     const std::vector<std::string> &fns_;
-    khash_t(c)                     *ret_;
+    T                              *ret_;
     khash_t(name)                  *name_hash_;
     khash_t(p)                     *tax_map_;
     std::vector<khash_t(all) *>     hashes_;
 };
+using lca_helper = helper<khash_t(c)>;
+using td_helper  = helper<khash_t(64)>;
+
+template<std::uint64_t (*score)(std::uint64_t, void *)>
+void td_for_helper(void *data_, long index, int tid) {
+    LOG_DEBUG("Helper with index %ld and tid %i starting\n", index, tid);
+    td_helper &tdh(*(td_helper *)data_);
+    khash_t(all) *h(tdh.hashes_[tid]);
+    khash_t(64) *ret(tdh.ret_);
+    if(kh_size(h)) kh_clear(all, h);
+    fill_set_genome<score>(tdh.fns_[index].data(), tdh.sp_, h, index, nullptr);
+    tax_t taxid(get_taxid(tdh.fns_[index].data(), tdh.name_hash_));
+    if(taxid == UINT32_C(-1)) {
+        LOG_WARNING("Taxid for %s not listed in summary.txt. Not including.", tdh.fns_[index].data());
+    } else update_td_map(ret, h, tdh.tax_map_, taxid);
+}
 
 template<std::uint64_t (*score)(std::uint64_t, void *)>
 void lca_for_helper(void *data_, long index, int tid) {
@@ -271,6 +217,23 @@ void lca_for_helper(void *data_, long index, int tid) {
     } else update_lca_map(ret, h, lh.tax_map_, taxid);
 }
 
+
+template<std::uint64_t (*score)(std::uint64_t, void *)>
+khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
+                          const char *seq2tax_path, const Spacer &sp,
+                          int num_threads, std::size_t start_size) {
+    khash_t(64) *ret(kh_init(64));
+    kh_resize(64, ret, start_size);
+    khash_t(name) *name_hash(build_name_hash(seq2tax_path));
+    std::vector<khash_t(all) *> counters;
+    counters.reserve(num_threads);
+    for(std::size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
+    td_helper th{sp, fns, ret, name_hash, tax_map, counters};
+    kt_for(num_threads, &td_for_helper<score>, (void *)&th, fns.size());
+    destroy_name_hash(name_hash);
+    LOG_DEBUG("Cleaned up after taxdepth map building!\n");
+    return ret;
+}
 
 
 template<std::uint64_t (*score)(std::uint64_t, void *)>
