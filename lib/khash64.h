@@ -129,6 +129,14 @@ int main() {
 #include <string.h>
 #include <limits.h>
 #include <stdint.h>
+#include <mutex>
+#include <shared_mutex>
+
+#if __cplusplus < 201402L || __GNUC__ < 6
+#define shared_mutex shared_timed_mutex
+#else
+#pragma message("cplusplus version " __cplusplus ". GNUC: " __GNUC__)
+#endif
 
 /* compiler specific configuration */
 
@@ -213,6 +221,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 		khint32_t *flags; \
 		khkey_t *keys; \
 		khval_t *vals; \
+        mutable std::shared_mutex m;  \
 	} kh_##name##_t;
 
 // TODO: Add a mutex around kh_resize to be safe in resizing.
@@ -240,6 +249,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	}																	\
 	SCOPE void kh_clear_##name(kh_##name##_t *h)						\
 	{																	\
+        std::unique_lock<std::shared_mutex>(h->m);                                         \
 		if (h && h->flags) {											\
 			memset(h->flags, 0xaa, __ac_fsize(h->n_buckets) * sizeof(khint32_t)); \
 			h->size = h->n_occupied = 0;								\
@@ -247,6 +257,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	}																	\
 	SCOPE khint_t kh_get_##name(const kh_##name##_t *h, khkey_t key) 	\
 	{																	\
+        std::shared_lock<std::shared_mutex>(h->m);                      \
 		if (h->n_buckets) {												\
 			khint_t k, i, last, mask, step = 0; \
 			mask = h->n_buckets - 1;									\
@@ -261,6 +272,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	}																	\
 	SCOPE int kh_resize_##name(kh_##name##_t *h, khint_t new_n_buckets) \
 	{ /* This function uses 0.25*n_buckets bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets. */ \
+        std::unique_lock<std::shared_mutex>(h->m);                                         \
 		khint32_t *new_flags = 0;										\
 		khint_t j = 1;													\
 		{																\
@@ -334,6 +346,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 				*ret = -1; return h->n_buckets;							\
 			}															\
 		} /* TODO: to implement automatically shrinking; resize() already support shrinking */ \
+        std::unique_lock<std::shared_mutex>(h->m);                      \
 		{																\
 			khint_t k, i, site, last, mask = h->n_buckets - 1, step = 0; \
 			x = site = h->n_buckets; k = __hash_func(key); i = k & mask; \
@@ -366,11 +379,27 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	}																	\
 	SCOPE void kh_del_##name(kh_##name##_t *h, khint_t x)				\
 	{																	\
+        std::unique_lock<std::shared_mutex>(h->m);                       \
 		if (x != h->n_buckets && !__ac_iseither(h->flags, x)) {			\
 			__ac_set_isdel_true(h->flags, x);							\
 			--h->size;													\
 		}																\
-	}
+	}\
+    SCOPE bool kh_try_set_##name(kh_##name##_t *h, const khint_t ki, const khval_t val)\
+    {\
+        const khval_t old(kh_val(h, ki));\
+        return __sync_bool_compare_and_swap(h->vals + ki, old, val);              \
+    }\
+    SCOPE void kh_set_##name(kh_##name##_t *h, khkey_t key, const khval_t val, int *ret)\
+    {\
+        khint_t ki;\
+        int khr;\
+        if((ki = kh_get_##name(h, key)) == kh_end(h)) kh_put_##name(h, key, &khr);\
+        const khval_t old(kh_val(h, ki));\
+        while(!__sync_bool_compare_and_swap(h->vals + ki, old, val));\
+    }
+
+
 
 #define KHASH_DECLARE(name, khkey_t, khval_t)		 					\
 	__KHASH_TYPE(name, khkey_t, khval_t) 								\
@@ -507,6 +536,9 @@ static kh_inline khint_t __ac_Wang_hash(khint_t key)
   @param  k     Iterator to the element to be deleted [khint_t]
  */
 #define kh_del(name, h, k) kh_del_##name(h, k)
+
+#define kh_set(name, h, k, v) kh_set_##name(h, k, v)
+#define kh_try_set(name, h, i, v) kh_try_set_##name(h, i, v)
 
 /*! @function
   @abstract     Test whether a bucket contains data.
