@@ -239,6 +239,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	}																	\
 	SCOPE void kh_destroy_##name(kh_##name##_t *h)						\
 	{																	\
+        std::unique_lock<std::shared_mutex>(h->m);                      \
 		if (h) {														\
 			kfree((void *)h->keys); kfree(h->flags);					\
 			kfree((void *)h->vals);										\
@@ -270,13 +271,13 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	}																	\
 	SCOPE int kh_resize_##name(kh_##name##_t *h, khint_t new_n_buckets) \
 	{ /* This function uses 0.25*n_buckets bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets. */ \
-        std::unique_lock<std::shared_mutex>(h->m);                                         \
 		khint32_t *new_flags = 0;										\
 		khint_t j = 1;													\
 		{																\
 			kroundup64(new_n_buckets); 									\
 			if (new_n_buckets < 4) new_n_buckets = 4;					\
 			if (h->size >= (khint_t)(new_n_buckets * __ac_HASH_UPPER + 0.5)) j = 0;	/* requested size is too small */ \
+            std::unique_lock<std::shared_mutex>(h->m);                  \
 			else { /* hash table size to be changed (shrink or expand); rehash */ \
 				new_flags = (khint32_t*)kmalloc(__ac_fsize(new_n_buckets) * sizeof(khint32_t));	\
 				if (!new_flags) return -1;								\
@@ -294,6 +295,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 			}															\
 		}																\
 		if (j) { /* rehashing is needed */								\
+            std::unique_lock<std::shared_mutex>(h->m);                  \
 			for (j = 0; j != h->n_buckets; ++j) {						\
 				if (__ac_iseither(h->flags, j) == 0) {					\
 					khkey_t key = h->keys[j];							\
@@ -385,11 +387,13 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	}\
     SCOPE bool kh_try_set_##name(kh_##name##_t *h, const khint_t ki, const khval_t val)\
     {\
+        std::shared_lock<std::shared_mutex>(h->m);                      \
         const khval_t old(kh_val(h, ki));\
         return __sync_bool_compare_and_swap(h->vals + ki, old, val);              \
     }\
     SCOPE void kh_set_##name(kh_##name##_t *h, khkey_t key, const khval_t val)    \
     {\
+        std::shared_lock<std::shared_mutex>(h->m);                      \
         khint_t ki;\
         int khr;\
         if((ki = kh_get_##name(h, key)) == kh_end(h)) kh_put_##name(h, key, &khr);\
