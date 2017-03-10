@@ -5,6 +5,7 @@
 #include "lib/tree_climber.h"
 #include "lib/bitmap.h"
 #include "lib/tx.h"
+#include <functional>
 
 using namespace emp;
 
@@ -241,18 +242,7 @@ void metatree_usage(char *arg) {
     std::exit(EXIT_FAILURE);
 }
 
-typedef std::tuple<int, std::vector<std::uint64_t>, std::uint64_t> indvec_t;
-
-struct indgt {
-    inline bool operator()(const indvec_t &a, const indvec_t &b) {
-        using std::get;
-        if(get<2>(a) !=get<2>(b)) return get<2>(a) > get<2>(b);
-        if(get<0>(a) != get<0>(b)) return get<0>(a) > get<0>(b);
-        for(unsigned i(0); i < get<1>(a).size(); ++i)
-            if(get<1>(a)[i] != get<1>(b)[i]) return get<1>(a)[i] > get<1>(b)[i];
-        return 0; // Identical, never happens.
-    }
-};
+typedef std::tuple<std::uint64_t, int, std::vector<std::uint64_t>> indvec_t;
 
 
 int metatree_main(int argc, char *argv[]) {
@@ -297,7 +287,7 @@ int metatree_main(int argc, char *argv[]) {
     if(to_fetch.empty()) LOG_EXIT("No binary files to grab from.\n");
     LOG_DEBUG("Fetched! Making tx2g\n");
     std::size_t ind(0);
-    std::set<indvec_t, indgt> vec_scores;
+    std::set<indvec_t, std::greater<indvec_t>> vec_scores;
     std::unordered_map<tax_t, std::forward_list<std::string>> tx2g(tax2genome_map(name_hash, inpaths));
     LOG_DEBUG("Made! Printing\n");
     for(auto &kv: tx2g)
@@ -322,17 +312,19 @@ int metatree_main(int argc, char *argv[]) {
         if(!parent_path.empty()) parent_path += '/';
         parent_path += std::to_string(parent_tax) + ".kmers.bin";
         khash_t(all) *acceptable(tree::load_binary_kmerset(parent_path.data()));
-        kgset_t kgs(range_map, sp, num_threads, acceptable);
-        bitmap_t bitmap(kgs);
+        bitmap_t bitmap;
+        {
+            kgset_t kgs(range_map, sp, num_threads, acceptable);
+            bitmap = kgs;
+            taxes.emplace_back(std::move(kgs.get_taxes()));
+        }
         count::Counter<std::vector<std::uint64_t>> counts(bitmap.to_counter());
         adjmap_t fwd_adj(counts);
         adjmap_t rev_adj(counts, true);
         for(auto &c: counts) {
-            vec_scores.emplace(std::make_tuple(i, c.first,
-                                               score_node_addn(c.first, fwd_adj, counts, range_map.size())));
+            vec_scores.emplace(score_node_addn(c.first, fwd_adj, counts, range_map.size()), i, c.first);
         }
         kh_destroy(all, acceptable);
-        taxes.emplace_back(std::move(kgs.get_taxes()));
         tax_paths.emplace_back(std::move(list_vec));
     }
     for(std::size_t i(0), e(taxes.size()); i < e; ++i) {

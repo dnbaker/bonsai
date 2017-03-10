@@ -134,8 +134,6 @@ int main() {
 
 #if __cplusplus < 201402L || __GNUC__ < 6
 #define shared_mutex shared_timed_mutex
-#else
-#pragma message("cplusplus version " __cplusplus ". GNUC: " __GNUC__)
 #endif
 
 /* compiler specific configuration */
