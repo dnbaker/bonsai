@@ -74,9 +74,8 @@ void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t ta
                 kh_val(kc, k2) = TDencode(node_depth(tax, kh_val(kc, ki)), kh_val(kc, ki));
                 if(unlikely(kh_size(kc) % 1000000 == 0)) LOG_INFO("Final hash size %zu\n", kh_size(kc));
             } else if(kh_val(kc, k2) != taxid) {
-                do {
-                    val = lca(tax, taxid, kh_val(kc, k2));
-                } while(!kh_try_set(64, kc, k2, val == (tax_t)-1 ? 1: TDencode(node_depth(tax, val), val)));
+                do val = lca(tax, taxid, kh_val(kc, k2));
+                while(!kh_try_set(64, kc, k2, val == (tax_t)-1 ? 1: TDencode(node_depth(tax, val), val)));
             }
         }
     }
@@ -96,11 +95,8 @@ void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t ta
                 kh_val(kc, k2) = taxid;
                 if(unlikely(kh_size(kc) % 1000000 == 0)) LOG_INFO("Final hash size %zu\n", kh_size(kc));
             } else if(kh_val(kc, k2) != taxid) {
-                val = lca(tax, taxid, kh_val(kc, k2));
-                while(!kh_try_set(c, kc, k2, val)) {
-                    if(kh_key(kc, k2) != kh_key(set, ki)) k2 = kh_get(c, kc, kh_key(set, ki));
-                    val = lca(tax, taxid, kh_val(kc, k2));
-                }
+                do val = lca(tax, taxid, kh_val(kc, k2));
+                while(!kh_try_set(c, kc, k2, val));
                 if(kh_val(kc, k2) == UINT32_C(-1)) kh_val(kc, k2) = 1, LOG_WARNING("Missing taxid %u. Setting lca \n", taxid);
             }
         }

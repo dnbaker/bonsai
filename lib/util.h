@@ -52,7 +52,7 @@ KHASH_MAP_INIT_INT64(c, tax_t)
 KHASH_MAP_INIT_INT64(64, std::uint64_t)
 KHASH_MAP_INIT_INT(p, tax_t)
 KHASH_MAP_INIT_STR(name, tax_t)
-using strlist std::forward_list<std::string>;
+using strlist = std::forward_list<std::string>;
 
 std::string rand_string(std::size_t n);
 std::size_t count_lines(const char *fn) noexcept;

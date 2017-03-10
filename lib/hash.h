@@ -69,14 +69,13 @@ static INLINE int X31_hash_string(const char *s)
 
 // SBDM http://www.cse.yorku.ca/~oz/sdbm.bun/. Mirrored https://github.com/davidar/sdbm.
 // Slightly modified.
-// This is a 32-bit unsigned hash functionf or strings.
-#define DUFF
+// This is a 32-bit unsigned hash function for strings.
 static INLINE unsigned
 dbm_hash(register const char *str, register std::size_t len)
 {
     register unsigned n = 0;
 
-#define HASHC  (n = *str++ + 65599 * n)
+#define HASHC  (n = *str++ + (n << 16) + (n << 6) - n)
 #ifdef DUFF
     if(len) {
 
@@ -92,16 +91,15 @@ dbm_hash(register const char *str, register std::size_t len)
         }
     }
 #else
-    while (len--) n = *str++ + 65599 * n;
+    while (len--) HASHC;
 #endif
     return n;
 }
-#undef DUFF
 #undef HASHC
 static INLINE unsigned dbm_hash(register const char *str)
 {
-    register unsigned n = 0;
-    while(*str) n = *str++ + ((n << 16) + (n << 6) - n);
+    register unsigned n = *str;
+    if(n) for(++str; *str; n = *str++ + ((n << 16) + (n << 6) - n));
     return n;
 }
 

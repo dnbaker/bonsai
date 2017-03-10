@@ -104,7 +104,6 @@ int phase2_main(int argc, char *argv[]) {
             case 'w': wsz = atoi(optarg); break;
             case 'T': tax_path = optarg; break;
             case 'M': seq2taxpath = optarg; break;
-            case 'H': use_hll = 1; break;
             case 'F': paths_file = optarg; break;
         }
     }
