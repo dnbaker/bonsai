@@ -79,7 +79,7 @@ std::vector<std::string> get_paths(const char *path) {
 }
 
 int phase2_main(int argc, char *argv[]) {
-    int c, mode(score_scheme::LEX), wsz(-1), num_threads(-1), use_hll(0), k(31);
+    int c, mode(score_scheme::LEX), wsz(-1), num_threads(-1), k(31);
     std::size_t start_size(1<<16);
     std::string spacing, tax_path, seq2taxpath, paths_file;
     // TODO: update documentation for tax_path and seq2taxpath options.
@@ -288,7 +288,7 @@ int metatree_main(int argc, char *argv[]) {
     LOG_DEBUG("Fetched! Making tx2g\n");
     std::size_t ind(0);
     std::set<indvec_t, std::greater<indvec_t>> vec_scores;
-    std::unordered_map<tax_t, std::forward_list<std::string>> tx2g(tax2genome_map(name_hash, inpaths));
+    std::unordered_map<tax_t, strlist> tx2g(tax2genome_map(name_hash, inpaths));
     LOG_DEBUG("Made! Printing\n");
     for(auto &kv: tx2g)
         for(auto &path: kv.second)
@@ -352,17 +352,14 @@ int hist_main(int argc, char *argv[]) {
     if(argc > 2) ofp = std::fopen(argv[2], "w");
     for(khiter_t ki(0); ki != kh_end(map); ++ki) if(kh_exist(map, ki)) counter.add(kh_val(map, ki));
     auto &cmap(counter.get_map());
-    struct elcount {
-        tax_t el; std::uint32_t count;
-        elcount(tax_t el, std::size_t count): el(el), count(count) {}
-    } __attribute__((packed));
+    using elcount = std::pair<tax_t, std::uint32_t>;
     std::vector<elcount> structs;
     for(auto& i: cmap) structs.emplace_back(i.first, i.second);
     std::sort(std::begin(structs), std::end(structs), [] (elcount &a, elcount &b) {
-        return a.count < b.count;
+        return a.second < b.second;
     });
     std::fputs("Name\tCount\n", ofp);
-    for(auto &i: structs) std::fprintf(ofp, "%u\t%u\n", i.el, i.count);
+    for(auto &i: structs) std::fprintf(ofp, "%u\t%u\n", i.first, i.second);
     if(ofp != stdout) std::fclose(ofp);
     return EXIT_SUCCESS;
 }
