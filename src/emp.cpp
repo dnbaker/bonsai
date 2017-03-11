@@ -248,7 +248,7 @@ void metatree_usage(char *arg) {
 }
 
 typedef std::tuple<std::uint64_t, int, std::vector<std::uint64_t>> indvec_t;
-using vecptr_t = std::vector<std::uint64_t> *;
+using vecptr_t = std::uint64_t;
 
 KHASH_MAP_INIT_INT64(pk, vecptr_t)
 struct pkh_t {
@@ -275,7 +275,12 @@ struct pkh_t {
     void for_each(Function func) {
         for(khiter_t ki(0); ki != kh_end(h_); ++ki)
             if(kh_exist(h_, ki))
-                func(kh_val(h_, ki));
+                func(ki);
+    }
+    void print_each() {
+        for_each([this](khiter_t ki) {
+            std::fprintf(stderr, "%p\t%" PRIu64 "\n", (void *)kh_key(h_, ki), kh_val(h_, ki));
+        });
     }
 
     ~pkh_t() {kh_destroy(pk, h_);}
