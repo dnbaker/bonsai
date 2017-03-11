@@ -9,7 +9,7 @@ namespace emp {
 // This is our core 64-bit hash.
 // It has a 1-1 mapping from any one 64-bit integer to another
 // and can be inverted with irving_inv_hash.
-INLINE std::uint64_t wang_hash(std::uint64_t key) {
+constexpr INLINE std::uint64_t wang_hash(std::uint64_t key) {
   key = (~key) + (key << 21); // key = (key << 21) - key - 1;
   key = key ^ (key >> 24);
   key = (key + (key << 3)) + (key << 8); // key * 265
@@ -19,6 +19,19 @@ INLINE std::uint64_t wang_hash(std::uint64_t key) {
   key = key + (key << 31);
   return key;
 }
+struct wang_hash_struct {
+    constexpr std::uint64_t operator()(std::uint64_t key) {return wang_hash(key);}
+};
+template<typename T>
+struct ptr_wang_hash_struct {
+    template<typename = typename std::enable_if<std::is_pointer<T>::value || sizeof(T) == 8>::type>
+    constexpr std::uint64_t operator()(T key) {return wang_hash(reinterpret_cast<std::uint64_t>(key));}
+};
+
+template<typename T>
+struct idt_struct {
+    constexpr T operator()(const T key) {return key;}
+};
 
 // Geoffrey Irving
 // https://naml.us/blog/tag/thomas-wang

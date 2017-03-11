@@ -5,6 +5,7 @@
 #include "lib/tree_climber.h"
 #include "lib/bitmap.h"
 #include "lib/tx.h"
+#include "lib/khpp.h"
 #include <functional>
 
 using namespace emp;
@@ -250,41 +251,9 @@ void metatree_usage(char *arg) {
 typedef std::tuple<std::uint64_t, int, std::vector<std::uint64_t>> indvec_t;
 using vecptr_t = std::uint64_t;
 
-KHASH_MAP_INIT_INT64(pk, vecptr_t)
-struct pkh_t {
-    khash_t(pk) *h_;
+template struct kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
+using pkh_t = kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
 
-    pkh_t(std::size_t size=0): h_(kh_init(pk)) {
-        if(size) resize(size);
-    }
-    khiter_t put(std::uint64_t key) {
-        khiter_t ret;
-        int khr;
-        return kh_put(pk, h_, ret, &khr);
-    }
-    vecptr_t &operator[](std::uint64_t key) {
-        khiter_t ki(kh_get(pk, h_, key));
-        if(ki == kh_end(h_)) ki = put(key);
-        return kh_val(h_, ki);
-    }
-    void resize(std::size_t size) {
-        kh_resize(pk, h_, size);
-    }
-
-    template <typename Function>
-    void for_each(Function func) {
-        for(khiter_t ki(0); ki != kh_end(h_); ++ki)
-            if(kh_exist(h_, ki))
-                func(ki);
-    }
-    void print_each() {
-        for_each([this](khiter_t ki) {
-            std::fprintf(stderr, "%p\t%" PRIu64 "\n", (void *)kh_key(h_, ki), kh_val(h_, ki));
-        });
-    }
-
-    ~pkh_t() {kh_destroy(pk, h_);}
-};
 
 
 int metatree_main(int argc, char *argv[]) {
@@ -340,6 +309,7 @@ int metatree_main(int argc, char *argv[]) {
     for(int i(0), e(offsets.size() - 1); i < e; ++i) {
         LOG_DEBUG("Doing set %i of %i\n", i, e);
         ind = offsets[i];
+        const tax_t parent_tax(get_parent(taxmap, nodes[ind]));
         std::set<tax_t> taxids(nodes.begin() + ind, nodes.begin() + offsets[i + 1]);
         std::unordered_map<tax_t, std::forward_list<std::string>> range_map;
         std::vector<std::forward_list<std::string>> list_vec;
@@ -347,9 +317,14 @@ int metatree_main(int argc, char *argv[]) {
             if(taxids.find(pair.first) == taxids.end()) continue;
             range_map.emplace(pair.first, pair.second);
         }
+        if(range_map.empty()) {
+            LOG_INFO("No genomes to process for taxids who are descendents of %u\n", parent_tax);
+            taxes.emplace_back();
+            tax_paths.emplace_back();
+            continue;
+        }
         for(auto &pair: range_map) list_vec.push_back(pair.second); // Potentially expensive copy.
         // Handle sets of genomes which all match a taxonomy.
-        const tax_t parent_tax(get_parent(taxmap, nodes[ind]));
         std::string parent_path(folder);
         if(!parent_path.empty()) parent_path += '/';
         parent_path += std::to_string(parent_tax) + ".kmers.bin";
