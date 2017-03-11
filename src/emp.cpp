@@ -5,6 +5,8 @@
 #include "lib/tree_climber.h"
 #include "lib/bitmap.h"
 #include "lib/tx.h"
+#include "lib/khpp.h"
+#include <functional>
 
 using namespace emp;
 
@@ -78,7 +80,7 @@ std::vector<std::string> get_paths(const char *path) {
 }
 
 int phase2_main(int argc, char *argv[]) {
-    int c, mode(score_scheme::LEX), wsz(-1), num_threads(-1), use_hll(0), k(31);
+    int c, mode(score_scheme::LEX), wsz(-1), num_threads(-1), k(31);
     std::size_t start_size(1<<16);
     std::string spacing, tax_path, seq2taxpath, paths_file;
     // TODO: update documentation for tax_path and seq2taxpath options.
@@ -103,7 +105,6 @@ int phase2_main(int argc, char *argv[]) {
             case 'w': wsz = atoi(optarg); break;
             case 'T': tax_path = optarg; break;
             case 'M': seq2taxpath = optarg; break;
-            case 'H': use_hll = 1; break;
             case 'F': paths_file = optarg; break;
         }
     }
@@ -120,6 +121,7 @@ int phase2_main(int argc, char *argv[]) {
 #else
         // Force using hll so that we can use __sync_bool_compare_and_swap to parallelize.
         std::size_t hash_size(estimate_cardinality<lex_score>(inpaths, k, k, sp.s_, nullptr, num_threads, 24));
+        LOG_DEBUG("Estimated cardinality: %zu\n", hash_size);
 #endif
         LOG_DEBUG("Parent map bulding from %s\n", argv[optind]);
         khash_t(p) *taxmap(build_parent_map(argv[optind]));
@@ -132,7 +134,7 @@ int phase2_main(int argc, char *argv[]) {
     Spacer sp(k, wsz, phase1_map.s_);
     Database<khash_t(c)>  phase2_map(phase1_map);
     khash_t(p) *taxmap(tax_path.empty() ? nullptr: build_parent_map(tax_path.data()));
-    phase2_map.db_ = minimized_map<hash_score>(inpaths, phase1_map.db_, sp, num_threads, start_size, mode);
+    phase2_map.db_ = minimized_map<hash_score>(inpaths, phase1_map.db_, sp, num_threads, start_size);
     // Write minimized map
     phase2_map.write(argv[optind + 1]);
     if(taxmap) kh_destroy(p, taxmap);
@@ -144,8 +146,14 @@ int hll_main(int argc, char *argv[]) {
     int c, wsz(-1), k(31), num_threads(-1), sketch_size(24);
     std::string spacing;
     if(argc < 2) {
-        usage:
-        LOG_EXIT("NotImplementedError: Add usage, pls.");
+        usage: LOG_EXIT("Usage: %s <opts> <paths>\nFlags:"
+                        "-k:\tkmer length (Default: 31. Max: 31)\n"
+                        "-w:\twindow size (Default: -1)  Must be -1 (ignored) or >= kmer length.\n"
+                        "-s:\tspacing (default: none). format: <value>x<times>,<value>x<times>,...\n"
+                        "   \tOmitting x<times> indicates 1 occurrence of spacing <value>\n"
+                        "-S:\tsketch size (default: 24). (Allocates 2 << [param] bytes of memory per HyperLogLog.\n"
+                        "-p:\tnumber of threads.\n"
+                        , argv[0]);
     }
     while((c = getopt(argc, argv, "w:s:S:p:k:tfh?")) >= 0) {
         switch(c) {
@@ -240,18 +248,12 @@ void metatree_usage(char *arg) {
     std::exit(EXIT_FAILURE);
 }
 
-typedef std::tuple<int, std::vector<std::uint64_t>, std::uint64_t> indvec_t;
+typedef std::tuple<std::uint64_t, int, std::vector<std::uint64_t>> indvec_t;
+using vecptr_t = std::uint64_t;
 
-struct indgt {
-    inline bool operator()(const indvec_t &a, const indvec_t &b) {
-        using std::get;
-        if(get<2>(a) !=get<2>(b)) return get<2>(a) > get<2>(b);
-        if(get<0>(a) != get<0>(b)) return get<0>(a) > get<0>(b);
-        for(unsigned i(0); i < get<1>(a).size(); ++i)
-            if(get<1>(a)[i] != get<1>(b)[i]) return get<1>(a)[i] > get<1>(b)[i];
-        return 0; // Identical, never happens.
-    }
-};
+template struct kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
+using pkh_t = kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
+
 
 
 int metatree_main(int argc, char *argv[]) {
@@ -296,8 +298,8 @@ int metatree_main(int argc, char *argv[]) {
     if(to_fetch.empty()) LOG_EXIT("No binary files to grab from.\n");
     LOG_DEBUG("Fetched! Making tx2g\n");
     std::size_t ind(0);
-    std::set<indvec_t, indgt> vec_scores;
-    std::unordered_map<tax_t, std::forward_list<std::string>> tx2g(tax2genome_map(name_hash, inpaths));
+    std::set<indvec_t, std::greater<indvec_t>> vec_scores;
+    std::unordered_map<tax_t, strlist> tx2g(tax2genome_map(name_hash, inpaths));
     LOG_DEBUG("Made! Printing\n");
     for(auto &kv: tx2g)
         for(auto &path: kv.second)
@@ -307,6 +309,7 @@ int metatree_main(int argc, char *argv[]) {
     for(int i(0), e(offsets.size() - 1); i < e; ++i) {
         LOG_DEBUG("Doing set %i of %i\n", i, e);
         ind = offsets[i];
+        const tax_t parent_tax(get_parent(taxmap, nodes[ind]));
         std::set<tax_t> taxids(nodes.begin() + ind, nodes.begin() + offsets[i + 1]);
         std::unordered_map<tax_t, std::forward_list<std::string>> range_map;
         std::vector<std::forward_list<std::string>> list_vec;
@@ -314,24 +317,31 @@ int metatree_main(int argc, char *argv[]) {
             if(taxids.find(pair.first) == taxids.end()) continue;
             range_map.emplace(pair.first, pair.second);
         }
+        if(range_map.empty()) {
+            LOG_INFO("No genomes to process for taxids who are descendents of %u\n", parent_tax);
+            taxes.emplace_back();
+            tax_paths.emplace_back();
+            continue;
+        }
         for(auto &pair: range_map) list_vec.push_back(pair.second); // Potentially expensive copy.
         // Handle sets of genomes which all match a taxonomy.
-        const tax_t parent_tax(get_parent(taxmap, nodes[ind]));
         std::string parent_path(folder);
         if(!parent_path.empty()) parent_path += '/';
         parent_path += std::to_string(parent_tax) + ".kmers.bin";
         khash_t(all) *acceptable(tree::load_binary_kmerset(parent_path.data()));
-        kgset_t kgs(range_map, sp, num_threads, acceptable);
-        bitmap_t bitmap(kgs);
+        bitmap_t bitmap;
+        {
+            kgset_t kgs(range_map, sp, num_threads, acceptable);
+            bitmap = kgs;
+            taxes.emplace_back(std::move(kgs.get_taxes()));
+        }
         count::Counter<std::vector<std::uint64_t>> counts(bitmap.to_counter());
         adjmap_t fwd_adj(counts);
         adjmap_t rev_adj(counts, true);
         for(auto &c: counts) {
-            vec_scores.emplace(std::make_tuple(i, c.first,
-                                               score_node_addn(c.first, fwd_adj, counts, range_map.size())));
+            vec_scores.emplace(score_node_addn(c.first, fwd_adj, counts, range_map.size()), i, c.first);
         }
         kh_destroy(all, acceptable);
-        taxes.emplace_back(std::move(kgs.get_taxes()));
         tax_paths.emplace_back(std::move(list_vec));
     }
     for(std::size_t i(0), e(taxes.size()); i < e; ++i) {
@@ -359,17 +369,14 @@ int hist_main(int argc, char *argv[]) {
     if(argc > 2) ofp = std::fopen(argv[2], "w");
     for(khiter_t ki(0); ki != kh_end(map); ++ki) if(kh_exist(map, ki)) counter.add(kh_val(map, ki));
     auto &cmap(counter.get_map());
-    struct elcount {
-        tax_t el; std::uint32_t count;
-        elcount(tax_t el, std::size_t count): el(el), count(count) {}
-    } __attribute__((packed));
+    using elcount = std::pair<tax_t, std::uint32_t>;
     std::vector<elcount> structs;
     for(auto& i: cmap) structs.emplace_back(i.first, i.second);
     std::sort(std::begin(structs), std::end(structs), [] (elcount &a, elcount &b) {
-        return a.count < b.count;
+        return a.second < b.second;
     });
     std::fputs("Name\tCount\n", ofp);
-    for(auto &i: structs) std::fprintf(ofp, "%u\t%u\n", i.el, i.count);
+    for(auto &i: structs) std::fprintf(ofp, "%u\t%u\n", i.first, i.second);
     if(ofp != stdout) std::fclose(ofp);
     return EXIT_SUCCESS;
 }

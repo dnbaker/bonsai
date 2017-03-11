@@ -52,6 +52,7 @@ KHASH_MAP_INIT_INT64(c, tax_t)
 KHASH_MAP_INIT_INT64(64, std::uint64_t)
 KHASH_MAP_INIT_INT(p, tax_t)
 KHASH_MAP_INIT_STR(name, tax_t)
+using strlist = std::forward_list<std::string>;
 
 std::string rand_string(std::size_t n);
 std::size_t count_lines(const char *fn) noexcept;
@@ -157,7 +158,7 @@ void kset_union(khash_t(all) *a, khash_t(all) *b) noexcept;
 
 tax_t lca(khash_t(p) *map, tax_t a, tax_t b) noexcept;
 unsigned node_depth(khash_t(p) *map, tax_t a) noexcept;
-std::unordered_map<tax_t, std::forward_list<std::string>> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths);
+std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths);
 INLINE tax_t get_parent(khash_t(p) *taxmap, tax_t key) noexcept {
     // Returns maximum value if not found.
     khiter_t ki;

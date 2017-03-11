@@ -113,6 +113,7 @@ public:
         return tmp;
     }
 
+    bitmap_t(){}
     bitmap_t(const kgset_t &set) {
         const auto tmp(fill(set));
         unsigned bitsum;
@@ -130,6 +131,8 @@ public:
         LOG_DEBUG("Keeping %zu of %zu kmers for bit patterns which are not exactly compressed by the taxonomy heuristic.\n",
                   n_passed, total);
     }
+    bitmap_t(bitmap_t &&other)            = default;
+    bitmap_t &operator=(bitmap_t &&other) = default;
 
     count::Counter<std::vector<std::uint64_t>> to_counter();
 };

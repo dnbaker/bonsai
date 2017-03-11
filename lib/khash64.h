@@ -61,7 +61,7 @@ int main() {
 
   2011-12-29 (0.2.7):
 
-    * Minor code clean up; no actual effect.
+	* Minor code clean up; no actual effect.
 
   2011-09-16 (0.2.6):
 
@@ -80,11 +80,11 @@ int main() {
 
   2011-02-14 (0.2.5):
 
-    * Allow to declare global functions.
+	* Allow to declare global functions.
 
   2009-09-26 (0.2.4):
 
-    * Improve portability
+	* Improve portability
 
   2008-09-19 (0.2.3):
 
@@ -129,6 +129,12 @@ int main() {
 #include <string.h>
 #include <limits.h>
 #include <stdint.h>
+#include <mutex>
+#include <shared_mutex>
+
+#if __cplusplus < 201402L || __GNUC__ < 6
+#define shared_mutex shared_timed_mutex
+#endif
 
 /* compiler specific configuration */
 
@@ -213,6 +219,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 		khint32_t *flags; \
 		khkey_t *keys; \
 		khval_t *vals; \
+		mutable std::shared_mutex m;  \
 	} kh_##name##_t;
 
 // TODO: Add a mutex around kh_resize to be safe in resizing.
@@ -232,6 +239,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	}																	\
 	SCOPE void kh_destroy_##name(kh_##name##_t *h)						\
 	{																	\
+		std::unique_lock<std::shared_mutex>(h->m);					  \
 		if (h) {														\
 			kfree((void *)h->keys); kfree(h->flags);					\
 			kfree((void *)h->vals);										\
@@ -240,6 +248,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	}																	\
 	SCOPE void kh_clear_##name(kh_##name##_t *h)						\
 	{																	\
+		std::unique_lock<std::shared_mutex>(h->m);										 \
 		if (h && h->flags) {											\
 			memset(h->flags, 0xaa, __ac_fsize(h->n_buckets) * sizeof(khint32_t)); \
 			h->size = h->n_occupied = 0;								\
@@ -247,6 +256,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	}																	\
 	SCOPE khint_t kh_get_##name(const kh_##name##_t *h, khkey_t key) 	\
 	{																	\
+		std::shared_lock<std::shared_mutex>(h->m);					  \
 		if (h->n_buckets) {												\
 			khint_t k, i, last, mask, step = 0; \
 			mask = h->n_buckets - 1;									\
@@ -268,6 +278,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 			if (new_n_buckets < 4) new_n_buckets = 4;					\
 			if (h->size >= (khint_t)(new_n_buckets * __ac_HASH_UPPER + 0.5)) j = 0;	/* requested size is too small */ \
 			else { /* hash table size to be changed (shrink or expand); rehash */ \
+				std::unique_lock<std::shared_mutex>(h->m);				  \
 				new_flags = (khint32_t*)kmalloc(__ac_fsize(new_n_buckets) * sizeof(khint32_t));	\
 				if (!new_flags) return -1;								\
 				memset(new_flags, 0xaa, __ac_fsize(new_n_buckets) * sizeof(khint32_t)); \
@@ -284,6 +295,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 			}															\
 		}																\
 		if (j) { /* rehashing is needed */								\
+			std::unique_lock<std::shared_mutex>(h->m);				  \
 			for (j = 0; j != h->n_buckets; ++j) {						\
 				if (__ac_iseither(h->flags, j) == 0) {					\
 					khkey_t key = h->keys[j];							\
@@ -334,6 +346,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 				*ret = -1; return h->n_buckets;							\
 			}															\
 		} /* TODO: to implement automatically shrinking; resize() already support shrinking */ \
+		std::unique_lock<std::shared_mutex>(h->m);					  \
 		{																\
 			khint_t k, i, site, last, mask = h->n_buckets - 1, step = 0; \
 			x = site = h->n_buckets; k = __hash_func(key); i = k & mask; \
@@ -366,11 +379,30 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	}																	\
 	SCOPE void kh_del_##name(kh_##name##_t *h, khint_t x)				\
 	{																	\
+		std::unique_lock<std::shared_mutex>(h->m);					   \
 		if (x != h->n_buckets && !__ac_iseither(h->flags, x)) {			\
 			__ac_set_isdel_true(h->flags, x);							\
 			--h->size;													\
 		}																\
+	}\
+	SCOPE bool kh_try_set_##name(kh_##name##_t *h, const khint_t ki, const khval_t val)\
+	{\
+		std::shared_lock<std::shared_mutex>(h->m);					  \
+		const khval_t old(kh_val(h, ki));\
+		return __sync_bool_compare_and_swap(h->vals + ki, old, val);			  \
+	}\
+	SCOPE void kh_set_##name(kh_##name##_t *h, khkey_t key, const khval_t val)	\
+	{\
+		std::shared_lock<std::shared_mutex>(h->m);					  \
+		khint_t ki;\
+		int khr;\
+		if((ki = kh_get_##name(h, key)) == kh_end(h)) kh_put_##name(h, key, &khr);\
+		const khval_t old(kh_val(h, ki));\
+		while(!__sync_bool_compare_and_swap(h->vals + ki, old, val))\
+			if(h->keys[ki] != key) ki = kh_get_##name(h, key);\
 	}
+
+
 
 #define KHASH_DECLARE(name, khkey_t, khval_t)		 					\
 	__KHASH_TYPE(name, khkey_t, khval_t) 								\
@@ -386,29 +418,29 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 /* --- BEGIN OF HASH FUNCTIONS --- */
 
 /*! @function
-  @abstract     Integer hash function
+  @abstract	 Integer hash function
   @param  key   The integer [khint32_t]
-  @return       The hash value [khint_t]
+  @return	   The hash value [khint_t]
  */
 #define kh_int_hash_func(key) (khint32_t)(key)
 /*! @function
-  @abstract     Integer comparison function
+  @abstract	 Integer comparison function
  */
 #define kh_int_hash_equal(a, b) ((a) == (b))
 /*! @function
-  @abstract     64-bit integer hash function
+  @abstract	 64-bit integer hash function
   @param  key   The integer [khint64_t]
-  @return       The hash value [khint_t]
+  @return	   The hash value [khint_t]
  */
 #define kh_int64_hash_func(key) (khint32_t)((key)>>33^(key)^(key)<<11)
 /*! @function
-  @abstract     64-bit integer comparison function
+  @abstract	 64-bit integer comparison function
  */
 #define kh_int64_hash_equal(a, b) ((a) == (b))
 /*! @function
-  @abstract     const char* hash function
-  @param  s     Pointer to a null terminated string
-  @return       The hash value
+  @abstract	 const char* hash function
+  @param  s	 Pointer to a null terminated string
+  @return	   The hash value
  */
 static kh_inline khint_t __ac_X31_hash_string(const char *s)
 {
@@ -417,25 +449,25 @@ static kh_inline khint_t __ac_X31_hash_string(const char *s)
 	return h;
 }
 /*! @function
-  @abstract     Another interface to const char* hash function
+  @abstract	 Another interface to const char* hash function
   @param  key   Pointer to a null terminated string [const char*]
-  @return       The hash value [khint_t]
+  @return	   The hash value [khint_t]
  */
 #define kh_str_hash_func(key) __ac_X31_hash_string(key)
 /*! @function
-  @abstract     Const char* comparison function
+  @abstract	 Const char* comparison function
  */
 #define kh_str_hash_equal(a, b) (strcmp(a, b) == 0)
 
 static kh_inline khint_t __ac_Wang_hash(khint_t key)
 {
-    key += ~(key << 15);
-    key ^=  (key >> 10);
-    key +=  (key << 3);
-    key ^=  (key >> 6);
-    key += ~(key << 11);
-    key ^=  (key >> 16);
-    return key;
+	key += ~(key << 15);
+	key ^=  (key >> 10);
+	key +=  (key << 3);
+	key ^=  (key >> 6);
+	key += ~(key << 11);
+	key ^=  (key >> 16);
+	return key;
 }
 #define kh_int_hash_func2(k) __ac_Wang_hash((khint_t)key)
 
@@ -450,125 +482,128 @@ static kh_inline khint_t __ac_Wang_hash(khint_t key)
 #define khash_t(name) kh_##name##_t
 
 /*! @function
-  @abstract     Initiate a hash table.
+  @abstract	 Initiate a hash table.
   @param  name  Name of the hash table [symbol]
-  @return       Pointer to the hash table [khash_t(name)*]
+  @return	   Pointer to the hash table [khash_t(name)*]
  */
 #define kh_init(name) kh_init_##name()
 
 /*! @function
-  @abstract     Destroy a hash table.
+  @abstract	 Destroy a hash table.
   @param  name  Name of the hash table [symbol]
-  @param  h     Pointer to the hash table [khash_t(name)*]
+  @param  h	 Pointer to the hash table [khash_t(name)*]
  */
 #define kh_destroy(name, h) kh_destroy_##name(h)
 
 /*! @function
-  @abstract     Reset a hash table without deallocating memory.
+  @abstract	 Reset a hash table without deallocating memory.
   @param  name  Name of the hash table [symbol]
-  @param  h     Pointer to the hash table [khash_t(name)*]
+  @param  h	 Pointer to the hash table [khash_t(name)*]
  */
 #define kh_clear(name, h) kh_clear_##name(h)
 
 /*! @function
-  @abstract     Resize a hash table.
+  @abstract	 Resize a hash table.
   @param  name  Name of the hash table [symbol]
-  @param  h     Pointer to the hash table [khash_t(name)*]
-  @param  s     New size [khint_t]
+  @param  h	 Pointer to the hash table [khash_t(name)*]
+  @param  s	 New size [khint_t]
  */
 #define kh_resize(name, h, s) kh_resize_##name(h, s)
 
 /*! @function
-  @abstract     Insert a key to the hash table.
+  @abstract	 Insert a key to the hash table.
   @param  name  Name of the hash table [symbol]
-  @param  h     Pointer to the hash table [khash_t(name)*]
-  @param  k     Key [type of keys]
-  @param  r     Extra return code: -1 if the operation failed;
-                0 if the key is present in the hash table;
-                1 if the bucket is empty (never used); 2 if the element in
+  @param  h	 Pointer to the hash table [khash_t(name)*]
+  @param  k	 Key [type of keys]
+  @param  r	 Extra return code: -1 if the operation failed;
+				0 if the key is present in the hash table;
+				1 if the bucket is empty (never used); 2 if the element in
 				the bucket has been deleted [int*]
-  @return       Iterator to the inserted element [khint_t]
+  @return	   Iterator to the inserted element [khint_t]
  */
 #define kh_put(name, h, k, r) kh_put_##name(h, k, r)
 
 /*! @function
-  @abstract     Retrieve a key from the hash table.
+  @abstract	 Retrieve a key from the hash table.
   @param  name  Name of the hash table [symbol]
-  @param  h     Pointer to the hash table [khash_t(name)*]
-  @param  k     Key [type of keys]
-  @return       Iterator to the found element, or kh_end(h) if the element is absent [khint_t]
+  @param  h	 Pointer to the hash table [khash_t(name)*]
+  @param  k	 Key [type of keys]
+  @return	   Iterator to the found element, or kh_end(h) if the element is absent [khint_t]
  */
 #define kh_get(name, h, k) kh_get_##name(h, k)
 
 /*! @function
-  @abstract     Remove a key from the hash table.
+  @abstract	 Remove a key from the hash table.
   @param  name  Name of the hash table [symbol]
-  @param  h     Pointer to the hash table [khash_t(name)*]
-  @param  k     Iterator to the element to be deleted [khint_t]
+  @param  h	 Pointer to the hash table [khash_t(name)*]
+  @param  k	 Iterator to the element to be deleted [khint_t]
  */
 #define kh_del(name, h, k) kh_del_##name(h, k)
 
+#define kh_set(name, h, k, v) kh_set_##name(h, k, v)
+#define kh_try_set(name, h, i, v) kh_try_set_##name(h, i, v)
+
 /*! @function
-  @abstract     Test whether a bucket contains data.
-  @param  h     Pointer to the hash table [khash_t(name)*]
-  @param  x     Iterator to the bucket [khint_t]
-  @return       1 if containing data; 0 otherwise [int]
+  @abstract	 Test whether a bucket contains data.
+  @param  h	 Pointer to the hash table [khash_t(name)*]
+  @param  x	 Iterator to the bucket [khint_t]
+  @return	   1 if containing data; 0 otherwise [int]
  */
 #define kh_exist(h, x) (!__ac_iseither((h)->flags, (x)))
 
 /*! @function
-  @abstract     Get key given an iterator
-  @param  h     Pointer to the hash table [khash_t(name)*]
-  @param  x     Iterator to the bucket [khint_t]
-  @return       Key [type of keys]
+  @abstract	 Get key given an iterator
+  @param  h	 Pointer to the hash table [khash_t(name)*]
+  @param  x	 Iterator to the bucket [khint_t]
+  @return	   Key [type of keys]
  */
 #define kh_key(h, x) ((h)->keys[x])
 
 /*! @function
-  @abstract     Get value given an iterator
-  @param  h     Pointer to the hash table [khash_t(name)*]
-  @param  x     Iterator to the bucket [khint_t]
-  @return       Value [type of values]
+  @abstract	 Get value given an iterator
+  @param  h	 Pointer to the hash table [khash_t(name)*]
+  @param  x	 Iterator to the bucket [khint_t]
+  @return	   Value [type of values]
   @discussion   For hash sets, calling this results in segfault.
  */
 #define kh_val(h, x) ((h)->vals[x])
 
 /*! @function
-  @abstract     Alias of kh_val()
+  @abstract	 Alias of kh_val()
  */
 #define kh_value(h, x) ((h)->vals[x])
 
 /*! @function
-  @abstract     Get the start iterator
-  @param  h     Pointer to the hash table [khash_t(name)*]
-  @return       The start iterator [khint_t]
+  @abstract	 Get the start iterator
+  @param  h	 Pointer to the hash table [khash_t(name)*]
+  @return	   The start iterator [khint_t]
  */
 #define kh_begin(h) (khint_t)(0)
 
 /*! @function
-  @abstract     Get the end iterator
-  @param  h     Pointer to the hash table [khash_t(name)*]
-  @return       The end iterator [khint_t]
+  @abstract	 Get the end iterator
+  @param  h	 Pointer to the hash table [khash_t(name)*]
+  @return	   The end iterator [khint_t]
  */
 #define kh_end(h) ((h)->n_buckets)
 
 /*! @function
-  @abstract     Get the number of elements in the hash table
-  @param  h     Pointer to the hash table [khash_t(name)*]
-  @return       Number of elements in the hash table [khint_t]
+  @abstract	 Get the number of elements in the hash table
+  @param  h	 Pointer to the hash table [khash_t(name)*]
+  @return	   Number of elements in the hash table [khint_t]
  */
 #define kh_size(h) ((h)->size)
 
 /*! @function
-  @abstract     Get the number of buckets in the hash table
-  @param  h     Pointer to the hash table [khash_t(name)*]
-  @return       Number of buckets in the hash table [khint_t]
+  @abstract	 Get the number of buckets in the hash table
+  @param  h	 Pointer to the hash table [khash_t(name)*]
+  @return	   Number of buckets in the hash table [khint_t]
  */
 #define kh_n_buckets(h) ((h)->n_buckets)
 
 /*! @function
-  @abstract     Iterate over the entries in the hash table
-  @param  h     Pointer to the hash table [khash_t(name)*]
+  @abstract	 Iterate over the entries in the hash table
+  @param  h	 Pointer to the hash table [khash_t(name)*]
   @param  kvar  Variable to which key will be assigned
   @param  vvar  Variable to which value will be assigned
   @param  code  Block of code to execute
@@ -582,8 +617,8 @@ static kh_inline khint_t __ac_Wang_hash(khint_t key)
 	} }
 
 /*! @function
-  @abstract     Iterate over the values in the hash table
-  @param  h     Pointer to the hash table [khash_t(name)*]
+  @abstract	 Iterate over the values in the hash table
+  @param  h	 Pointer to the hash table [khash_t(name)*]
   @param  vvar  Variable to which value will be assigned
   @param  code  Block of code to execute
  */
@@ -597,14 +632,14 @@ static kh_inline khint_t __ac_Wang_hash(khint_t key)
 /* More conenient interfaces */
 
 /*! @function
-  @abstract     Instantiate a hash set containing integer keys
+  @abstract	 Instantiate a hash set containing integer keys
   @param  name  Name of the hash table [symbol]
  */
 #define KHASH_SET_INIT_INT(name)										\
 	KHASH_INIT(name, khint32_t, char, 0, kh_int_hash_func, kh_int_hash_equal)
 
 /*! @function
-  @abstract     Instantiate a hash map containing integer keys
+  @abstract	 Instantiate a hash map containing integer keys
   @param  name  Name of the hash table [symbol]
   @param  khval_t  Type of values [type]
  */
@@ -612,14 +647,14 @@ static kh_inline khint_t __ac_Wang_hash(khint_t key)
 	KHASH_INIT(name, khint32_t, khval_t, 1, kh_int_hash_func, kh_int_hash_equal)
 
 /*! @function
-  @abstract     Instantiate a hash map containing 64-bit integer keys
+  @abstract	 Instantiate a hash map containing 64-bit integer keys
   @param  name  Name of the hash table [symbol]
  */
 #define KHASH_SET_INIT_INT64(name)										\
 	KHASH_INIT(name, khint64_t, char, 0, __ac_Wang64_hash, kh_int64_hash_equal)
 
 /*! @function
-  @abstract     Instantiate a hash map containing 64-bit integer keys
+  @abstract	 Instantiate a hash map containing 64-bit integer keys
   @param  name  Name of the hash table [symbol]
   @param  khval_t  Type of values [type]
  */
@@ -631,66 +666,66 @@ static kh_inline khint_t __ac_Wang_hash(khint_t key)
 #ifdef __cplusplus
 template<std::size_t nbits>
 struct khkey_t {
-    __attribute__((packed)) std::uint64_t key_:nbits;
-    static const std::uint64_t max = (1ull << nbits) - 1;
+	__attribute__((packed)) std::uint64_t key_:nbits;
+	static const std::uint64_t max = (1ull << nbits) - 1;
 
-    kh_inline std::uint64_t operator=(std::uint64_t other) {
-        return key_ = other;
-    }
-    kh_inline bool operator<=(std::uint64_t other) {
-        return key_ <= other;
-    }
-    kh_inline bool operator>=(std::uint64_t other) {
-        return key_ >= other;
-    }
-    kh_inline bool operator==(std::uint64_t other) {
-        return key_ == other;
-    }
-    kh_inline std::uint64_t operator+=(std::uint64_t other) {
-        return key_ += other;
-    }
-    kh_inline std::uint64_t operator-=(std::uint64_t other) {
-        return key_ -= other;
-    }
-    kh_inline std::uint64_t operator-(std::uint64_t other) {
-        return key_ - other;
-    }
-    kh_inline std::uint64_t operator+(std::uint64_t other) {
-        return key_ + other;
-    }
-    kh_inline std::uint64_t operator=(khkey_t<nbits> other) {
-        return key_ = other.key_;
-    }
-    kh_inline bool operator<=(khkey_t<nbits> other) {
-        return key_ <= other.key_;
-    }
-    kh_inline bool operator>=(khkey_t<nbits> other) {
-        return key_ >= other.key_;
-    }
-    kh_inline bool operator==(khkey_t<nbits> other) {
-        return key_ == other.key_;
-    }
-    kh_inline std::uint64_t operator+=(khkey_t<nbits> other) {
-        return key_ += other.key_;
-    }
-    kh_inline std::uint64_t operator-=(khkey_t<nbits> other) {
-        return key_ -= other.key_;
-    }
-    kh_inline std::uint64_t operator-(khkey_t<nbits> other) {
-        return key_ - other.key_;
-    }
-    kh_inline std::uint64_t operator+(khkey_t<nbits> other) {
-        return key_ + other.key_;
-    }
-    kh_inline std::uint64_t operator++() {
-        return ++key_;
-    }
-    kh_inline std::uint64_t operator--() {
-        return --key_;
-    }
-    kh_inline operator std::uint64_t() {
-        return (std::uint64_t)key_;
-    }
+	kh_inline std::uint64_t operator=(std::uint64_t other) {
+		return key_ = other;
+	}
+	kh_inline bool operator<=(std::uint64_t other) {
+		return key_ <= other;
+	}
+	kh_inline bool operator>=(std::uint64_t other) {
+		return key_ >= other;
+	}
+	kh_inline bool operator==(std::uint64_t other) {
+		return key_ == other;
+	}
+	kh_inline std::uint64_t operator+=(std::uint64_t other) {
+		return key_ += other;
+	}
+	kh_inline std::uint64_t operator-=(std::uint64_t other) {
+		return key_ -= other;
+	}
+	kh_inline std::uint64_t operator-(std::uint64_t other) {
+		return key_ - other;
+	}
+	kh_inline std::uint64_t operator+(std::uint64_t other) {
+		return key_ + other;
+	}
+	kh_inline std::uint64_t operator=(khkey_t<nbits> other) {
+		return key_ = other.key_;
+	}
+	kh_inline bool operator<=(khkey_t<nbits> other) {
+		return key_ <= other.key_;
+	}
+	kh_inline bool operator>=(khkey_t<nbits> other) {
+		return key_ >= other.key_;
+	}
+	kh_inline bool operator==(khkey_t<nbits> other) {
+		return key_ == other.key_;
+	}
+	kh_inline std::uint64_t operator+=(khkey_t<nbits> other) {
+		return key_ += other.key_;
+	}
+	kh_inline std::uint64_t operator-=(khkey_t<nbits> other) {
+		return key_ -= other.key_;
+	}
+	kh_inline std::uint64_t operator-(khkey_t<nbits> other) {
+		return key_ - other.key_;
+	}
+	kh_inline std::uint64_t operator+(khkey_t<nbits> other) {
+		return key_ + other.key_;
+	}
+	kh_inline std::uint64_t operator++() {
+		return ++key_;
+	}
+	kh_inline std::uint64_t operator--() {
+		return --key_;
+	}
+	kh_inline operator std::uint64_t() {
+		return (std::uint64_t)key_;
+	}
 };
 
 typedef khkey_t<4> khkey_2_t;
@@ -724,7 +759,7 @@ typedef khkey_t<58> khkey_29_t;
 typedef khkey_t<60> khkey_30_t;
 typedef khkey_t<62> khkey_31_t;
 /*! @function
-  @abstract     Instantiate a hash map containing 64-bit integer keys
+  @abstract	 Instantiate a hash map containing 64-bit integer keys
   @param  name  Name of the hash table [symbol]
   @param  khval_t  Type of values [type]
 */
@@ -732,14 +767,14 @@ typedef khkey_t<62> khkey_31_t;
 
 typedef const char *kh_cstr_t;
 /*! @function
-  @abstract     Instantiate a hash map containing const char* keys
+  @abstract	 Instantiate a hash map containing const char* keys
   @param  name  Name of the hash table [symbol]
  */
 #define KHASH_SET_INIT_STR(name)										\
 	KHASH_INIT(name, kh_cstr_t, char, 0, kh_str_hash_func, kh_str_hash_equal)
 
 /*! @function
-  @abstract     Instantiate a hash map containing const char* keys
+  @abstract	 Instantiate a hash map containing const char* keys
   @param  name  Name of the hash table [symbol]
   @param  khval_t  Type of values [type]
  */

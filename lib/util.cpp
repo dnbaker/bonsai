@@ -213,7 +213,7 @@ tax_t get_taxid(const char *fn, khash_t(name) *name_hash) {
 
 
 
-std::unordered_map<tax_t, std::forward_list<std::string>> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths) {
+std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths) {
     tax_t taxid;
     std::unordered_map<tax_t, std::forward_list<std::string>> ret;
     ret.reserve(paths.size());
