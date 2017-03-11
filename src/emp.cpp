@@ -145,8 +145,14 @@ int hll_main(int argc, char *argv[]) {
     int c, wsz(-1), k(31), num_threads(-1), sketch_size(24);
     std::string spacing;
     if(argc < 2) {
-        usage:
-        LOG_EXIT("NotImplementedError: Add usage, pls.");
+        usage: LOG_EXIT("Usage: %s <opts> <paths>\nFlags:"
+                        "-k:\tkmer length (Default: 31. Max: 31)\n"
+                        "-w:\twindow size (Default: -1)  Must be -1 (ignored) or >= kmer length.\n"
+                        "-s:\tspacing (default: none). format: <value>x<times>,<value>x<times>,...\n"
+                        "   \tOmitting x<times> indicates 1 occurrence of spacing <value>\n"
+                        "-S:\tsketch size (default: 24). (Allocates 2 << [param] bytes of memory per HyperLogLog.\n"
+                        "-p:\tnumber of threads.\n"
+                        , argv[0]);
     }
     while((c = getopt(argc, argv, "w:s:S:p:k:tfh?")) >= 0) {
         switch(c) {

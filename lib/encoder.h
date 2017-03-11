@@ -76,9 +76,7 @@ public:
     }
     elscore_t max_in_queue_manual() {
         elscore_t t1{BF, BF};
-        for(auto &i: qmap_) {
-            if(i.first < t1) t1 = i.first;
-        }
+        for(auto &i: qmap_) if(i.first < t1) t1 = i.first;
         return t1;
     }
     Encoder(char *s, std::size_t l, const Spacer &sp, void *data=nullptr):
@@ -119,7 +117,6 @@ public:
             new_kmer |= cstr_lut[s_[start]];
         }
         new_kmer = canonical_representation(new_kmer, sp_.k_) ^ XOR_MASK;
-        //LOG_DEBUG("Kmer about to be classified: %s.\n", sp_.to_string(new_kmer).data());
         return new_kmer;
     }
     // When we encode kmers, we XOR it with this XOR_MASK for good key dispersion
@@ -160,11 +157,7 @@ khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
     std::uint64_t min;
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
-        while(enc.has_next_kmer()) {
-            if((min = enc.next_minimizer()) != BF) {
-                kh_put(all, ret, min, &khr);
-            }
-        }
+        while(enc.has_next_kmer()) if((min = enc.next_minimizer()) != BF) kh_put(all, ret, min, &khr);
     }
     kseq_destroy(ks);
     gzclose(fp);
@@ -180,23 +173,12 @@ hll::hll_t hllcount_lmers(const std::string &path, const Spacer &space,
     kseq_t *ks(kseq_init(fp));
     hll::hll_t ret(np);
     std::uint64_t min;
-    //std::fprintf(stderr, "About to start loop. gzfp %p, ksfp %p.\n", (void *)fp, (void *)ks);
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
-        //std::fprintf(stderr, "Assignd to kseq. name: %s.\n", ks->name.s);
-        while(enc.has_next_kmer()) {
-        //std::fprintf(stderr, "Has!: %s.\n", ks->name.s);
-            if((min = enc.next_minimizer()) != BF) {
-                //std::fprintf(stderr, "kmer encoded: %s.\n", space.to_string(min).data());
-                ret.add(wang_hash(min));
-            }
-        }
+        while(enc.has_next_kmer()) if((min = enc.next_minimizer()) != BF) ret.add(wang_hash(min));
     }
-    //std::fprintf(stderr, "Cleaning up!\n");
     kseq_destroy(ks);
     gzclose(fp);
-    //std::fprintf(stderr, "Estimated: %lf with %zu.\n", ret.report(), np);
-    //std::fprintf(stderr, "Exiting!\n");
     return ret;
 }
 
@@ -243,11 +225,9 @@ std::size_t count_cardinality(const std::vector<std::string> paths,
     // Get values from the rest of these threads.
     for(auto &f: futures) if(f.valid()) hashes.push_back(f.get());
     // Combine them all for a final count
-    for(auto i(hashes.begin() + 1), end = hashes.end(); i != end; ++i) {
-        kset_union(hashes[0], *i);
-    }
+    for(auto i(hashes.begin() + 1), end = hashes.end(); i != end; ++i) kset_union(hashes[0], *i);
     std::size_t ret(hashes[0]->n_occupied);
-    for(auto i: hashes) kh_destroy(all, i);
+    for(auto i: hashes) khash_destroy(i);
     return ret;
 }
 
@@ -266,7 +246,7 @@ void est_helper_fn(void *data_, long index, int tid) {
     hll::hll_t hll(hllcount_lmers<score>(h.paths_[index], h.sp_, h.np_, h.data_));
     {
         std::unique_lock<std::mutex> lock(h.m_);
-        h.master_ += hll;
+        h.master_ += hll; // Could be sped up by recursive algorithm that breaks the data up into sets of two and sets of those and so on.
     }
 }
 

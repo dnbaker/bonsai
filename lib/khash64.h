@@ -277,8 +277,8 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 			kroundup64(new_n_buckets); 									\
 			if (new_n_buckets < 4) new_n_buckets = 4;					\
 			if (h->size >= (khint_t)(new_n_buckets * __ac_HASH_UPPER + 0.5)) j = 0;	/* requested size is too small */ \
-            std::unique_lock<std::shared_mutex>(h->m);                  \
 			else { /* hash table size to be changed (shrink or expand); rehash */ \
+                std::unique_lock<std::shared_mutex>(h->m);                  \
 				new_flags = (khint32_t*)kmalloc(__ac_fsize(new_n_buckets) * sizeof(khint32_t));	\
 				if (!new_flags) return -1;								\
 				memset(new_flags, 0xaa, __ac_fsize(new_n_buckets) * sizeof(khint32_t)); \
