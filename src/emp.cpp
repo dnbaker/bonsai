@@ -248,6 +248,38 @@ void metatree_usage(char *arg) {
 }
 
 typedef std::tuple<std::uint64_t, int, std::vector<std::uint64_t>> indvec_t;
+using vecptr_t = std::vector<std::uint64_t> *;
+
+KHASH_MAP_INIT_INT64(pk, vecptr_t)
+struct pkh_t {
+    khash_t(pk) *h_;
+
+    pkh_t(std::size_t size=0): h_(kh_init(pk)) {
+        if(size) resize(size);
+    }
+    khiter_t put(std::uint64_t key) {
+        khiter_t ret;
+        int khr;
+        return kh_put(pk, h_, ret, &khr);
+    }
+    vecptr_t &operator[](std::uint64_t key) {
+        khiter_t ki(kh_get(pk, h_, key));
+        if(ki == kh_end(h_)) ki = put(key);
+        return kh_val(h_, ki);
+    }
+    void resize(std::size_t size) {
+        kh_resize(pk, h_, size);
+    }
+
+    template <typename Function>
+    void for_each(Function func) {
+        for(khiter_t ki(0); ki != kh_end(h_); ++ki)
+            if(kh_exist(h_, ki))
+                func(kh_val(h_, ki));
+    }
+
+    ~pkh_t() {kh_destroy(pk, h_);}
+};
 
 
 int metatree_main(int argc, char *argv[]) {
