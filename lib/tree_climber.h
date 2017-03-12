@@ -68,6 +68,7 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
 
 std::vector<std::uint64_t> load_binary_kmers(const char *path);
 khash_t(all) *load_binary_kmerset(const char *path);
+std::vector<std::string> par_invert(Database<khash_t(c)> &db, const char *folder, int num_threads=16, std::size_t chunk_size=1<<16);
 
 } // namespace tree
 

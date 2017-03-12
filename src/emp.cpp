@@ -285,6 +285,7 @@ int metatree_main(int argc, char *argv[]) {
     std::vector<tax_t> nodes(std::move(guide.get_nodes())), offsets(std::move(guide.get_offsets()));
     offsets.insert(offsets.begin(), 0); // Bad complexity, but we only do it once.
     std::vector<std::string> to_fetch;
+#if 0
     if(!dry_run) to_fetch = std::move(tree::invert_lca_map(db, folder.data()));
     else {
         to_fetch.reserve(kh_size(taxmap));
@@ -295,6 +296,9 @@ int metatree_main(int argc, char *argv[]) {
             if(access(buf, F_OK) != -1) to_fetch.emplace_back(buf); // Only add to list if file exists.
         }
     }
+#else
+    to_fetch = std::move(tree::par_invert(db, folder.data()));
+#endif
     if(to_fetch.empty()) LOG_EXIT("No binary files to grab from.\n");
     LOG_DEBUG("Fetched! Making tx2g\n");
     std::size_t ind(0);

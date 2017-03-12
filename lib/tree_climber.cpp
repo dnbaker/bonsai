@@ -10,7 +10,10 @@ struct multi_writer_t {
         FILE *fp_;
         std::uint64_t n_;
         std::unique_ptr<std::mutex> m_;
-        safe_fp_t(const char *fname): fp_(fopen(fname, "wb")), n_(0), m_(std::move(new std::mutex())) {}
+        safe_fp_t(const char *fname): fp_(fopen(fname, "wb")), n_(0), m_(std::move(new std::mutex())) {
+            if(!fp_) LOG_EXIT("Could not open fname %s\n", fname);
+            LOG_DEBUG("Opened file at %s\n", fname);
+        }
         ~safe_fp_t() {fclose(fp_);}
         int write(std::uint64_t *val_addr) {
             std::unique_lock<std::mutex> lock(*m_);
@@ -25,14 +28,15 @@ struct multi_writer_t {
     khash_t(c)                          *h_;
     int                                  num_threads_;
     std::size_t                          chunk_size_;
+    std::atomic<std::uint64_t>           n_;
     auto find_or_insert(tax_t tax) {
         std::shared_lock<std::shared_mutex> lock(m_);
         auto m(map_.find(tax));
         if(m == map_.end()) {
+            std::unique_lock<std::shared_mutex> lock(m_);
             char buf[256];
             std::sprintf(buf, "%s%u.kmers.bin", fld_.data(), tax);
             paths_.emplace_back(buf);
-            std::unique_lock<std::shared_mutex> lock(m_);
             m = map_.emplace(tax, buf).first;
         }
         return m;
@@ -41,9 +45,10 @@ struct multi_writer_t {
         if(!kh_exist(h_, index)) return;
         auto iter(find_or_insert(kh_key(h_, index)));
         iter->second.write(h_->keys + index);
+        ++n_;
     }
     multi_writer_t(khash_t(c) *h, const std::string &fld, int num_threads=8, std::size_t chunk_size=1<<16):
-        fld_(fld), h_(h), num_threads_(num_threads), chunk_size_(chunk_size) {}
+        fld_(fld), h_(h), num_threads_(num_threads), chunk_size_(chunk_size), n_(0) {}
 };
     struct mw_helper_t {
         multi_writer_t &mw_;
@@ -51,16 +56,26 @@ struct multi_writer_t {
     };
 
 void mw_helper(void *data_, long index, int tid) {
+    LOG_INFO("launch helper %ld %u\n", index, tid);
     mw_helper_t &mh(*(mw_helper_t *)data_);
     for(std::uint64_t i(index * mh.mw_.chunk_size_), e(std::min(kh_end(mh.mw_.h_), i + mh.mw_.chunk_size_));
-        i < e; ++i) mh.mw_.add_entry(index);
+        i < e; ++i) {
+        mh.mw_.add_entry(index);
+        std::fprintf(stderr, "Adding entry at %zu in range %zu to %zu\n", i, e, e - mh.mw_.chunk_size_);
+    }
 }
 void add_all_entries(multi_writer_t &mw) {
+    LOG_INFO("make helper\n");
     mw_helper_t helper(mw, mw.chunk_size_);
+    LOG_INFO("made helper\n");
     kt_for(mw.num_threads_, mw_helper, (void *)&helper, (kh_size(mw.h_) + mw.chunk_size_ - 1) / mw.chunk_size_);
 }
 
-
+std::vector<std::string> par_invert(Database<khash_t(c)> &db, const char *folder, int num_threads, std::size_t chunk_size) {
+    multi_writer_t mw(db.db_, folder, num_threads, chunk_size);
+    add_all_entries(mw);
+    return std::move(mw.paths_);
+}
 
 
 std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *folder, int prebuilt) {
