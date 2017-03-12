@@ -60,6 +60,7 @@ khash_t(name) *build_name_hash(const char *fn) noexcept;
 void destroy_name_hash(khash_t(name) *hash) noexcept;
 khash_t(p) *build_parent_map(const char *fn) noexcept;
 tax_t get_taxid(const char *fn, khash_t(name) *name_hash);
+std::string get_firstline(const char *fn);
 // Resolve_tree is modified from Kraken 1 source code, which
 // is MIT-licensed. https://github.com/derrickwood/kraken
 tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
@@ -140,8 +141,11 @@ T *khash_load_impl(std::FILE *fp) noexcept {
     if(!rex->keys) std::fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->keys) * rex->n_buckets, sizeof(*rex->keys) * rex->n_buckets >> 30), exit(1);
     rex->vals = (valtype_t *)std::malloc(sizeof(*rex->vals) * rex->n_buckets);
     if(!rex->vals) std::fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->vals) * rex->n_buckets, sizeof(*rex->vals) * rex->n_buckets >> 30), exit(1);
+    LOG_DEBUG("About to read into flags at %p\n", (void *)rex->flags);
     std::fread(rex->flags, __ac_fsize(rex->n_buckets), sizeof(*rex->flags), fp);
+    LOG_DEBUG("About to read into keys at %p\n", (void *)rex->keys);
     std::fread(rex->keys, 1, rex->n_buckets * sizeof(*rex->keys), fp);
+    LOG_DEBUG("About to read into vals at %p\n", (void *)rex->vals);
     std::fread(rex->vals, 1, rex->n_buckets * sizeof(*rex->vals), fp);
     return rex;
 }

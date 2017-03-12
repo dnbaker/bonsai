@@ -303,13 +303,14 @@ int metatree_main(int argc, char *argv[]) {
     LOG_DEBUG("Made! Printing\n");
     for(auto &kv: tx2g)
         for(auto &path: kv.second)
-            std::fprintf(stderr, "Taxid %u has path %s\n", kv.first, path.data());
+            std::fprintf(stderr, "Taxid %u has path %s and first line %s\n", kv.first, path.data(), get_firstline(path.data()).data());
     std::vector<std::vector<tax_t>> taxes;
     std::vector<std::vector<std::forward_list<std::string>>> tax_paths;
     for(int i(0), e(offsets.size() - 1); i < e; ++i) {
         LOG_DEBUG("Doing set %i of %i\n", i, e);
         ind = offsets[i];
         const tax_t parent_tax(get_parent(taxmap, nodes[ind]));
+        assert(nodes.begin() + offsets[i + 1] < nodes.end());
         std::set<tax_t> taxids(nodes.begin() + ind, nodes.begin() + offsets[i + 1]);
         std::unordered_map<tax_t, std::forward_list<std::string>> range_map;
         std::vector<std::forward_list<std::string>> list_vec;
@@ -328,6 +329,7 @@ int metatree_main(int argc, char *argv[]) {
         std::string parent_path(folder);
         if(!parent_path.empty()) parent_path += '/';
         parent_path += std::to_string(parent_tax) + ".kmers.bin";
+        LOG_INFO("Get acceptable");
         khash_t(all) *acceptable(tree::load_binary_kmerset(parent_path.data()));
         bitmap_t bitmap;
         {

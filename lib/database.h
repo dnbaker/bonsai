@@ -30,26 +30,7 @@ struct Database {
             LOG_DEBUG("vec size: %u\n", s_.size());
             for(auto i: s_) fprintf(stderr, "Value in vector is %u\n", (unsigned)i);
     #endif
-            db_ = (T *)calloc(1, sizeof(T));
-            __fr(*db_,   fp);
-    #if !NDEBUG
-            print_khash(db_);
-    #endif
-
-            LOG_DEBUG("Doing flags. N buckets: %zu. Elements to read: %zu\n", db_->n_buckets, __ac_fsize(db_->n_buckets));
-            db_->flags = (std::uint32_t *)std::malloc(sizeof(*db_->flags) * __ac_fsize(db_->n_buckets));
-            if(!db_->flags) LOG_EXIT("Could not allocate memory for flags.\n");
-            std::fread(db_->flags, __ac_fsize(db_->n_buckets), sizeof(*(db_->flags)), fp);
-
-            LOG_DEBUG("Doing keys\n");
-            typedef typename std::remove_pointer<decltype(db_->keys)>::type keytype_t;
-            db_->keys = (keytype_t *)std::malloc(sizeof(*db_->keys) * db_->n_buckets);
-            std::fread(db_->keys, db_->n_buckets, sizeof(*db_->keys), fp);
-
-            LOG_DEBUG("Doing vals\n");
-            typedef typename std::remove_pointer<decltype(db_->vals)>::type valtype_t;
-            db_->vals = (valtype_t *)std::malloc(sizeof(*db_->keys) * db_->n_buckets);
-            std::fread(db_->vals, db_->n_buckets, sizeof(*db_->vals), fp);
+            db_ = khash_load_impl<T>(fp);
         } else LOG_EXIT("Could not open %s for reading.\n", fn);
         LOG_DEBUG("Read database!\n");
         std::fclose(fp);

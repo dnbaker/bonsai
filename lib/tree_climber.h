@@ -3,6 +3,11 @@
 
 #include "lib/tx.h"
 #include "lib/database.h"
+#include <shared_mutex>
+
+#if __cplusplus < 201402L || __GNUC__ < 6
+#define shared_mutex shared_timed_mutex
+#endif
 
 namespace emp {
 

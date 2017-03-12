@@ -2,6 +2,67 @@
 
 namespace emp { namespace tree {
 
+void mw_helper(void *data_, long index, int tid);
+
+struct safe_fp_t;
+struct multi_writer_t {
+    struct safe_fp_t {
+        FILE *fp_;
+        std::uint64_t n_;
+        std::unique_ptr<std::mutex> m_;
+        safe_fp_t(const char *fname): fp_(fopen(fname, "wb")), n_(0), m_(std::move(new std::mutex())) {}
+        ~safe_fp_t() {fclose(fp_);}
+        int write(std::uint64_t *val_addr) {
+            std::unique_lock<std::mutex> lock(*m_);
+            return std::fwrite(val_addr, 1, sizeof(std::uint64_t), fp_);
+        }
+        safe_fp_t(safe_fp_t &&other): fp_(other.fp_), n_(other.n_), m_(std::move(other.m_)) {}
+    };
+    std::shared_mutex                    m_; // Hash insertion lock.
+    std::unordered_map<tax_t, safe_fp_t> map_;
+    std::vector<std::string>             paths_;
+    const std::string                   &fld_;
+    khash_t(c)                          *h_;
+    int                                  num_threads_;
+    std::size_t                          chunk_size_;
+    auto find_or_insert(tax_t tax) {
+        std::shared_lock<std::shared_mutex> lock(m_);
+        auto m(map_.find(tax));
+        if(m == map_.end()) {
+            char buf[256];
+            std::sprintf(buf, "%s%u.kmers.bin", fld_.data(), tax);
+            paths_.emplace_back(buf);
+            std::unique_lock<std::shared_mutex> lock(m_);
+            m = map_.emplace(tax, buf).first;
+        }
+        return m;
+    }
+    void add_entry(std::uint64_t index) {
+        if(!kh_exist(h_, index)) return;
+        auto iter(find_or_insert(kh_key(h_, index)));
+        iter->second.write(h_->keys + index);
+    }
+    multi_writer_t(khash_t(c) *h, const std::string &fld, int num_threads=8, std::size_t chunk_size=1<<16):
+        fld_(fld), h_(h), num_threads_(num_threads), chunk_size_(chunk_size) {}
+};
+    struct mw_helper_t {
+        multi_writer_t &mw_;
+        mw_helper_t(multi_writer_t &mw, std::size_t chunk_size=1<<16): mw_(mw) {}
+    };
+
+void mw_helper(void *data_, long index, int tid) {
+    mw_helper_t &mh(*(mw_helper_t *)data_);
+    for(std::uint64_t i(index * mh.mw_.chunk_size_), e(std::min(kh_end(mh.mw_.h_), i + mh.mw_.chunk_size_));
+        i < e; ++i) mh.mw_.add_entry(index);
+}
+void add_all_entries(multi_writer_t &mw) {
+    mw_helper_t helper(mw, mw.chunk_size_);
+    kt_for(mw.num_threads_, mw_helper, (void *)&helper, (kh_size(mw.h_) + mw.chunk_size_ - 1) / mw.chunk_size_);
+}
+
+
+
+
 std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *folder, int prebuilt) {
     std::vector<std::string> ret;
     std::unordered_map<tax_t, std::FILE *> ofps;
