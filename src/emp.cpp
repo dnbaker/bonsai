@@ -285,7 +285,7 @@ int metatree_main(int argc, char *argv[]) {
     std::vector<tax_t> nodes(std::move(guide.get_nodes())), offsets(std::move(guide.get_offsets()));
     offsets.insert(offsets.begin(), 0); // Bad complexity, but we only do it once.
     std::vector<std::string> to_fetch;
-#if 0
+#if 1
     if(!dry_run) to_fetch = std::move(tree::invert_lca_map(db, folder.data()));
     else {
         to_fetch.reserve(kh_size(taxmap));

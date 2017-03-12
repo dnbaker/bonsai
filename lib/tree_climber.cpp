@@ -10,14 +10,27 @@ struct multi_writer_t {
         FILE *fp_;
         std::uint64_t n_;
         std::unique_ptr<std::mutex> m_;
+        std::uint64_t a_[4096];
+        int l_;
         safe_fp_t(const char *fname): fp_(fopen(fname, "wb")), n_(0), m_(std::move(new std::mutex())) {
             if(!fp_) LOG_EXIT("Could not open fname %s\n", fname);
             LOG_DEBUG("Opened file at %s\n", fname);
         }
-        ~safe_fp_t() {fclose(fp_);}
-        int write(std::uint64_t *val_addr) {
+        int write() {
+            LOG_DEBUG("Writing %i elements\n", l_);
+            const int ret(l_ ? std::fwrite(a_, l_, 8, fp_): 0);
+            l_ = 0;
+            return ret;
+        }
+        ~safe_fp_t() {
+            write();
+            fclose(fp_);
+        }
+        void push(std::uint64_t val) {
+            LOG_DEBUG("Pushing back %" PRIu64 "\n", val);
             std::unique_lock<std::mutex> lock(*m_);
-            return std::fwrite(val_addr, 1, sizeof(std::uint64_t), fp_);
+            a_[l_++] = val;
+            if(l_ >= 4096) write();
         }
         safe_fp_t(safe_fp_t &&other): fp_(other.fp_), n_(other.n_), m_(std::move(other.m_)) {}
     };
@@ -33,19 +46,22 @@ struct multi_writer_t {
         std::shared_lock<std::shared_mutex> lock(m_);
         auto m(map_.find(tax));
         if(m == map_.end()) {
+            LOG_DEBUG("New element\n");
             std::unique_lock<std::shared_mutex> lock(m_);
             char buf[256];
             std::sprintf(buf, "%s%u.kmers.bin", fld_.data(), tax);
             paths_.emplace_back(buf);
             m = map_.emplace(tax, buf).first;
-        }
+        } else LOG_DEBUG("STUFF\n");
         return m;
     }
     void add_entry(std::uint64_t index) {
+        LOG_DEBUG("Adding entry\n");
         if(!kh_exist(h_, index)) return;
         auto iter(find_or_insert(kh_key(h_, index)));
-        iter->second.write(h_->keys + index);
+        iter->second.push(h_->keys[index]);
         ++n_;
+        LOG_DEBUG("Added entry\n");
     }
     multi_writer_t(khash_t(c) *h, const std::string &fld, int num_threads=8, std::size_t chunk_size=1<<16):
         fld_(fld), h_(h), num_threads_(num_threads), chunk_size_(chunk_size), n_(0) {}
@@ -56,12 +72,13 @@ struct multi_writer_t {
     };
 
 void mw_helper(void *data_, long index, int tid) {
-    LOG_INFO("launch helper %ld %u\n", index, tid);
     mw_helper_t &mh(*(mw_helper_t *)data_);
+    LOG_INFO("launch helper %ld of %u and total to do is %zu\n", index, tid, kh_size(mh.mw_.h_) / mh.mw_.chunk_size_);
     for(std::uint64_t i(index * mh.mw_.chunk_size_), e(std::min(kh_end(mh.mw_.h_), i + mh.mw_.chunk_size_));
         i < e; ++i) {
+        LOG_DEBUG("About to add entry\n");
         mh.mw_.add_entry(index);
-        std::fprintf(stderr, "Adding entry at %zu in range %zu to %zu\n", i, e, e - mh.mw_.chunk_size_);
+        LOG_DEBUG("Added entry at %zu in range %zu to %zu\n", i, e, e - mh.mw_.chunk_size_);
     }
 }
 void add_all_entries(multi_writer_t &mw) {
@@ -69,6 +86,7 @@ void add_all_entries(multi_writer_t &mw) {
     mw_helper_t helper(mw, mw.chunk_size_);
     LOG_INFO("made helper\n");
     kt_for(mw.num_threads_, mw_helper, (void *)&helper, (kh_size(mw.h_) + mw.chunk_size_ - 1) / mw.chunk_size_);
+    LOG_INFO("All done!\n");
 }
 
 std::vector<std::string> par_invert(Database<khash_t(c)> &db, const char *folder, int num_threads, std::size_t chunk_size) {
