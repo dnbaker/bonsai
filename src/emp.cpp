@@ -248,8 +248,7 @@ void metatree_usage(char *arg) {
     std::exit(EXIT_FAILURE);
 }
 
-typedef std::tuple<std::uint64_t, int, std::vector<std::uint64_t>> indvec_t;
-using vecptr_t = std::uint64_t;
+//typedef std::tuple<std::uint64_t, int, std::vector<std::uint64_t>> indvec_t;
 
 template struct kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
 using pkh_t = kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
@@ -282,8 +281,10 @@ int metatree_main(int argc, char *argv[]) {
     Database<khash_t(c)> db(argv[optind]);
     Spacer sp(db.k_, db.w_, db.s_);
     for(auto &i: sp.s_) --i;
-    std::vector<tax_t> nodes(std::move(guide.get_nodes())), offsets(std::move(guide.get_offsets()));
-    offsets.insert(offsets.begin(), 0); // Bad complexity, but we only do it once.
+    std::vector<tax_t> nodes(std::move(guide.get_nodes()));
+    for(auto tax: nodes) {
+        std::fprintf(stderr, "node %u has parent %u and depth %u\n", tax, get_parent(taxmap, tax), node_depth(taxmap, tax));
+    }
     std::vector<std::string> to_fetch;
 #if 1
     if(!dry_run) to_fetch = std::move(tree::invert_lca_map(db, folder.data()));
@@ -301,15 +302,26 @@ int metatree_main(int argc, char *argv[]) {
 #endif
     if(to_fetch.empty()) LOG_EXIT("No binary files to grab from.\n");
     LOG_DEBUG("Fetched! Making tx2g\n");
-    std::size_t ind(0);
-    std::set<indvec_t, std::greater<indvec_t>> vec_scores;
     std::unordered_map<tax_t, strlist> tx2g(tax2genome_map(name_hash, inpaths));
     LOG_DEBUG("Made! Printing\n");
     for(auto &kv: tx2g)
         for(auto &path: kv.second)
             std::fprintf(stderr, "Taxid %u has path %s and first line %s\n", kv.first, path.data(), get_firstline(path.data()).data());
-    std::vector<std::vector<tax_t>> taxes;
-    std::vector<std::vector<std::forward_list<std::string>>> tax_paths;
+    std::size_t index(0);
+    for(auto tax_iter(std::begin(nodes)), end_iter(tax_iter);tax_iter + 1 < std::end(nodes);tax_iter = end_iter + 1) {
+        const tax_t parent_tax(get_parent(taxmap, *tax_iter));
+        end_iter = tax_iter;
+        while(get_parent(taxmap, *++end_iter) == parent_tax);
+        assert(get_parent(taxmap, *(end_iter - 1)) == parent_tax);
+        assert(get_parent(taxmap, *end_iter) != parent_tax);
+        std::set<tax_t> taxes(tax_iter, end_iter);
+        std::unordered_map<tax_t, std::forward_list<std::string>> range_map;
+        std::vector<std::forward_list<std::string>> list_vec;
+        for(auto &pair: tx2g) if(taxes.find(pair.first) != taxes.end()) range_map.emplace(pair.first, pair.second);
+        for(auto &pair: range_map) list_vec.push_back(pair.second); // Copying strings. Still not bad because there are only thousands of strings total.
+    }
+#if 0
+    //std::set<indvec_t, std::greater<indvec_t>> vec_scores;
     for(int i(0), e(offsets.size() - 1); i < e; ++i) {
         LOG_DEBUG("Doing set %i of %i\n", i, e);
         ind = offsets[i];
@@ -361,6 +373,7 @@ int metatree_main(int argc, char *argv[]) {
             fwrite(ks.data(), 1, ks.size(), stderr);
         }
     }
+#endif
     destroy_name_hash(name_hash);
     kh_destroy(p, taxmap);
     LOG_DEBUG("I ran to completion... How???\n");

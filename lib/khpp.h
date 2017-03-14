@@ -183,6 +183,16 @@ struct khpp_t {
         if((ki = iget(key)) == nb()) ki = iput(key, &khr);
         while(!try_set(ki, val));
     }
+    template<typename T>
+    void func_set(T func, khkey_t &key, const khval_t &val) {
+        std::shared_lock<std::shared_mutex> lock(m);
+        func_set_impl(func, key, val);
+    }
+    template<typename T>
+    void func_set_impl(T func, khkey_t &key, const khval_t &val) {
+        std::shared_lock<std::shared_mutex> lock(m);
+        func_set_impl(func, key, val);
+    }
 
 };
 
