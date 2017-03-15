@@ -187,7 +187,6 @@ std::string get_firstline(const char *fn) {
     gzFile fp(gzopen(fn, "rb"));
     if(fp == nullptr) LOG_EXIT("Could not read from file %s\n", fn);
     static const std::size_t bufsz(2048);
-    khint_t ki;
     char buf[bufsz];
     std::string ret(gzgets(fp, buf, bufsz));
     ret.pop_back();
