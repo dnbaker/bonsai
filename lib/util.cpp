@@ -17,6 +17,28 @@ std::size_t count_lines(const char *fn) noexcept {
     std::fclose(fp);
     return n;
 }
+std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(khash_t(p) *tax) noexcept {
+    std::unordered_map<tax_t, std::vector<tax_t>> ret;
+    typename std::unordered_map<tax_t, std::vector<tax_t>>::iterator m;
+    for(khiter_t ki(0); ki < kh_end(tax); ++ki) {
+        if(!kh_exist(tax, ki)) continue;
+        if((m = ret.find(kh_key(tax, ki))) == ret.end()) m = ret.emplace(kh_val(tax, ki), std::vector<tax_t>{kh_key(tax, ki)}).first;
+        else                                             m->second.emplace_back(kh_key(tax, ki));
+    }
+    return ret;
+}
+
+std::vector<tax_t> get_all_descendents(std::unordered_map<tax_t, std::vector<tax_t>> &map, tax_t tax) {
+    std::vector<tax_t> ret;
+    auto m(map.find(tax));
+    if(m != map.end()) {
+        for(auto tax: m->second) {
+            auto desc(get_all_descendents(map, tax));
+            ret.insert(ret.end(), desc.begin(), desc.end());
+        }
+    }
+    return ret;
+}
 
 // Rewritten from Kraken's source code.
 // Consider rewriting to use kbtree instead of std::map.
@@ -187,7 +209,6 @@ std::string get_firstline(const char *fn) {
     gzFile fp(gzopen(fn, "rb"));
     if(fp == nullptr) LOG_EXIT("Could not read from file %s\n", fn);
     static const std::size_t bufsz(2048);
-    khint_t ki;
     char buf[bufsz];
     std::string ret(gzgets(fp, buf, bufsz));
     ret.pop_back();

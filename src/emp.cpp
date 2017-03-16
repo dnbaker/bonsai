@@ -274,6 +274,7 @@ int metatree_main(int argc, char *argv[]) {
                                                        : std::vector<std::string>(argv + optind + 5, argv + argc));
     if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, tmp_taxmap, name_hash));
+    std::unordered_map<tax_t, std::vector<tax_t>> inverted_map(invert_parent_map(taxmap));
     kh_destroy(p, tmp_taxmap);
     std::size_t num_nodes(kh_size(taxmap));
     kroundup64(num_nodes);
@@ -308,6 +309,8 @@ int metatree_main(int argc, char *argv[]) {
         for(auto &path: kv.second)
             std::fprintf(stderr, "Taxid %u has path %s and first line %s\n", kv.first, path.data(), get_firstline(path.data()).data());
     std::size_t index(0);
+    std::vector<tax_t> parents;
+    std::vector<std::vector<tax_t>> descendents;
     for(auto tax_iter(std::begin(nodes)), end_iter(tax_iter);tax_iter + 1 < std::end(nodes);tax_iter = end_iter + 1) {
         const tax_t parent_tax(get_parent(taxmap, *tax_iter));
         end_iter = tax_iter;
@@ -318,15 +321,11 @@ int metatree_main(int argc, char *argv[]) {
         std::unordered_map<tax_t, std::forward_list<std::string>> range_map;
         std::vector<std::forward_list<std::string>> list_vec;
         auto has_plasmid = [](std::string &str) -> bool {return get_firstline(str.data()).find("plasmid") != std::string::npos;};
-        for(auto &pair: tx2g) {
-            if(taxes.find(pair.first) != taxes.end()) {
-                auto it(std::begin(pair.second));
-                while(it != std::end(pair.second) && has_plasmid(*it)) ++it;
-                if(it == std::end(pair.second)) continue;
-                auto m = range_map.emplace(pair.first, std::forward_list<std::string>{*it}).first;
-                while(++it != std::end(pair.second)) if(!has_plasmid(*it)) m->second.push_front(*it);
-                m->second.reverse();
-            }
+        std::vector<tax_t> parent_descendents(get_all_descendents(inverted_map, parent_tax));
+        for(auto tax: parent_descendents) {
+            auto m(tx2g.find(tax));
+            if(m == tx2g.end()) continue;
+            range_map.emplace(tax, m->second);
         }
         for(auto &pair: range_map) list_vec.push_back(pair.second); // Copying strings. Still not bad because there are only thousands of strings total.
         auto n([](std::unordered_map<tax_t, std::forward_list<std::string>> &m){
@@ -334,61 +333,22 @@ int metatree_main(int argc, char *argv[]) {
         }(range_map));
         std::fprintf(stderr, "%zu genomes who have %u as their parent\n", n, parent_tax);
         if(n < 3) continue;
-    }
-#if 0
-    //std::set<indvec_t, std::greater<indvec_t>> vec_scores;
-    for(int i(0), e(offsets.size() - 1); i < e; ++i) {
-        LOG_DEBUG("Doing set %i of %i\n", i, e);
-        ind = offsets[i];
-        const tax_t parent_tax(get_parent(taxmap, nodes[ind]));
-        assert(nodes.begin() + offsets[i + 1] < nodes.end());
-        std::set<tax_t> taxids(nodes.begin() + ind, nodes.begin() + offsets[i + 1]);
-        std::unordered_map<tax_t, std::forward_list<std::string>> range_map;
-        std::vector<std::forward_list<std::string>> list_vec;
-        for(auto& pair: tx2g) {
-            if(taxids.find(pair.first) == taxids.end()) continue;
-            range_map.emplace(pair.first, pair.second);
-        }
-        if(range_map.empty()) {
-            LOG_INFO("No genomes to process for taxids who are descendents of %u\n", parent_tax);
-            taxes.emplace_back();
-            tax_paths.emplace_back();
-            continue;
-        }
-        for(auto &pair: range_map) list_vec.push_back(pair.second); // Potentially expensive copy.
-        // Handle sets of genomes which all match a taxonomy.
+        parents.push_back(parent_tax);
         std::string parent_path(folder);
         if(!parent_path.empty()) parent_path += '/';
         parent_path += std::to_string(parent_tax) + ".kmers.bin";
-        LOG_INFO("Get acceptable");
+        LOG_INFO("Get acceptable\n");
         khash_t(all) *acceptable(tree::load_binary_kmerset(parent_path.data()));
         bitmap_t bitmap;
         {
             kgset_t kgs(range_map, sp, num_threads, acceptable);
             bitmap = kgs;
-            taxes.emplace_back(std::move(kgs.get_taxes()));
+            descendents.emplace_back(std::move(kgs.get_taxes()));
         }
         count::Counter<std::vector<std::uint64_t>> counts(bitmap.to_counter());
         adjmap_t fwd_adj(counts);
         adjmap_t rev_adj(counts, true);
-        for(auto &c: counts) {
-            vec_scores.emplace(score_node_addn(c.first, fwd_adj, counts, range_map.size()), i, c.first);
-        }
-        kh_destroy(all, acceptable);
-        tax_paths.emplace_back(std::move(list_vec));
     }
-    for(std::size_t i(0), e(taxes.size()); i < e; ++i) {
-        std::fprintf(stderr, "For range set %zu, we have:\n", i);
-        for(std::size_t j(0); j < taxes[i].size(); ++j) {
-            ks::KString ks;
-            ksprintf(ks, "Taxid %u, with ", taxes[i][j]);
-            for(auto &k: tax_paths[i][j]) ksprintf(ks, "%s, ", k.data());
-            ks.pop(); ks.pop();
-            kputc('\n', ks);
-            fwrite(ks.data(), 1, ks.size(), stderr);
-        }
-    }
-#endif
     destroy_name_hash(name_hash);
     kh_destroy(p, taxmap);
     LOG_DEBUG("I ran to completion... How???\n");

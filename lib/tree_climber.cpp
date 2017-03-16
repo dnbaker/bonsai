@@ -74,7 +74,7 @@ struct multi_writer_t {
 void mw_helper(void *data_, long index, int tid) {
     mw_helper_t &mh(*(mw_helper_t *)data_);
     LOG_INFO("launch helper %ld of %u and total to do is %zu\n", index, tid, kh_size(mh.mw_.h_) / mh.mw_.chunk_size_);
-    for(std::uint64_t i(index * mh.mw_.chunk_size_), e(std::min(kh_end(mh.mw_.h_), i + mh.mw_.chunk_size_));
+    for(std::uint64_t i(index * mh.mw_.chunk_size_), e(std::min(std::uint64_t(kh_end(mh.mw_.h_)), i + mh.mw_.chunk_size_));
         i < e; ++i) {
         LOG_DEBUG("About to add entry\n");
         mh.mw_.add_entry(index);

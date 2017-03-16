@@ -59,8 +59,10 @@ std::size_t count_lines(const char *fn) noexcept;
 khash_t(name) *build_name_hash(const char *fn) noexcept;
 void destroy_name_hash(khash_t(name) *hash) noexcept;
 khash_t(p) *build_parent_map(const char *fn) noexcept;
+std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(khash_t(p) *) noexcept;
 tax_t get_taxid(const char *fn, khash_t(name) *name_hash);
 std::string get_firstline(const char *fn);
+std::vector<tax_t> get_all_descendents(std::unordered_map<tax_t, std::vector<tax_t>> &map, tax_t tax);
 // Resolve_tree is modified from Kraken 1 source code, which
 // is MIT-licensed. https://github.com/derrickwood/kraken
 tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
