@@ -311,14 +311,29 @@ int metatree_main(int argc, char *argv[]) {
     for(auto tax_iter(std::begin(nodes)), end_iter(tax_iter);tax_iter + 1 < std::end(nodes);tax_iter = end_iter + 1) {
         const tax_t parent_tax(get_parent(taxmap, *tax_iter));
         end_iter = tax_iter;
-        while(get_parent(taxmap, *++end_iter) == parent_tax);
+        while(end_iter != std::end(nodes) && get_parent(taxmap, *++end_iter) == parent_tax);
         assert(get_parent(taxmap, *(end_iter - 1)) == parent_tax);
         assert(get_parent(taxmap, *end_iter) != parent_tax);
         std::set<tax_t> taxes(tax_iter, end_iter);
         std::unordered_map<tax_t, std::forward_list<std::string>> range_map;
         std::vector<std::forward_list<std::string>> list_vec;
-        for(auto &pair: tx2g) if(taxes.find(pair.first) != taxes.end()) range_map.emplace(pair.first, pair.second);
+        auto has_plasmid = [](std::string &str) -> bool {return get_firstline(str.data()).find("plasmid") != std::string::npos;};
+        for(auto &pair: tx2g) {
+            if(taxes.find(pair.first) != taxes.end()) {
+                auto it(std::begin(pair.second));
+                while(it != std::end(pair.second) && has_plasmid(*it)) ++it;
+                if(it == std::end(pair.second)) continue;
+                auto m = range_map.emplace(pair.first, std::forward_list<std::string>{*it}).first;
+                while(++it != std::end(pair.second)) if(!has_plasmid(*it)) m->second.push_front(*it);
+                m->second.reverse();
+            }
+        }
         for(auto &pair: range_map) list_vec.push_back(pair.second); // Copying strings. Still not bad because there are only thousands of strings total.
+        auto n([](std::unordered_map<tax_t, std::forward_list<std::string>> &m){
+            std::size_t ret(0);for(auto &pair: m) for(auto &str: pair.second) ++ret; return ret;
+        }(range_map));
+        std::fprintf(stderr, "%zu genomes who have %u as their parent\n", n, parent_tax);
+        if(n < 3) continue;
     }
 #if 0
     //std::set<indvec_t, std::greater<indvec_t>> vec_scores;
