@@ -165,6 +165,22 @@ khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
 }
 
 template<std::uint64_t (*score)(std::uint64_t, void *)>
+void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &space,
+                    void *data=nullptr) {
+
+    Encoder<score> enc(nullptr, 0, space, data);
+    gzFile fp(gzopen(path.data(), "rb"));
+    kseq_t *ks(kseq_init(fp));
+    std::uint64_t min;
+    while(kseq_read(ks) >= 0) {
+        enc.assign(ks);
+        while(enc.has_next_kmer()) if((min = enc.next_minimizer()) != BF) hll.add(wang_hash(min));
+    }
+    kseq_destroy(ks);
+    gzclose(fp);
+}
+
+template<std::uint64_t (*score)(std::uint64_t, void *)>
 hll::hll_t hllcount_lmers(const std::string &path, const Spacer &space,
                           std::size_t np=22, void *data=nullptr) {
 
@@ -244,12 +260,8 @@ template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
 void est_helper_fn(void *data_, long index, int tid) {
     est_helper &h(*(est_helper *)(data_));
     LOG_DEBUG("Counting kmers from file %s\n", h.paths_[index].data());
-    hll::hll_t hll(hllcount_lmers<score>(h.paths_[index], h.sp_, h.np_, h.data_));
-    {
-        std::unique_lock<std::mutex> lock(h.m_);
-        h.master_ += hll; // Could be sped up by recursive algorithm that breaks the data up into sets of two and sets of those and so on.
-        LOG_DEBUG("Index %ld with thread %i has a current summed size %lf\n", index, tid, h.master_.report());
-    }
+    // TODO: rewrite using atomic operations on the master hll, avoid using multiple hlls.
+    hll_fill_lmers<score>(h.master_, h.paths_[index], h.sp_, h.data_);
 }
 
 template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
