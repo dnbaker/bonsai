@@ -33,7 +33,7 @@ void lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map);
 template<std::uint64_t (*score)(std::uint64_t, void *)>
 int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret);
 
-void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid);
+void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid, std::shared_mutex &m);
 void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid);
 khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, khash_t(p) *tax);
 void update_feature_counter(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, const tax_t taxid);
@@ -117,6 +117,7 @@ struct helper {
     khash_t(p)                     *tax_map_;
     std::vector<khash_t(all) *>     hashes_;
     void                           *data_;
+    std::shared_mutex              *m_;
 };
 using lca_helper = helper<khash_t(c)>;
 using td_helper  = helper<khash_t(64)>;
@@ -160,7 +161,7 @@ void lca_for_helper(void *data_, long index, int tid) {
     tax_t taxid(get_taxid(lh.fns_[index].data(), lh.name_hash_));
     if(taxid == UINT32_C(-1)) {
         LOG_WARNING("Taxid for %s not listed in summary.txt. Not including.", lh.fns_[index].data());
-    } else update_lca_map(ret, h, lh.tax_map_, taxid);
+    } else update_lca_map(ret, h, lh.tax_map_, taxid, *lh.m_);
 }
 
 template<std::uint64_t (*score)(std::uint64_t, void *)>
@@ -218,9 +219,10 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
     kh_resize(c, ret, start_size);
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
     std::vector<khash_t(all) *> counters;
+    std::shared_mutex m;
     counters.reserve(num_threads);
     for(std::size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
-    lca_helper lh{sp, fns, ret, name_hash, tax_map, counters, nullptr};
+    lca_helper lh{sp, fns, ret, name_hash, tax_map, counters, nullptr, &m};
     kt_for(num_threads, &lca_for_helper<score>, (void *)&lh, fns.size());
     destroy_name_hash(name_hash);
     for(auto c: counters) khash_destroy(c);

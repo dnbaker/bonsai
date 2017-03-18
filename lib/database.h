@@ -60,17 +60,21 @@ struct Database {
     void write(const char *fn) {
         std::FILE *ofp(std::fopen(fn, "wb"));
         if(!ofp) LOG_EXIT("Could not open %s for reading.\n", fn);
-        for(khiter_t ki(0); ki != kh_end(db_); ++ki)
-            if(!kh_exist(db_, ki))
-                kh_key(db_, ki) = kh_val(db_, ki) = 0;
         __fw(k_, ofp);
         __fw(w_, ofp);
         std::fwrite(s_.data(), s_.size(), sizeof(uint8_t), ofp);
-        std::fwrite(db_, 1, sizeof(*db_), ofp);
-        std::fwrite(db_->flags, __ac_fsize(db_->n_buckets), sizeof(*db_->flags), ofp);
-        std::fwrite(db_->keys, db_->n_buckets, sizeof(*db_->keys), ofp);
-        std::fwrite(db_->vals, db_->n_buckets, sizeof(*db_->vals), ofp);
+        khash_write_impl<T>(db_, ofp);
         std::fclose(ofp);
+#if DATABASE_TEST
+        Database<T> test(fn);
+        assert(kh_size(test.db_) == kh_size(db_));
+        for(khiter_t ki(0); ki != kh_end(test.db_); ++ki) {
+            if(kh_key(db_, ki) != kh_key(test.db_, ki))
+                std::fprintf(stderr, "key mismatch at %" PRIu64 ". key 1: %" PRIu64 ", key 2: %" PRIu64 ".\n", ki, (std::uint64_t)kh_key(db_, ki), (std::uint64_t)kh_key(test.db_, ki));
+            if(kh_val(db_, ki) != kh_val(test.db_, ki))
+                std::fprintf(stderr, "val mismatch at %" PRIu64 ". val 1: %" PRIu64 ", val 2: %" PRIu64 ".\n", ki, (std::uint64_t)kh_val(db_, ki), (std::uint64_t)kh_val(test.db_, ki));
+        }
+#endif
     }
 
     template<typename Q=T>

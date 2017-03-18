@@ -83,24 +83,38 @@ void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t ta
 }
 
 
-void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid) {
+void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid, std::shared_mutex &m) {
     int khr;
     khint_t k2;
-    tax_t val;
     LOG_DEBUG("Adding set of size %zu t total set of current size %zu.\n", kh_size(set), kh_size(kc));
     for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
         if(kh_exist(set, ki)) {
             if((k2 = kh_get(c, kc, kh_key(set, ki))) == kh_end(kc)) {
+                //std::unique_lock<std::shared_mutex> lock(m);
                 k2 = kh_put(c, kc, kh_key(set, ki), &khr);
-                kh_val(kc, k2) = taxid;
-                if(unlikely(kh_size(kc) % 1000000 == 0)) LOG_INFO("Final hash size %zu\n", kh_size(kc));
+                if(kh_key(set, ki) != kh_key(kc, k2)) LOG_EXIT("ZOMG %zu is not %zu\n", kh_key(set, ki), kh_key(kc, ki));
+                if(!kh_try_set(c, kc, k2, taxid)) while(!kh_try_set(c, kc, k2, lca(tax, taxid, kh_val(kc, k2))))
+                if(unlikely(kh_size(kc) % 1000000 == 0)) LOG_DEBUG("Final hash size %zu\n", kh_size(kc));
             } else if(kh_val(kc, k2) != taxid) {
-                do val = lca(tax, taxid, kh_val(kc, k2));
-                while(!kh_try_set(c, kc, k2, val));
+                while(!kh_try_set(c, kc, k2, lca(tax, taxid, kh_val(kc, k2))));
                 if(kh_val(kc, k2) == UINT32_C(-1)) kh_val(kc, k2) = 1, LOG_WARNING("Missing taxid %u. Setting lca \n", taxid);
             }
         }
     }
+#if 0
+    {
+        std::unique_lock<std::shared_mutex> lock(m);
+        int khr;
+        for(auto &pair: to_add) {
+            k2 = kh_put(c, kc, pair.first, &khr);
+            switch(khr) {
+                case -1: LOG_EXIT("Insertion failed for key %" PRIu64" \n", pair.first);
+                case  1: case 2: if(kh_try_set(c, kc, k2, taxid)) break; //fall-through
+                case  0: while(!kh_try_set(c, kc, k2, lca(tax, taxid, kh_val(kc, k2)))); break;
+            }
+        }
+    }
+#endif
     LOG_DEBUG("After updating with set of size %zu, total set current size is %zu.\n", kh_size(set), kh_size(kc));
 }
 

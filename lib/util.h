@@ -108,6 +108,9 @@ void print_khash(T *rex) noexcept {
 
 template<typename T>
 void khash_write_impl(T *map, std::FILE *fp) noexcept {
+    for(khiter_t ki(0); ki != kh_end(map); ++ki)
+        if(!kh_exist(map, ki))
+            kh_key(map, ki) = 0, kh_val(map, ki) = 0;
     __fw(map->n_buckets, fp);
     __fw(map->n_occupied, fp);
     __fw(map->size, fp);

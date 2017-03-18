@@ -243,10 +243,12 @@ struct est_helper {
 template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
 void est_helper_fn(void *data_, long index, int tid) {
     est_helper &h(*(est_helper *)(data_));
+    LOG_DEBUG("Counting kmers from file %s\n", h.paths_[index].data());
     hll::hll_t hll(hllcount_lmers<score>(h.paths_[index], h.sp_, h.np_, h.data_));
     {
         std::unique_lock<std::mutex> lock(h.m_);
         h.master_ += hll; // Could be sped up by recursive algorithm that breaks the data up into sets of two and sets of those and so on.
+        LOG_DEBUG("Index %ld with thread %i has a current summed size %lf\n", index, tid, h.master_.report());
     }
 }
 
@@ -258,6 +260,7 @@ std::size_t estimate_cardinality(const std::vector<std::string> &paths,
     if(num_threads < 0) {
         num_threads = sysconf(_SC_NPROCESSORS_ONLN);
     }
+    LOG_DEBUG("About to estimate cardinality\n");
     const Spacer space(k, w, spaces);
     hll::hll_t master(np);
     std::mutex m;

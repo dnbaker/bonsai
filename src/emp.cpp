@@ -111,7 +111,7 @@ int phase2_main(int argc, char *argv[]) {
     if(wsz < 0 || wsz < k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 2, argv + argc));
-
+    LOG_DEBUG("Got paths\n");
     if(score_scheme::LEX == mode) {
         if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for lexicographic mode for final database generation.");
         Spacer sp(k, wsz, spvec_t(k - 1, 0));
