@@ -25,11 +25,21 @@ khash_t(c) *make_depth_hash(khash_t(c) *lca_map, khash_t(p) *tax_map) {
     return ret;
 }
 
-#if !NDEBUG
-#define _DBP(h) LOG_DEBUG("hash map %s is at %p.\n", #h, (void *)h)
-#else
-#define _DBP(h)
-#endif
+void update_feature_counter(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, const tax_t taxid) {
+    // TODO: make this threadsafe.
+    int khr;
+    khint_t k2;
+    for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
+        if(kh_exist(set, ki)) {
+           if((k2 = kh_get(64, kc, kh_key(set, ki))) == kh_end(kc)) {
+                k2 = kh_put(64, kc, kh_key(set, ki), &khr);
+                kh_val(kc, k2) = FMencode(1, node_depth(tax, taxid));
+            } else while(!kh_try_set(64, kc, k2, FMencode(FMcount(kh_val(kc, k2)), lca(tax, taxid, kh_val(kc, k2)))));
+        }
+    }
+}
+
+#ifndef USE_PAR_HELPERS
 
 void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *ret) {
     khiter_t kif;
@@ -46,8 +56,6 @@ void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *
     return;
 }
 
-#undef _DBP
-
 khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, khash_t(p) *tax) {
     khash_t(64) *ret(kh_init(64));
     int khr;
@@ -63,21 +71,6 @@ khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, khash_t(p) *tax) {
 }
 
 
-
-void update_feature_counter(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, const tax_t taxid) {
-    // TODO: make this threadsafe.
-    int khr;
-    khint_t k2;
-    for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
-        if(kh_exist(set, ki)) {
-           if((k2 = kh_get(64, kc, kh_key(set, ki))) == kh_end(kc)) {
-                k2 = kh_put(64, kc, kh_key(set, ki), &khr);
-                kh_val(kc, k2) = FMencode(1, node_depth(tax, taxid));
-            } else while(!kh_try_set(64, kc, k2, FMencode(FMcount(kh_val(kc, k2)), lca(tax, taxid, kh_val(kc, k2)))));
-        }
-    }
-}
-#ifdef USE_PAR_HELPERS
 void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid, std::shared_mutex &m) {
     int khr;
     khint_t k2;
@@ -119,10 +112,9 @@ void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t ta
     LOG_DEBUG("After updating with set of size %zu, total set current size is %zu.\n", kh_size(set), kh_size(kc));
 }
 #else
-void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *ret, int mode) {
+void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *ret) {
     int khr;
     khiter_t kif, kir;
-    if(!mode) LOG_EXIT("Mode %i in score scheme is not good.\n");
     LOG_DEBUG("Size of set: %zu\n", kh_size(set));
     for(khiter_t ki(0); ki != kh_end(set); ++ki) {
         if(!kh_exist(set, ki) ||
@@ -185,7 +177,7 @@ void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t ta
     }
     LOG_DEBUG("After updating with set of size %zu, total set current size is %zu.\n", kh_size(set), kh_size(kc));
 }
-#endif
+#endif // #ifndef/else USE_PAR_HELPERS
 
 
 } //namespace emp

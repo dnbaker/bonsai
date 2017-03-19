@@ -97,6 +97,14 @@ std::size_t fill_set_genome_container(Container &container, const Spacer &sp, kh
         sz += fill_set_genome<score>(str.data(), sp, ret, 0, data);
     return sz;
 }
+
+template<std::uint64_t (*score)(std::uint64_t, void *)>
+khash_t(64) *ftct_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
+                      const char *seq2tax_path,
+                      const Spacer &sp, int num_threads, std::size_t start_size) {
+    return feature_count_map<score>(fns, tax_map, seq2tax_path, sp, num_threads, start_size);
+}
+
 #if USE_PAR_HELPERS
 template<typename T>
 struct helper {
@@ -197,13 +205,6 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
     for(auto c: counters) khash_destroy(c);
     LOG_DEBUG("Cleaned up after taxdepth map building!\n");
     return ret;
-}
-
-template<std::uint64_t (*score)(std::uint64_t, void *)>
-khash_t(64) *ftct_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
-                      const char *seq2tax_path,
-                      const Spacer &sp, int num_threads, std::size_t start_size) {
-    return feature_count_map<score>(fns, tax_map, seq2tax_path, sp, num_threads, start_size);
 }
 
 
