@@ -271,7 +271,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	}																	\
 	SCOPE int kh_resize_##name(kh_##name##_t *h, khint_t new_n_buckets) \
 	{ /* This function uses 0.25*n_buckets bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets. */ \
-        /*std::unique_lock<std::shared_mutex>(h->m);*/				        \
+        std::unique_lock<std::shared_mutex>(h->m);				        \
 		khint32_t *new_flags = 0;										\
 		khint_t j = 1;													\
 		{																\
@@ -336,7 +336,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	SCOPE khint_t kh_put_##name(kh_##name##_t *h, khkey_t key, int *ret) \
 	{																	\
 		khint_t x;														\
-		/*std::unique_lock<std::shared_mutex>(h->m);*/					  \
+		std::unique_lock<std::shared_mutex>(h->m);					  \
 		if (h->n_occupied >= h->upper_bound) { /* update the hash table */ \
 			if (h->n_buckets > (h->size<<1)) {							\
 				if (kh_resize_##name(h, h->n_buckets - 1) < 0) { /* clear "deleted" elements */ \
