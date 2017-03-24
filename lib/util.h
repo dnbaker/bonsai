@@ -71,6 +71,7 @@ tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
 // Modified from bit-twiddling hacks to work with 64-bit integers.
 template<typename T>
 static INLINE auto roundup64(T x) noexcept {
+    kroundup64(x);
     return ++x;
 }
 
