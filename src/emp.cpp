@@ -255,17 +255,18 @@ using pkh_t = kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_h
 
 struct potential_node_t {
     const tax_t                 p_;
-    std::vector<std::uint64_t> *bits_;
+    const std::vector<std::uint64_t> *bits_;
     std::uint64_t               score_;
-    bool operator<(potential_node_t &other) {
+    bool operator<(const potential_node_t &other) const {
         return std::tie(score_, p_, bits_) < std::tie(other.score_, other.p_, other.bits_);
     }
-    bool operator>(potential_node_t &other) {
+    bool operator>(const potential_node_t &other) const {
         return std::tie(score_, p_, bits_) > std::tie(other.score_, other.p_, other.bits_);
     }
-    bool operator==(potential_node_t &other) {
+    bool operator==(const potential_node_t &other) const {
         return std::tie(score_, p_, bits_) == std::tie(other.score_, other.p_, other.bits_);
     }
+    potential_node_t(const tax_t p, const std::vector<std::uint64_t> *bits, std::uint64_t score): p_(p), bits_(bits), score_(score) {}
 };
 
 struct tree_glob_t {
@@ -321,24 +322,52 @@ struct tree_glob_t {
 };
 
 struct tree_adjudicator_t {
-    std::vector<tree_glob_t>   subtrees_;
+    std::vector<tree_glob_t>              subtrees_;
+    std::unordered_map<tax_t, int>        indices_;
     std::set<potential_node_t, std::greater<potential_node_t>> nodes_;
-    const std::uint64_t        original_tax_count_; // Needed for scoring
-    const std::uint64_t        max_el_;             // Needed to know which nodes to add.
-    int                        recalculate_scores_; // If yes, recalculate scores 
+    const std::uint64_t                   original_tax_count_; // Needed for scoring
+    const std::uint64_t                   max_el_;             // Needed to know which nodes to add.
+    int                                   recalculate_scores_; // If yes, recalculate scores 
     tree_adjudicator_t(std::uint64_t orig, int recalculate=1):
         original_tax_count_(orig), max_el_(roundup64(orig)), recalculate_scores_(recalculate)
     {
     }
+    void process_subtree(std::size_t i) {
+        indices_.emplace(subtrees_[i].parent_, i);
+        tree_glob_t &g(subtrees_[i]);
+        const std::size_t tax_size(g.taxes_.size());
+        for(auto &pair: g.counts_) {
+            const std::uint64_t bitdiff(tax_size - popcnt::vec_popcnt(pair.first));
+            std::uint64_t ret(pair.second * bitdiff);
+            const auto m(g.fwd_.find(pair.first));
+            if(m == g.fwd_.end()) {
+                nodes_.emplace(g.parent_, &pair.first, ret);
+                LOG_WARNING("Node not found in adjmap. Maybe leaf? Continuing....\n");
+                continue;
+            }
+            for(const auto i: m->second) ret += bitdiff * g.counts_.find(*i)->second;
+            nodes_.emplace(g.parent_, &pair.first, ret);
+        }
+    }
     template<typename... U>
-    void process_subtree(U&&... Args) {
+    void emplace_subtree(U&&... Args) {
         subtrees_.emplace_back(std::forward<U>(Args)...);
+        process_subtree(subtrees_.size() - 1);
         // Add potential_node_t's from each subtree using default scoring
     }
-    void process() {
-        for(auto &tree: subtrees_) process_subtree(tree);
-    }
 };
+#if 0
+std::uint64_t score_node_addn(const std::vector<std::uint64_t> &bitstring,
+                              const adjmap_t &am, const count::Counter<std::vector<std::uint64_t>> &counts, std::size_t nelem) {
+    assert(bitstring.size() << 6 >= nelem);
+    const auto m(am.find(bitstring));
+    const auto node(counts.find(bitstring));
+    if(unlikely(m == am.end()) || node == counts.end()) return UINT64_C(-1);
+    std::uint64_t ret(node->second * (nelem - popcnt::vec_popcnt(node->first)));
+    for(const auto i: m->second) ret += counts.find(*i)->second * popcnt::vec_popcnt(*i);
+    return ret;
+}
+#endif
 
 
 
@@ -392,13 +421,13 @@ int metatree_main(int argc, char *argv[]) {
         for(auto &path: kv.second)
             std::fprintf(stderr, "Taxid %u has path %s and first line %s\n", kv.first, path.data(), get_firstline(path.data()).data());
     std::size_t index(0);
-    std::vector<tax_t> parents;
-    std::vector<std::vector<tax_t>> descendents;
+    tree_adjudicator_t ta(kh_size(taxmap), false);
     for(auto tax_iter(std::begin(nodes)), end_iter(tax_iter); tax_iter + 1 < std::end(nodes); tax_iter = end_iter + 1) {
         const tax_t parent_tax(get_parent(taxmap, *tax_iter));
         end_iter = tax_iter;
         while(end_iter != std::end(nodes) && get_parent(taxmap, *++end_iter) == parent_tax);
         std::fprintf(stderr, "Number in clade to clean up: %zd\n", (ssize_t)(end_iter - tax_iter));
+        ta.emplace_subtree(taxmap, parent_tax, folder, sp, tx2g, inverted_map, num_threads);
     }
     destroy_name_hash(name_hash);
     kh_destroy(p, taxmap);

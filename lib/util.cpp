@@ -71,6 +71,20 @@ tax_t lca(khash_t(p) *map, tax_t a, tax_t b) noexcept {
     return 1;
 }
 
+unsigned node_dist(khash_t(p) *map, tax_t leaf, tax_t root) noexcept {
+    unsigned ret(0);
+    khint_t ki;
+    while(leaf) {
+        if((ki = kh_get(p, map, leaf)) == kh_end(map)) {
+            fprintf(stderr, "Tax ID %u missing. Abort!\n", leaf);
+            std::exit(1);
+        }
+        ++ret;
+        if((leaf = kh_val(map, ki)) == root) return ret;
+    }
+    LOG_EXIT("leaf %u is not a child of root %u\n", leaf, root);
+    return ret;
+}
 unsigned node_depth(khash_t(p) *map, tax_t a) noexcept {
     unsigned ret(0);
     khint_t ki;
