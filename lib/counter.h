@@ -72,10 +72,23 @@ class Counter {
     std::size_t                                                n_;
     std::size_t                                            nelem_;
     std::unordered_map<T, std::size_t, Hash>                 map_;
-    std::unique_ptr<std::unordered_map<unsigned, unsigned>> hist_;
+    std::unordered_map<unsigned, unsigned>                 *hist_;
 
 public:
-    Counter(): n_(0), nelem_(0), hist_(std::make_unique<std::unordered_map<unsigned, unsigned>>()) {}
+    Counter(): n_(0), nelem_(0), hist_(nullptr) {}
+#if 0
+    Counter(Counter<T, Hash> &&other) = default;
+    Counter(Counter<T, Hash> &other)  = default;
+    Counter(const Counter<T, Hash> &other)  = default;
+    Counter &operator=(Counter<T, Hash> &&other) {
+        n_ = other.n_;
+        nelem_ = other.nelem_;
+        map_ = std::move(other.map_);
+        hist_ = std::move(other.hist_);
+        return *this;
+    }
+#endif
+    ~Counter() {if(hist_) delete hist_;}
 
     template<typename Q=T>
     void add(const typename std::enable_if<std::is_fundamental<Q>::value, Q>::type elem) {
@@ -126,7 +139,7 @@ public:
             if((m = hist_->find(i.second)) == hist_->end()) hist_->emplace(i.second, 1);
             else                                            ++m->second;
         }
-        return hist_.get();
+        return hist_;
     }
 
     int print_hist(std::FILE *fp) {

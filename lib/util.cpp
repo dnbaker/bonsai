@@ -28,7 +28,7 @@ std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(khash_t(p) *tax)
     return ret;
 }
 
-std::vector<tax_t> get_all_descendents(std::unordered_map<tax_t, std::vector<tax_t>> &map, tax_t tax) {
+std::vector<tax_t> get_all_descendents(const std::unordered_map<tax_t, std::vector<tax_t>> &map, tax_t tax) {
     std::vector<tax_t> ret;
     auto m(map.find(tax));
     if(m != map.end()) {

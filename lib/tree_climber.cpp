@@ -1,4 +1,6 @@
 #include "lib/tree_climber.h"
+#include <stdexcept>
+#include <system_error>
 
 namespace emp { namespace tree {
 
@@ -192,13 +194,13 @@ khash_t(p) *pruned_taxmap(std::vector<std::string> &paths, khash_t(p) *taxmap, k
 
 khash_t(all) *load_binary_kmerset(const char *path) {
     std::FILE *fp(fopen(path, "rb"));
+    if(fp == nullptr) throw std::system_error(std::error_code(2, std::system_category()), std::string("Cannot open path at ") + path + ".\n");
     khash_t(all) *ret(kh_init(all));
     std::uint64_t n;
-    int khr;
     std::fread(&n, 1, sizeof(n), fp);
     kh_resize(all, ret, n);
-    while(std::fread(&n, 1, sizeof(std::uint64_t), fp) == sizeof(std::uint64_t))
-        kh_put(all, ret, n, &khr);
+    int khr;
+    for(int khr; std::fread(&n, 1, sizeof(std::uint64_t), fp) == sizeof(std::uint64_t); kh_put(all, ret, n, &khr));
     std::fclose(fp);
     return ret;
 }

@@ -270,14 +270,9 @@ struct potential_node_t {
 
 struct tree_glob_t {
     using tax_path_map_t = std::unordered_map<std::uint32_t, std::forward_list<std::string>>;
-    const khash_t(p)                              *tax_;        // Does not own
     const tax_t                                    parent_;
     const std::string                              parent_path_;
-    const Spacer                                  &sp_;
-    tax_path_map_t                                &master_tpm_;
-    std::unordered_map<tax_t, std::vector<tax_t>> &inverted_tax_;
-    const khash_t(all)                            *acceptable_; // Does not own
-    int                                            nt_;
+    khash_t(all)                                  *acceptable_;
     std::set<tax_t>                                taxes_;
     count::Counter<std::vector<std::uint64_t>>     counts_;
 
@@ -289,42 +284,56 @@ struct tree_glob_t {
         return std::string(fld.empty() ? "": fld + '/') + std::to_string(parent) + KMER_SUFFIX;
     }
     tree_glob_t(khash_t(p) *tax, tax_t parent, const std::string &fld, const Spacer &sp, tax_path_map_t &tpm,
-                std::unordered_map<tax_t, std::vector<tax_t>> &invert, int num_threads=16):
-        tax_(tax), parent_(parent), parent_path_(make_parent(fld, parent_)), sp_(sp), master_tpm_(tpm), inverted_tax_(invert),
-        acceptable_(tree::load_binary_kmerset(parent_path_.data())), nt_(num_threads)
+                const std::unordered_map<tax_t, std::vector<tax_t>> &invert, int num_threads=16):
+        parent_(parent), parent_path_(make_parent(fld, parent_)), acceptable_(tree::load_binary_kmerset(parent_path_.data()))
     {
-        get_taxes();
+        get_taxes(invert);
         tax_path_map_t tmp;
-        for(auto tax: taxes_) tmp.emplace(tax, master_tpm_[tax]);
-        counts_ = std::move(bitmap_t(kgset_t(tmp, sp_, nt_, acceptable_)).to_counter());
+        for(auto tax: taxes_) tmp.emplace(tax, tpm[tax]);
+        counts_ = std::move(bitmap_t(kgset_t(tmp, sp, num_threads, acceptable_)).to_counter());
+        khash_destroy(acceptable_);
+        acceptable_ = nullptr;
     }
     void add(const tax_t tax) {
         //if(get_parent(tax_, tax) != parent_) LOG_EXIT("Unexpected node whose parent (%u) is not as expected (%u)\n", get_parent(tax_, tax), parent_);
         taxes_.insert(tax);
     }
     template<typename Container>
-    void add_children(Container c) {
+    void add_children(Container &&c) {
+        for(auto tax: c)    add(tax); // Add all the taxes.
+    }
+    template<typename Container>
+    void add_children(Container &c) {
         for(auto tax: c)    add(tax); // Add all the taxes.
     }
     template<typename It>
     void add_children(It first, It end) {
         while(first != end) add(*first);
     }
-    void get_taxes() {
-        std::vector<tax_t> tmp(get_all_descendents(inverted_tax_, parent_));
-        add_children(tmp);
+    void get_taxes(const std::unordered_map<tax_t, std::vector<tax_t>> &invert) {
+        add_children(get_all_descendents(invert, parent_));
     }
+    ~tree_glob_t() {if(acceptable_) khash_destroy(acceptable_);}
 };
 
 struct tree_adjudicator_t {
     std::vector<tree_glob_t>   subtrees_;
+    std::vector<adjmap_t>      fwds_;
+    std::vector<adjmap_t>      revs_;
     std::set<potential_node_t> nodes_;
-    const std::uint64_t        original_tax_count_;
-    const std::uint64_t        max_el_;
-    tree_adjudicator_t(std::uint64_t orig): original_tax_count_(orig), max_el_(roundup64(orig))
+    const std::uint64_t        original_tax_count_; // Needed for scoring
+    const std::uint64_t        max_el_;             // Needed to know which nodes to add.
+    int                        recalculate_scores_; // If yes, recalculate scores 
+    tree_adjudicator_t(std::uint64_t orig, int recalculate=1):
+        original_tax_count_(orig), max_el_(roundup64(orig)), recalculate_scores_(recalculate)
     {
     }
-    void process_subtree(tree_glob_t &subtree) {
+    template<typename... U>
+    void process_subtree(U&&... Args) {
+        subtrees_.emplace_back(std::forward<U>(Args)...);
+        auto &last = *(subtrees_.end() - 1);
+        fwds_.emplace_back(last.counts_, false);
+        revs_.emplace_back(last.counts_, true);
         // Add potential_node_t's from each subtree using default scoring
     }
     void process() {
