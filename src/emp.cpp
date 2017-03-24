@@ -253,6 +253,54 @@ void metatree_usage(char *arg) {
 template struct kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
 using pkh_t = kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
 
+struct tree_glob_t {
+    using tax_path_map_t = std::unordered_map<std::uint32_t, std::forward_list<std::string>>;
+    const khash_t(p)                              *tax_;        // Does not own
+    const tax_t                                    parent_;
+    const std::string                              parent_path_;
+    const Spacer                                  &sp_;
+    tax_path_map_t                                &master_tpm_;
+    std::unordered_map<tax_t, std::vector<tax_t>> &inverted_tax_;
+    const khash_t(all)                            *acceptable_; // Does not own
+    int                                            nt_;
+    std::set<tax_t>                                taxes_;
+    count::Counter<std::vector<std::uint64_t>>     counts_;
+
+
+    static constexpr const char *KMER_SUFFIX = ".kmers.bin";
+
+
+    std::string make_parent(const std::string &fld, const tax_t parent) {
+        return std::string(fld.empty() ? "": fld + '/') + std::to_string(parent) + KMER_SUFFIX;
+    }
+    tree_glob_t(khash_t(p) *tax, tax_t parent, const std::string &fld, const Spacer &sp, tax_path_map_t &tpm,
+                std::unordered_map<tax_t, std::vector<tax_t>> &invert, int num_threads=16):
+        tax_(tax), parent_(parent), parent_path_(make_parent(fld, parent_)), sp_(sp), master_tpm_(tpm), inverted_tax_(invert),
+        acceptable_(tree::load_binary_kmerset(parent_path_.data())), nt_(num_threads)
+    {
+        get_taxes();
+        tax_path_map_t tmp;
+        for(auto tax: taxes_) tmp.emplace(tax, master_tpm_[tax]);
+        counts_ = std::move(bitmap_t(kgset_t(tmp, sp_, nt_, acceptable_)).to_counter());
+    }
+    void add(const tax_t tax) {
+        //if(get_parent(tax_, tax) != parent_) LOG_EXIT("Unexpected node whose parent (%u) is not as expected (%u)\n", get_parent(tax_, tax), parent_);
+        taxes_.insert(tax);
+    }
+    template<typename Container>
+    void add_children(Container c) {
+        for(auto tax: c)    add(tax); // Add all the taxes.
+    }
+    template<typename It>
+    void add_children(It first, It end) {
+        while(first != end) add(*first);
+    }
+    void get_taxes() {
+        std::vector<tax_t> tmp(get_all_descendents(inverted_tax_, parent_));
+        add_children(tmp);
+    }
+};
+
 
 
 int metatree_main(int argc, char *argv[]) {
@@ -277,7 +325,6 @@ int metatree_main(int argc, char *argv[]) {
     std::unordered_map<tax_t, std::vector<tax_t>> inverted_map(invert_parent_map(taxmap));
     kh_destroy(p, tmp_taxmap);
     std::size_t num_nodes(kh_size(taxmap));
-    kroundup64(num_nodes);
     tree::SortedNodeGuide guide(taxmap);
     Database<khash_t(c)> db(argv[optind]);
     Spacer sp(db.k_, db.w_, db.s_);
@@ -320,7 +367,6 @@ int metatree_main(int argc, char *argv[]) {
         std::set<tax_t> taxes(tax_iter, end_iter);
         std::unordered_map<tax_t, std::forward_list<std::string>> range_map;
         std::vector<std::forward_list<std::string>> list_vec;
-        auto has_plasmid = [](std::string &str) -> bool {return get_firstline(str.data()).find("plasmid") != std::string::npos;};
         std::vector<tax_t> parent_descendents(get_all_descendents(inverted_map, parent_tax));
         for(auto tax: parent_descendents) {
             auto m(tx2g.find(tax));
