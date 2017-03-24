@@ -14,13 +14,18 @@ template<typename T>
 class AdjacencyList {
     std::unordered_map<const T*, std::vector<const T*>> map_;
     std::size_t m_, nelem_;
-    const bool is_reverse_;
+    bool is_reverse_;
 
 public:
 
     auto find(const T *elem) const {return map_.find(elem);}
     auto find(const T &elem) const {return find(&elem);}
     auto end()         const {return map_.end();}
+    AdjacencyList(): m_(0), nelem_(0), is_reverse_(0) {}
+#if 0
+    AdjacencyList(const AdjacencyList<T> &other) = default;
+    AdjacencyList(AdjacencyList<T> &&other)      = default;
+#endif
 
     AdjacencyList(count::Counter<T> &counts, bool reverse=false):
         m_(0), nelem_(counts.get_nelem()), is_reverse_(reverse) {

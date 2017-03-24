@@ -275,6 +275,8 @@ struct tree_glob_t {
     khash_t(all)                                  *acceptable_;
     std::set<tax_t>                                taxes_;
     count::Counter<std::vector<std::uint64_t>>     counts_;
+    adjmap_t                                       fwd_;
+    adjmap_t                                       rev_;
 
 
     static constexpr const char *KMER_SUFFIX = ".kmers.bin";
@@ -293,6 +295,8 @@ struct tree_glob_t {
         counts_ = std::move(bitmap_t(kgset_t(tmp, sp, num_threads, acceptable_)).to_counter());
         khash_destroy(acceptable_);
         acceptable_ = nullptr;
+        fwd_ = std::move(adjmap_t(counts_, true));
+        rev_ = std::move(adjmap_t(counts_, false));
     }
     void add(const tax_t tax) {
         //if(get_parent(tax_, tax) != parent_) LOG_EXIT("Unexpected node whose parent (%u) is not as expected (%u)\n", get_parent(tax_, tax), parent_);
@@ -318,9 +322,7 @@ struct tree_glob_t {
 
 struct tree_adjudicator_t {
     std::vector<tree_glob_t>   subtrees_;
-    std::vector<adjmap_t>      fwds_;
-    std::vector<adjmap_t>      revs_;
-    std::set<potential_node_t> nodes_;
+    std::set<potential_node_t, std::greater<potential_node_t>> nodes_;
     const std::uint64_t        original_tax_count_; // Needed for scoring
     const std::uint64_t        max_el_;             // Needed to know which nodes to add.
     int                        recalculate_scores_; // If yes, recalculate scores 
@@ -331,9 +333,6 @@ struct tree_adjudicator_t {
     template<typename... U>
     void process_subtree(U&&... Args) {
         subtrees_.emplace_back(std::forward<U>(Args)...);
-        auto &last = *(subtrees_.end() - 1);
-        fwds_.emplace_back(last.counts_, false);
-        revs_.emplace_back(last.counts_, true);
         // Add potential_node_t's from each subtree using default scoring
     }
     void process() {
@@ -347,6 +346,7 @@ int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
     int c, dry_run(0), num_threads(-1);
     std::string paths_file, folder, spacing;
+    static const std::size_t nclades = 10;
     while((c = getopt(argc, argv, "w:k:s:f:F:h?d")) >= 0) {
         switch(c) {
             case '?': case 'h': metatree_usage(*argv);
@@ -374,7 +374,6 @@ int metatree_main(int argc, char *argv[]) {
         std::fprintf(stderr, "node %u has parent %u and depth %u\n", tax, get_parent(taxmap, tax), node_depth(taxmap, tax));
     }
     std::vector<std::string> to_fetch;
-#if 1
     if(!dry_run) to_fetch = std::move(tree::invert_lca_map(db, folder.data()));
     else {
         to_fetch.reserve(kh_size(taxmap));
@@ -385,9 +384,6 @@ int metatree_main(int argc, char *argv[]) {
             if(access(buf, F_OK) != -1) to_fetch.emplace_back(buf); // Only add to list if file exists.
         }
     }
-#else
-    to_fetch = std::move(tree::par_invert(db, folder.data()));
-#endif
     if(to_fetch.empty()) LOG_EXIT("No binary files to grab from.\n");
     LOG_DEBUG("Fetched! Making tx2g\n");
     std::unordered_map<tax_t, strlist> tx2g(tax2genome_map(name_hash, inpaths));
@@ -398,42 +394,11 @@ int metatree_main(int argc, char *argv[]) {
     std::size_t index(0);
     std::vector<tax_t> parents;
     std::vector<std::vector<tax_t>> descendents;
-    for(auto tax_iter(std::begin(nodes)), end_iter(tax_iter);tax_iter + 1 < std::end(nodes);tax_iter = end_iter + 1) {
+    for(auto tax_iter(std::begin(nodes)), end_iter(tax_iter); tax_iter + 1 < std::end(nodes); tax_iter = end_iter + 1) {
         const tax_t parent_tax(get_parent(taxmap, *tax_iter));
         end_iter = tax_iter;
         while(end_iter != std::end(nodes) && get_parent(taxmap, *++end_iter) == parent_tax);
-        assert(get_parent(taxmap, *(end_iter - 1)) == parent_tax);
-        assert(get_parent(taxmap, *end_iter) != parent_tax);
-        std::set<tax_t> taxes(tax_iter, end_iter);
-        std::unordered_map<tax_t, std::forward_list<std::string>> range_map;
-        std::vector<std::forward_list<std::string>> list_vec;
-        std::vector<tax_t> parent_descendents(get_all_descendents(inverted_map, parent_tax));
-        for(auto tax: parent_descendents) {
-            auto m(tx2g.find(tax));
-            if(m == tx2g.end()) continue;
-            range_map.emplace(tax, m->second);
-        }
-        for(auto &pair: range_map) list_vec.push_back(pair.second); // Copying strings. Still not bad because there are only thousands of strings total.
-        auto n([](std::unordered_map<tax_t, std::forward_list<std::string>> &m){
-            std::size_t ret(0);for(auto &pair: m) for(auto &str: pair.second) ++ret; return ret;
-        }(range_map));
-        std::fprintf(stderr, "%zu genomes who have %u as their parent\n", n, parent_tax);
-        if(n < 3) continue;
-        parents.push_back(parent_tax);
-        std::string parent_path(folder);
-        if(!parent_path.empty()) parent_path += '/';
-        parent_path += std::to_string(parent_tax) + ".kmers.bin";
-        LOG_INFO("Get acceptable\n");
-        khash_t(all) *acceptable(tree::load_binary_kmerset(parent_path.data()));
-        bitmap_t bitmap;
-        {
-            kgset_t kgs(range_map, sp, num_threads, acceptable);
-            bitmap = kgs;
-            descendents.emplace_back(std::move(kgs.get_taxes()));
-        }
-        count::Counter<std::vector<std::uint64_t>> counts(bitmap.to_counter());
-        adjmap_t fwd_adj(counts);
-        adjmap_t rev_adj(counts, true);
+        std::fprintf(stderr, "Number in clade to clean up: %zd\n", (ssize_t)(end_iter - tax_iter));
     }
     destroy_name_hash(name_hash);
     kh_destroy(p, taxmap);

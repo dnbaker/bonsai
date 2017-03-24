@@ -199,7 +199,6 @@ khash_t(all) *load_binary_kmerset(const char *path) {
     std::uint64_t n;
     std::fread(&n, 1, sizeof(n), fp);
     kh_resize(all, ret, n);
-    int khr;
     for(int khr; std::fread(&n, 1, sizeof(std::uint64_t), fp) == sizeof(std::uint64_t); kh_put(all, ret, n, &khr));
     std::fclose(fp);
     return ret;
