@@ -69,14 +69,8 @@ tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
                       khash_t(p) *parent_map) noexcept;
 
 // Modified from bit-twiddling hacks to work with 64-bit integers.
-static INLINE std::size_t roundup64(std::size_t x) noexcept {
-    --x;
-    x |= x >> 1;
-    x |= x >> 2;
-    x |= x >> 4;
-    x |= x >> 8;
-    x |= x >> 16;
-    x |= x >> 32;
+template<typename T>
+static INLINE auto roundup64(T x) noexcept {
     return ++x;
 }
 

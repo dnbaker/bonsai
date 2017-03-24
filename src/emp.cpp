@@ -253,6 +253,21 @@ void metatree_usage(char *arg) {
 template struct kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
 using pkh_t = kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
 
+struct potential_node_t {
+    const tax_t                 p_;
+    std::vector<std::uint64_t> *bits_;
+    std::uint64_t               score_;
+    bool operator<(potential_node_t &other) {
+        return std::tie(score_, p_, bits_) < std::tie(other.score_, other.p_, other.bits_);
+    }
+    bool operator>(potential_node_t &other) {
+        return std::tie(score_, p_, bits_) > std::tie(other.score_, other.p_, other.bits_);
+    }
+    bool operator==(potential_node_t &other) {
+        return std::tie(score_, p_, bits_) == std::tie(other.score_, other.p_, other.bits_);
+    }
+};
+
 struct tree_glob_t {
     using tax_path_map_t = std::unordered_map<std::uint32_t, std::forward_list<std::string>>;
     const khash_t(p)                              *tax_;        // Does not own
@@ -298,6 +313,22 @@ struct tree_glob_t {
     void get_taxes() {
         std::vector<tax_t> tmp(get_all_descendents(inverted_tax_, parent_));
         add_children(tmp);
+    }
+};
+
+struct tree_adjudicator_t {
+    std::vector<tree_glob_t>   subtrees_;
+    std::set<potential_node_t> nodes_;
+    const std::uint64_t        original_tax_count_;
+    const std::uint64_t        max_el_;
+    tree_adjudicator_t(std::uint64_t orig): original_tax_count_(orig), max_el_(roundup64(orig))
+    {
+    }
+    void process_subtree(tree_glob_t &subtree) {
+        // Add potential_node_t's from each subtree using default scoring
+    }
+    void process() {
+        for(auto &tree: subtrees_) process_subtree(tree);
     }
 };
 
