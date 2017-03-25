@@ -103,6 +103,7 @@ public:
         const unsigned len((set.size() + 63) >> 6);
         khash_t(all) *h;
         const auto &vec(set.get_core());
+        LOG_DEBUG("Size of set: %zu\n", set.size());
 
         for(std::size_t i(0); i < set.size(); ++i) {
             h = vec[i];
@@ -130,6 +131,7 @@ public:
                 bitsum != set.size())
 #if !NDEBUG
                     core_.emplace(i.first, i.second), ++n_passed;
+            else    LOG_DEBUG("bitsum is %u while the set size is %zu\n", bitsum, set.size());
 #else
                     core_.emplace(i.first, i.second);
 #endif

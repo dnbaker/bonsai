@@ -27,6 +27,8 @@ void kg_list_helper(void *data_, long index, int tid) {
     auto &list(*data->fl_[index]);
     khash_t(all) *h(data->core_[index]);
     Encoder<lex_score> enc(data->sp_);
+    LOG_DEBUG("Size of list: %zu. Performing for index %ld of %zu\n", [](auto l){size_t ret(0); for(auto &i: l) ++ret; return ret;}(list), index, data->core_.size());
+    LOG_DEBUG("Is acceptable null? %s\n", !data->acceptable_ ? "true": "false");
     for(auto &path: list) {
         gzFile fp(gzopen(path.data(), "rb"));
         if(!fp) LOG_EXIT("Could not open file at %s\n", path.data());
@@ -35,10 +37,11 @@ void kg_list_helper(void *data_, long index, int tid) {
         int khr;
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
+            LOG_DEBUG("Getting kmers from seq name %s\n", ks->name.s);
             while(enc.has_next_kmer())
                 if((min = enc.next_minimizer()) != BF)
                     if(!data->acceptable_ || kh_get(all, data->acceptable_, min) != kh_end(data->acceptable_))
-                        kh_put(all, h, min, &khr);
+                        kh_put(all, h, min, &khr), LOG_DEBUG("Size of ret: %zu\n", kh_size(h));
         }
         kseq_destroy(ks);
         gzclose(fp);

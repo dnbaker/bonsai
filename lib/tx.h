@@ -99,10 +99,12 @@ public:
         if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
         std::vector<std::forward_list<std::string>*> tmpfl;
         taxes_.reserve(path_map.size());
+        LOG_DEBUG("Tax reserved size %zu\n", taxes_.capacity());
         for(auto &pair: path_map) {
             taxes_.push_back(pair.first);
             tmpfl.push_back(&pair.second);
         }
+        LOG_DEBUG("Tax filled size %zu. Core size: %zu\n", taxes_.size(), core_.size());
         kg_list_data data{core_, tmpfl, sp, acceptable_};
         kt_for(num_threads, &kg_list_helper, (void *)&data, core_.size());
     }
@@ -122,8 +124,12 @@ public:
     }
     kgset_t(std::unordered_map<std::uint32_t, std::forward_list<std::string>> &list,
             const Spacer &sp, int num_threads=-1, const khash_t(all) *acc=nullptr): acceptable_(acc), fl_(&list) {
+        assert(acc);
+        assert(acceptable_);
+        if(list.size() == 0) LOG_EXIT("List size is 0\n");
         core_.reserve(list.size());
-        for(std::size_t i(0), end(paths_.size()); i != end; ++i) core_.emplace_back(kh_init(all));
+        for(auto &i: list) core_.emplace_back(kh_init(all));
+        assert(core_.size() > 0);
         fill(*fl_, sp, num_threads);
     }
     ~kgset_t() {
