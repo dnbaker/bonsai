@@ -290,18 +290,22 @@ struct tree_glob_t {
                 const std::unordered_map<tax_t, std::vector<tax_t>> &invert, int num_threads=16):
         parent_(parent), parent_path_(make_parent(fld, parent_)), acceptable_(tree::load_binary_kmerset(parent_path_.data()))
     {
+        LOG_DEBUG("About to get tax ids for children.\n");
         get_taxes(invert);
+        LOG_DEBUG("Got taxes: %zu\n", taxes_.size());
         tax_path_map_t tmp;
         for(auto tax: taxes_) tmp.emplace(tax, tpm[tax]);
+        LOG_DEBUG("About to make tax counter\n");
         counts_ = std::move(bitmap_t(kgset_t(tmp, sp, num_threads, acceptable_)).to_counter());
-        khash_destroy(acceptable_);
-        acceptable_ = nullptr;
+        LOG_DEBUG("Size of counts: %zu\n", counts_.size());
+        khash_destroy(acceptable_), acceptable_ = nullptr;
         fwd_ = std::move(adjmap_t(counts_, true));
         rev_ = std::move(adjmap_t(counts_, false));
     }
     void add(const tax_t tax) {
         //if(get_parent(tax_, tax) != parent_) LOG_EXIT("Unexpected node whose parent (%u) is not as expected (%u)\n", get_parent(tax_, tax), parent_);
         taxes_.insert(tax);
+        if(taxes_.size() % 100 == 0) LOG_DEBUG("ZOMG size of taxes is %zu\n", taxes_.size());
     }
     template<typename Container>
     void add_children(Container &&c) {
@@ -356,22 +360,11 @@ struct tree_adjudicator_t {
         // Add potential_node_t's from each subtree using default scoring
     }
 };
-#if 0
-std::uint64_t score_node_addn(const std::vector<std::uint64_t> &bitstring,
-                              const adjmap_t &am, const count::Counter<std::vector<std::uint64_t>> &counts, std::size_t nelem) {
-    assert(bitstring.size() << 6 >= nelem);
-    const auto m(am.find(bitstring));
-    const auto node(counts.find(bitstring));
-    if(unlikely(m == am.end()) || node == counts.end()) return UINT64_C(-1);
-    std::uint64_t ret(node->second * (nelem - popcnt::vec_popcnt(node->first)));
-    for(const auto i: m->second) ret += counts.find(*i)->second * popcnt::vec_popcnt(*i);
-    return ret;
-}
-#endif
-
 
 bool used_as_lca(const tax_t tax, const std::string &fld) {
-    return isfile((std::string(fld.empty() ? fld + '/': "") + std::to_string(tax) + ".kmers.bin").data());
+    std::string path(std::string(fld.empty() ? "": fld + '/') + std::to_string(tax) + ".kmers.bin");
+    LOG_DEBUG("Checking for lca binary file at %s\n", path.data());
+    return isfile(path.data());
 }
 
 int metatree_main(int argc, char *argv[]) {
@@ -389,14 +382,19 @@ int metatree_main(int argc, char *argv[]) {
         }
     }
     khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));
+    LOG_DEBUG("Parsed name hash.\n");
     khash_t(p) *tmp_taxmap(build_parent_map(argv[optind + 1]));
+    LOG_DEBUG("Built parent map.\n");
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 5, argv + argc));
+    LOG_DEBUG("Got infiles.\n");
     if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, tmp_taxmap, name_hash));
+    LOG_DEBUG("Pruned parent map.\n");
     std::unordered_map<tax_t, std::vector<tax_t>> inverted_map(invert_parent_map(taxmap));
     kh_destroy(p, tmp_taxmap);
     std::size_t num_nodes(kh_size(taxmap));
+    LOG_DEBUG("Sorted nodes.\n");
     tree::SortedNodeGuide guide(taxmap);
     Database<khash_t(c)> db(argv[optind]);
     Spacer sp(db.k_, db.w_, db.s_);

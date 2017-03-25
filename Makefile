@@ -68,4 +68,5 @@ clean:
 	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o src/*o libhll.a \
 	&& cd hll && make clean && cd ..
 
-mostlyclean: clean
+mostlyclean:
+	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o src/*o

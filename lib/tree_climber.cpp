@@ -199,7 +199,8 @@ khash_t(all) *load_binary_kmerset(const char *path) {
     khash_t(all) *ret(kh_init(all));
     std::uint64_t n;
     std::fread(&n, 1, sizeof(n), fp);
-    kh_resize(all, ret, n);
+    if(kh_resize(all, ret, n) < 0) LOG_EXIT("Could not resize hash table to next power of 2 above %zu. New size: %zu\n", n, kh_n_buckets(ret));
+    LOG_DEBUG("About to place %zu elements into a hash table of max size %zu\n", n, kh_n_buckets(ret));
     for(int khr; std::fread(&n, 1, sizeof(std::uint64_t), fp) == sizeof(std::uint64_t); kh_put(all, ret, n, &khr));
     std::fclose(fp);
     return ret;

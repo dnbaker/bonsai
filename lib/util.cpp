@@ -22,9 +22,14 @@ std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(khash_t(p) *tax)
     typename std::unordered_map<tax_t, std::vector<tax_t>>::iterator m;
     for(khiter_t ki(0); ki < kh_end(tax); ++ki) {
         if(!kh_exist(tax, ki)) continue;
-        if((m = ret.find(kh_key(tax, ki))) == ret.end()) m = ret.emplace(kh_val(tax, ki), std::vector<tax_t>{kh_key(tax, ki)}).first;
+        if((m = ret.find(kh_val(tax, ki))) == ret.end()) m = ret.emplace(kh_val(tax, ki), std::vector<tax_t>{kh_key(tax, ki)}).first;
         else                                             m->second.emplace_back(kh_key(tax, ki));
     }
+#if !NDEBUG
+    for(auto &pair: ret) {
+        for(auto child: pair.second) assert(get_parent(tax, child) == pair.first);
+    }
+#endif
     return ret;
 }
 
@@ -32,11 +37,16 @@ std::vector<tax_t> get_all_descendents(const std::unordered_map<tax_t, std::vect
     std::vector<tax_t> ret;
     auto m(map.find(tax));
     if(m != map.end()) {
-        for(auto tax: m->second) {
-            auto desc(get_all_descendents(map, tax));
+        LOG_DEBUG("Found a match for parent %u with %zu children.\n", tax, m->second.size());
+        for(tax_t newtax: m->second) {
+            assert(newtax != tax);
+            ret.push_back(newtax);
+            auto desc(get_all_descendents(map, newtax));
+            for(auto d: desc) std::fprintf(stderr, "Descendent %u of total %zu descendences of %u\n", d, desc.size(), tax);
             ret.insert(ret.end(), desc.begin(), desc.end());
         }
     }
+    LOG_DEBUG("Returning descendents. Size: %zu\n", ret.size());
     return ret;
 }
 
@@ -110,6 +120,9 @@ khash_t(name) *build_name_hash(const char *fn) noexcept {
     char *p;
     int khr;
     khint_t ki;
+#if !NDEBUG
+    size_t linenum(0);
+#endif
     while((len = getline(&buf, &bufsz, fp)) >= 0) {
         switch(*buf) case '\0': case '\n': case '#': continue;
         p = strchr(buf, '\t');
@@ -123,6 +136,9 @@ khash_t(name) *build_name_hash(const char *fn) noexcept {
             memcpy((void*)kh_key(ret, ki), buf, namelen);
            ((char *)kh_key(ret, ki))[namelen] = '\0';
         }
+#if !NDEBUG
+        if(++linenum % 100 == 0) LOG_DEBUG("ZOMG read line %zu\n", linenum);
+#endif
         kh_val(ret, ki) = atoi(p + 1);
     }
     std::fclose(fp);
