@@ -171,6 +171,8 @@ INLINE tax_t get_parent(khash_t(p) *taxmap, tax_t key) noexcept {
                                                              : std::numeric_limits<tax_t>::max();
 }
 
+bool isfile(const char *path) noexcept;
+
 } // namespace emp
 
 #endif // #ifdef _EMP_UTIL_H__

@@ -370,6 +370,9 @@ std::uint64_t score_node_addn(const std::vector<std::uint64_t> &bitstring,
 #endif
 
 
+bool used_as_lca(const tax_t tax, const std::string &fld) {
+    return isfile((std::string(fld.empty() ? fld + '/': "") + std::to_string(tax) + ".kmers.bin").data());
+}
 
 int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
@@ -403,14 +406,15 @@ int metatree_main(int argc, char *argv[]) {
         std::fprintf(stderr, "node %u has parent %u and depth %u\n", tax, get_parent(taxmap, tax), node_depth(taxmap, tax));
     }
     std::vector<std::string> to_fetch;
-    if(!dry_run) to_fetch = std::move(tree::invert_lca_map(db, folder.data()));
+    std::unordered_set<tax_t> parents;
+    if(!dry_run) std::tie(to_fetch, parents) = std::move(tree::invert_lca_map(db, folder.data()));
     else {
         to_fetch.reserve(kh_size(taxmap));
         char buf[256];
         for(khiter_t ki(0); ki < kh_end(taxmap); ++ki) {
             if(!kh_exist(taxmap, ki)) continue;
             std::sprintf(buf, "%s%u.kmers.bin", folder.data(), kh_val(taxmap, ki));
-            if(access(buf, F_OK) != -1) to_fetch.emplace_back(buf); // Only add to list if file exists.
+            if(isfile(buf)) to_fetch.emplace_back(buf), parents.insert(kh_val(taxmap, ki)); // Only add to list if file exists.
         }
     }
     if(to_fetch.empty()) LOG_EXIT("No binary files to grab from.\n");
@@ -427,6 +431,11 @@ int metatree_main(int argc, char *argv[]) {
         end_iter = tax_iter;
         while(end_iter != std::end(nodes) && get_parent(taxmap, *++end_iter) == parent_tax);
         std::fprintf(stderr, "Number in clade to clean up: %zd\n", (ssize_t)(end_iter - tax_iter));
+        if(end_iter - tax_iter < 3)          {LOG_WARNING("Skippig clade of size %zd.\n", (ssize_t)(end_iter - tax_iter)); continue;}
+        if(!used_as_lca(parent_tax, folder)) {
+            const bool in_map(parents.find(parent_tax) != parents.end());
+            LOG_WARNING("LCA %u not used in map. In hash set? %s. Skipping.\n", parent_tax, in_map ? "true": "false"); continue;
+        }
         ta.emplace_subtree(taxmap, parent_tax, folder, sp, tx2g, inverted_map, num_threads);
     }
     destroy_name_hash(name_hash);

@@ -275,6 +275,9 @@ std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map, const
     return ret;
 }
 
+bool isfile(const char *path) noexcept {
+    return access(path, F_OK) != -1;
+}
 
 #define _KHD(x) template<> void khash_destroy(khash_t(x) *map) noexcept {kh_destroy(x, map);}
 

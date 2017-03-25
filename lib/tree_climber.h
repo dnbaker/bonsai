@@ -4,6 +4,8 @@
 #include "lib/tx.h"
 #include "lib/database.h"
 #include <shared_mutex>
+#include <unordered_map>
+#include <unordered_set>
 
 #if __cplusplus < 201402L || __GNUC__ < 6
 #define shared_mutex shared_timed_mutex
@@ -64,7 +66,7 @@ public:
  *   1. Determine the order of the nodes which we'll need to visit.
  *   2. Determine which of them are in sets (and need to be processed together).
 */
-std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *folder, int prebuilt=0);
+std::pair<std::vector<std::string>, std::unordered_set<tax_t>> invert_lca_map(Database<khash_t(c)> &db, const char *folder, int prebuilt=0);
 
 std::vector<std::uint64_t> load_binary_kmers(const char *path);
 khash_t(all) *load_binary_kmerset(const char *path);

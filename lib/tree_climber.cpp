@@ -98,8 +98,9 @@ std::vector<std::string> par_invert(Database<khash_t(c)> &db, const char *folder
 }
 
 
-std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *folder, int prebuilt) {
+std::pair<std::vector<std::string>, std::unordered_set<tax_t>> invert_lca_map(Database<khash_t(c)> &db, const char *folder, int prebuilt) {
     std::vector<std::string> ret;
+    std::unordered_set<tax_t> parents;
     std::unordered_map<tax_t, std::FILE *> ofps;
     std::unordered_map<tax_t, std::uint64_t> ofp_counts;
     khash_t(c) *map(db.db_); // Does not own; shorthand.
@@ -117,7 +118,6 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
             auto mc(ofp_counts.find(kh_val(map, ki)));
             if(m == ofps.end()) {
                 LOG_DEBUG("Adding %u to map\n", kh_val(map, ki));
-                const std::uint64_t tmp(UINT64_C(-1));
                 char buf[256];
                 std::sprintf(buf, "%s%u.kmers.bin", fld.data(), kh_val(map, ki));
                 ret.emplace_back(buf);
@@ -130,6 +130,8 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
                 }
                 LOG_DEBUG("Opened file at %s\n", buf);
                 mc = ofp_counts.emplace(kh_val(map, ki), 1).first;
+                parents.insert(kh_val(map, ki));
+                std::uint64_t tmp;
                 fwritten = std::fwrite(&tmp, sizeof(tmp), 1, m->second);
                 if(fwritten != 1) {
                     char buf2[256];
@@ -137,8 +139,7 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
                     perror(buf), exit(1);
                 }
             } else ++mc->second;
-            fwritten = std::fwrite(&kh_key(map, ki), sizeof(kh_key(map, ki)), 1, m->second);
-            if(fwritten != 1) {
+            if((fwritten = std::fwrite(&kh_key(map, ki), sizeof(kh_key(map, ki)), 1, m->second)) != 1) {
                 char buf2[256];
                 std::sprintf(buf2, "Could not write dummy value. Size written: %i. taxid: %u\n", fwritten, kh_val(map, ki));
                 perror(buf2), exit(1);
@@ -165,7 +166,7 @@ std::vector<std::string> invert_lca_map(Database<khash_t(c)> &db, const char *fo
         }
     }
     LOG_DEBUG("Got 'em!\n");
-    return ret;
+    return std::pair<std::vector<std::string>, std::unordered_set<tax_t>>(std::move(ret), std::move(parents));
 }
 
 khash_t(p) *pruned_taxmap(std::vector<std::string> &paths, khash_t(p) *taxmap, khash_t(name) *name_hash) {
