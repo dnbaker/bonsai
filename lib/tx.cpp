@@ -12,11 +12,17 @@ void kg_helper(void *data_, long index, int tid) {
     std::uint64_t min;
     int khr;
     while(kseq_read(ks) >= 0) {
+        LOG_DEBUG("Getting kmers from %s\n", ks->name.s);
         enc.assign(ks);
         while(enc.has_next_kmer())
-            if((min = enc.next_minimizer()) != BF)
-                if(!data->acceptable_ || kh_get(all, data->acceptable_, min) != kh_end(data->acceptable_))
+            LOG_DEBUG("Getting next kmer.\n");
+            if((min = enc.next_minimizer()) != BF) {
+                LOG_DEBUG("Not BF! String: %s\n", data->sp_.to_string(min).data());
+                if(!data->acceptable_)
                     kh_put(all, h, min, &khr);
+                if(kh_get(all, data->acceptable_, min) != kh_end(data->acceptable_))
+                    kh_put(all, h, min, &khr);
+            } else LOG_DEBUG("ZOMG next kmer is BF!\n");
     }
     kseq_destroy(ks);
     gzclose(fp);
@@ -30,6 +36,7 @@ void kg_list_helper(void *data_, long index, int tid) {
     LOG_DEBUG("Size of list: %zu. Performing for index %ld of %zu\n", [](auto l){size_t ret(0); for(auto &i: l) ++ret; return ret;}(list), index, data->core_.size());
     LOG_DEBUG("Is acceptable null? %s\n", !data->acceptable_ ? "true": "false");
     for(auto &path: list) {
+        LOG_DEBUG("Getting kmers from %s\n", path.data());
         gzFile fp(gzopen(path.data(), "rb"));
         if(!fp) LOG_EXIT("Could not open file at %s\n", path.data());
         kseq_t *ks(kseq_init(fp));
@@ -38,10 +45,15 @@ void kg_list_helper(void *data_, long index, int tid) {
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
             LOG_DEBUG("Getting kmers from seq name %s\n", ks->name.s);
-            while(enc.has_next_kmer())
-                if((min = enc.next_minimizer()) != BF)
-                    if(!data->acceptable_ || kh_get(all, data->acceptable_, min) != kh_end(data->acceptable_))
-                        kh_put(all, h, min, &khr), LOG_DEBUG("Size of ret: %zu\n", kh_size(h));
+            while(enc.has_next_kmer()) {
+                if((min = enc.next_minimizer()) != BF) {
+                    if(!data->acceptable_)
+                        kh_put(all, h, min, &khr);
+                    if(kh_get(all, data->acceptable_, min) != kh_end(data->acceptable_)) {
+                        kh_put(all, h, min, &khr), LOG_DEBUG("Found %s in acceptable hash. New size of hash: %zu\n", data->sp_.to_string(min).data(), kh_size(h));
+                    }
+                }
+            }
         }
         kseq_destroy(ks);
         gzclose(fp);

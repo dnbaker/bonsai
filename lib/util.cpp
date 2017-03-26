@@ -120,9 +120,6 @@ khash_t(name) *build_name_hash(const char *fn) noexcept {
     char *p;
     int khr;
     khint_t ki;
-#if !NDEBUG
-    size_t linenum(0);
-#endif
     while((len = getline(&buf, &bufsz, fp)) >= 0) {
         switch(*buf) case '\0': case '\n': case '#': continue;
         p = strchr(buf, '\t');
@@ -136,9 +133,6 @@ khash_t(name) *build_name_hash(const char *fn) noexcept {
             memcpy((void*)kh_key(ret, ki), buf, namelen);
            ((char *)kh_key(ret, ki))[namelen] = '\0';
         }
-#if !NDEBUG
-        if(++linenum % 100 == 0) LOG_DEBUG("ZOMG read line %zu\n", linenum);
-#endif
         kh_val(ret, ki) = atoi(p + 1);
     }
     std::fclose(fp);

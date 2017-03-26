@@ -295,7 +295,7 @@ struct tree_glob_t {
         LOG_DEBUG("Got taxes: %zu\n", taxes_.size());
         tax_path_map_t tmp;
         for(auto tax: taxes_) tmp.emplace(tax, tpm[tax]);
-        LOG_DEBUG("About to make tax counter\n");
+        LOG_DEBUG("About to make tax counter. Size of acceptable hash: %zu\n", kh_size(acceptable_));
         counts_ = std::move(bitmap_t(kgset_t(tmp, sp, num_threads, acceptable_)).to_counter());
         LOG_DEBUG("Size of counts: %zu\n", counts_.size());
         khash_destroy(acceptable_), acceptable_ = nullptr;
@@ -372,7 +372,7 @@ int metatree_main(int argc, char *argv[]) {
     int c, dry_run(0), num_threads(-1);
     std::string paths_file, folder, spacing;
     static const std::size_t nclades = 10;
-    while((c = getopt(argc, argv, "w:k:s:f:F:h?d")) >= 0) {
+    while((c = getopt(argc, argv, "p:w:k:s:f:F:h?d")) >= 0) {
         switch(c) {
             case '?': case 'h': metatree_usage(*argv);
             case 'f': folder = optarg; break;
@@ -398,11 +398,13 @@ int metatree_main(int argc, char *argv[]) {
     tree::SortedNodeGuide guide(taxmap);
     Database<khash_t(c)> db(argv[optind]);
     Spacer sp(db.k_, db.w_, db.s_);
-    for(auto &i: sp.s_) --i;
+    for(auto &i: sp.s_) --i, LOG_DEBUG("Value in spacer is %i\n", (int)i);
     std::vector<tax_t> nodes(std::move(guide.get_nodes()));
-    for(auto tax: nodes) {
+#if 0
+    for(const auto tax: nodes) {
         std::fprintf(stderr, "node %u has parent %u and depth %u\n", tax, get_parent(taxmap, tax), node_depth(taxmap, tax));
     }
+#endif
     std::vector<std::string> to_fetch;
     std::unordered_set<tax_t> parents;
     if(!dry_run) std::tie(to_fetch, parents) = std::move(tree::invert_lca_map(db, folder.data()));
