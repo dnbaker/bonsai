@@ -28,12 +28,14 @@ void kg_helper(void *data_, long index, int tid) {
     gzclose(fp);
 }
 
+
+
 void kg_list_helper(void *data_, long index, int tid) {
     kg_list_data *data((kg_list_data *)data_);
     auto &list(*data->fl_[index]);
     khash_t(all) *h(data->core_[index]);
     Encoder<lex_score> enc(data->sp_);
-    LOG_DEBUG("Size of list: %zu. Performing for index %ld of %zu\n", [](auto l){size_t ret(0); for(auto &i: l) ++ret; return ret;}(list), index, data->core_.size());
+    LOG_DEBUG("Size of list: %zu. Performing for index %ld of %zu\n", fllen(list), index, data->core_.size());
     LOG_DEBUG("Is acceptable null? %s\n", !data->acceptable_ ? "true": "false");
     for(auto &path: list) {
         LOG_DEBUG("Getting kmers from %s\n", path.data());

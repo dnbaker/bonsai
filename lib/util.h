@@ -172,6 +172,12 @@ INLINE tax_t get_parent(khash_t(p) *taxmap, tax_t key) noexcept {
 }
 
 bool isfile(const char *path) noexcept;
+template<typename T>
+std::size_t fllen(std::forward_list<T> &list) {
+    size_t ret(0);
+    for(auto &i: list) ++ret;
+    return ret;
+}
 
 } // namespace emp
 

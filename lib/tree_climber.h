@@ -66,7 +66,7 @@ public:
  *   1. Determine the order of the nodes which we'll need to visit.
  *   2. Determine which of them are in sets (and need to be processed together).
 */
-std::pair<std::vector<std::string>, std::unordered_set<tax_t>> invert_lca_map(Database<khash_t(c)> &db, const char *folder, int prebuilt=0);
+std::pair<std::vector<std::string>, std::unordered_set<tax_t>> invert_lca_map(const Database<khash_t(c)> &db, const char *folder, int prebuilt=0);
 
 std::vector<std::uint64_t> load_binary_kmers(const char *path);
 khash_t(all) *load_binary_kmerset(const char *path);

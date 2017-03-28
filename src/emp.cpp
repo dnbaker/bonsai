@@ -294,7 +294,10 @@ struct tree_glob_t {
         get_taxes(invert);
         LOG_DEBUG("Got taxes: %zu\n", taxes_.size());
         tax_path_map_t tmp;
-        for(auto tax: taxes_) tmp.emplace(tax, tpm[tax]);
+        for(auto tax: taxes_) {
+            auto m(tpm.find(tax));
+            if(m != tmp.end()) tmp.emplace(tax, m->second);
+        }
         LOG_DEBUG("About to make tax counter. Size of acceptable hash: %zu\n", kh_size(acceptable_));
         counts_ = std::move(bitmap_t(kgset_t(tmp, sp, num_threads, acceptable_)).to_counter());
         LOG_DEBUG("Size of counts: %zu\n", counts_.size());
@@ -421,9 +424,12 @@ int metatree_main(int argc, char *argv[]) {
     LOG_DEBUG("Fetched! Making tx2g\n");
     std::unordered_map<tax_t, strlist> tx2g(tax2genome_map(name_hash, inpaths));
     LOG_DEBUG("Made! Printing\n");
-    for(auto &kv: tx2g)
+    for(auto &kv: tx2g) {
+        std::fprintf(stderr, "Key %u has %zu paths\n", kv.first, fllen(kv.second));
         for(auto &path: kv.second)
             std::fprintf(stderr, "Taxid %u has path %s and first line %s\n", kv.first, path.data(), get_firstline(path.data()).data());
+        if(fllen(kv.second) == 0) LOG_EXIT("FL with key %u has length 0\n");
+    }
     std::size_t index(0);
     tree_adjudicator_t ta(kh_size(taxmap), false);
     for(auto tax_iter(std::begin(nodes)), end_iter(tax_iter); tax_iter + 1 < std::end(nodes); tax_iter = end_iter + 1) {

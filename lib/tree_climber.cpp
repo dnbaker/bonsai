@@ -4,101 +4,14 @@
 
 namespace emp { namespace tree {
 
-void mw_helper(void *data_, long index, int tid);
 
-struct safe_fp_t;
-struct multi_writer_t {
-    struct safe_fp_t {
-        FILE *fp_;
-        std::uint64_t n_;
-        std::unique_ptr<std::mutex> m_;
-        std::uint64_t a_[4096];
-        int l_;
-        safe_fp_t(const char *fname): fp_(fopen(fname, "wb")), n_(0), m_(std::move(new std::mutex())) {
-            if(!fp_) LOG_EXIT("Could not open fname %s\n", fname);
-            LOG_DEBUG("Opened file at %s\n", fname);
-        }
-        int write() {
-            LOG_DEBUG("Writing %i elements\n", l_);
-            const int ret(l_ ? std::fwrite(a_, l_, 8, fp_): 0);
-            l_ = 0;
-            return ret;
-        }
-        ~safe_fp_t() {
-            write();
-            fclose(fp_);
-        }
-        void push(std::uint64_t val) {
-            LOG_DEBUG("Pushing back %" PRIu64 "\n", val);
-            std::unique_lock<std::mutex> lock(*m_);
-            a_[l_++] = val;
-            if(l_ >= 4096) write();
-        }
-        safe_fp_t(safe_fp_t &&other): fp_(other.fp_), n_(other.n_), m_(std::move(other.m_)) {}
-    };
-    std::shared_mutex                    m_; // Hash insertion lock.
-    std::unordered_map<tax_t, safe_fp_t> map_;
-    std::vector<std::string>             paths_;
-    const std::string                   &fld_;
-    khash_t(c)                          *h_;
-    int                                  num_threads_;
-    std::size_t                          chunk_size_;
-    std::atomic<std::uint64_t>           n_;
-    auto find_or_insert(tax_t tax) {
-        std::shared_lock<std::shared_mutex> lock(m_);
-        auto m(map_.find(tax));
-        if(m == map_.end()) {
-            LOG_DEBUG("New element\n");
-            std::unique_lock<std::shared_mutex> lock(m_);
-            char buf[256];
-            std::sprintf(buf, "%s%u.kmers.bin", fld_.data(), tax);
-            paths_.emplace_back(buf);
-            m = map_.emplace(tax, buf).first;
-        } else LOG_DEBUG("STUFF\n");
-        return m;
-    }
-    void add_entry(std::uint64_t index) {
-        LOG_DEBUG("Adding entry\n");
-        if(!kh_exist(h_, index)) return;
-        auto iter(find_or_insert(kh_key(h_, index)));
-        iter->second.push(h_->keys[index]);
-        ++n_;
-        LOG_DEBUG("Added entry\n");
-    }
-    multi_writer_t(khash_t(c) *h, const std::string &fld, int num_threads=8, std::size_t chunk_size=1<<16):
-        fld_(fld), h_(h), num_threads_(num_threads), chunk_size_(chunk_size), n_(0) {}
-};
-    struct mw_helper_t {
-        multi_writer_t &mw_;
-        mw_helper_t(multi_writer_t &mw, std::size_t chunk_size=1<<16): mw_(mw) {}
-    };
-
-void mw_helper(void *data_, long index, int tid) {
-    mw_helper_t &mh(*(mw_helper_t *)data_);
-    LOG_INFO("launch helper %ld of %u and total to do is %zu\n", index, tid, kh_size(mh.mw_.h_) / mh.mw_.chunk_size_);
-    for(std::uint64_t i(index * mh.mw_.chunk_size_), e(std::min(std::uint64_t(kh_end(mh.mw_.h_)), i + mh.mw_.chunk_size_));
-        i < e; ++i) {
-        LOG_DEBUG("About to add entry\n");
-        mh.mw_.add_entry(index);
-        LOG_DEBUG("Added entry at %zu in range %zu to %zu\n", i, e, e - mh.mw_.chunk_size_);
-    }
-}
-void add_all_entries(multi_writer_t &mw) {
-    LOG_INFO("make helper\n");
-    mw_helper_t helper(mw, mw.chunk_size_);
-    LOG_INFO("made helper\n");
-    kt_for(mw.num_threads_, mw_helper, (void *)&helper, (kh_size(mw.h_) + mw.chunk_size_ - 1) / mw.chunk_size_);
-    LOG_INFO("All done!\n");
+std::string make_fname(const Database<khash_t(c)> &db, const std::string &fld, const tax_t tax) {
+    char buf[128];
+    std::sprintf(buf, "%s%u.w%u.k%u.kmers.bin", fld.data(), tax, db.w_, db.k_);
+    return buf;
 }
 
-std::vector<std::string> par_invert(Database<khash_t(c)> &db, const char *folder, int num_threads, std::size_t chunk_size) {
-    multi_writer_t mw(db.db_, folder, num_threads, chunk_size);
-    add_all_entries(mw);
-    return std::move(mw.paths_);
-}
-
-
-std::pair<std::vector<std::string>, std::unordered_set<tax_t>> invert_lca_map(Database<khash_t(c)> &db, const char *folder, int prebuilt) {
+std::pair<std::vector<std::string>, std::unordered_set<tax_t>> invert_lca_map(const Database<khash_t(c)> &db, const char *folder, int prebuilt) {
     std::vector<std::string> ret;
     std::unordered_set<tax_t> parents;
     std::unordered_map<tax_t, std::FILE *> ofps;
@@ -118,17 +31,15 @@ std::pair<std::vector<std::string>, std::unordered_set<tax_t>> invert_lca_map(Da
             auto mc(ofp_counts.find(kh_val(map, ki)));
             if(m == ofps.end()) {
                 LOG_DEBUG("Adding %u to map\n", kh_val(map, ki));
-                char buf[256];
-                std::sprintf(buf, "%s%u.kmers.bin", fld.data(), kh_val(map, ki));
-                ret.emplace_back(buf);
-                m = ofps.emplace(kh_val(map, ki), std::fopen(buf, "wb")).first;
+                ret.emplace_back(make_fname(db, fld, kh_val(map, ki)));
+                m = ofps.emplace(kh_val(map, ki), std::fopen(ret[ret.size() - 1].data(), "wb")).first;
                 if(m->second == nullptr) {
                     char buf2[512];
-                    std::sprintf(buf2, "Could not open file at path %s\n", buf);
+                    std::sprintf(buf2, "Could not open file at path %s\n", ret[ret.size() - 1].data());
                     perror(buf2);
                     exit(1);
                 }
-                LOG_DEBUG("Opened file at %s\n", buf);
+                LOG_DEBUG("Opened file at %s\n", ret[ret.size() - 1].data());
                 mc = ofp_counts.emplace(kh_val(map, ki), 1).first;
                 parents.insert(kh_val(map, ki));
                 std::uint64_t tmp;
@@ -136,7 +47,7 @@ std::pair<std::vector<std::string>, std::unordered_set<tax_t>> invert_lca_map(Da
                 if(fwritten != 1) {
                     char buf2[256];
                     std::sprintf(buf2, "Could not write dummy value. Size written: %i\n", fwritten);
-                    perror(buf), exit(1);
+                    perror(buf2), exit(1);
                 }
             } else ++mc->second;
             if((fwritten = std::fwrite(&kh_key(map, ki), sizeof(kh_key(map, ki)), 1, m->second)) != 1) {
@@ -155,17 +66,17 @@ std::pair<std::vector<std::string>, std::unordered_set<tax_t>> invert_lca_map(Da
         }
     } else {
         LOG_DEBUG("Just getting filenames\n");
-        char buf[256];
+        std::unordered_set<tax_t> taxes;
+        taxes.reserve(1 << 12);
         for(khiter_t ki(0); ki != kh_end(map); ++ki) {
             if(!kh_exist(map, ki)) continue;
-            auto m(ofps.find(kh_val(map, ki)));
-            if(m == ofps.end()) {
-                std::sprintf(buf, "%s%u.kmers.bin", fld.data(), kh_val(map, ki));
-                ret.emplace_back(buf);
+            auto m(taxes.find(kh_val(map, ki)));
+            if(m == taxes.end()) {
+                ret.emplace_back(make_fname(db, fld, kh_val(map, ki)));
+                taxes.insert(kh_val(map, ki));
             }
         }
     }
-    LOG_DEBUG("Got 'em!\n");
     return std::pair<std::vector<std::string>, std::unordered_set<tax_t>>(std::move(ret), std::move(parents));
 }
 
@@ -203,6 +114,15 @@ khash_t(all) *load_binary_kmerset(const char *path) {
     LOG_DEBUG("About to place %zu elements into a hash table of max size %zu\n", n, kh_n_buckets(ret));
     for(int khr; std::fread(&n, 1, sizeof(std::uint64_t), fp) == sizeof(std::uint64_t); kh_put(all, ret, n, &khr));
     std::fclose(fp);
+#if !NDEBUG
+    for(khiter_t ki(0); ki < kh_end(ret); ++ki) {
+        if(kh_exist(ret, ki)) assert(kh_get(all, ret, kh_key(ret, ki)) != kh_end(ret));
+    }
+    fp = fopen(path, "rb");
+    std::fread(&n, 1, sizeof(std::uint64_t), fp); // Skip first number.
+    while(std::fread(&n, 1, sizeof(std::uint64_t), fp) == sizeof(std::uint64_t)) assert(kh_get(all, ret, n) != kh_end(ret));
+    std::fclose(fp);
+#endif
     return ret;
 }
 
