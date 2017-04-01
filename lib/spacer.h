@@ -39,6 +39,8 @@ public:
         Spacer(k, w, parse_spacing(space_string, k))
     {
     }
+    Spacer(const Spacer &other): s_(other.s_), k_(other.k_), c_(other.c_), w_(other.w_) {
+    }
     void write(std::uint64_t kmer, std::FILE *fp=stdout) const {
         kmer ^= XOR_MASK;
         int offset = ((k_ - 1) << 1);
@@ -51,7 +53,7 @@ public:
         }
         std::fputc('\n', fp);
     }
-    std::string to_string (std::uint64_t kmer) const {
+    std::string to_string(std::uint64_t kmer) const {
         kmer ^= XOR_MASK;
         std::string ret;
         ret.reserve(c_ - k_ + 1);

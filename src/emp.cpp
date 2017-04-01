@@ -374,7 +374,6 @@ int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
     int c, dry_run(0), num_threads(-1);
     std::string paths_file, folder, spacing;
-    static const std::size_t nclades = 10;
     while((c = getopt(argc, argv, "p:w:k:s:f:F:h?d")) >= 0) {
         switch(c) {
             case '?': case 'h': metatree_usage(*argv);
@@ -396,7 +395,6 @@ int metatree_main(int argc, char *argv[]) {
     LOG_DEBUG("Pruned parent map.\n");
     std::unordered_map<tax_t, std::vector<tax_t>> inverted_map(invert_parent_map(taxmap));
     kh_destroy(p, tmp_taxmap);
-    std::size_t num_nodes(kh_size(taxmap));
     LOG_DEBUG("Sorted nodes.\n");
     tree::SortedNodeGuide guide(taxmap);
     Database<khash_t(c)> db(argv[optind]);
@@ -410,19 +408,12 @@ int metatree_main(int argc, char *argv[]) {
 #endif
     std::vector<std::string> to_fetch;
     std::unordered_set<tax_t> parents;
-    if(!dry_run) std::tie(to_fetch, parents) = std::move(tree::invert_lca_map(db, folder.data()));
-    else {
-        to_fetch.reserve(kh_size(taxmap));
-        char buf[256];
-        for(khiter_t ki(0); ki < kh_end(taxmap); ++ki) {
-            if(!kh_exist(taxmap, ki)) continue;
-            std::sprintf(buf, "%s%u.kmers.bin", folder.data(), kh_val(taxmap, ki));
-            if(isfile(buf)) to_fetch.emplace_back(buf), parents.insert(kh_val(taxmap, ki)); // Only add to list if file exists.
-        }
-    }
+    std::tie(to_fetch, parents) = std::move(tree::invert_lca_map(db, folder.data(), dry_run));
+    std::unordered_set<tax_t> used_lcas([&to_fetch](){std::unordered_set<tax_t> ret;for(auto &i: to_fetch) ret.emplace(std::atoi(i.data())); return ret;}());
     if(to_fetch.empty()) LOG_EXIT("No binary files to grab from.\n");
     LOG_DEBUG("Fetched! Making tx2g\n");
     std::unordered_map<tax_t, strlist> tx2g(tax2genome_map(name_hash, inpaths));
+    validate_db(db, used_lcas, tx2g);
     LOG_DEBUG("Made! Printing\n");
     for(auto &kv: tx2g) {
         std::fprintf(stderr, "Key %u has %zu paths\n", kv.first, fllen(kv.second));
@@ -430,7 +421,6 @@ int metatree_main(int argc, char *argv[]) {
             std::fprintf(stderr, "Taxid %u has path %s and first line %s\n", kv.first, path.data(), get_firstline(path.data()).data());
         if(fllen(kv.second) == 0) LOG_EXIT("FL with key %u has length 0\n");
     }
-    std::size_t index(0);
     tree_adjudicator_t ta(kh_size(taxmap), false);
     for(auto tax_iter(std::begin(nodes)), end_iter(tax_iter); tax_iter + 1 < std::end(nodes); tax_iter = end_iter + 1) {
         const tax_t parent_tax(get_parent(taxmap, *tax_iter));

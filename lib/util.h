@@ -175,8 +175,15 @@ bool isfile(const char *path) noexcept;
 template<typename T>
 std::size_t fllen(std::forward_list<T> &list) {
     size_t ret(0);
-    for(auto &i: list) ++ret;
+    for(auto i(list.begin()); i != list.end(); ++i) {
+        ++ret;
+    }
     return ret;
+}
+
+template<typename Key, typename Map>
+inline bool has_key(Key &key, Map &map) {
+    return map.find(key) != map.end();
 }
 
 } // namespace emp
