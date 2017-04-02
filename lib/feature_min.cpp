@@ -153,7 +153,7 @@ void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t ta
             if((k2 = kh_get(c, kc, kh_key(set, ki))) == kh_end(kc)) {
                 k2 = kh_put(c, kc, kh_key(set, ki), &khr);
                 kh_val(kc, k2) = taxid;
-            } else if(kh_val(kc, k2) != taxid) while(!kh_try_set(c, kc, k2, lca(tax, taxid, kh_val(kc, k2))));
+            } else if(kh_val(kc, k2) != taxid) kh_val(kc, k2) = lca(tax, taxid, kh_val(kc, k2));
         }
     }
     LOG_DEBUG("After updating with set of size %zu, total set current size is %zu.\n", kh_size(set), kh_size(kc));

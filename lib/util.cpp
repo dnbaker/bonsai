@@ -289,6 +289,10 @@ bool isfile(const char *path) noexcept {
     return access(path, F_OK) != -1;
 }
 
+const char *bool2str(bool val) {
+    return val ? "true": "false";
+}
+
 #define _KHD(x) template<> void khash_destroy(khash_t(x) *map) noexcept {kh_destroy(x, map);}
 
 _KHD(all)

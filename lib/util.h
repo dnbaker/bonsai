@@ -68,6 +68,8 @@ std::vector<tax_t> get_all_descendents(const std::unordered_map<tax_t, std::vect
 tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
                       khash_t(p) *parent_map) noexcept;
 
+const char *bool2str(bool val);
+
 // Modified from bit-twiddling hacks to work with 64-bit integers.
 template<typename T>
 static INLINE auto roundup64(T x) noexcept {
