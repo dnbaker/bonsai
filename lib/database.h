@@ -124,6 +124,7 @@ void val_helper(void *data_, long index, int tid) {
                 enc.assign(ks);
                 while(enc.has_next_kmer()) if((kmer = enc.next_kmer()) != BF) in.insert(kmer);
             }
+            kseq_destroy(ks);
         }
     }
     LOG_DEBUG("Validator loaded all kmers from end genome. Now scanning full database for items assigned to tax. (tax: %u. tid; %i)\n", tax, tid);
