@@ -308,7 +308,9 @@ struct tree_glob_t {
     void add(const tax_t tax) {
         //if(get_parent(tax_, tax) != parent_) LOG_EXIT("Unexpected node whose parent (%u) is not as expected (%u)\n", get_parent(tax_, tax), parent_);
         taxes_.insert(tax);
+#if !NDEBUG
         if(taxes_.size() % 100 == 0) LOG_DEBUG("ZOMG size of taxes is %zu\n", taxes_.size());
+#endif
     }
     template<typename Container>
     void add_children(Container &&c) {
@@ -399,7 +401,10 @@ int metatree_main(int argc, char *argv[]) {
     tree::SortedNodeGuide guide(taxmap);
     Database<khash_t(c)> db(argv[optind]);
     Spacer sp(db.k_, db.w_, db.s_);
-    for(auto &i: sp.s_) --i, LOG_DEBUG("Value in spacer is %i\n", (int)i);
+    for(auto &i: sp.s_) {
+        --i;
+        LOG_DEBUG("Value in spacer is %i\n", (int)i);
+    }
     std::vector<tax_t> nodes(std::move(guide.get_nodes()));
 #if 0
     for(const auto tax: nodes) {

@@ -108,24 +108,29 @@ struct val_data_t {
 
 template<typename T>
 void val_helper(void *data_, long index, int tid) {
+#if !NDEBUG
     val_data_t<T> &data(*static_cast<val_data_t<T> *>(data_));
     const tax_t tax(data.v_[index]);
-    if(!has_key(tax, data.tx_)) return;
+    if(!has_key(tax, data.tx_)) {
+        LOG_DEBUG("tax %u is not a leaf\n", tax);
+        return;
+    }
+    LOG_DEBUG("Index %ld with tid %i starting\n", index, tid);
     std::unordered_set<std::uint64_t> in;
     std::unordered_set<std::uint64_t> failing_kmers;
     Encoder<lex_score> enc(nullptr, 0, *data.db_.sp_, nullptr);
-    for(const auto &pair: data.tx_) {
-        for(const auto &path: pair.second) {
-            LOG_DEBUG("Validator opening path at %s\n", path.data());
-            gzFile fp(gzopen(path.data(), "rb"));
-            kseq_t *ks(kseq_init(fp));
-            std::uint64_t kmer;
-            while(kseq_read(ks) >= 0) {
-                enc.assign(ks);
-                while(enc.has_next_kmer()) if((kmer = enc.next_kmer()) != BF) in.insert(kmer);
-            }
-            kseq_destroy(ks);
+    std::uint64_t passing_kmers;
+    for(const auto &path: data.tx_.find(tax)->second) {
+        LOG_DEBUG("Validator opening path at %s\n", path.data());
+        gzFile fp(gzopen(path.data(), "rb"));
+        kseq_t *ks(kseq_init(fp));
+        std::uint64_t kmer;
+        while(kseq_read(ks) >= 0) {
+            enc.assign(ks);
+            while(enc.has_next_kmer()) if((kmer = enc.next_kmer()) != BF) in.insert(kmer);
         }
+        gzclose(fp);
+        kseq_destroy(ks);
     }
     LOG_DEBUG("Validator loaded all kmers from end genome. Now scanning full database for items assigned to tax. (tax: %u. tid; %i)\n", tax, tid);
     for(std::uint64_t i(0); i < kh_size(data.db_.db_); ++i) if(kh_val(data.db_.db_, i) == tax) {
@@ -133,15 +138,22 @@ void val_helper(void *data_, long index, int tid) {
         if(in.find(kh_key(data.db_.db_, i)) == in.end()) {
             failing_kmers.insert(kh_key(data.db_.db_, i));
             LOG_DEBUG("Missing kmer %s (%" PRIu64") from genome that was assigned as lca (%u)\n", data.db_.sp_->to_string(kh_key(data.db_.db_, i)).data(), kh_key(data.db_.db_, i), tax);
-        }
+        } else ++passing_kmers;
     }
+    LOG_DEBUG("%zu kmers failed. %" PRIu64 " kmers passed. Percent passing: %lf\n", failing_kmers.size(), passing_kmers, passing_kmers / (failing_kmers.size() + passing_kmers));
     if(failing_kmers.size()) {
-        LOG_DEBUG("%zu kmers failed.\n", failing_kmers.size());
-        for(const auto kmer: failing_kmers)
-            LOG_DEBUG("Failed kmer %s/%" PRIu64"\n",
-                      data.db_.sp_->to_string(kh_key(data.db_.db_, kmer)).data(),
-                      kh_key(data.db_.db_, kmer));
-    } else LOG_DEBUG("Tax %u validated.\n", tax);
+        if(data.db_.sp_) {
+            for(const auto kmer: failing_kmers)
+                LOG_DEBUG("Failed kmer %s/%" PRIu64"\n",
+                          data.db_.sp_->to_string(kh_key(data.db_.db_, kmer)).data(),
+                          kh_key(data.db_.db_, kmer));
+        } else {
+            LOG_DEBUG("spacer is null\n");
+        }
+    } else {
+        LOG_DEBUG("Tax %u validated.\n", tax);
+    }
+#endif
 }
 
 
@@ -151,6 +163,7 @@ void validate_db(const Database<T> &db, std::unordered_set<tax_t> &used_lcas, st
     std::unordered_set<std::uint64_t> failing_kmers;
     std::vector<tax_t> lcas(used_lcas.begin(), used_lcas.end());
     val_data_t<T> data{tx2g, lcas, db};
+    LOG_DEBUG("lcas size: %zu\n", lcas.size());
     kt_for(num_threads, &val_helper<T>, &data, lcas.size());
 }
 

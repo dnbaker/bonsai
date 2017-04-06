@@ -84,14 +84,23 @@ khash_t(p) *pruned_taxmap(std::vector<std::string> &paths, khash_t(p) *taxmap, k
     std::set<tax_t> found, keep;
     std::uint64_t ki1, ki2;
     for(auto &path: paths) found.insert(get_taxid(path.data(), name_hash));
+    {
+        auto m(found.find(-1u));
+        if(m != found.end()) found.erase(m);
+    }
     for(auto i: found) {
         keep.insert(i);
         ki1 = kh_get(p, taxmap, i);
-        i = kh_val(taxmap, ki1);
-        while(i) {
+        if(ki1 == kh_end(taxmap)) {
+            LOG_DEBUG("tax %u missing from map. Skipping in tree pruning.\n", i);
+            continue;
+        }
+        while((i = kh_val(taxmap, ki1))) {
             keep.insert(i);
-            ki1 = kh_get(p, taxmap, i);
-            i = kh_val(taxmap, ki1);
+            if((ki1 = kh_get(p, taxmap, i)) == kh_end(taxmap)) {
+                LOG_EXIT("Missing taxid for %u. ZOMGZZZZ Skipping....", i);
+                break;
+            }
         }
     }
     int khr;
@@ -99,6 +108,7 @@ khash_t(p) *pruned_taxmap(std::vector<std::string> &paths, khash_t(p) *taxmap, k
     for(const auto i: keep) {
         ki1 = kh_put(p, ret, i, &khr);
         ki2 = kh_get(p, taxmap, i);
+        if(ki2 == kh_end(taxmap)) continue;
         kh_val(ret, ki1) = kh_val(taxmap, ki2);
     }
     return ret;

@@ -22,7 +22,9 @@ void kg_helper(void *data_, long index, int tid) {
                     kh_put(all, h, min, &khr);
                 if(kh_get(all, data->acceptable_, min) != kh_end(data->acceptable_))
                     kh_put(all, h, min, &khr);
-            } else LOG_DEBUG("ZOMG next kmer is BF!\n");
+            } else {
+                LOG_DEBUG("ZOMG next kmer is BF!\n");
+            }
     }
     kseq_destroy(ks);
     gzclose(fp);
@@ -52,7 +54,8 @@ void kg_list_helper(void *data_, long index, int tid) {
                     if(!data->acceptable_)
                         kh_put(all, h, min, &khr);
                     if(kh_get(all, data->acceptable_, min) != kh_end(data->acceptable_)) {
-                        kh_put(all, h, min, &khr), LOG_DEBUG("Found %s in acceptable hash. New size of hash: %zu\n", data->sp_.to_string(min).data(), kh_size(h));
+                        kh_put(all, h, min, &khr);
+                        LOG_DEBUG("Found %s in acceptable hash. New size of hash: %zu\n", data->sp_.to_string(min).data(), kh_size(h));
                     }
                 }
             }

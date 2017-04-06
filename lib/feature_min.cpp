@@ -78,11 +78,11 @@ void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t ta
     for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
         if(kh_exist(set, ki)) {
             if((k2 = kh_get(c, kc, kh_key(set, ki))) == kh_end(kc)) {
-                std::shared_lock<std::shared_mutex> lock(m);
                 k2 = kh_put(c, kc, kh_key(set, ki), &khr);
-                if(kh_key(set, ki) != kh_key(kc, k2)) LOG_EXIT("ZOMG %zu is not %zu\n", kh_key(set, ki), kh_key(kc, ki));
-                if(!kh_try_set(c, kc, k2, taxid)) while(!kh_try_set(c, kc, k2, lca(tax, taxid, kh_val(kc, k2))))
+                kh_val(kc, k2) = taxid;
+#if !NDEBUG
                 if(unlikely(kh_size(kc) % 1000000 == 0)) LOG_DEBUG("Final hash size %zu\n", kh_size(kc));
+#endif
             } else if(kh_val(kc, k2) != taxid) {
                 std::shared_lock<std::shared_mutex> lock(m);
                 while(!kh_try_set(c, kc, k2, lca(tax, taxid, kh_val(kc, k2))));
