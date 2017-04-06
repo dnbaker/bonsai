@@ -131,7 +131,7 @@ public:
                 bitsum != set.size())
 #if !NDEBUG
                     core_.emplace(i.first, i.second), ++n_passed;
-            else if(bitsum > 1) LOG_DEBUG("bitsum is %u while the set size is %zu\n", bitsum, set.size());
+            else if(bitsum > 1 && bitsum != set.size()) LOG_DEBUG("bitsum is %u while the set size is %zu\n", bitsum, set.size());
 #else
                     core_.emplace(i.first, i.second);
 #endif
