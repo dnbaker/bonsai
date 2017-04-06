@@ -119,7 +119,7 @@ void val_helper(void *data_, long index, int tid) {
     std::unordered_set<std::uint64_t> in;
     std::unordered_set<std::uint64_t> failing_kmers;
     Encoder<lex_score> enc(nullptr, 0, *data.db_.sp_, nullptr);
-    std::uint64_t passing_kmers;
+    std::uint64_t passing_kmers(0);
     for(const auto &path: data.tx_.find(tax)->second) {
         LOG_DEBUG("Validator opening path at %s\n", path.data());
         gzFile fp(gzopen(path.data(), "rb"));

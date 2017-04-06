@@ -5,7 +5,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
          # -pedantic
-DBG:= -D_GLIBCXX_DEBUG -DNDEBUG # -fno-inline
+DBG:= -D_GLIBCXX_DEBUG # -DNDEBUG # -fno-inline
 OPT:= -O3 -funroll-loops -ffast-math \
 	  -fopenmp \
       -pipe -fno-strict-aliasing -march=native -mpclmul # -DUSE_PAR_HELPERS
@@ -48,7 +48,7 @@ clhash.o: clhash/src/clhash.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB)
 
 test/%.o: test/%.cpp
-	$(CXX) $(CXXFLAGS) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
@@ -61,7 +61,7 @@ tests: clean unit
 
 unit: $(OBJS) $(TEST_OBJS) libhll.a
 	#$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
-	$(CXX) $(CXXFLAGS) $(INCLUDE) test/test_hll.o test/test_main.o $(LD) $(OBJS) -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) test/test_hll.o test/test_main.o $(LD) $(OBJS) -o $@ $(LIB)
 
 
 clean:
