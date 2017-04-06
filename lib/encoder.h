@@ -259,7 +259,7 @@ struct est_helper {
 template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
 void est_helper_fn(void *data_, long index, int tid) {
     est_helper &h(*(est_helper *)(data_));
-    LOG_DEBUG("Counting kmers from file %s\n", h.paths_[index].data());
+    LOG_DEBUG("Counting kmers from file %s (index %ld) \n", h.paths_[index].data(), index);
     // TODO: rewrite using atomic operations on the master hll, avoid using multiple hlls.
     hll_fill_lmers<score>(h.master_, h.paths_[index], h.sp_, h.data_);
 }

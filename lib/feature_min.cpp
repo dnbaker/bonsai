@@ -72,6 +72,7 @@ khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, khash_t(p) *tax) {
 
 
 void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid, std::shared_mutex &m) {
+    std::unique_lock<std::shared_mutex> lock(m);
     int khr;
     khint_t k2;
     LOG_DEBUG("Adding set of size %zu t total set of current size %zu.\n", kh_size(set), kh_size(kc));
@@ -84,9 +85,8 @@ void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t ta
                 if(unlikely(kh_size(kc) % 1000000 == 0)) LOG_DEBUG("Final hash size %zu\n", kh_size(kc));
 #endif
             } else if(kh_val(kc, k2) != taxid) {
-                std::shared_lock<std::shared_mutex> lock(m);
-                while(!kh_try_set(c, kc, k2, lca(tax, taxid, kh_val(kc, k2))));
-                if(kh_val(kc, k2) == UINT32_C(-1)) kh_val(kc, k2) = 1, LOG_WARNING("Missing taxid %u. Setting lca \n", taxid);
+                kh_val(kc, k2) = lca(tax, taxid, kh_val(kc, k2));
+                if(kh_val(kc, k2) == UINT32_C(-1)) kh_val(kc, k2) = 1, LOG_WARNING("Missing taxid %u. Setting lca to 1\n", taxid);
             }
         }
     }

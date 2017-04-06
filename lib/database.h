@@ -43,6 +43,7 @@ struct Database {
             db_ = khash_load_impl<T>(fp);
         } else LOG_EXIT("Could not open %s for reading.\n", fn);
         sp_ = make_sp();
+        assert(sp_);
         LOG_DEBUG("Read database!\n");
         std::fclose(fp);
     }
@@ -109,6 +110,7 @@ struct val_data_t {
 template<typename T>
 void val_helper(void *data_, long index, int tid) {
 #if !NDEBUG
+    LOG_DEBUG("Starting val helper\n");
     val_data_t<T> &data(*static_cast<val_data_t<T> *>(data_));
     const tax_t tax(data.v_[index]);
     if(!has_key(tax, data.tx_)) {
@@ -140,19 +142,25 @@ void val_helper(void *data_, long index, int tid) {
             LOG_DEBUG("Missing kmer %s (%" PRIu64") from genome that was assigned as lca (%u)\n", data.db_.sp_->to_string(kh_key(data.db_.db_, i)).data(), kh_key(data.db_.db_, i), tax);
         } else ++passing_kmers;
     }
-    LOG_DEBUG("%zu kmers failed. %" PRIu64 " kmers passed. Percent passing: %lf\n", failing_kmers.size(), passing_kmers, passing_kmers / (failing_kmers.size() + passing_kmers));
+    LOG_DEBUG("%zu kmers failed. %" PRIu64 " kmers passed. Percent passing: %lf\n", failing_kmers.size(), passing_kmers,
+              static_cast<double>(passing_kmers) / (failing_kmers.size() + passing_kmers));
+    LOG_DEBUG("Pointer to sp: %p\n", (void *)data.db_.sp_);
     if(failing_kmers.size()) {
         if(data.db_.sp_) {
-            for(const auto kmer: failing_kmers)
+            LOG_DEBUG("Printing failing kmers\n");
+            for(const auto kmer: failing_kmers) {
+                const std::string kmerstr(data.db_.sp_->to_string(kmer));
                 LOG_DEBUG("Failed kmer %s/%" PRIu64"\n",
-                          data.db_.sp_->to_string(kh_key(data.db_.db_, kmer)).data(),
-                          kh_key(data.db_.db_, kmer));
+                          kmerstr.data(),
+                          kmer);
+                }
         } else {
             LOG_DEBUG("spacer is null\n");
         }
     } else {
         LOG_DEBUG("Tax %u validated.\n", tax);
     }
+    LOG_DEBUG("Val helper finishing item %ld\n", index);
 #endif
 }
 

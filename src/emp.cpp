@@ -288,7 +288,9 @@ struct tree_glob_t {
     }
     tree_glob_t(khash_t(p) *tax, tax_t parent, const std::string &fld, const Spacer &sp, tax_path_map_t &tpm,
                 const std::unordered_map<tax_t, std::vector<tax_t>> &invert, int num_threads=16):
-        parent_(parent), parent_path_(make_parent(fld, parent_)), acceptable_(tree::load_binary_kmerset(parent_path_.data()))
+        parent_(parent), parent_path_(make_parent(fld, parent_)),
+        //acceptable_(tree::load_binary_kmerset(parent_path_.data()))
+        acceptable_(nullptr)
     {
         LOG_DEBUG("About to get tax ids for children.\n");
         get_taxes(invert);
@@ -298,10 +300,14 @@ struct tree_glob_t {
             auto m(tpm.find(tax));
             if(m != tmp.end()) tmp.emplace(tax, m->second);
         }
-        LOG_DEBUG("About to make tax counter. Size of acceptable hash: %zu\n", kh_size(acceptable_));
+        if(acceptable_) {
+            LOG_DEBUG("About to make tax counter. Size of acceptable hash: %zu\n", kh_size(acceptable_));
+        }
         counts_ = std::move(bitmap_t(kgset_t(tmp, sp, num_threads, acceptable_)).to_counter());
         LOG_DEBUG("Size of counts: %zu\n", counts_.size());
-        khash_destroy(acceptable_), acceptable_ = nullptr;
+        if(acceptable_) {
+            khash_destroy(acceptable_), acceptable_ = nullptr;
+        }
         fwd_ = std::move(adjmap_t(counts_, true));
         rev_ = std::move(adjmap_t(counts_, false));
     }
@@ -418,7 +424,7 @@ int metatree_main(int argc, char *argv[]) {
     if(to_fetch.empty()) LOG_EXIT("No binary files to grab from.\n");
     LOG_DEBUG("Fetched! Making tx2g\n");
     std::unordered_map<tax_t, strlist> tx2g(tax2genome_map(name_hash, inpaths));
-    validate_db(db, used_lcas, tx2g);
+    validate_db(db, used_lcas, tx2g, num_threads);
     LOG_DEBUG("Made! Printing\n");
     for(auto &kv: tx2g) {
         std::fprintf(stderr, "Key %u has %zu paths\n", kv.first, fllen(kv.second));

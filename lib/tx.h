@@ -126,8 +126,7 @@ public:
     }
     kgset_t(std::unordered_map<std::uint32_t, std::forward_list<std::string>> &list,
             const Spacer &sp, int num_threads=-1, const khash_t(all) *acc=nullptr): acceptable_(acc), fl_(&list) {
-        assert(acc);
-        assert(acceptable_);
+        LOG_DEBUG("Acc? %p\n", (void *)acc);
         if(list.size() == 0) LOG_EXIT("List size is 0\n");
         core_.reserve(list.size());
         while(core_.size() < list.size()) core_.emplace_back(kh_init(all));

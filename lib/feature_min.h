@@ -301,7 +301,7 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
     LOG_DEBUG("Finished minimized map building! Subbed %zu, completed %zu.\n", submitted, completed);
 
     // Clean up
-    LOG_DEBUG("Cleaned up after LCA map building!\n")
+    LOG_DEBUG("Cleaned up after LCA map building!\n");
     return ret;
 }
 
@@ -372,7 +372,7 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
 
     // Clean up
     destroy_name_hash(name_hash);
-    LOG_DEBUG("Cleaned up after LCA map building!\n")
+    LOG_DEBUG("Cleaned up after LCA map building!\n");
     return ret;
 }
 

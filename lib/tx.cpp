@@ -51,12 +51,15 @@ void kg_list_helper(void *data_, long index, int tid) {
             LOG_DEBUG("Getting kmers from seq name %s\n", ks->name.s);
             while(enc.has_next_kmer()) {
                 if((min = enc.next_minimizer()) != BF) {
-                    if(!data->acceptable_)
+#if !NDEBUG
+                    if(!data->acceptable_ ||
+                       (kh_get(all, data->acceptable_, min) != kh_end(data->acceptable_) &&
+                        LOG_DEBUG("Found %s in acceptable hash. New size of hash: %zu\n", data->sp_.to_string(min).data(), kh_size(h))))
+#else
+                    if(!data->acceptable_ ||
+                       (kh_get(all, data->acceptable_, min) != kh_end(data->acceptable_)))
+#endif
                         kh_put(all, h, min, &khr);
-                    if(kh_get(all, data->acceptable_, min) != kh_end(data->acceptable_)) {
-                        kh_put(all, h, min, &khr);
-                        LOG_DEBUG("Found %s in acceptable hash. New size of hash: %zu\n", data->sp_.to_string(min).data(), kh_size(h));
-                    }
                 }
             }
         }
