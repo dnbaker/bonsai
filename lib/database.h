@@ -82,15 +82,16 @@ struct Database {
 #if !NDEBUG
         Database<T> test(fn);
         assert(kh_size(test.db_) == kh_size(db_));
+        std::size_t ndiff(0);
         for(khiter_t ki(0); ki != kh_end(test.db_); ++ki) {
             if(kh_key(db_, ki) != kh_key(test.db_, ki))
-                std::fprintf(stderr, "key mismatch at %" PRIu64 ". key 1: %" PRIu64 ", key 2: %" PRIu64 ".\n", ki, (std::uint64_t)kh_key(db_, ki), (std::uint64_t)kh_key(test.db_, ki));
+                std::fprintf(stderr, "key mismatch at %" PRIu64 ". key 1: %" PRIu64 ", key 2: %" PRIu64 ".\n", ki, (std::uint64_t)kh_key(db_, ki), (std::uint64_t)kh_key(test.db_, ki)), ++ndiff;
             if(kh_val(db_, ki) != kh_val(test.db_, ki))
-                std::fprintf(stderr, "val mismatch at %" PRIu64 ". val 1: %" PRIu64 ", val 2: %" PRIu64 ".\n", ki, (std::uint64_t)kh_val(db_, ki), (std::uint64_t)kh_val(test.db_, ki));
+                std::fprintf(stderr, "val mismatch at %" PRIu64 ". val 1: %" PRIu64 ", val 2: %" PRIu64 ".\n", ki, (std::uint64_t)kh_val(db_, ki), (std::uint64_t)kh_val(test.db_, ki)), ++ndiff;
         }
         for(std::uint64_t i(0); i < __ac_fsize(db_->n_buckets); ++i) {
             if(db_->flags[i] != test.db_->flags[i])
-                std::fprintf(stderr, "flags mismatch at %" PRIu64 ". flags 1: %" PRIu64 ", flags 2: %" PRIu64 ".\n", i, (std::uint64_t)db_->flags[i], (std::uint64_t)test.db_->flags[i]);
+                std::fprintf(stderr, "flags mismatch at %" PRIu64 ". flags 1: %" PRIu64 ", flags 2: %" PRIu64 ".\n", i, (std::uint64_t)db_->flags[i], (std::uint64_t)test.db_->flags[i]), ++ndiff;
         }
 #endif
     }
@@ -131,20 +132,29 @@ void val_helper(void *data_, long index, int tid) {
         gzFile fp(gzopen(path.data(), "rb"));
         kseq_t *ks(kseq_init(fp));
         std::uint64_t kmer;
+        khiter_t ki;
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
-            while(enc.has_next_kmer()) if((kmer = enc.next_kmer()) != BF) in.insert(kmer);
+            while(enc.has_next_kmer()) {
+                if((kmer = enc.next_kmer()) != BF) {
+                    kh_put(all, kha, kmer, &khr);
+                    if((ki = kh_get(c, data.db_.db_, kmer)) == kh_end(data.db_.db_)) LOG_WARNING("Kmer in genome missing from database\n");
+                }
+            }
         }
         gzclose(fp);
         kseq_destroy(ks);
     }
     LOG_DEBUG("Validator loaded all kmers from end genome. Now scanning full database for items assigned to tax. (tax: %u. tid; %i)\n", tax, tid);
-    for(std::uint64_t i(0); i < kh_size(data.db_.db_); ++i) if(kh_val(data.db_.db_, i) == tax) {
-        if((i & 0xFFFFF) == 0) LOG_DEBUG("Processed %" PRIu64 " of %" PRIu64"\n.", i, kh_size(data.db_.db_));
-        if(in.find(kh_key(data.db_.db_, i)) == in.end()) {
-            failing_kmers.insert(kh_key(data.db_.db_, i));
-            LOG_DEBUG("Missing kmer %s (%" PRIu64") from genome that was assigned as lca (%u)\n", data.db_.sp_->to_string(kh_key(data.db_.db_, i)).data(), kh_key(data.db_.db_, i), tax);
-        } else ++passing_kmers;
+    for(std::uint64_t i(0); i < kh_size(data.db_.db_); ++i) {
+        if(!kh_exist(data.db_.db_, i)) continue;
+        if(kh_val(data.db_.db_, i) == tax) {
+            if((i & 0xFFFFF) == 0) LOG_DEBUG("Processed %" PRIu64 " of %" PRIu64"\n.", i, kh_size(data.db_.db_));
+            if(in.find(kh_key(data.db_.db, i)) == in.end()) {
+                failing_kmers.insert(kh_key(data.db_.db_, i));
+                LOG_DEBUG("Missing kmer %s (%" PRIu64") from genome that was assigned as lca (%u)\n", data.db_.sp_->to_string(kh_key(data.db_.db_, i)).data(), kh_key(data.db_.db_, i), tax);
+            } else ++passing_kmers;
+        }
     }
     LOG_DEBUG("%zu kmers failed. %" PRIu64 " kmers passed. Percent passing: %lf\n", failing_kmers.size(), passing_kmers,
               static_cast<double>(passing_kmers) / (failing_kmers.size() + passing_kmers));

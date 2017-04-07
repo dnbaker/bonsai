@@ -38,6 +38,7 @@ khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, khash_t(p) *tax);
 void update_feature_counter(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, const tax_t taxid);
 void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *ret);
 
+#define next_minimizer next_kmer
 
 // Return value: whether or not additional sequences were present and added.
 template<std::uint64_t (*score)(std::uint64_t, void *)>
@@ -89,6 +90,8 @@ std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *re
     LOG_INFO("Set of size %lu filled from genome at path %s\n", kh_size(ret), path);
     return index;
 }
+
+#undef next_minimizer
 
 template<std::uint64_t (*score)(std::uint64_t, void *), class Container>
 std::size_t fill_set_genome_container(Container &container, const Spacer &sp, khash_t(all) *ret, void *data) {

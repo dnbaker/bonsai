@@ -42,7 +42,7 @@ std::pair<std::vector<std::string>, std::unordered_set<tax_t>> invert_lca_map(co
                 LOG_DEBUG("Opened file at %s\n", ret[ret.size() - 1].data());
                 mc = ofp_counts.emplace(kh_val(map, ki), 1).first;
                 parents.insert(kh_val(map, ki));
-                std::uint64_t tmp;
+                std::uint64_t tmp(-1);
                 fwritten = std::fwrite(&tmp, sizeof(tmp), 1, m->second);
                 if(fwritten != 1) {
                     char buf2[256];

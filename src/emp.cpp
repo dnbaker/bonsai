@@ -110,7 +110,7 @@ int phase2_main(int argc, char *argv[]) {
         }
     }
     if(wsz < 0 || wsz < k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
-    spvec_t sv(spacing.size() ? parse_spacing(spacing.data()): spvec_t(k - 1, 0));
+    spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 2, argv + argc));
     LOG_DEBUG("Got paths\n");
@@ -470,17 +470,21 @@ int metatree_main(int argc, char *argv[]) {
         if(fllen(kv.second) == 0) LOG_EXIT("FL with key %u has length 0\n");
     }
     tree_adjudicator_t ta(kh_size(taxmap), false);
-    for(auto tax_iter(std::begin(nodes)), end_iter(tax_iter); tax_iter + 1 < std::end(nodes); tax_iter = end_iter + 1) {
+    for(auto tax_iter(std::begin(nodes)), end_iter(tax_iter); end_iter < std::end(nodes); tax_iter = end_iter) {
         const tax_t parent_tax(get_parent(taxmap, *tax_iter));
-        end_iter = tax_iter;
-        while(end_iter != std::end(nodes) && get_parent(taxmap, *++end_iter) == parent_tax);
+        while(end_iter < std::end(nodes) && get_parent(taxmap, *end_iter++) == parent_tax);
         std::fprintf(stderr, "Number in clade to clean up: %zd\n", (ssize_t)(end_iter - tax_iter));
-        if(end_iter - tax_iter < 3)          {LOG_WARNING("Skippig clade of size %zd.\n", (ssize_t)(end_iter - tax_iter)); continue;}
+        if(end_iter - tax_iter < 3)          {
+            LOG_WARNING("Skipping clade of size %zd.\n", (ssize_t)(end_iter - tax_iter));
+            continue;
+        }
         if(!used_as_lca(parent_tax, folder)) {
             const bool in_map(parents.find(parent_tax) != parents.end());
             LOG_WARNING("LCA %u not used in map. In hash set? %s. Skipping.\n", parent_tax, in_map ? "true": "false"); continue;
         }
         ta.emplace_subtree(taxmap, parent_tax, folder, sp, tx2g, inverted_map, num_threads);
+        tax_iter = end_iter;
+        end_iter = ++tax_iter;
     }
     destroy_name_hash(name_hash);
     kh_destroy(p, taxmap);

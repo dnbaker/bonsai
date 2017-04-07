@@ -5,7 +5,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
          # -pedantic
-DBG:= # -D_GLIBCXX_DEBUG # -DNDEBUG # -fno-inline
+DBG:= -D_GLIBCXX_DEBUG # -DNDEBUG # -fno-inline
 OPT:= -O3 -funroll-loops -ffast-math \
 	  -fopenmp \
       -pipe -fno-strict-aliasing -march=native -mpclmul # -DUSE_PAR_HELPERS
