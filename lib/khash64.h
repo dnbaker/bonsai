@@ -256,7 +256,6 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	}																	\
 	SCOPE khint_t kh_get_##name(const kh_##name##_t *h, khkey_t key) 	\
 	{																	\
-		std::shared_lock<std::shared_mutex>(h->m);					  \
 		if (h->n_buckets) {												\
 			khint_t k, i, last, mask, step = 0; \
 			mask = h->n_buckets - 1;									\
@@ -336,7 +335,6 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	SCOPE khint_t kh_put_##name(kh_##name##_t *h, khkey_t key, int *ret) \
 	{																	\
 		khint_t x;														\
-		std::unique_lock<std::shared_mutex>(h->m);					  \
 		if (h->n_occupied >= h->upper_bound) { /* update the hash table */ \
 			if (h->n_buckets > (h->size<<1)) {							\
 				if (kh_resize_##name(h, h->n_buckets - 1) < 0) { /* clear "deleted" elements */ \
@@ -386,13 +384,11 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 	}\
 	SCOPE bool kh_try_set_##name(kh_##name##_t *h, const khint_t ki, const khval_t val)\
 	{\
-		std::shared_lock<std::shared_mutex>(h->m);					  \
 		const khval_t old(kh_val(h, ki));\
 		return __sync_bool_compare_and_swap(h->vals + ki, old, val);			  \
 	}\
 	SCOPE void kh_set_##name(kh_##name##_t *h, khkey_t key, const khval_t val)	\
 	{\
-		std::shared_lock<std::shared_mutex>(h->m);					  \
 		khint_t ki;\
 		int khr;\
 		if((ki = kh_get_##name(h, key)) == kh_end(h)) kh_put_##name(h, key, &khr);\

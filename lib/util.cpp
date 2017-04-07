@@ -56,22 +56,23 @@ std::vector<tax_t> get_all_descendents(const std::unordered_map<tax_t, std::vect
 // though it uses less than half the memory. The thing is, taxonomic trees
 // aren't that deep.
 // We don't gain much from optimizing that.
-tax_t lca(khash_t(p) *map, tax_t a, tax_t b) noexcept {
+tax_t lca(const khash_t(p) *map, tax_t a, tax_t b) noexcept {
     // Use std::set to use RB trees for small set rather than hash table.
     std::set<tax_t> nodes;
     if(a == b) return a;
+    if(b == 0) return a;
+    if(a == 0) return b;
     khint_t ki;
     while(a) {
         nodes.insert(a);
         if((ki = kh_get(p, map, a)) == kh_end(map)) {
+            fprintf(stderr, "Missing taxid %u. Returning -1!\n", a);
             return (tax_t)-1;
         }
         a = kh_val(map, ki);
     }
     while(b) {
-        if(nodes.find(b) != nodes.end()) {
-            return b;
-        }
+        if(nodes.find(b) != nodes.end()) return b;
         if((ki = kh_get(p, map, b)) == kh_end(map)) {
             fprintf(stderr, "Missing taxid %u. Returning -1!\n", b);
             return (tax_t)-1;
@@ -147,11 +148,47 @@ void destroy_name_hash(khash_t(name) *hash) noexcept {
     kh_destroy(name, hash);
 }
 
-khash_t(p) *build_parent_map(const char *fn) noexcept {
+std::map<tax_t, tax_t> build_kraken_tax(const std::string &fname) {
+    const char *fn(fname.data());
     std::size_t nlines(count_lines(fn));
     std::FILE *fp(std::fopen(fn, "r"));
+    std::map<tax_t, tax_t> ret;
+    std::size_t bufsz = 4096;
+    char *buf((char *)std::malloc(bufsz));
+    ssize_t len;
+    tax_t t1, t2;
+    while((len = getline(&buf, &bufsz, fp)) >= 0) {
+        switch(*buf) case '\n': case '0': case '#': continue;
+        t1 = atoi(buf);
+        t2 = atoi(strchr(buf, '|') + 2);
+        ret[t1] = t2;
+    }
+    ret[1] = 0;
+    std::fclose(fp);
+    free(buf);
+    return ret;
+}
+uint32_t lca(std::map<uint32_t, uint32_t> &parent_map, uint32_t a, uint32_t b)
+{
+  if (a == 0 || b == 0)
+    return a ? a : b;
+
+  std::set<uint32_t> a_path;
+  while (a) {
+    a_path.insert(a);
+    a = parent_map[a];
+  }
+  while (b) {
+    if (a_path.count(b) > 0)
+      return b;
+    b = parent_map[b];
+  }
+  return 1;
+}
+
+khash_t(p) *build_parent_map(const char *fn) noexcept {
+    std::FILE *fp(std::fopen(fn, "r"));
     khash_t(p) *ret(kh_init(p));
-    kh_resize(p, ret, nlines);
     std::size_t bufsz = 4096;
     char *buf((char *)std::malloc(bufsz));
     ssize_t len;
@@ -266,6 +303,15 @@ tax_t get_taxid(const char *fn, khash_t(name) *name_hash) {
     }
     gzclose(fp);
     return kh_val(name_hash, ki);
+}
+
+std::map<uint32_t, uint32_t> kh2kr(khash_t(p) *map) {
+    std::map<uint32_t, uint32_t> ret;
+    if(map) 
+        for(khiter_t ki(0); ki != kh_end(map); ++ki)
+            if(kh_exist(map, ki))
+                ret[kh_key(map, ki)] = kh_val(map, ki);
+    return ret;
 }
 
 

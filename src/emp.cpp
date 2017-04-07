@@ -99,6 +99,7 @@ int phase2_main(int argc, char *argv[]) {
             case 'h': case '?': goto usage;
             case 'k': k = atoi(optarg); break;
             case 'p': num_threads = atoi(optarg); break;
+            case 'S': spacing = optarg; break;
             case 's': start_size = strtoull(optarg, nullptr, 10); break;
             case 't': mode = score_scheme::TAX_DEPTH; break;
             case 'f': mode = score_scheme::FEATURE_COUNT; break;
@@ -109,12 +110,13 @@ int phase2_main(int argc, char *argv[]) {
         }
     }
     if(wsz < 0 || wsz < k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
+    spvec_t sv(spacing.size() ? parse_spacing(spacing.data()): spvec_t(k - 1, 0));
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 2, argv + argc));
     LOG_DEBUG("Got paths\n");
     if(score_scheme::LEX == mode) {
         if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for lexicographic mode for final database generation.");
-        Spacer sp(k, wsz, spvec_t(k - 1, 0));
+        Spacer sp(k, wsz, sv);
         Database<khash_t(c)>  phase2_map(sp);
 #if 0
         std::size_t hash_size(use_hll ? estimate_cardinality<lex_score>(inpaths, k, k, sp.s_, nullptr, num_threads, 24): 1 << 16);
@@ -144,7 +146,7 @@ int phase2_main(int argc, char *argv[]) {
 
 int hll_main(int argc, char *argv[]) {
     int c, wsz(-1), k(31), num_threads(-1), sketch_size(24);
-    std::string spacing;
+    std::string spacing, paths_file;
     if(argc < 2) {
         usage: LOG_EXIT("Usage: %s <opts> <paths>\nFlags:"
                         "-k:\tkmer length (Default: 31. Max: 31)\n"
@@ -153,6 +155,7 @@ int hll_main(int argc, char *argv[]) {
                         "   \tOmitting x<times> indicates 1 occurrence of spacing <value>\n"
                         "-S:\tsketch size (default: 24). (Allocates 2 << [param] bytes of memory per HyperLogLog.\n"
                         "-p:\tnumber of threads.\n"
+                        "-F:\tPath to file which contains one path per line\n"
                         , argv[0]);
     }
     while((c = getopt(argc, argv, "w:s:S:p:k:tfh?")) >= 0) {
@@ -163,12 +166,14 @@ int hll_main(int argc, char *argv[]) {
             case 's': spacing = optarg; break;
             case 'S': sketch_size = atoi(optarg); break;
             case 'w': wsz = atoi(optarg); break;
+            case 'F': paths_file = optarg; break;
         }
     }
     if(wsz < k) wsz = k;
-    std::vector<std::string> inpaths(argv + optind, argv + argc);
+    std::vector<std::string> inpaths(paths_file.empty() ? get_paths(paths_file.data())
+                                                        : std::vector<std::string>(argv + optind, argv + argc));
     spvec_t sv(spacing.empty() ? spvec_t(k - 1, 0): parse_spacing(spacing.data(), k));
-    std::size_t est(estimate_cardinality<lex_score>(inpaths, k, wsz, sv, nullptr, num_threads, sketch_size));
+    const std::size_t est(estimate_cardinality<lex_score>(inpaths, k, wsz, sv, nullptr, num_threads, sketch_size));
     std::fprintf(stderr, "Estimated number of unique exact matches: %zu\n", est);
     return EXIT_SUCCESS;
 }
@@ -393,16 +398,48 @@ int metatree_main(int argc, char *argv[]) {
     }
     khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));
     LOG_DEBUG("Parsed name hash.\n");
-    khash_t(p) *tmp_taxmap(build_parent_map(argv[optind + 1]));
     LOG_DEBUG("Built parent map.\n");
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 5, argv + argc));
-    LOG_DEBUG("Got infiles.\n");
-    if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
+#ifdef TAX_CHECK
+    khash_t(p) *tmp_taxmap(build_parent_map(argv[optind + 1]));
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, tmp_taxmap, name_hash));
-    LOG_DEBUG("Pruned parent map.\n");
-    std::unordered_map<tax_t, std::vector<tax_t>> inverted_map(invert_parent_map(taxmap));
     kh_destroy(p, tmp_taxmap);
+    {
+       auto kraken_tax(build_kraken_tax(argv[optind + 1]));
+       {
+           decltype(kraken_tax) pruned_kraken_tax;
+           for(khiter_t ki(0); ki != kh_end(taxmap); ++ki) {
+               if(kh_exist(taxmap, ki)) {
+                   pruned_kraken_tax[kh_key(taxmap, ki)] = kraken_tax.at(kh_key(taxmap, ki));
+               }
+           }
+           kraken_tax = std::move(pruned_kraken_tax);
+       }
+       std::vector<tax_t> nsv;
+       {
+           std::set<tax_t> nodeset;
+           for(const auto &pair: kraken_tax) {
+               nodeset.insert(pair.first);
+               nodeset.insert(pair.second);
+           }
+           if(nodeset.find(0) != nodeset.end()) nodeset.erase(0);
+           nsv = std::move(std::vector<tax_t>(nodeset.begin(), nodeset.end()));
+       }
+       for(auto i(nsv.cbegin()), e(nsv.cend()); i != e; ++i) {
+           for(auto j(i + 1); j != e; ++j) {
+               assert(lca(kraken_tax, *i, *j) == lca(taxmap, *i, *j));
+           }
+           if(((i - nsv.cbegin()) & 0xF) == 0) LOG_INFO("Processed %zd of %zu\n", i - nsv.cbegin(), nsv.size());
+       }
+    }
+#else
+    khash_t(p) *tmp_taxmap(build_parent_map(argv[optind + 1]));
+    khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, tmp_taxmap, name_hash));
+    kh_destroy(p, tmp_taxmap);
+#endif
+    if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
+    std::unordered_map<tax_t, std::vector<tax_t>> inverted_map(invert_parent_map(taxmap));
     LOG_DEBUG("Sorted nodes.\n");
     tree::SortedNodeGuide guide(taxmap);
     Database<khash_t(c)> db(argv[optind]);

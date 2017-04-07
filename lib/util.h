@@ -162,7 +162,7 @@ T *khash_load(const char *path) noexcept {
 
 void kset_union(khash_t(all) *a, khash_t(all) *b) noexcept;
 
-tax_t lca(khash_t(p) *map, tax_t a, tax_t b) noexcept;
+tax_t lca(const khash_t(p) *map, tax_t a, tax_t b) noexcept;
 unsigned node_depth(khash_t(p) *map, tax_t a) noexcept;
 unsigned node_dist(khash_t(p) *map, tax_t leaf, tax_t root) noexcept;
 std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths);
@@ -172,6 +172,10 @@ INLINE tax_t get_parent(khash_t(p) *taxmap, tax_t key) noexcept {
     return ((ki = kh_get(p, taxmap, key)) != kh_end(taxmap)) ? kh_val(taxmap, ki)
                                                              : std::numeric_limits<tax_t>::max();
 }
+
+std::map<tax_t, tax_t> build_kraken_tax(const std::string &fname);
+uint32_t lca(std::map<uint32_t, uint32_t> &parent_map, uint32_t a, uint32_t b);
+std::map<uint32_t, uint32_t> kh2kr(khash_t(p) *map);
 
 bool isfile(const char *path) noexcept;
 template<typename T>

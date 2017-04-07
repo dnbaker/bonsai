@@ -79,7 +79,7 @@ struct Database {
         std::fwrite(s_.data(), s_.size(), sizeof(uint8_t), ofp);
         khash_write_impl<T>(db_, ofp);
         std::fclose(ofp);
-#if DATABASE_TEST
+#if !NDEBUG
         Database<T> test(fn);
         assert(kh_size(test.db_) == kh_size(db_));
         for(khiter_t ki(0); ki != kh_end(test.db_); ++ki) {
@@ -87,6 +87,10 @@ struct Database {
                 std::fprintf(stderr, "key mismatch at %" PRIu64 ". key 1: %" PRIu64 ", key 2: %" PRIu64 ".\n", ki, (std::uint64_t)kh_key(db_, ki), (std::uint64_t)kh_key(test.db_, ki));
             if(kh_val(db_, ki) != kh_val(test.db_, ki))
                 std::fprintf(stderr, "val mismatch at %" PRIu64 ". val 1: %" PRIu64 ", val 2: %" PRIu64 ".\n", ki, (std::uint64_t)kh_val(db_, ki), (std::uint64_t)kh_val(test.db_, ki));
+        }
+        for(std::uint64_t i(0); i < __ac_fsize(db_->n_buckets); ++i) {
+            if(db_->flags[i] != test.db_->flags[i])
+                std::fprintf(stderr, "flags mismatch at %" PRIu64 ". flags 1: %" PRIu64 ", flags 2: %" PRIu64 ".\n", i, (std::uint64_t)db_->flags[i], (std::uint64_t)test.db_->flags[i]);
         }
 #endif
     }
@@ -147,20 +151,16 @@ void val_helper(void *data_, long index, int tid) {
     LOG_DEBUG("Pointer to sp: %p\n", (void *)data.db_.sp_);
     if(failing_kmers.size()) {
         if(data.db_.sp_) {
-            LOG_DEBUG("Printing failing kmers\n");
             for(const auto kmer: failing_kmers) {
                 const std::string kmerstr(data.db_.sp_->to_string(kmer));
-                LOG_DEBUG("Failed kmer %s/%" PRIu64"\n",
-                          kmerstr.data(),
-                          kmer);
-                }
-        } else {
-            LOG_DEBUG("spacer is null\n");
+                    LOG_DEBUG("Failed kmer %s/%" PRIu64"\n",
+                              kmerstr.data(),
+                              kmer);
+            }
         }
     } else {
         LOG_DEBUG("Tax %u validated.\n", tax);
     }
-    LOG_DEBUG("Val helper finishing item %ld\n", index);
 #endif
 }
 
