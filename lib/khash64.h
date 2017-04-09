@@ -132,8 +132,10 @@ int main() {
 #include <mutex>
 #include <shared_mutex>
 
-#if __cplusplus < 201402L || __GNUC__ < 6
-#define shared_mutex shared_timed_mutex
+#if __GNUC__
+  #if __cplusplus < 201411L || __GNUC__ < 6
+    #define shared_mutex shared_timed_mutex
+  #endif
 #endif
 
 /* compiler specific configuration */
