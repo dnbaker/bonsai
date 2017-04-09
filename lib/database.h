@@ -137,7 +137,7 @@ void val_helper(void *data_, long index, int tid) {
             enc.assign(ks);
             while(enc.has_next_kmer()) {
                 if((kmer = enc.next_kmer()) != BF) {
-                    kh_put(all, kha, kmer, &khr);
+                    in.insert(kmer);
                     if((ki = kh_get(c, data.db_.db_, kmer)) == kh_end(data.db_.db_)) LOG_WARNING("Kmer in genome missing from database\n");
                 }
             }
@@ -150,7 +150,7 @@ void val_helper(void *data_, long index, int tid) {
         if(!kh_exist(data.db_.db_, i)) continue;
         if(kh_val(data.db_.db_, i) == tax) {
             if((i & 0xFFFFF) == 0) LOG_DEBUG("Processed %" PRIu64 " of %" PRIu64"\n.", i, kh_size(data.db_.db_));
-            if(in.find(kh_key(data.db_.db, i)) == in.end()) {
+            if(in.find(kh_key(data.db_.db_, i)) == in.end()) {
                 failing_kmers.insert(kh_key(data.db_.db_, i));
                 LOG_DEBUG("Missing kmer %s (%" PRIu64") from genome that was assigned as lca (%u)\n", data.db_.sp_->to_string(kh_key(data.db_.db_, i)).data(), kh_key(data.db_.db_, i), tax);
             } else ++passing_kmers;
