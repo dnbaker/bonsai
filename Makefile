@@ -16,7 +16,7 @@ else
     OPT := $(OPT) -flto
 endif
 XXFLAGS=-fno-rtti
-CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS)
+CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++14 $(WARNINGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread -lhll -lcrypto
 LD=-L.
