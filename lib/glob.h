@@ -27,20 +27,22 @@ public:
 };
 
 
-struct tree_glob_t {
+class tree_glob_t {
     using tax_path_map_t = std::unordered_map<std::uint32_t, std::forward_list<std::string>>;
+public:
     const tax_t                                    parent_;
-    const std::string                              parent_path_;
-    khash_t(all)                                  *acceptable_;
-    std::set<tax_t>                                taxes_;
     count::Counter<std::vector<std::uint64_t>>     counts_;
     adjmap_t                                       fwd_;
     adjmap_t                                       rev_;
+    std::set<tax_t>                                taxes_;
+private:
+    const std::string                              parent_path_;
+    khash_t(all)                                  *acceptable_;
 
 
     static constexpr const char *KMER_SUFFIX = ".kmers.bin";
 
-
+public:
     std::string make_parent(const std::string &fld, const tax_t parent);
     tree_glob_t(khash_t(p) *tax, tax_t parent, const std::string &fld, const Spacer &sp, tax_path_map_t &tpm,
                 const std::unordered_map<tax_t, std::vector<tax_t>> &invert, int num_threads=16);
