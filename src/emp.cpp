@@ -6,6 +6,7 @@
 #include "lib/bitmap.h"
 #include "lib/tx.h"
 #include "lib/khpp.h"
+#include "lib/glob.h"
 #include <functional>
 
 using namespace emp;
@@ -253,135 +254,10 @@ void metatree_usage(char *arg) {
     std::exit(EXIT_FAILURE);
 }
 
-//typedef std::tuple<std::uint64_t, int, std::vector<std::uint64_t>> indvec_t;
-
 template struct kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
 using pkh_t = kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
 
-struct potential_node_t {
-    const tax_t                 p_;
-    const std::vector<std::uint64_t> *bits_;
-    std::uint64_t               score_;
-    bool operator<(const potential_node_t &other) const {
-        return std::tie(score_, p_, bits_) < std::tie(other.score_, other.p_, other.bits_);
-    }
-    bool operator>(const potential_node_t &other) const {
-        return std::tie(score_, p_, bits_) > std::tie(other.score_, other.p_, other.bits_);
-    }
-    bool operator==(const potential_node_t &other) const {
-        return std::tie(score_, p_, bits_) == std::tie(other.score_, other.p_, other.bits_);
-    }
-    potential_node_t(const tax_t p, const std::vector<std::uint64_t> *bits, std::uint64_t score): p_(p), bits_(bits), score_(score) {}
-};
 
-struct tree_glob_t {
-    using tax_path_map_t = std::unordered_map<std::uint32_t, std::forward_list<std::string>>;
-    const tax_t                                    parent_;
-    const std::string                              parent_path_;
-    khash_t(all)                                  *acceptable_;
-    std::set<tax_t>                                taxes_;
-    count::Counter<std::vector<std::uint64_t>>     counts_;
-    adjmap_t                                       fwd_;
-    adjmap_t                                       rev_;
-
-
-    static constexpr const char *KMER_SUFFIX = ".kmers.bin";
-
-
-    std::string make_parent(const std::string &fld, const tax_t parent) {
-        return std::string(fld.empty() ? "": fld + '/') + std::to_string(parent) + KMER_SUFFIX;
-    }
-    tree_glob_t(khash_t(p) *tax, tax_t parent, const std::string &fld, const Spacer &sp, tax_path_map_t &tpm,
-                const std::unordered_map<tax_t, std::vector<tax_t>> &invert, int num_threads=16):
-        parent_(parent), parent_path_(make_parent(fld, parent_)),
-        //acceptable_(tree::load_binary_kmerset(parent_path_.data()))
-        acceptable_(nullptr)
-    {
-        LOG_DEBUG("About to get tax ids for children.\n");
-        get_taxes(invert);
-        LOG_DEBUG("Got taxes: %zu\n", taxes_.size());
-        tax_path_map_t tmp;
-        for(auto tax: taxes_) {
-            auto m(tpm.find(tax));
-            if(m != tmp.end()) tmp.emplace(tax, m->second);
-        }
-        if(acceptable_) {
-            LOG_DEBUG("About to make tax counter. Size of acceptable hash: %zu\n", kh_size(acceptable_));
-        }
-        counts_ = std::move(bitmap_t(kgset_t(tmp, sp, num_threads, acceptable_)).to_counter());
-        LOG_DEBUG("Size of counts: %zu\n", counts_.size());
-        if(acceptable_) {
-            khash_destroy(acceptable_), acceptable_ = nullptr;
-        }
-        fwd_ = std::move(adjmap_t(counts_, true));
-        rev_ = std::move(adjmap_t(counts_, false));
-    }
-    void add(const tax_t tax) {
-        //if(get_parent(tax_, tax) != parent_) LOG_EXIT("Unexpected node whose parent (%u) is not as expected (%u)\n", get_parent(tax_, tax), parent_);
-        taxes_.insert(tax);
-#if !NDEBUG
-        if(taxes_.size() % 100 == 0) LOG_DEBUG("ZOMG size of taxes is %zu\n", taxes_.size());
-#endif
-    }
-    template<typename Container>
-    void add_children(Container &&c) {
-        for(auto tax: c)    add(tax); // Add all the taxes.
-    }
-    template<typename Container>
-    void add_children(Container &c) {
-        for(auto tax: c)    add(tax); // Add all the taxes.
-    }
-    template<typename It>
-    void add_children(It first, It end) {
-        while(first != end) add(*first);
-    }
-    void get_taxes(const std::unordered_map<tax_t, std::vector<tax_t>> &invert) {
-        add_children(get_all_descendents(invert, parent_));
-    }
-    ~tree_glob_t() {if(acceptable_) khash_destroy(acceptable_);}
-};
-
-struct tree_adjudicator_t {
-    std::vector<tree_glob_t>              subtrees_;
-    std::unordered_map<tax_t, int>        indices_;
-    std::set<potential_node_t, std::greater<potential_node_t>> nodes_;
-    const std::uint64_t                   original_tax_count_; // Needed for scoring
-    const std::uint64_t                   max_el_;             // Needed to know which nodes to add.
-    int                                   recalculate_scores_; // If yes, recalculate scores 
-    tree_adjudicator_t(std::uint64_t orig, int recalculate=1):
-        original_tax_count_(orig), max_el_(roundup64(orig)), recalculate_scores_(recalculate)
-    {
-    }
-    void process_subtree(std::size_t i) {
-        indices_.emplace(subtrees_[i].parent_, i);
-        tree_glob_t &g(subtrees_[i]);
-        const std::size_t tax_size(g.taxes_.size());
-        for(auto &pair: g.counts_) {
-            const std::uint64_t bitdiff(tax_size - popcnt::vec_popcnt(pair.first));
-            std::uint64_t ret(pair.second * bitdiff);
-            const auto m(g.fwd_.find(pair.first));
-            if(m == g.fwd_.end()) {
-                nodes_.emplace(g.parent_, &pair.first, ret);
-                LOG_WARNING("Node not found in adjmap. Maybe leaf? Continuing....\n");
-                continue;
-            }
-            for(const auto i: m->second) ret += bitdiff * g.counts_.find(*i)->second;
-            nodes_.emplace(g.parent_, &pair.first, ret);
-        }
-    }
-    template<typename... U>
-    void emplace_subtree(U&&... Args) {
-        subtrees_.emplace_back(std::forward<U>(Args)...);
-        process_subtree(subtrees_.size() - 1);
-        // Add potential_node_t's from each subtree using default scoring
-    }
-};
-
-bool used_as_lca(const tax_t tax, const std::string &fld) {
-    std::string path(std::string(fld.empty() ? "": fld + '/') + std::to_string(tax) + ".kmers.bin");
-    LOG_DEBUG("Checking for lca binary file at %s\n", path.data());
-    return isfile(path.data());
-}
 
 int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
@@ -462,7 +338,7 @@ int metatree_main(int argc, char *argv[]) {
     LOG_DEBUG("Fetched! Making tx2g\n");
     std::unordered_map<tax_t, strlist> tx2g(tax2genome_map(name_hash, inpaths));
     validate_db(db, used_lcas, tx2g, num_threads);
-    LOG_DEBUG("Made! Printing\n");
+    LOG_DEBUG("Made! Printing founds genome paths with tax ids.\n");
     for(auto &kv: tx2g) {
         std::fprintf(stderr, "Key %u has %zu paths\n", kv.first, fllen(kv.second));
         for(auto &path: kv.second)
@@ -470,7 +346,7 @@ int metatree_main(int argc, char *argv[]) {
         if(fllen(kv.second) == 0) LOG_EXIT("FL with key %u has length 0\n");
     }
     tree_adjudicator_t ta(kh_size(taxmap), false);
-    for(auto tax_iter(std::begin(nodes)), end_iter(tax_iter); end_iter < std::end(nodes); tax_iter = end_iter) {
+    for(auto tax_iter(std::begin(nodes)), end_iter(tax_iter); end_iter < std::end(nodes); tax_iter = ++end_iter) {
         const tax_t parent_tax(get_parent(taxmap, *tax_iter));
         while(end_iter < std::end(nodes) && get_parent(taxmap, *end_iter++) == parent_tax);
         std::fprintf(stderr, "Number in clade to clean up: %zd\n", (ssize_t)(end_iter - tax_iter));
@@ -480,15 +356,13 @@ int metatree_main(int argc, char *argv[]) {
         }
         if(!used_as_lca(parent_tax, folder)) {
             const bool in_map(parents.find(parent_tax) != parents.end());
-            LOG_WARNING("LCA %u not used in map. In hash set? %s. Skipping.\n", parent_tax, in_map ? "true": "false"); continue;
+            LOG_WARNING("LCA %u not used in map. In hash set? %s. Skipping.\n", parent_tax, in_map ? "true": "false");
+            continue;
         }
         ta.emplace_subtree(taxmap, parent_tax, folder, sp, tx2g, inverted_map, num_threads);
-        tax_iter = end_iter;
-        end_iter = ++tax_iter;
     }
     destroy_name_hash(name_hash);
     kh_destroy(p, taxmap);
-    LOG_DEBUG("I ran to completion... How???\n");
     return EXIT_SUCCESS;
 }
 
