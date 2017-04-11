@@ -7,10 +7,11 @@
 namespace emp {
 
 
-struct potential_node_t {
-    const tax_t                 p_;
-    const std::vector<std::uint64_t> *bits_;
-    std::uint64_t               score_;
+class potential_node_t {
+    const tax_t                          p_;
+    const std::vector<std::uint64_t> *bits_; // View, does not own.
+    std::uint64_t                    score_;
+public:
     bool operator<(const potential_node_t &other) const {
         return std::tie(score_, p_, bits_) < std::tie(other.score_, other.p_, other.bits_);
     }
@@ -20,7 +21,9 @@ struct potential_node_t {
     bool operator==(const potential_node_t &other) const {
         return std::tie(score_, p_, bits_) == std::tie(other.score_, other.p_, other.bits_);
     }
-    potential_node_t(const tax_t p, const std::vector<std::uint64_t> *bits, std::uint64_t score): p_(p), bits_(bits), score_(score) {}
+    potential_node_t(const tax_t p, const std::vector<std::uint64_t> *bits, std::uint64_t score): p_(p), bits_(bits), score_(score) {
+        if(bits == nullptr) throw std::runtime_error("bitmap pointer is null.");
+    }
 };
 
 
@@ -50,11 +53,11 @@ struct tree_glob_t {
 
     template<typename Container>
     void add_children(Container &&c) {
-        for(auto tax: c)    add(tax); // Add all the taxes.
+        for(const auto tax: c)    add(tax); // Add all the taxes.
     }
     template<typename Container>
     void add_children(Container &c) {
-        for(auto tax: c)    add(tax); // Add all the taxes.
+        for(const auto tax: c)    add(tax); // Add all the taxes.
     }
     template<typename It>
     void add_children(It first, It end) {
