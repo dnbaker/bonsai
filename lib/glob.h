@@ -30,14 +30,14 @@ public:
 class tree_glob_t {
     using tax_path_map_t = std::unordered_map<std::uint32_t, std::forward_list<std::string>>;
 public:
-    const tax_t                                    parent_;
-    count::Counter<std::vector<std::uint64_t>>     counts_;
-    adjmap_t                                       fwd_;
-    adjmap_t                                       rev_;
-    std::set<tax_t>                                taxes_;
+    const tax_t                                 parent_;
+    count::Counter<std::vector<std::uint64_t>>  counts_;
+    adjmap_t                                    fwd_;
+    adjmap_t                                    rev_;
+    std::vector<tax_t>                          taxes_;
 private:
-    const std::string                              parent_path_;
-    khash_t(all)                                  *acceptable_;
+    const std::string                           parent_path_;
+    khash_t(all)                               *acceptable_;
 
 
     static constexpr const char *KMER_SUFFIX = ".kmers.bin";
@@ -47,35 +47,37 @@ public:
     tree_glob_t(khash_t(p) *tax, tax_t parent, const std::string &fld, const Spacer &sp, tax_path_map_t &tpm,
                 const std::unordered_map<tax_t, std::vector<tax_t>> &invert, int num_threads=16);
     void add(const tax_t tax) {
-        taxes_.insert(tax);
+        taxes_.push_back(tax);
 #if !NDEBUG
         if(taxes_.size() % 100 == 0) LOG_DEBUG("ZOMG size of taxes is %zu\n", taxes_.size());
 #endif
     }
 
     template<typename Container>
-    void add_children(Container &&c) {
-        for(const auto tax: c)    add(tax); // Add all the taxes.
+    void add_children(Container &&c) { // &&
+        for(const auto tax: c) add(tax); // Add all the taxes.
     }
     template<typename Container>
-    void add_children(Container &c) {
-        for(const auto tax: c)    add(tax); // Add all the taxes.
+    void add_children(Container &c)  { // &
+        for(const auto tax: c) add(tax); // Add all the taxes.
     }
     template<typename It>
     void add_children(It first, It end) {
-        while(first != end) add(*first);
+        while(first != end)    add(*first);
     }
     void get_taxes(const std::unordered_map<tax_t, std::vector<tax_t>> &invert);
     ~tree_glob_t();
 };
 
 struct tree_adjudicator_t {
-    std::vector<tree_glob_t>              subtrees_;
-    std::unordered_map<tax_t, int>        indices_;
-    std::set<potential_node_t, std::greater<potential_node_t>> nodes_;
-    const std::uint64_t                   original_tax_count_; // Needed for scoring
-    const std::uint64_t                   max_el_;             // Needed to know which nodes to add.
-    int                                   recalculate_scores_; // If yes, recalculate scores 
+    using node_gt = std::greater<potential_node_t>;
+
+    std::vector<tree_glob_t>            subtrees_;
+    std::unordered_map<tax_t, int>      indices_;
+    std::set<potential_node_t, node_gt> nodes_;
+    const std::uint64_t                 original_tax_count_; // Needed for scoring
+    const std::uint64_t                 max_el_;             // Needed to know which nodes to add.
+    int                                 recalculate_scores_; // If yes, recalculate scores
 
     tree_adjudicator_t(std::uint64_t orig, int recalculate=1):
         original_tax_count_(orig), max_el_(roundup64(orig)), recalculate_scores_(recalculate) {}

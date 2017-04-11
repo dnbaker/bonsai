@@ -22,16 +22,18 @@ tree_glob_t::tree_glob_t(khash_t(p) *tax, tax_t parent, const std::string &fld, 
     acceptable_(nullptr)
 {
     LOG_DEBUG("About to get tax ids for children.\n");
+    if(acceptable_) LOG_DEBUG("About to make tax counter. Size of acceptable hash: %zu\n", kh_size(acceptable_));
     get_taxes(invert);
     LOG_DEBUG("Got taxes: %zu\n", taxes_.size());
     tax_path_map_t tmp;
     for(auto tax: taxes_) {
-        auto m(tpm.find(tax));
+        const auto m(tpm.find(tax));
         if(m != tmp.end()) tmp.emplace(tax, m->second);
     }
-    if(acceptable_) {
-        LOG_DEBUG("About to make tax counter. Size of acceptable hash: %zu\n", kh_size(acceptable_));
-    }
+    // Reorder taxes to correspond with bits in the bitmap.
+    taxes_.clear();
+    for(auto &pair: tmp) taxes_.push_back(pair.first);
+
     counts_ = std::move(bitmap_t(kgset_t(tmp, sp, num_threads, acceptable_)).to_counter());
     LOG_DEBUG("Size of counts: %zu\n", counts_.size());
     if(acceptable_) {
