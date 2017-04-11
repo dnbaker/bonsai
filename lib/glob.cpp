@@ -44,7 +44,6 @@ tree_glob_t::tree_glob_t(khash_t(p) *tax, tax_t parent, const std::string &fld, 
 }
 
 void tree_adjudicator_t::process_subtree(std::size_t i) {
-    indices_.emplace(subtrees_[i].parent_, i);
     tree_glob_t &g(subtrees_[i]);
     const std::size_t tax_size(g.taxes_.size());
     for(auto &pair: g.counts_) {
@@ -52,12 +51,12 @@ void tree_adjudicator_t::process_subtree(std::size_t i) {
         std::uint64_t ret(pair.second * bitdiff);
         const auto m(g.fwd_.find(pair.first));
         if(m == g.fwd_.end()) {
-            nodes_.emplace(g.parent_, &pair.first, ret);
+            nodes_.emplace(&pair.first, ret, i);
             LOG_WARNING("Node not found in adjmap. Maybe leaf? Continuing....\n");
             continue;
         }
         for(const auto i: m->second) ret += bitdiff * g.counts_.find(*i)->second;
-        nodes_.emplace(g.parent_, &pair.first, ret);
+        nodes_.emplace(&pair.first, ret, i);
     }
 }
 
