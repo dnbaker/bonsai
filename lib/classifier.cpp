@@ -21,14 +21,14 @@ void append_fastq_classification(const std::map<tax_t, std::uint32_t> &hit_count
                                  bseq1_t *bs, kstring_t *bks, const int verbose, const int is_paired) {
     char *cms, *cme; // comment start, comment end -- used for using comment in both output reads.
     kputs(bs->name, bks);
-    kputc(' ', bks);
+    kputc_(' ', bks);
     cms = bks->s + bks->l;
-    kputc((taxon <= 0) * ('U' - 'C') + 'C', bks);
-    kputc('\t', bks);
+    kputc_((taxon <= 0) * ('U' - 'C') + 'C', bks);
+    kputc_('\t', bks);
     kputuw(taxon, bks);
-    kputc('\t', bks);
+    kputc_('\t', bks);
     kputl(bs->l_seq, bks);
-    kputc('\t', bks);
+    kputc_('\t', bks);
     append_counts(missing_count, 'M', bks);
     append_counts(ambig_count,   'A', bks);
     if(verbose) append_taxa_runs(taxon, taxa, bks);
@@ -38,17 +38,18 @@ void append_fastq_classification(const std::map<tax_t, std::uint32_t> &hit_count
     kputsn(bs->seq, bs->l_seq, bks);
     kputsn("\n+\n", 3, bks);
     kputsn(bs->qual, bs->l_seq, bks);
-    kputc('\n', bks);
+    kputc_('\n', bks);
     if(is_paired) {
         kputs((bs + 1)->name, bks);
-        kputc(' ', bks);
+        kputc_(' ', bks);
         kputsn(cms, (int)(cme - cms), bks); // Add comment section in.
-        kputc('\n', bks);
+        kputc_('\n', bks);
         kputsn((bs + 1)->seq, (bs + 1)->l_seq, bks);
         kputsn("\n+\n", 3, bks);
         kputsn((bs + 1)->qual, (bs + 1)->l_seq, bks);
-        kputc('\n', bks);
+        kputc_('\n', bks);
     }
+    bks->s[bks->l] = 0;
 }
 
 void append_kraken_classification(const std::map<tax_t, std::uint32_t> &hit_counts,

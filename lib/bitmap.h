@@ -22,6 +22,10 @@ public:
     auto find(const T &elem) const {return find(&elem);}
     auto end()         const {return map_.end();}
     AdjacencyList(): m_(0), nelem_(0), is_reverse_(0) {}
+    enum orientation: std::size_t {
+        FORWARD = 0,
+        REVERSE = 1
+    };
 #if 0
     AdjacencyList(const AdjacencyList<T> &other) = default;
     AdjacencyList(AdjacencyList<T> &&other)      = default;
@@ -37,13 +41,12 @@ public:
                 ++m_;
                 auto j(i);
                 while(++j != map.end()) {
-                    typename std::unordered_map<T*, std::vector<T*>>::iterator m;
                     switch(veccmp(i->first, j->first)) {
                         case 1:
-                            map_[&i->first].push_back(&j->first);
+                            map_[&i->first].push_back(&j->first); // i is a strict parent of j.
                             break;
                         case 2:
-                            map_[&j->first].push_back(&i->first);
+                            map_[&j->first].push_back(&i->first); // j is a strict parent of i.
                             break;
                     }
                 }
@@ -53,13 +56,12 @@ public:
                 ++m_;
                 auto j(i);
                 while(++j != map.end()) {
-                    typename std::unordered_map<T*, std::vector<T*>>::iterator m;
                     switch(veccmp(i->first, j->first)) {
                         case 1:
-                            map_[&j->first].push_back(&i->first);
+                            map_[&j->first].push_back(&i->first); // j is a strict parent of i.
                             break;
                         case 2:
-                            map_[&i->first].push_back(&j->first);
+                            map_[&i->first].push_back(&j->first); // i is a strict parent of j.
                             break;
                     }
                 }
@@ -83,12 +85,14 @@ int veccmp(const std::vector<T> &a, const std::vector<T> &b) {
     bool avalid(true), bvalid(true);
     static const uint8_t ret[4]{3, 2, 1, 0};
     for(std::size_t i(0), e(a.size()); i != e; ++i) {
-        auto tmpa(a[i] & (~b[i]));
-        auto tmpb(b[i] & (~a[i]));
-        if(tmpa && !tmpb) {
-            bvalid = false;
-        } else if(tmpb && !tmpa) {
-            avalid = false;
+        // First term/second bit: a does not have any bits set b does not.
+        // Second term/first bit: b does not have any bits set a does not.
+        // If both are 1, then they are equal on this word, so we do nothing.
+        // If both are 0, then neither is a strict parent, return 3.
+        switch(((!(a[i] & (~b[i]))) << 1) | !(b[i] & (~a[i]))) {
+            case 2: avalid = false; break;
+            case 1: bvalid = false; break;
+            case 0: return 3;
         }
     }
     return ret[(avalid << 1) | bvalid];

@@ -36,11 +36,11 @@ tree_glob_t::tree_glob_t(khash_t(p) *tax, tax_t parent, const std::string &fld, 
 
     counts_ = std::move(bitmap_t(kgset_t(tmp, sp, num_threads, acceptable_)).to_counter());
     LOG_DEBUG("Size of counts: %zu\n", counts_.size());
-    if(acceptable_) {
-        khash_destroy(acceptable_), acceptable_ = nullptr;
-    }
-    fwd_ = std::move(adjmap_t(counts_, true));
-    rev_ = std::move(adjmap_t(counts_, false));
+
+    if(acceptable_) khash_destroy(acceptable_), acceptable_ = nullptr;
+
+    fwd_ = std::move(adjmap_t(counts_, adjmap_t::orientation::FORWARD));
+    rev_ = std::move(adjmap_t(counts_, adjmap_t::orientation::REVERSE));
 }
 
 void tree_adjudicator_t::process_subtree(std::size_t i) {
@@ -59,6 +59,49 @@ void tree_adjudicator_t::process_subtree(std::size_t i) {
         nodes_.emplace(&pair.first, ret, i);
     }
 }
+
+int tree_adjudicator_t::simple_write(std::FILE *fp) {
+    int ret(0);
+    auto it(nodes_.begin());
+    for(auto it(nodes_.begin()); kh_size(full_taxmap_) < max_el_ && it != nodes_.end(); ++it) 
+        write_new_node(fp, *it), ++ret;
+    return ret;
+}
+
+int tree_adjudicator_t::adjusting_write(std::FILE *fp) {
+    int ret(0);
+    while(kh_size(full_taxmap_) < max_el_)  {
+        auto it(nodes_.begin());
+        write_new_node(fp, *it);
+        const auto bitptr(it->bits_);
+        nodes_.erase(it);
+        adjust_children(bitptr, it->subtree_index_);
+        ++ret;
+    }
+    return ret;
+}
+
+int tree_adjudicator_t::write_new_node(std::FILE *fp, const potential_node_t &node) {
+        const std::vector<std::uint64_t> &v(*node.bits_);
+        tax_t new_id(std::rand());
+        khiter_t ki;
+        int khr;
+        while((ki = kh_get(p, full_taxmap_, new_id)) != kh_end(full_taxmap_)) new_id = std::rand();
+        ki = kh_put(p, full_taxmap_, new_id, &khr);
+        kh_val(full_taxmap_, ki) = subtrees_[node.subtree_index_].parent_;
+        kputw(new_id, &ks_);
+        kputc_('\t', &ks_);
+        kputw(subtrees_[node.subtree_index_].parent_, &ks_);
+        kputc_('\t', &ks_);
+        for(std::size_t i(0); i < original_tax_count_; ++i)
+            if(v[i >> 6] & (1ull << (i & 63ul)))
+                kputw(subtrees_[node.subtree_index_].taxes_[i], &ks_), kputc_(',', &ks_);
+        ks_.s[ks_.l - 1] = '\n';
+        // Actually, we don't need to null-terminate, because we're just using the string as a buffer.
+        const int ret(std::fwrite(ks_.s, 1, ks_.l, fp));
+        ks_.l = 0;
+        return ret;
+    }
 
 bool used_as_lca(const tax_t tax, const std::string &fld) {
     std::string path(std::string(fld.empty() ? "": fld + '/') + std::to_string(tax) + ".kmers.bin");

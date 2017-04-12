@@ -88,19 +88,19 @@ INLINE void append_taxa_run(const tax_t last_taxa,
     // A for ambiguous: ambiguous nucleotides
     // Actual taxon otherwise.
     switch(last_taxa) {
-        case 0:            kputc('U', bks); break;
-        case (tax_t)-1:    kputc('A', bks); break;
+        case 0:            kputc_('U', bks); break;
+        case (tax_t)-1:    kputc_('A', bks); break;
         default:           kputuw(last_taxa, bks); break;
     }
 
-    kputc(':', bks); kputuw(taxa_run, bks); kputc('\t', bks);
+    kputc_(':', bks); kputuw(taxa_run, bks); kputc('\t', bks);
 }
 
 
 INLINE void append_counts(std::uint32_t count, const char character, kstring_t *ks) {
     if(count) {
-        kputc(character, ks);
-        kputc(':', ks);
+        kputc_(character, ks);
+        kputc_(':', ks);
         kputuw(count, ks);
         kputc('\t', ks);
     }

@@ -188,7 +188,7 @@ public:
                 sum += j;
                 auto k(j);
                 for(std::uint64_t i(0); i < std::min(CHAR_BIT * sizeof(j), nelem_ - n); ++i) {
-                    kputc('0' + (k&1), ks);
+                    kputc_('0' + (k&1), ks);
                     pc += k&1;
                     k >>= 1;
 #if 0

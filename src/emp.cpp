@@ -312,6 +312,7 @@ int metatree_main(int argc, char *argv[]) {
     khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, full_taxmap, name_hash));
 #endif
+    kh_destroy(p, full_taxmap);
     if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
     std::unordered_map<tax_t, std::vector<tax_t>> inverted_map(invert_parent_map(taxmap));
     LOG_DEBUG("Sorted nodes.\n");
@@ -343,7 +344,7 @@ int metatree_main(int argc, char *argv[]) {
             std::fprintf(stderr, "Taxid %u has path %s and first line %s\n", kv.first, path.data(), get_firstline(path.data()).data());
         if(fllen(kv.second) == 0) LOG_EXIT("FL with key %u has length 0\n");
     }
-    tree_adjudicator_t ta(kh_size(taxmap), full_taxmap, false);
+    tree_adjudicator_t ta(kh_size(taxmap), taxmap, false);
     for(auto tax_iter(std::begin(nodes)), end_iter(tax_iter); end_iter < std::end(nodes); tax_iter = ++end_iter) {
         const tax_t parent_tax(get_parent(taxmap, *tax_iter));
         while(end_iter < std::end(nodes) && get_parent(taxmap, *end_iter++) == parent_tax);
@@ -361,7 +362,6 @@ int metatree_main(int argc, char *argv[]) {
     }
     destroy_name_hash(name_hash);
     kh_destroy(p, taxmap);
-    kh_destroy(p, full_taxmap);
     return EXIT_SUCCESS;
 }
 
