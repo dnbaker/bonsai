@@ -7,16 +7,23 @@ from subprocess import check_call as cc, CalledProcessError
 from enum import IntEnum
 argv = sys.argv
 
+
 class ExitCodes(IntEnum):
     EXIT_SUCCESS = 0
     EXIT_FAILURE = 1
 
 
-def is_valid_gzip(fn, lazy=False):
+def is_valid_gzip(fn, lazy=False, use_pigz=False):
     '''
     We could instead use gunzip -t to check, but that actual requires
     iterating through the whole file, which is very slow. This is lazy,
     but at least it makes sure that it's a gzip file.
+
+    lazy simply tries to see if the first 10 lines can be read.
+    It isn't very safe.
+
+    use_pigz uses pigz instead of gzip. A bad idea if a number of processes
+    have already been spawned.
     '''
     if lazy:
         try:
@@ -25,12 +32,13 @@ def is_valid_gzip(fn, lazy=False):
         except CalledProcessError:
             return False
     # lazy has already returned. This is the "else".
+    cmd = ("pigz" if use_pigz else "gzip") + " -dc "
     try:
-        cc("gunzip -t " + fn, shell=True)
+        cc(cmd + " -t " + fn, shell=True)
         sys.stderr.write(fn + " is valid")
         return True
     except CalledProcessError:
-        sys.stderr.write("Corrupted file " +  fn + ". Delete, try again.")
+        sys.stderr.write("Corrupted file " + fn + ". Delete, try again.")
         return False
 
 
@@ -93,7 +101,8 @@ def parse_assembly(fn, fnidmap):
         if ("latest" not in line or  # Complete genome
                 (("Complete Genome" not in line and
                   "GRCh" not in line and s[13] != "Full")) or
-                any(i in line.lower() for i in ["chromosome", "supercontig", "scaffold"])):
+                any(i in line.lower() for
+                    i in ["chromosome", "supercontig", "scaffold"])):
             continue
         fn = "%s_genomic.fna.gz" % ([i for i in s[19].split("/") if i][-1])
         fnidmap[fn] = int(s[5])

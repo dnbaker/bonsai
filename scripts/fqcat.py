@@ -58,7 +58,7 @@ def process_folder(path, fn1=None, fn2=None):
                     [i for i in already_done if "_R2_" in i][0])
         else:
             raise FileNotFoundError("Could not find any files in the folder" +
-                                     path)
+                                    path)
     for fq in fqs:
         if not is_valid_gzip(fq):
             raise SystemError("File %s is not a valid gzip file. Abort!" % fq)
@@ -98,8 +98,9 @@ def main():
         if ffqpair:
             stderr.write("Output files available at %s, %s\n" % ffqpair)
         else:
-            stderr.write("Error processing directory %s\n" % opts.folders[index])
-    return any(not x for x in ffqs))
+            stderr.write("Error processing directory %s\n" %
+                         opts.folders[index])
+    return any(not x for x in ffqs)
     # Could be omitted by implicit return of None, which is coerced to 0
 
 if __name__ == "__main__":

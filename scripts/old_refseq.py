@@ -10,6 +10,7 @@ from enum import IntEnum
 from sys import argv, stderr
 from download_genomes import xfirstline
 
+
 class ExitCodes(IntEnum):
     EXIT_SUCCESS = 0
     EXIT_FAILURE = 1
@@ -78,11 +79,13 @@ def append_old_to_new(gi2tax_map, newmap, concat_map, folder=FOLDER):
 def getopts():
     a = argparse.ArgumentParser()
     a.add_argument("--folder", default=FOLDER)
-    a.add_argument("--new-refseq-nameid-map", "-N", default="ref/nameidmap.txt")
+    a.add_argument("--new-refseq-nameid-map",
+                   "-N", default="ref/nameidmap.txt")
     a.add_argument("--combined-nameid-map", "-c", required=True)
     a.add_argument("--taxonomy", "-t", required=True)
     a.add_argument("--no-download", '-D', default=False, action="store_true")
-    a.add_argument("--accessions", "-a", help="Path to file containing i100 genome accessions.")
+    a.add_argument("--accessions", "-a",
+                   help="Path to file containing i100 genome accessions.")
     a.add_argument("--found", "-f", help="Path to write found files to.")
     return a.parse_args()
 
@@ -103,10 +106,12 @@ def fill_set_from_tax(tax, taxmap):
         get = taxmap.get(get)
     return ret
 
+PATH = ("ftp://ftp.ncbi.nlm.nih.gov/genomes/archive/old_refseq/"
+        "Bacteria/summary.txt")
 
-def get_acceptable_taxids(taxmap):
+
+def get_acceptable_taxids(taxmap, path=PATH):
     ret = set()
-    path = "ftp://ftp.ncbi.nlm.nih.gov/genomes/archive/old_refseq/Bacteria/summary.txt"
     cc("curl %s > tax_summary.txt" % path, shell=True)
     for line in open("tax_summary.txt"):
         toks = line.split()
@@ -152,7 +157,8 @@ def main():
     concat, found = append_old_to_new(parse_gi2tax(gi2tax, acceptable_taxids),
                                       args.new_refseq_nameid_map,
                                       args.combined_nameid_map, args.folder)
-    cc("sort %(name)s | uniq > tmp.zomg && mv tmp.zomg %(name)s" % {"name": concat})
+    cc("sort %(name)s | uniq > tmp.zomg && mv tmp.zomg %(name)s" %
+       {"name": concat})
     nl = int(co("wc -l %s" % concat, shell=True).decode().split()[0])
     sys.stderr.write("Concatenated file of total lines "
                      "%i is written to %s.\n" % (nl, concat))
@@ -160,6 +166,7 @@ def main():
         for path in found:
             f.write(path + "\n")
     return 0
-    
+
+
 if __name__ == "__main__":
     sys.exit(main())
