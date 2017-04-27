@@ -21,8 +21,10 @@ tree_glob_t::tree_glob_t(khash_t(p) *tax, tax_t parent, const std::string &fld, 
     //acceptable_(tree::load_binary_kmerset(parent_path_.data()))
     acceptable_(nullptr)
 {
+#if !NDEBUG
     LOG_DEBUG("About to get tax ids for children.\n");
     if(acceptable_) LOG_DEBUG("About to make tax counter. Size of acceptable hash: %zu\n", kh_size(acceptable_));
+#endif
     get_taxes(invert);
     LOG_DEBUG("Got taxes: %zu\n", taxes_.size());
     tax_path_map_t tmp;

@@ -14,7 +14,7 @@ void kg_helper(void *data_, long index, int tid) {
     while(kseq_read(ks) >= 0) {
         LOG_DEBUG("Getting kmers from %s\n", ks->name.s);
         enc.assign(ks);
-        while(enc.has_next_kmer())
+        while(enc.has_next_kmer()) {
             LOG_DEBUG("Getting next kmer.\n");
             if((min = enc.next_minimizer()) != BF) {
                 LOG_DEBUG("Not BF! String: %s\n", data->sp_.to_string(min).data());
@@ -25,6 +25,7 @@ void kg_helper(void *data_, long index, int tid) {
             } else {
                 LOG_DEBUG("ZOMG next kmer is BF!\n");
             }
+        }
     }
     kseq_destroy(ks);
     gzclose(fp);
