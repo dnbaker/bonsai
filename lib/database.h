@@ -85,9 +85,9 @@ struct Database {
         std::size_t ndiff(0);
         for(khiter_t ki(0); ki != kh_end(test.db_); ++ki) {
             if(kh_key(db_, ki) != kh_key(test.db_, ki))
-                std::fprintf(stderr, "key mismatch at %" PRIu64 ". key 1: %" PRIu64 ", key 2: %" PRIu64 ".\n", ki, (std::uint64_t)kh_key(db_, ki), (std::uint64_t)kh_key(test.db_, ki)), ++ndiff;
+                std::fprintf(stderr, "key mismatch at %lu. key 1: %" PRIu64 ", key 2: %" PRIu64 ".\n", ki, (std::uint64_t)kh_key(db_, ki), (std::uint64_t)kh_key(test.db_, ki)), ++ndiff;
             if(kh_val(db_, ki) != kh_val(test.db_, ki))
-                std::fprintf(stderr, "val mismatch at %" PRIu64 ". val 1: %" PRIu64 ", val 2: %" PRIu64 ".\n", ki, (std::uint64_t)kh_val(db_, ki), (std::uint64_t)kh_val(test.db_, ki)), ++ndiff;
+                std::fprintf(stderr, "val mismatch at %lu. val 1: %" PRIu64 ", val 2: %" PRIu64 ".\n", ki, (std::uint64_t)kh_val(db_, ki), (std::uint64_t)kh_val(test.db_, ki)), ++ndiff;
         }
         for(std::uint64_t i(0); i < __ac_fsize(db_->n_buckets); ++i) {
             if(db_->flags[i] != test.db_->flags[i])

@@ -13,7 +13,7 @@ std::size_t count_lines(const char *fn) noexcept {
     ssize_t len;
     std::size_t n(0);
     while((len = getline(&buf, &bufsz, fp)) >= 0) ++n;
-    free(buf);
+    std::free(buf);
     std::fclose(fp);
     return n;
 }
@@ -137,20 +137,19 @@ khash_t(name) *build_name_hash(const char *fn) noexcept {
         kh_val(ret, ki) = atoi(p + 1);
     }
     std::fclose(fp);
-    free(buf);
+    std::free(buf);
     return ret;
 }
 
 void destroy_name_hash(khash_t(name) *hash) noexcept {
     for(khint_t ki(kh_begin(hash)); ki != kh_end(hash); ++ki)
         if(kh_exist(hash, ki))
-            free((void *)kh_key(hash, ki));
+            std::free((void *)kh_key(hash, ki));
     kh_destroy(name, hash);
 }
 
 std::map<tax_t, tax_t> build_kraken_tax(const std::string &fname) {
     const char *fn(fname.data());
-    std::size_t nlines(count_lines(fn));
     std::FILE *fp(std::fopen(fn, "r"));
     std::map<tax_t, tax_t> ret;
     std::size_t bufsz = 4096;
@@ -165,7 +164,7 @@ std::map<tax_t, tax_t> build_kraken_tax(const std::string &fname) {
     }
     ret[1] = 0;
     std::fclose(fp);
-    free(buf);
+    std::free(buf);
     return ret;
 }
 uint32_t lca(std::map<uint32_t, uint32_t> &parent_map, uint32_t a, uint32_t b)
@@ -202,7 +201,7 @@ khash_t(p) *build_parent_map(const char *fn) noexcept {
     ki = kh_put(p, ret, 1, &khr);
     kh_val(ret, ki) = 0; // Root of the tree.
     std::fclose(fp);
-    free(buf);
+    std::free(buf);
     return ret;
 }
 
@@ -222,10 +221,10 @@ tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
 {
   std::set<tax_t> max_taxa;
   tax_t max_taxon(0), max_score(0);
-  auto it(hit_counts.begin());
+  auto it(hit_counts.cbegin());
 
   // Sum each taxon's LTR path
-  while (it != hit_counts.end()) {
+  for(auto it(hit_counts.cbegin()), e(hit_counts.cend()); it != e; ++it) {
     tax_t taxon(it->first), node(taxon), score(0);
     khiter_t ki;
     // Instead of while node > 0
@@ -244,7 +243,6 @@ tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
         max_taxa.insert(max_taxon);
       max_taxa.insert(taxon);
     }
-    ++it;
   }
   // If two LTR paths are tied for max, return LCA of all
   if(max_taxa.size()) {
