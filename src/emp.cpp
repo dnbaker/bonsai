@@ -244,7 +244,7 @@ int phase1_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
-void metatree_usage(char *arg) {
+int metatree_usage(char *arg) {
     std::fprintf(stderr, "Usage: %s <db.path> <taxmap> <nameidmap> <out_taxmap> <out_taxkey>\n"
                          "\n"
                          "-F: Parse file paths from file instead of further arguments at command-line.\n"
@@ -252,6 +252,7 @@ void metatree_usage(char *arg) {
                          "-f: Store binary dumps in folder <arg>.\n"
                  , arg);
     std::exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
 }
 
 template struct kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
@@ -265,7 +266,7 @@ int metatree_main(int argc, char *argv[]) {
     std::string paths_file, folder, spacing;
     while((c = getopt(argc, argv, "p:w:k:s:f:F:h?d")) >= 0) {
         switch(c) {
-            case '?': case 'h': metatree_usage(*argv);
+            case '?': case 'h': return metatree_usage(*argv);
             case 'f': folder = optarg; break;
             case 'F': paths_file = optarg; break;
             case 'd': dry_run = 1; break;

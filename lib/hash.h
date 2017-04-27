@@ -1,6 +1,12 @@
 #ifndef _HASH_H_
 #define _HASH_H_
 #include "util.h"
+#if __cplusplus < 201700 // c++ < c++17
+#  define REGISTER register
+#else // c++17
+#  define REGISTER
+#endif // c++17
+
 
 namespace emp {
 
@@ -84,15 +90,15 @@ static INLINE int X31_hash_string(const char *s)
 // Slightly modified.
 // This is a 32-bit unsigned hash function for strings.
 static INLINE unsigned
-dbm_hash(register const char *str, register std::size_t len)
+dbm_hash(REGISTER const char *str, REGISTER std::size_t len)
 {
-    register unsigned n = 0;
+    REGISTER unsigned n = 0;
 
 #define HASHC  (n = *str++ + (n << 16) + (n << 6) - n)
 #ifdef DUFF
     if(len) {
 
-        register int loop = (len + 7) >> 3;
+        REGISTER int loop = (len + 7) >> 3;
 
         switch(len & (7)) {
         case 0: do {
@@ -109,9 +115,9 @@ dbm_hash(register const char *str, register std::size_t len)
     return n;
 }
 #undef HASHC
-static INLINE unsigned dbm_hash(register const char *str)
+static INLINE unsigned dbm_hash(REGISTER const char *str)
 {
-    register unsigned n = *str;
+    REGISTER unsigned n = *str;
     if(n) for(++str; *str; n = *str++ + ((n << 16) + (n << 6) - n));
     return n;
 }

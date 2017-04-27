@@ -36,7 +36,6 @@ static INLINE char *ksdup(const kstring_t *ks) {
 // From bwa -- batch parsing.
 static inline void kseq2bseq1c(const kseq_t *ks, bseq1_t *s) // one chunk
 { // TODONE: it would be better to allocate one chunk of memory.
-    const size_t size = ks->name.l + ks->comment.l + ks->seq.l + ks->qual.l + 4;
     s->name = (char *)malloc(ks->name.l + ks->comment.l + ks->seq.l + ks->qual.l + 4);
     memcpy(s->name, ks->name.s, ks->name.l + 1);
     char *start = s->name + ks->name.l + 2;
