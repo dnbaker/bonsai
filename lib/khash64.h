@@ -363,6 +363,7 @@ kh_inline std::uint64_t __ac_Wang64_hash(std::uint64_t key) {
 				}														\
 			}															\
 		}																\
+		std::unique_lock<std::shared_mutex>(h->m);					    \
 		if (__ac_isempty(h->flags, x)) { /* not present at all */		\
 			h->keys[x] = key;											\
 			__ac_set_isboth_false(h->flags, x);							\

@@ -8,10 +8,10 @@ void kt_for_helper(void *data_, long index, int tid) {
     std::size_t retstr_size(0);
     const int inc(!!data->is_paired_ + 1);
     Encoder<lex_score> enc(data->c_.enc_);
-    for(unsigned i(index * data->per_set_), end(std::min(i + data->per_set_, data->total_));
-        i < end; i += inc) {
+    for(unsigned i(index * data->per_set_),end(std::min(i + data->per_set_, data->total_));
+        i < end;
+        i += inc)
             retstr_size += classify_seq(data->c_, enc, data->taxmap, data->bs_ + i, data->is_paired_);
-    }
     data->retstr_size_ += retstr_size;
 }
 
@@ -23,9 +23,9 @@ void append_fastq_classification(const std::map<tax_t, std::uint32_t> &hit_count
     kputs(bs->name, bks);
     kputc_(' ', bks);
     cms = bks->s + bks->l;
-    kputc_((taxon <= 0) * ('U' - 'C') + 'C', bks);
+    kputc_((taxon == 0) * ('U' - 'C') + 'C', bks);
     kputc_('\t', bks);
-    kputuw(taxon, bks);
+    kputuw_(taxon, bks);
     kputc_('\t', bks);
     kputl(bs->l_seq, bks);
     kputc_('\t', bks);
@@ -35,18 +35,18 @@ void append_fastq_classification(const std::map<tax_t, std::uint32_t> &hit_count
     else        bks->s[bks->l - 1] = '\n';
     cme = bks->s + bks->l;
     // And now add the rest of the fastq record
-    kputsn(bs->seq, bs->l_seq, bks);
-    kputsn("\n+\n", 3, bks);
-    kputsn(bs->qual, bs->l_seq, bks);
+    kputsn_(bs->seq, bs->l_seq, bks);
+    kputsn_("\n+\n", 3, bks);
+    kputsn_(bs->qual, bs->l_seq, bks);
     kputc_('\n', bks);
     if(is_paired) {
         kputs((bs + 1)->name, bks);
         kputc_(' ', bks);
-        kputsn(cms, (int)(cme - cms), bks); // Add comment section in.
+        kputsn_(cms, (int)(cme - cms), bks); // Add comment section in.
         kputc_('\n', bks);
-        kputsn((bs + 1)->seq, (bs + 1)->l_seq, bks);
-        kputsn("\n+\n", 3, bks);
-        kputsn((bs + 1)->qual, (bs + 1)->l_seq, bks);
+        kputsn_((bs + 1)->seq, (bs + 1)->l_seq, bks);
+        kputsn_("\n+\n", 3, bks);
+        kputsn_((bs + 1)->qual, (bs + 1)->l_seq, bks);
         kputc_('\n', bks);
     }
     bks->s[bks->l] = 0;
@@ -56,13 +56,13 @@ void append_kraken_classification(const std::map<tax_t, std::uint32_t> &hit_coun
                                   const std::vector<tax_t> &taxa,
                                   const tax_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
                                   bseq1_t *bs, kstring_t *bks) {
-    kputc((taxon < 1) * ('U' - 'C') + 'C', bks);
+    kputc((taxon == 0) * ('U' - 'C') + 'C', bks);
     //kputc(taxon ? 'C': 'U', bks); Equivalent to above but without a branch.
     //Probably meaningless in practice, but....
     kputc('\t', bks);
     kputs(bs->name, bks);
     kputc('\t', bks);
-    kputuw(taxon, bks);
+    kputuw_(taxon, bks);
     kputc('\t', bks);
     kputw(bs->l_seq, bks);
     kputc('\t', bks);

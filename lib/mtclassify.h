@@ -29,7 +29,8 @@ INLINE void classify_seqs(Classifier &c, khash_t(p) *taxmap, bseq1_t *bs,
     kt_data data{c, taxmap, bs, per_set, chunk_size, retstr_size};
     kt_for(c.nt_, &kt_for_helper, (void *)&data, (chunk_size >> ilog2ps) + 1);
     ks_resize(cks, retstr_size);
-    for(unsigned i(0); i < chunk_size; ++i) kputsn(bs[i].sam, bs[i].l_sam, cks);
+    for(unsigned i(0); i < chunk_size; ++i) kputsn_(bs[i].sam, bs[i].l_sam, cks);
+    cks->s[cks->l] = 0;
 }
 
 

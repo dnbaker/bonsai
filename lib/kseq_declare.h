@@ -34,7 +34,7 @@ static INLINE char *ksdup(const kstring_t *ks) {
 }
 
 // From bwa -- batch parsing.
-static inline void kseq2bseq1c(const kseq_t *ks, bseq1_t *s) // one chunk
+static inline void kseq2bseq1(const kseq_t *ks, bseq1_t *s) // one chunk
 { // TODONE: it would be better to allocate one chunk of memory.
     s->name = (char *)malloc(ks->name.l + ks->comment.l + ks->seq.l + ks->qual.l + 4);
     memcpy(s->name, ks->name.s, ks->name.l + 1);
@@ -58,34 +58,12 @@ static inline void kseq2bseq1c(const kseq_t *ks, bseq1_t *s) // one chunk
     s->id      = 0;
 }
 
-static inline void bseq_destroyc(bseq1_t *bs) {
+static inline void bseq_destroy(bseq1_t *bs) {
     free(bs->name);
     free(bs->sam);
-}
-
-// From bwa -- batch parsing.
-static inline void kseq2bseq1(const kseq_t *ks, bseq1_t *s)
-{ // TODO: it would be better to allocate one chunk of memory, but probably it does not matter in practice
-    s->name    = ksdup(&ks->name);
-    s->comment = ksdup(&ks->comment);
-    s->seq     = ksdup(&ks->seq);
-    s->qual    = ksdup(&ks->qual);
-    s->l_seq   = ks->seq.l;
-    s->sam     = NULL;
-    s->l_sam   = 0;
-    s->id      = 0;
 }
 
 bseq1_t *bseq_read(int chunk_size, int *n_, void *ks1_, void *ks2_);
-bseq1_t *bseq_readc(int chunk_size, int *n_, void *ks1_, void *ks2_);
-
-static inline void bseq_destroy(bseq1_t *bs) {
-    free(bs->name);
-    free(bs->comment);
-    free(bs->seq);
-    free(bs->qual);
-    free(bs->sam);
-}
 
 #ifdef __cplusplus
 }

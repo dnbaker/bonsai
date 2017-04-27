@@ -90,10 +90,10 @@ INLINE void append_taxa_run(const tax_t last_taxa,
     switch(last_taxa) {
         case 0:            kputc_('U', bks); break;
         case (tax_t)-1:    kputc_('A', bks); break;
-        default:           kputuw(last_taxa, bks); break;
+        default:           kputuw_(last_taxa, bks); break;
     }
 
-    kputc_(':', bks); kputuw(taxa_run, bks); kputc('\t', bks);
+    kputc_(':', bks); kputuw_(taxa_run, bks); kputc('\t', bks);
 }
 
 
@@ -101,7 +101,7 @@ INLINE void append_counts(std::uint32_t count, const char character, kstring_t *
     if(count) {
         kputc_(character, ks);
         kputc_(':', ks);
-        kputuw(count, ks);
+        kputuw_(count, ks);
         kputc('\t', ks);
     }
 }
@@ -181,10 +181,10 @@ struct kt_data {
     ClassifierGeneric<lex_score> &c_;
     khash_t(p) *taxmap;
     bseq1_t *bs_;
-    unsigned per_set_;
-    unsigned total_;
+    const unsigned per_set_;
+    const unsigned total_;
     std::atomic<std::uint64_t> &retstr_size_;
-    int is_paired_;
+    const int is_paired_;
 };
 }
 void kt_for_helper(void *data_, long index, int tid);
@@ -197,8 +197,9 @@ inline void classify_seqs(Classifier &c, khash_t(p) *taxmap, bseq1_t *bs,
     kt_data data{c, taxmap, bs, per_set, chunk_size, retstr_size, is_paired};
     kt_for(c.nt_, &kt_for_helper, (void *)&data, chunk_size / per_set + 1);
     ks_resize(cks, retstr_size.load());
-    const int inc(is_paired ? 2: 1);
-    for(unsigned i(0); i < chunk_size; i += inc) kputsn(bs[i].sam, bs[i].l_sam, cks);
+    const int inc(!!is_paired + 1);
+    for(unsigned i(0); i < chunk_size; i += inc) kputsn_(bs[i].sam, bs[i].l_sam, cks);
+    cks->s[cks->l] = 0;
 }
 
 struct del_data {
