@@ -39,23 +39,20 @@ static inline void kseq2bseq1(const kseq_t *ks, bseq1_t *s) // one chunk
     s->name = (char *)malloc(ks->name.l + ks->comment.l + ks->seq.l + ks->qual.l + 4);
     memcpy(s->name, ks->name.s, ks->name.l + 1);
     char *start = s->name + ks->name.l + 2;
+    if(ks->comment.l == 0) s->comment = NULL;
     if(ks->comment.l) {
         s->comment = start;
         memcpy(s->comment, ks->comment.s, ks->comment.l + 1);
         start += ks->comment.l + 1;
-    } else s->comment = NULL;
+    }
     s->seq = start;
     memcpy(s->seq, ks->seq.s, ks->seq.l + 1);
     start += ks->seq.l + 1;
-    if(ks->qual.l) {
-        s->qual = start;
-        memcpy(s->qual, ks->qual.s, ks->qual.l + 1);
-        start += ks->qual.l + 1;
-    } else s->qual = NULL;
+    if(ks->qual.l == 0)   s->qual = NULL;
+    else s->qual = start, memcpy(s->qual, ks->qual.s, ks->qual.l + 1);
     s->l_seq   = ks->seq.l;
     s->sam     = NULL;
-    s->l_sam   = 0;
-    s->id      = 0;
+    s->l_sam   = s->id = 0;
 }
 
 static inline void bseq_destroy(bseq1_t *bs) {

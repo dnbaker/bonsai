@@ -7,6 +7,7 @@
 #include "lib/tx.h"
 #include "lib/khpp.h"
 #include "lib/glob.h"
+#include "lib/flextree.h"
 #include <functional>
 
 using namespace emp;
