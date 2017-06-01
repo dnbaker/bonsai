@@ -38,13 +38,16 @@ namespace emp {
 
 class fadjlist_t {
 
+    // This structure might not work with insertion and reinsertion.
+    // Will rethink and correct.
+
     std::unordered_map<const fnode_t *, std::vector<const fnode_t *>> map_;
     
     // Score generation
     std::uint64_t score(const fnode_t &node) const {
         const std::uint64_t bd(node.lua_ ? popcnt::vec_bitdiff(*node.bits_,
                                                   *node.lua_->bits_)
-                                    : popcnt::vec_popcnt(*node.bits_));
+                                         : popcnt::vec_popcnt(*node.bits_));
         auto m(map_.find(&node));
         if(m == map_.end()) return node.n_ * bd;
         std::uint64_t n(node.n_);
