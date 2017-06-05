@@ -3,16 +3,46 @@
 
 #include "lib/tx.h"
 
+
 namespace emp {
+
+inline constexpr int log2_64(uint64_t value)
+{
+    // https://stackoverflow.com/questions/11376288/fast-computing-of-log2-for-64-bit-integers
+    const int tab64[64] = {
+        63,  0, 58,  1, 59, 47, 53,  2,
+        60, 39, 48, 27, 54, 33, 42,  3,
+        61, 51, 37, 40, 49, 18, 28, 20,
+        55, 30, 34, 11, 43, 14, 22,  4,
+        62, 57, 46, 52, 38, 26, 32, 41,
+        50, 36, 17, 19, 29, 10, 13, 21,
+        56, 45, 25, 31, 35, 16,  9, 12,
+        44, 24, 15,  8, 23,  7,  6,  5
+    };
+    value |= value >> 1;
+    value |= value >> 2;
+    value |= value >> 4;
+    value |= value >> 8;
+    value |= value >> 16;
+    value |= value >> 32;
+    return tab64[((uint64_t)((value - (value >> 1))*0x07EDD5E59A4E28C2)) >> 58];
+}
 
 // Vector comparison function
 template<typename T>
 int veccmp(const std::vector<T> &a, const std::vector<T> &b);
+template<typename T, typename size_type=std::size_t>
+struct ptr_hash {
+    static constexpr size_t SHIFT = log2_64(alignof(T));
+    size_type operator()(const T *a) const {
+        return reinterpret_cast<size_type>(a) >> SHIFT;
+    }
+};
 
 
 template<typename T>
 class AdjacencyList {
-    std::unordered_map<const T*, std::vector<const T*>> map_;
+    std::unordered_map<const T*, std::vector<const T*>, ptr_hash<T>> map_;
     std::size_t m_, nelem_;
     bool is_reverse_;
 
@@ -83,7 +113,6 @@ int veccmp(const std::vector<T> &a, const std::vector<T> &b) {
     // Return 0 if they are the same
     // Return positive if a has only 1s that b doesn't and isn't missing any from b.
     bool avalid(true), bvalid(true);
-    static const uint8_t ret[4]{3, 2, 1, 0};
     for(std::size_t i(0), e(a.size()); i != e; ++i) {
         // First term/second bit: a does not have any bits set b does not.
         // Second term/first bit: b does not have any bits set a does not.
@@ -95,6 +124,7 @@ int veccmp(const std::vector<T> &a, const std::vector<T> &b) {
             case 0: return 3;
         }
     }
+    static const uint8_t ret[4]{3, 2, 1, 0};
     return ret[(avalid << 1) | bvalid];
 }
 

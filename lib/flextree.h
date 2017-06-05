@@ -7,9 +7,9 @@
 namespace emp {
 
 struct fnode_t {
-    const std::vector<std::uint64_t> *bits_;
-    const std::uint64_t               n_;
-    fnode_t                          *lua_; // lowest unadded ancestor
+    const std::vector<std::uint64_t> *bits_; // Does not own.
+    const std::uint64_t               n_;    // Number of kmers at this point in tree.
+    fnode_t                          *lua_;  // lowest unadded ancestor
 
     // Constructor
     fnode_t(const std::vector<std::uint64_t> &vec, const std::uint64_t n):
@@ -49,9 +49,10 @@ class fadjlist_t {
                                                   *node.lua_->bits_)
                                          : popcnt::vec_popcnt(*node.bits_));
         auto m(map_.find(&node));
-        if(m == map_.end()) return node.n_ * bd;
         std::uint64_t n(node.n_);
-        for(const auto i: m->second) n += i->n_;
+        if(m != map_.end())
+            for(const auto i: m->second)
+                n += i->n_;
         return n * bd;
     }
 

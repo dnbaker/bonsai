@@ -13,6 +13,8 @@
 #include "lib/ks.h"
 #include "clhash/include/clhash.h"
 
+namespace emp {
+
 class rand_holder {
     const void *random_;
 public:
@@ -21,12 +23,16 @@ public:
     {
     }
 
-    const void *get() const {return random_;}
+    const void *get()        const {return random_;}
+    const void *operator->() const {return random_;}
+    operator const void *()  const {return random_;}
 
     ~rand_holder()    {std::free(const_cast<void *>(random_));}
 };
 
 const static rand_holder RAND;
+
+} // namespace emp
 
 namespace std {
 
@@ -35,7 +41,7 @@ namespace std {
   {
     uint64_t operator()(const vector<T>& vec) const
     {
-        return clhash(RAND.get(), reinterpret_cast<const char *>(vec.data()), vec.size() * sizeof(T));
+        return clhash(emp::RAND, reinterpret_cast<const char *>(vec.data()), vec.size() * sizeof(T));
     }
   };
 
@@ -44,12 +50,13 @@ namespace std {
   {
     uint64_t operator()(const pair<int, vector<T>>& p) const
     {
-        return clhash(RAND.get(), reinterpret_cast<const char *>(p.second.data()), p.second.size() * sizeof(T)) ^ ((std::uint64_t(p.first) << 32) | p.first);
+        return clhash(emp::RAND, reinterpret_cast<const char *>(p.second.data()), p.second.size() * sizeof(T)) ^ ((std::uint64_t(p.first) << 32) | p.first);
     }
   };
 
 }
 
+namespace emp {
 
 namespace count {
 
@@ -201,11 +208,13 @@ public:
             }
             ksprintf(ks, "\t%zu\t%zu\n", i.count_, pc);
         }
-    
+
         if(ks.size()) std::fwrite(ks.data(), 1, ks.size(), fp);
     }
 };
 
 } // namespace count
+
+} // namespace emp
 
 #endif  // _COUNTER_H__
