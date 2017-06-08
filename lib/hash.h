@@ -97,15 +97,12 @@ dbm_hash(REGISTER const char *str, REGISTER std::size_t len)
 #define HASHC  (n = *str++ + (n << 16) + (n << 6) - n)
 #ifdef DUFF
     if(len) {
-
         REGISTER int loop = (len + 7) >> 3;
-
-        switch(len & (7)) {
+        switch(len & 7) {
         case 0: do {
-            HASHC;  case 7: HASHC;
-        case 6: HASHC;  case 5: HASHC;
-        case 4: HASHC;  case 3: HASHC;
-        case 2: HASHC;  case 1: HASHC;
+            HASHC;
+            case 7: HASHC; case 6: HASHC; case 5: HASHC;
+            case 4: HASHC; case 3: HASHC; case 2: HASHC;  case 1: HASHC;
             } while (--loop);
         }
     }
@@ -121,6 +118,9 @@ static INLINE unsigned dbm_hash(REGISTER const char *str)
     if(n) for(++str; *str; n = *str++ + ((n << 16) + (n << 6) - n));
     return n;
 }
+
+static INLINE unsigned dbm_hash(const std::string str) {return dbm_hash(str.data(), str.size());}
+static INLINE unsigned dbm_hash(const kstring_t *ks) {return dbm_hash(ks->s, ks->l);}
 
 } // namespace emp
 
