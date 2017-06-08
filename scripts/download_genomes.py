@@ -106,7 +106,15 @@ def parse_assembly(fn, fnidmap):
             continue
         fn = "%s_genomic.fna.gz" % ([i for i in s[19].split("/") if i][-1])
         fnidmap[fn] = int(s[5])
-        to_fetch.append(s[-2] + "/" + fn)
+        for si, se in enumerate(s):
+            print("index %i, string %s" % (si, se))
+        index = len(s) - 1
+        while "ftp" not in s[index] and index > 0:
+            index = index - 1
+        if index:
+            to_fetch.append(s[index] + "/" + fn)
+        else:
+            raise RuntimeError("ftp link not found. line: %s" % line[:-1])
     return to_fetch
 
 
