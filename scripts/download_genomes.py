@@ -45,9 +45,7 @@ def is_valid_gzip(fn, lazy=False, use_pigz=False):
 def xfirstline(fn):
     # Works on python3, not 2.
     first_two = open(fn, "rb").read(2)
-    if isinstance(first_two, bytes):
-        first_two = first_two.decode()
-    return next((gzip.open if first_two == "\x1f\x8b" else open)(fn))
+    return next((gzip.open if first_two == b"\x1f\x8b" else open)(fn))
 
 
 FTP_BASENAME = "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/"
@@ -106,8 +104,6 @@ def parse_assembly(fn, fnidmap):
             continue
         fn = "%s_genomic.fna.gz" % ([i for i in s[19].split("/") if i][-1])
         fnidmap[fn] = int(s[5])
-        for si, se in enumerate(s):
-            print("index %i, string %s" % (si, se))
         index = len(s) - 1
         while "ftp" not in s[index] and index > 0:
             index = index - 1
