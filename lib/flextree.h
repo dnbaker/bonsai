@@ -6,59 +6,44 @@
 
 namespace emp {
 
+struct fnode_t;
+using node_type = std::pair<std::vector<std::uint64_t>, fnode_t>;
+
 struct fnode_t {
-    const std::vector<std::uint64_t> *bits_; // Does not own.
-    const std::uint64_t               n_;    // Number of kmers at this point in tree.
-    fnode_t                          *lua_;  // lowest unadded ancestor
+    std::uint64_t                  n_;  // Number of kmers at this point in tree.
+    node_type                   *lua_;  // lowest unadded ancestor
+    std::vector<node_type *> subsets_;
 
     // Constructor
-    fnode_t(const std::vector<std::uint64_t> &vec, const std::uint64_t n):
-        bits_{&vec}, n_{n}, lua_{nullptr} {}
+    fnode_t(const std::uint64_t n=0):
+        n_{n}, lua_{nullptr} {}
+
 
 };
 
-} // namespace emp
-
-namespace std {
-
-  template <>
-  struct hash<emp::fnode_t>
-  {
-    const struct hash<vector<uint64_t>> vechash_;
-    uint64_t operator()(const emp::fnode_t& node) const
-    {
-        return vechash_(*node.bits_);
+INLINE std::uint64_t get_score(const node_type &node) {
+    std::uint64_t ret(node.second.n_);
+    for(const auto s: node.second.subsets_) {
+        if(s->second.lua_ == nullptr) ret += s->second.n_;
+        else if(popcnt::vec_bitdiff(s->first, node.first) <
+                popcnt::vec_bitdiff(s->first, s->second.lua_->first)) {
+            ret += s->second.n_;
+            //s->second.lua_ = &node; for const
+        }
     }
-  };
-
+    return ret;
 }
 
-namespace emp {
-
-
-class fadjlist_t {
-
-    // This structure might not work with insertion and reinsertion.
-    // Will rethink and correct.
-
-    std::unordered_map<const fnode_t *, std::vector<const fnode_t *>> map_;
-    
-    // Score generation
-    std::uint64_t score(const fnode_t &node) const {
-        const std::uint64_t bd(node.lua_ ? popcnt::vec_bitdiff(*node.bits_,
-                                                  *node.lua_->bits_)
-                                         : popcnt::vec_popcnt(*node.bits_));
-        auto m(map_.find(&node));
-        std::uint64_t n(node.n_);
-        if(m != map_.end())
-            for(const auto i: m->second)
-                n += i->n_;
-        return n * bd;
+struct node_lt {
+    bool operator()(const node_type *a, const node_type *b) const {
+        return get_score(*a) > get_score(*b);
     }
+};
 
-    fadjlist_t() {
-        throw std::runtime_error("NotImplementedError: Make constructor pls.");
-    }
+
+class FlexMap {
+    std::unordered_map<std::vector<std::uint64_t>, fnode_t>  map_;
+    std::set<std::pair<std::vector<std::uint64_t>, fnode_t> *, node_lt> heap_;
 };
 
 } // namespace emp

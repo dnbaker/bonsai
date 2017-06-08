@@ -26,8 +26,11 @@ public:
         ks_.l = strlen(str);
         ks_.m = kroundup64(ks_.l);
         ks_.s = (char *)malloc(ks_.m);
-        memcpy(ks_.s, str, ks_.l);
+        memcpy(ks_.s, str, ks_.l + 1);
     }
+
+    operator kstring_t       *()       {return &ks_;}
+    operator const kstring_t *() const {return &ks_;}
 
     KString(): KString(nullptr) {}
     ~KString() {free(ks_.s);}

@@ -120,7 +120,6 @@ static INLINE unsigned dbm_hash(REGISTER const char *str)
 }
 
 static INLINE unsigned dbm_hash(const std::string str) {return dbm_hash(str.data(), str.size());}
-static INLINE unsigned dbm_hash(const kstring_t *ks) {return dbm_hash(ks->s, ks->l);}
 
 } // namespace emp
 

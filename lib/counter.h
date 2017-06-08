@@ -185,8 +185,8 @@ public:
         vc.reserve(map_.size());
         for(auto &i: map_) vc.emplace_back(&i.first, i.second);
         std::sort(std::begin(vc), std::end(vc));
-        ksprintf(ks, "#Number of distinct patterns: %zu\n", vc.size());
-        ksprintf(ks, "#Pattern\tCount\tNumber of bits set in pattern\n");
+        ksprintf(static_cast<kstring_t*>(ks), "#Number of distinct patterns: %zu\n", vc.size());
+        ksprintf(static_cast<kstring_t*>(ks), "#Pattern\tCount\tNumber of bits set in pattern\n");
         for(const auto &i: vc) {
             std::size_t n(0);
             const T &vec(*i.vec_);

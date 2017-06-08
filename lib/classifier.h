@@ -165,9 +165,9 @@ unsigned classify_seq(ClassifierGeneric<score> &c, Encoder<score> &enc, khash_t(
     else                                           ++c.n_unclassified_;
     if(c.get_emit_all() || taxon) {
         if(c.get_emit_fastq()) {
-            append_fastq_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks, c.get_emit_kraken(), is_paired);
+            append_fastq_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks.ks(), c.get_emit_kraken(), is_paired);
         } else if(c.get_emit_kraken()) {
-            append_kraken_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks);
+            append_kraken_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks.ks());
         }
         // Else just increase quantitation... But that requires some kind of lock-free hash table for counting.
         // Use Jellyfish?
@@ -228,7 +228,7 @@ inline void process_dataset(Classifier &c, khash_t(p) *taxmap, const char *fq1, 
     while((dd.seqs_ = bseq_read(chunk_size, &nseq, (void *)ks1, (void *)ks2))) {
         LOG_INFO("Read %i seqs with chunk size %u\n", nseq, chunk_size);
         // Classify
-        classify_seqs(c, taxmap, dd.seqs_, cks, nseq, per_set, is_paired);
+        classify_seqs(c, taxmap, dd.seqs_, cks.ks(), nseq, per_set, is_paired);
         // Write out
         std::fwrite(cks.data(), 1, cks.size(), out);
         // Delete
