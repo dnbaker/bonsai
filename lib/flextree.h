@@ -23,12 +23,12 @@ struct fnode_t {
 
 INLINE std::uint64_t get_score(const node_type &node) {
     std::uint64_t ret(node.second.n_);
-    for(const auto s: node.second.subsets_) {
+    for(auto s: node.second.subsets_) {
         if(s->second.lua_ == nullptr) ret += s->second.n_;
         else if(popcnt::vec_bitdiff(s->first, node.first) <
                 popcnt::vec_bitdiff(s->first, s->second.lua_->first)) {
             ret += s->second.n_;
-            //s->second.lua_ = &node; for const
+            s->second.lua_ = const_cast<node_type*>(&node);
         }
     }
     return ret;
@@ -42,7 +42,7 @@ struct node_lt {
 
 
 class FlexMap {
-    std::unordered_map<std::vector<std::uint64_t>, fnode_t>  map_;
+    std::unordered_map<std::vector<std::uint64_t>, fnode_t>             map_;
     std::set<std::pair<std::vector<std::uint64_t>, fnode_t> *, node_lt> heap_;
 };
 
