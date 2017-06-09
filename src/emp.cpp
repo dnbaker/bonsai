@@ -279,6 +279,8 @@ int metatree_main(int argc, char *argv[]) {
     LOG_DEBUG("Built parent map.\n");
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 5, argv + argc));
+
+    FlexMap fm(5);
 #ifdef TAX_CHECK
     khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, full_taxmap, name_hash));

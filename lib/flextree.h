@@ -7,57 +7,75 @@
 namespace emp {
 
 struct fnode_t;
-using node_type = std::pair<std::vector<std::uint64_t>, fnode_t>;
+using NodeType = std::pair<const std::vector<std::uint64_t>, fnode_t>;
+using popcnt::vec_bitdiff;
+using popcnt::vec_popcnt;
+
+template<typename T> class TD;
 
 struct fnode_t {
     std::uint64_t                        n_;  // Number of kmers at this point in tree.
-    const node_type                   *lua_;  // lowest unadded ancestor
-    std::vector<node_type *> subsets_;
+    const NodeType                    *lua_;  // lowest unadded ancestor
+    std::vector<NodeType *>        subsets_;
+    const std::uint32_t                 bc_;
 
-    // Constructor
-    fnode_t(const std::uint64_t n=0):
-        n_{n}, lua_{nullptr} {}
+    fnode_t(std::uint32_t bc, const std::uint64_t n):
+        n_{n}, lua_{nullptr}, bc_{bc} {}
 
-
+    bool added() const {return lua_ && &lua_->second == this;}
 };
 
 
-INLINE std::uint64_t get_score(const node_type &node) {
+INLINE std::uint64_t get_score(const NodeType &node) {
     std::uint64_t ret(node.second.n_);
     for(auto s: node.second.subsets_) {
+        if(s->second.added()) continue;
         if(s->second.lua_ == nullptr) ret += s->second.n_;
-        else if(popcnt::vec_bitdiff(s->first, node.first) <
-                popcnt::vec_bitdiff(s->first, s->second.lua_->first)) {
+        else if(s->second.lua_ != s &&
+                vec_bitdiff(s->first, node.first) <
+                    vec_bitdiff(s->first, s->second.lua_->first)) {
             ret += s->second.n_;
             s->second.lua_ = &node;
         }
     }
-    return ret;
+    return node.second.lua_ ? vec_bitdiff(node.second.lua_->first, node.first) * ret
+                            : node.second.bc_ - vec_popcnt(node.first) * ret;
 }
-
-struct node_lt {
-    bool operator()(const node_type *a, const node_type *b) const {
-        return get_score(*a) > get_score(*b);
-    }
-};
 
 
 class FlexMap {
-    std::unordered_map<std::vector<std::uint64_t>, fnode_t>             map_;
-    std::set<std::pair<std::vector<std::uint64_t>, fnode_t> *, node_lt> heap_;
-    std::uint64_t                                                       n_;
+
+    struct node_lt {
+        bool operator()(const NodeType *a, const NodeType *b) const {
+            return get_score(*a) > get_score(*b);
+        }
+    };
+
+    std::unordered_map<std::vector<std::uint64_t>, fnode_t> map_;
+    std::set<NodeType *, node_lt>                           heap_;
+    std::uint64_t                                           n_;
+    std::uint32_t                                           bitcount_;
+
+public:
     void add(std::vector<std::uint64_t> &&elem) {
 #if __GNUC__ >= 7
         if(auto match = map_.find(elem); match == map_.end())
-            map_.emplace(std::move(elem), UINT64_C(1));
 #else
         auto match(map_.find(elem));
-        if(match == map_.end()) map_.emplace(std::move(elem), UINT64_C(1));
+        if(match == map_.end())
 #endif
+            map_.emplace(std::move(elem),
+                         bitcount_, UINT64_C(1));
         else ++match->second.n_;
         ++n_;
     }
-    FlexMap(): n_{0} {}
+    void fill_heap() {
+        for(auto &pair: map_) {
+            heap_.insert(&pair);
+        }
+    }
+    FlexMap(std::uint32_t bitcount): n_{0}, bitcount_{bitcount} {
+    }
 };
 
 } // namespace emp
