@@ -65,7 +65,7 @@ public:
         if(match == map_.end())
 #endif
             map_.emplace(std::move(elem),
-                         bitcount_, UINT64_C(1));
+                         std::forward<fnode_t>(fnode_t(bitcount_, UINT64_C(1))));
         else ++match->second.n_;
         ++n_;
     }
