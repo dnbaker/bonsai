@@ -10,8 +10,8 @@ struct fnode_t;
 using node_type = std::pair<std::vector<std::uint64_t>, fnode_t>;
 
 struct fnode_t {
-    std::uint64_t                  n_;  // Number of kmers at this point in tree.
-    node_type                   *lua_;  // lowest unadded ancestor
+    std::uint64_t                        n_;  // Number of kmers at this point in tree.
+    const node_type                   *lua_;  // lowest unadded ancestor
     std::vector<node_type *> subsets_;
 
     // Constructor
@@ -21,6 +21,7 @@ struct fnode_t {
 
 };
 
+
 INLINE std::uint64_t get_score(const node_type &node) {
     std::uint64_t ret(node.second.n_);
     for(auto s: node.second.subsets_) {
@@ -28,7 +29,7 @@ INLINE std::uint64_t get_score(const node_type &node) {
         else if(popcnt::vec_bitdiff(s->first, node.first) <
                 popcnt::vec_bitdiff(s->first, s->second.lua_->first)) {
             ret += s->second.n_;
-            s->second.lua_ = const_cast<node_type*>(&node);
+            s->second.lua_ = &node;
         }
     }
     return ret;
@@ -44,6 +45,19 @@ struct node_lt {
 class FlexMap {
     std::unordered_map<std::vector<std::uint64_t>, fnode_t>             map_;
     std::set<std::pair<std::vector<std::uint64_t>, fnode_t> *, node_lt> heap_;
+    std::uint64_t                                                       n_;
+    void add(std::vector<std::uint64_t> &&elem) {
+#if __GNUC__ >= 7
+        if(auto match = map_.find(elem); match == map_.end())
+            map_.emplace(std::move(elem), UINT64_C(1));
+#else
+        auto match(map_.find(elem));
+        if(match == map_.end()) map_.emplace(std::move(elem), UINT64_C(1));
+#endif
+        else ++match->second.n_;
+        ++n_;
+    }
+    FlexMap(): n_{0} {}
 };
 
 } // namespace emp
