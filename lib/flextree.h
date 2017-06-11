@@ -9,9 +9,9 @@ namespace emp {
 struct fnode_t;
 using popcnt::vec_bitdiff;
 using popcnt::vec_popcnt;
+using NodeType = std::pair<const std::vector<std::uint64_t>, fnode_t>;
 
 struct fnode_t {
-    using NodeType = std::pair<std::vector<std::uint64_t>, fnode_t>;
 
     std::uint64_t                        n_;  // Number of kmers at this point in tree.
     const NodeType                    *laa_;  // lowest unadded ancestor
@@ -25,7 +25,6 @@ struct fnode_t {
 };
 
 
-using NodeType = std::pair<std::vector<std::uint64_t>, fnode_t>;
 
 INLINE std::uint64_t get_score(const NodeType &node) {
     if(node.second.added()) return 0;
