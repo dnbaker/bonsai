@@ -27,8 +27,10 @@
 #ifndef INLINE
 #  if __GNUC__ || __clang__
 #  define INLINE __attribute__((always_inline)) inline
+#  define PACKED __attribute__((packed))
 #  else
 #  define INLINE inline
+#  define PACKED
 #  endif
 #endif
 
@@ -37,13 +39,15 @@
 using tax_t = std::uint32_t;
 #endif
 
-#define TIME_CODE(code, name) do \
-{                         \
+#define TIME_CODE(code, name) do             \
+{                                            \
     auto i(std::chrono::system_clock::now());\
-    { code }\
+    { code }                                 \
     auto j(std::chrono::system_clock::now());\
     fprintf(stderr, "Task %s took %lf\ns", name, std::chrono::duration<double>(j - i).count());\
 } while(0)
+
+template<typename T> class TD; // For debugging
 
 namespace emp {
 
@@ -66,7 +70,7 @@ std::vector<tax_t> get_all_descendents(const std::unordered_map<tax_t, std::vect
 // Resolve_tree is modified from Kraken 1 source code, which
 // is MIT-licensed. https://github.com/derrickwood/kraken
 tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
-                      khash_t(p) *parent_map) noexcept;
+                   khash_t(p) *parent_map) noexcept;
 
 const char *bool2str(bool val);
 

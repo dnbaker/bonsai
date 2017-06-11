@@ -7,41 +7,41 @@
 namespace emp {
 
 struct fnode_t;
-using NodeType = std::pair<const std::vector<std::uint64_t>, fnode_t>;
 using popcnt::vec_bitdiff;
 using popcnt::vec_popcnt;
 
-template<typename T> class TD;
-
 struct fnode_t {
+    using NodeType = std::pair<std::vector<std::uint64_t>, fnode_t>;
+
     std::uint64_t                        n_;  // Number of kmers at this point in tree.
-    const NodeType                    *lua_;  // lowest unadded ancestor
+    const NodeType                    *laa_;  // lowest unadded ancestor
     std::vector<NodeType *>        subsets_;
     const std::uint32_t                 bc_;
 
     fnode_t(std::uint32_t bc, const std::uint64_t n):
-        n_{n}, lua_{nullptr}, bc_{bc} {}
+        n_{n}, laa_{nullptr}, bc_{bc} {}
 
-    bool added() const {return lua_ && &lua_->second == this;}
+    bool added() const {return laa_ && &laa_->second == this;}
 };
 
 
+using NodeType = std::pair<std::vector<std::uint64_t>, fnode_t>;
+
 INLINE std::uint64_t get_score(const NodeType &node) {
+    if(node.second.added()) return 0;
     std::uint64_t ret(node.second.n_);
     for(auto s: node.second.subsets_) {
         if(s->second.added()) continue;
-        if(s->second.lua_ == nullptr) ret += s->second.n_;
-        else if(s->second.lua_ != s &&
+        if(s->second.laa_ == nullptr) ret += s->second.n_;
+        else if(s->second.laa_ != s &&
                 vec_bitdiff(s->first, node.first) <
-                    vec_bitdiff(s->first, s->second.lua_->first)) {
+                    vec_bitdiff(s->first, s->second.laa_->first)) {
             ret += s->second.n_;
-            s->second.lua_ = &node;
         }
     }
-    return node.second.lua_ ? vec_bitdiff(node.second.lua_->first, node.first) * ret
+    return node.second.laa_ ? vec_bitdiff(node.second.laa_->first, node.first) * ret
                             : node.second.bc_ - vec_popcnt(node.first) * ret;
 }
-
 
 class FlexMap {
 
@@ -57,7 +57,61 @@ class FlexMap {
     std::uint32_t                                           bitcount_;
 
 public:
-    void add(std::vector<std::uint64_t> &&elem) {
+    void prepare_data() {
+        build_adjlist();
+        fill_heap();
+        run_collapse();
+    }
+    void build_adjlist() {
+        for(auto i(map_.begin()), ie(map_.end()); i != ie; ++i) {
+            auto j(i);
+            while(++j != map_.end()) {
+                switch(veccmp(i->first, j->first)) {
+                    case 1:
+                        i->second.subsets_.emplace_back(&*j);
+#if !NDEBUG
+                    {
+                        for(auto ii(i->first.cbegin()), ji(j->first.cbegin()), ei(i->first.cend()); ii != ei; ++ii, ++ji) {
+                            assert((*ii & (~*ji)));  // Assert that ii has bits set ji does not.
+                            assert(!(*ji & (~*ii))); // Assert that ji has no bits set which are not set in i.
+                                                     // If both tests pass, then we did this correctly.
+                        }
+                    }
+#endif
+                        break;
+                    case 2:
+                        j->second.subsets_.emplace_back(&*i);
+                        break;
+                }
+            }
+        }
+    }
+    void fill_heap() {
+        for(auto &pair: map_) {
+            heap_.insert(&pair);
+        }
+    }
+    void run_collapse(std::size_t nelem=0) {
+        assert(map_.size());
+        assert(heap_.size());
+        if(nelem == 0) {
+            auto bccpy(bitcount_);
+            kroundup32(bccpy);
+            LOG_DEBUG("nelem defaulting to %zu\n", static_cast<std::size_t>(bccpy));
+        }
+        for(std::size_t i(0); i < nelem; ++i) {
+            auto bit(heap_.begin());
+            (*bit)->second.laa_ = *bit;
+            throw std::runtime_error("NotImplementedError");
+            // Make a list of all pointers to remove and reinsert to the map.
+            heap_.erase(bit);
+        }
+    }
+public:
+    FlexMap(std::uint32_t bitcount): n_{0}, bitcount_{bitcount} {
+    }
+
+    INLINE void add(std::vector<std::uint64_t> &&elem) {
 #if __GNUC__ >= 7
         if(auto match = map_.find(elem); match == map_.end())
 #else
@@ -69,13 +123,10 @@ public:
         else ++match->second.n_;
         ++n_;
     }
-    void fill_heap() {
-        for(auto &pair: map_) {
-            heap_.insert(&pair);
-        }
-    }
-    FlexMap(std::uint32_t bitcount): n_{0}, bitcount_{bitcount} {
-    }
+
+    /* TODO: {
+        
+    */
 };
 
 } // namespace emp
