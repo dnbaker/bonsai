@@ -15,15 +15,15 @@ namespace emp {
 
 template<typename T, typename ScoreType>
 struct ElScore {
-    T el_;
+    T            el_;
     ScoreType score_;
     INLINE ElScore(T el, ScoreType score): el_(el), score_(score) {
     }
     INLINE ElScore(): el_(0), score_(0) {}
-    INLINE bool operator <(const ElScore &other) const {
+    INLINE bool operator<(const ElScore &other) const {
         return std::tie(score_, el_) < std::tie(other.score_, other.el_);
     }
-    INLINE bool operator ==(const ElScore &other) const {
+    INLINE bool operator==(const ElScore &other) const {
         return el_ == other.el_;
         //return std::tie(score_, el_) == std::tie(other.el_, other.score_); // Lexicographic is tie-breaker.
     }
@@ -36,19 +36,14 @@ class QueueMap {
     // ElScore structs.
     // *maybe* TODO
     //
-    typedef typename std::map<ElScore<T, ScoreType>, unsigned>::iterator map_iterator;
-    std::list<ElScore<T, ScoreType>> list_;
-#if !NDEBUG
-public:
+    using PairType = ElScore<T, ScoreType>;
+    using map_iterator = typename std::map<ElScore<T, ScoreType>, unsigned>::iterator;
+    std::list<ElScore<T, ScoreType>>         list_;
     std::map<ElScore<T, ScoreType>, unsigned> map_;
-private:
-#else
-    std::map<ElScore<T, ScoreType>, unsigned> map_;
-#endif
-    const std::size_t wsz_;  // window size to keep
+    const std::size_t                         wsz_;  // window size to keep
     public:
     QueueMap(std::size_t wsz): wsz_(wsz) {}
-    INLINE void add(const ElScore<T, ScoreType> &el) {
+    INLINE void add(const PairType &el) {
         auto it(map_.lower_bound(el));
         if(it != map_.end()) {
             if(it->first == el) ++it->second;
@@ -57,7 +52,7 @@ private:
         else map_.emplace(el, 1);
         //else map_.emplace_hint(it, el, 1);
     }
-    INLINE void del(const ElScore<T, ScoreType> &el) {
+    INLINE void del(const PairType &el) {
         auto f(map_.find(el));
         //LOG_DEBUG("Removing %s\n", f->first.to_string().data());
         if(--f->second <= 0)
@@ -66,8 +61,14 @@ private:
     map_iterator begin() {
         return map_.begin();
     }
+    const map_iterator begin() const {
+        return map_.cbegin();
+    }
     map_iterator end() {
         return map_.end();
+    }
+    const map_iterator end() const {
+        return map_.cend();
     }
     // Do a std::enable_if that involves moving the element if it's by reference?
     std::uint64_t next_value(const T el, const std::uint64_t score) {
