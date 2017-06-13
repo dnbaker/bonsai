@@ -1,5 +1,5 @@
 //.h:
-enum class ClassLvl:int {
+enum class ClassLevel:int {
     SUPERKINGDOM = 0,
     KINGDOM      = 1,
     SUBKINGDOM   = 2,

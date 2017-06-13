@@ -14,7 +14,7 @@ def get_levels(path):
 
 
 def generate_enum(clades, maxl):
-    enum_str = "enum class ClassLvl:int {\n"
+    enum_str = "enum class ClassLevel:int {\n"
     enum_str += "\n".join("    %s%s= %i," % (clade.upper(),
                                              (maxl - len(clade) + 1) * ' ',
                                              id)
@@ -28,7 +28,7 @@ def generate_enum(clades, maxl):
 def generate_class_names(clades):
     reth = "extern const char *classlvl_arr[%i];\n" % (len(clades) + 2)
     retc = "const char *classlvl_arr[%i] {\n" % (len(clades) + 2)
-    retc += "    \"no rank\",\n    \"root\"\n"
+    retc += "    \"no rank\",\n    \"root\",\n"
     retc += "\n".join("    \"%s\"," % clade.lower() for clade in clades)
     retc += "\n};\n\n"
     return reth, retc
@@ -77,6 +77,8 @@ def print_levels():
 def main():
     import sys
     argv = sys.argv
+    addstr = ""
+    endstr = ""
     for i in argv:
         if i in ["-h", "--help", "-?"]:
             sys.stderr.write("Usage: python %s <namesfile.txt> "
@@ -84,12 +86,24 @@ def main():
                              "[Omit outfiles to write to "
                              "stderr/stdout respectively.]\n" % argv[0])
             sys.exit(1)
+        if i in ["-c", "--standalone"]:
+            addstr = "\n".join("#include <%s>" % i for
+                               i in ("string", "iostream",
+                                     "cassert", "unordered_map")
+                              ) + "\n"
+            endstr = ("int main() {\n    for(const auto &pair: classlvl_map)"
+                      " std::cerr << pair.first << \" has index \" << "
+                      "(int)pair.second + 2 << \" and value \" << "
+                      "(int)pair.second << \" and matching string \" << "
+                       "classlvl_arr[(int)pair.second + 2] << '\\n';\n}\n")
+    if addstr:
+        argv = [i for i in argv if i not in ["-h", "-c", "--standalone", "--help"]]
     with open(argv[1]) if argv[1:] else stdout as f:
         clades = [line.strip() for line in f]
     doth, dotc = generate_code(clades)
-    print("//.h:\n" + doth,
+    print("//.h:\n" + addstr + doth,
           file=open(argv[2], "w") if argv[2:] else sys.stderr)
-    print("//.cpp:\n" + dotc,
+    print("//.cpp:\n" + dotc + endstr,
           file=open(argv[3], "w") if len(argv) >= 3 else sys.stdout)
     return 0
 

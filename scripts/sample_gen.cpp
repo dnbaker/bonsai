@@ -1,7 +1,7 @@
 //.cpp:
 const char *classlvl_arr[31] {
     "no rank",
-    "root"
+    "root",
     "superkingdom",
     "kingdom",
     "subkingdom",
