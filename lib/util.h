@@ -15,13 +15,25 @@
 #include "lib/logutil.h"
 
 #ifdef __GNUC__
-#  define likely(x) __builtin_expect((x),1)
-#  define unlikely(x) __builtin_expect((x),0)
-#  define UNUSED(x) __attribute__((unused)) x
+#  ifndef likely
+#    define likely(x) __builtin_expect((x),1)
+#  endif
+#  ifndef unlikely
+#    define unlikely(x) __builtin_expect((x),0)
+#  endif
+#  ifndef UNUSED
+#    define UNUSED(x) __attribute__((unused)) x
+#  endif
 #else
-#  define likely(x) (x)
-#  define unlikely(x) (x)
-#  define UNUSED(x) (x)
+#  ifndef likely
+#    define likely(x) (x)
+#  endif
+#  ifndef unlikely
+#    define unlikely(x) (x)
+#  endif
+#  ifndef UNUSED
+#    define UNUSED(x) (x)
+#  endif
 #endif
 
 #ifndef INLINE
@@ -78,7 +90,7 @@ const char *bool2str(bool val);
 template<typename T>
 static INLINE auto roundup64(T x) noexcept {
     kroundup64(x);
-    return ++x;
+    return x;
 }
 
 INLINE std::uint64_t rand64() noexcept {
@@ -221,11 +233,9 @@ subtribe
 genus
 subgenus
 species
-group
-species
-subgroup
-species
 subspecies
+group
+subgroup
 varitas
 forma
 #endif
@@ -265,6 +275,11 @@ enum ClassLevel:int {
 };
 
 extern const std::unordered_map<std::string, ClassLevel> classlvl_map;
+extern const char *classlvl_arr[31];
+
+INLINE const char *get_lvlname(ClassLevel lvl) {return classlvl_arr[lvl + 2];}
+ClassLevel get_linelvl(const char *line);
+
 
 } // namespace emp
 

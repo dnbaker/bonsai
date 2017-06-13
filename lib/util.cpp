@@ -374,7 +374,56 @@ const std::unordered_map<std::string, ClassLevel> classlvl_map {
     {"subspecies", SUBSPECIES},
     {"varietas", VARIETAS},
     {"forma", FORMA},
-    {"no rank", NO_RANK}
+    {"no rank", NO_RANK},
+    {"root", ROOT}
 };
+
+const char *classlvl_arr[31] {
+    "no rank",
+    "root",
+    "superkingdom",
+    "kingdom",
+    "subkingdom",
+    "superphylum",
+    "phylum",
+    "subphylum",
+    "superclass",
+    "class",
+    "subclass",
+    "infraclass",
+    "cohort",
+    "superorder",
+    "order",
+    "suborder",
+    "infraorder",
+    "parvorder",
+    "superfamily",
+    "family",
+    "subfamily",
+    "tribe",
+    "subtribe",
+    "genus",
+    "subgenus",
+    "species",
+    "group",
+    "subgroup",
+    "subspecies",
+    "varietas",
+    "forma"
+};
+
+ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unordered_map<std::string, ClassLevel> &map) {
+    char *p(strchr(line, '|'));
+    if(!(p && (p = strchr(p, '|'))))
+        throw std::runtime_error("Improperly formatted line");
+    p = p + 2;
+    char *q(p);
+    while(*q != '\t' && *q) ++q;
+    if(!*q) throw std::runtime_error("Improperly formatted line");
+    buffer = std::string(p, q);
+    auto m(map.find(buffer));
+    if(m == map.end()) throw std::runtime_error(std::string("Unexpected field entry ") + buffer);
+    return m->second;
+}
 
 } //namespace emp
