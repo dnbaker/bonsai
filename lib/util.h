@@ -240,7 +240,7 @@ varitas
 forma
 #endif
 
-enum ClassLevel:int {
+enum class ClassLevel:int {
     SUPERKINGDOM = 0,
     KINGDOM      = 1,
     SUBKINGDOM   = 2,
@@ -277,7 +277,7 @@ enum ClassLevel:int {
 extern const std::unordered_map<std::string, ClassLevel> classlvl_map;
 extern const char *classlvl_arr[31];
 
-INLINE const char *get_lvlname(ClassLevel lvl) {return classlvl_arr[lvl + 2];}
+INLINE const char *get_lvlname(ClassLevel lvl) {return classlvl_arr[static_cast<int>(lvl) + 2];}
 ClassLevel get_linelvl(const char *line);
 
 
