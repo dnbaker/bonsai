@@ -344,4 +344,37 @@ _KHD(c)
 _KHD(64)
 _KHD(p)
 
+const std::unordered_map<std::string, ClassLevel> classlvl_map {
+    {"superkingdom", SUPERKINGDOM},
+    {"kingdom", KINGDOM},
+    {"subkingdom", SUBKINGDOM},
+    {"superphylum", SUPERPHYLUM},
+    {"phylum", PHYLUM},
+    {"subphylum", SUBPHYLUM},
+    {"superclass", SUPERCLASS},
+    {"class", CLASS},
+    {"subclass", SUBCLASS},
+    {"infraclass", INFRACLASS},
+    {"cohort", COHORT},
+    {"superorder", SUPERORDER},
+    {"order", ORDER},
+    {"suborder", SUBORDER},
+    {"infraorder", INFRAORDER},
+    {"parvorder", PARVORDER},
+    {"superfamily", SUPERFAMILY},
+    {"family", FAMILY},
+    {"subfamily", SUBFAMILY},
+    {"tribe", TRIBE},
+    {"subtribe", SUBTRIBE},
+    {"genus", GENUS},
+    {"subgenus", SUBGENUS},
+    {"species", SPECIES},
+    {"group", GROUP},
+    {"subgroup", SUBGROUP},
+    {"subspecies", SUBSPECIES},
+    {"varietas", VARIETAS},
+    {"forma", FORMA},
+    {"no rank", NO_RANK}
+};
+
 } //namespace emp

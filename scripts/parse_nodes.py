@@ -13,7 +13,18 @@ def get_levels(path):
     return Counter(get_level(line) for line in open(path))
 
 
+
 '''
+  --- Changed:
+         'family': 8578,
+         'forma': 470,
+         'genus': 82587,
+         'no rank': 214584,
+         'order': 1418,
+         'subspecies': 20777,
+         'varietas': 6789
+
+
 Counter({'class': 309,
          'cohort': 3,
          'family': 8575,
@@ -76,3 +87,9 @@ forma
 '''
 
 
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) < 2:
+        print("Usage: python " + sys.argv[0] + " <nodes.dmp>")
+        sys.exit(1)
+    print(repr(get_levels(sys.argv[1])))
