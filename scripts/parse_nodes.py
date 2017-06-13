@@ -89,13 +89,15 @@ def main():
         if i in ["-c", "--standalone"]:
             addstr = "\n".join("#include <%s>" % i for
                                i in ("string", "iostream",
-                                     "cassert", "unordered_map")
+                                     "cassert", "unordered_map", "cstring")
                               ) + "\n"
-            endstr = ("int main() {\n    for(const auto &pair: classlvl_map)"
-                      " std::cerr << pair.first << \" has index \" << "
+            endstr = ("int main() {\n    for(const auto &pair: classlvl_map) {\n"
+                      "        std::cerr << pair.first << \" has index \" << "
                       "(int)pair.second + 2 << \" and value \" << "
                       "(int)pair.second << \" and matching string \" << "
-                       "classlvl_arr[(int)pair.second + 2] << '\\n';\n}\n")
+                       "classlvl_arr[(int)pair.second + 2] << '\\n';\n        "
+                       "assert(std::strcmp(pair.first.data(), classlvl_arr[(int)pair.second + 2]) == 0);}"
+                       "\n}\n")
     if addstr:
         argv = [i for i in argv if i not in ["-h", "-c", "--standalone", "--help"]]
     with open(argv[1]) if argv[1:] else stdout as f:
