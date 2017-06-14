@@ -1,4 +1,6 @@
 //.cpp:
+#include "sample_gen.h"
+namespace emp {
 const char *classlvl_arr[31] {
     "no rank",
     "root",
@@ -67,4 +69,6 @@ const std::unordered_map<std::string, ClassLevel> classlvl_map {
     {"forma",        ClassLevel::FORMA},
 };
 
+
+} // namespace emp
 

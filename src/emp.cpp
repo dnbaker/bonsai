@@ -318,6 +318,7 @@ int metatree_main(int argc, char *argv[]) {
 #endif
     kh_destroy(p, full_taxmap);
     if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
+#if 0
     std::unordered_map<tax_t, std::vector<tax_t>> inverted_map(invert_parent_map(taxmap));
     LOG_DEBUG("Sorted nodes.\n");
     tree::SortedNodeGuide guide(taxmap);
@@ -328,11 +329,9 @@ int metatree_main(int argc, char *argv[]) {
         LOG_DEBUG("Value in spacer is %i\n", (int)i);
     }
     std::vector<tax_t> nodes(std::move(guide.get_nodes()));
-#if 0
     for(const auto tax: nodes) {
         std::fprintf(stderr, "node %u has parent %u and depth %u\n", tax, get_parent(taxmap, tax), node_depth(taxmap, tax));
     }
-#endif
     std::vector<std::string> to_fetch;
     std::unordered_set<tax_t> parents;
     std::tie(to_fetch, parents) = std::move(tree::invert_lca_map(db, folder.data(), dry_run));
@@ -364,6 +363,7 @@ int metatree_main(int argc, char *argv[]) {
         }
         ta.emplace_subtree(taxmap, parent_tax, folder, sp, tx2g, inverted_map, num_threads);
     }
+#endif
     destroy_name_hash(name_hash);
     kh_destroy(p, taxmap);
     return EXIT_SUCCESS;

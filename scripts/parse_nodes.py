@@ -56,6 +56,8 @@ def generate_code(clades):
             raise RuntimeError("Clades is of type %s" % type(clades))
     clades = [clade for clade in clades if clade not in
               ("no", "rank", "no rank", "root")]
+    prefix = "namespace emp {\n"
+    suffix = "\n} // namespace emp\n"
     maxl = max(max(map(len, clades)), 7)
     enumstr = generate_enum(clades, maxl)
     hdr, retstr = generate_class_names(clades)
@@ -63,6 +65,14 @@ def generate_code(clades):
     chdr, cf = generate_class_map(clades, maxl)
     retstr += cf
     hdr += chdr
+    retstr = prefix + retstr + suffix
+    retstr = "#include \"sample_gen.h\"\n" + retstr
+    hdr = "\n".join(("#ifndef _CLADE_HEADER_H__\n#define _CLADE_HEADER_H__",
+                     "\n".join("#include <%s>" % i for i in
+                               ("string", "iostream", "cassert",
+                                "unordered_map", "cstring")),
+                     prefix, hdr, suffix,
+                     "#endif // #ifndef _CLADE_HEADER_H__\n"))
     return hdr, retstr
 
 
@@ -87,19 +97,17 @@ def main():
                              "stderr/stdout respectively.]\n" % argv[0])
             sys.exit(1)
         if i in ["-c", "--standalone"]:
-            addstr = "\n".join("#include <%s>" % i for
-                               i in ("string", "iostream",
-                                     "cassert", "unordered_map", "cstring")
-                              ) + "\n"
-            endstr = ("int main() {\n    for(const auto &pair: classlvl_map) {\n"
+            endstr = ("int main() {\n    for(const auto &pair:"
+                      " classlvl_map) {\n"
                       "        std::cerr << pair.first << \" has index \" << "
                       "(int)pair.second + 2 << \" and value \" << "
                       "(int)pair.second << \" and matching string \" << "
-                       "classlvl_arr[(int)pair.second + 2] << '\\n';\n        "
-                       "assert(std::strcmp(pair.first.data(), classlvl_arr[(int)pair.second + 2]) == 0);}"
-                       "\n}\n")
-    if addstr:
-        argv = [i for i in argv if i not in ["-h", "-c", "--standalone", "--help"]]
+                      "classlvl_arr[(int)pair.second + 2] << '\\n';\n        "
+                      "assert(std::strcmp(pair.first.data(), classlvl_arr"
+                      "[(int)pair.second + 2]) == 0);}"
+                      "\n}\n")
+    argv = [i for i in argv if i not in ["-h", "-c", "--standalone",
+                                         "--help", "-?"]]
     with open(argv[1]) if argv[1:] else stdout as f:
         clades = [line.strip() for line in f]
     doth, dotc = generate_code(clades)

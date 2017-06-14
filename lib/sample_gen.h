@@ -1,4 +1,13 @@
 //.h:
+#ifndef _CLADE_HEADER_H__
+#define _CLADE_HEADER_H__
+#include <string>
+#include <iostream>
+#include <cassert>
+#include <unordered_map>
+#include <cstring>
+namespace emp {
+
 enum class ClassLevel:int {
     SUPERKINGDOM = 0,
     KINGDOM      = 1,
@@ -35,4 +44,9 @@ enum class ClassLevel:int {
 
 extern const char *classlvl_arr[31];
 extern const std::unordered_map<std::string, ClassLevel> classlvl_map;
+
+
+} // namespace emp
+
+#endif // #ifndef _CLADE_HEADER_H__
 

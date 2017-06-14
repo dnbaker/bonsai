@@ -160,7 +160,7 @@ public:
         std::vector<unsigned> counts(countset.begin(), countset.end());
         std::sort(counts.begin(), counts.end());
         std::fputs("#Count\tNumber of occurrences\n", fp);
-        for(auto count: counts) ret += fprintf(fp, "%u\t%u\n", count, hist_->find(count)->second);
+        for(auto count: counts) ret += std::fprintf(fp, "%u\t%u\n", count, hist_->find(count)->second);
         return ret;
     }
 
@@ -194,16 +194,11 @@ public:
             for(const auto j: vec) {
                 sum += j;
                 auto k(j);
+                // WISHLIST: could data-parallelize with a lookup table.
                 for(std::uint64_t i(0); i < std::min(CHAR_BIT * sizeof(j), nelem_ - n); ++i) {
                     kputc_('0' + (k&1), ks);
                     pc += k&1;
                     k >>= 1;
-#if 0
-                    if(++n >= nelem_) {
-                        ksprintf(ks, "\t%zu\n", i.count_);
-                        goto end;
-                    }
-#endif
                 }
             }
             ksprintf(ks, "\t%zu\t%zu\n", i.count_, pc);
