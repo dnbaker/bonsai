@@ -13,11 +13,13 @@ DBG:= -D_GLIBCXX_DEBUG # -DNDEBUG # -fno-inline
 OS:=$(shell uname)
 FLAGS=
 
-ifeq (,$(findstring g++,$(CXX)))
+ifneq (,$(findstring g++,$(CXX)))
 	ifeq ($(shell uname),Darwin)
 		ifeq (,$(findstring clang,$(CXX)))
 			FLAGS := $(FLAGS) -Wa,-q
 			CLHASH_CHECKOUT := "&& git checkout mac"
+		else
+			FLAGS := $(FLAGS) -flto
 		endif
 	endif
 endif
@@ -61,7 +63,6 @@ test/%.o: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 %.o: %.cpp
-	echo "match: " $(GMATCH) && \
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 %: src/%.o $(OBJS) libhll.a

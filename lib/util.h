@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <limits>
 #include <chrono>
+#include "klib/kstring.h"
 #include "khash64.h"
 #include "lib/logutil.h"
 #include "lib/sample_gen.h"
@@ -53,7 +54,7 @@ using tax_t = std::uint32_t;
 #endif
 
 
-#if !(defined(HAS_KPUTUW__) && HAS_KPUTUW__)
+#ifndef HAS_KPUTUW__
 #define kputuw_ kputuw
 #endif
 
