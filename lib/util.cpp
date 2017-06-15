@@ -351,11 +351,11 @@ _KHD(64)
 _KHD(p)
 
 ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unordered_map<std::string, ClassLevel> &map) {
-    char *p(strchr(line, '|'));
+    const char *p(strchr(line, '|'));
     if(!(p && (p = strchr(p, '|'))))
         throw std::runtime_error("Improperly formatted line");
     p = p + 2;
-    char *q(p);
+    const char *q(p);
     while(*q != '\t' && *q) ++q;
     if(!*q) throw std::runtime_error("Improperly formatted line");
     buffer = std::string(p, q);

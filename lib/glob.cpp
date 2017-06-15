@@ -41,8 +41,8 @@ tree_glob_t::tree_glob_t(khash_t(p) *tax, tax_t parent, const std::string &fld, 
 
     if(acceptable_) khash_destroy(acceptable_), acceptable_ = nullptr;
 
-    fwd_ = std::move(adjmap_t(counts_, adjmap_t::orientation::FORWARD));
-    rev_ = std::move(adjmap_t(counts_, adjmap_t::orientation::REVERSE));
+    fwd_ = adjmap_t(counts_, adjmap_t::orientation::FORWARD);
+    rev_ = adjmap_t(counts_, adjmap_t::orientation::REVERSE);
 }
 
 void tree_adjudicator_t::process_subtree(std::size_t i) {

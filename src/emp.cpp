@@ -137,9 +137,9 @@ int phase2_main(int argc, char *argv[]) {
         kh_destroy(p, taxmap);
         return EXIT_SUCCESS;
     }
-    Database<khash_t(64)> phase1_map(Database<khash_t(64)>(argv[optind]));
+    Database<khash_t(64)> phase1_map{Database<khash_t(64)>(argv[optind])};
     Spacer sp(k, wsz, phase1_map.s_);
-    Database<khash_t(c)>  phase2_map(phase1_map);
+    Database<khash_t(c)>  phase2_map{phase1_map};
     khash_t(p) *taxmap(tax_path.empty() ? nullptr: build_parent_map(tax_path.data()));
     phase2_map.db_ = minimized_map<hash_score>(inpaths, phase1_map.db_, sp, num_threads, start_size);
     // Write minimized map
@@ -331,7 +331,7 @@ int metatree_main(int argc, char *argv[]) {
         for(khiter_t ki(0); ki != kh_end(taxmap); ++ki)
             if(kh_exist(taxmap, ki))
                 taxset.insert(kh_key(taxmap, ki));
-        taxes = std::move(std::vector<tax_t>(taxset.begin(), taxset.end()));
+        taxes = std::vector<tax_t>(taxset.begin(), taxset.end());
     }
     std::unordered_map<tax_t, ClassLevel> taxclassmap;
     {

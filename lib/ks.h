@@ -36,7 +36,7 @@ public:
     ~KString() {free(ks_.s);}
 
     // kstring_t access:
-    const auto operator->() const {
+    auto operator->() const {
         return const_cast<const kstring_t *>(&ks_);
     }
     kstring_t *operator->() {return &ks_;}
@@ -118,11 +118,11 @@ public:
     char  *release() {auto ret(ks_.s); ks_.l = ks_.m = 0; ks_.s = nullptr; return ret;}
 
     // STL imitation
-    size_t       size() const {return ks_.l;}
-    auto        begin() const {return ks_.s;}
-    auto          end() const {return ks_.s + ks_.l;}
-    const auto cbegin() const {return const_cast<const char *>(ks_.s);}
-    const auto   cend() const {return const_cast<const char *>(ks_.s + ks_.l);}
+    size_t size() const {return ks_.l;}
+    auto  begin() const {return ks_.s;}
+    auto    end() const {return ks_.s + ks_.l;}
+    auto cbegin() const {return const_cast<const char *>(ks_.s);}
+    auto   cend() const {return const_cast<const char *>(ks_.s + ks_.l);}
     char pop() {const char ret(ks_.s[--ks_.l]); ks_.s[ks_.l] = 0; return ret;}
     void pop(size_t n) {
         ks_.l = ks_.l > n ? ks_.l - n: 0;

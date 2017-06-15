@@ -1,6 +1,8 @@
 .PHONY=all tests clean obj
 CXX=g++
 CC=gcc
+
+CLHASH_CHECKOUT = ""
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
          -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
          -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
@@ -10,13 +12,17 @@ OPT:= -O3 -funroll-loops -ffast-math \
 	  -fopenmp \
       -pipe -fno-strict-aliasing -march=native -mpclmul # -DUSE_PAR_HELPERS
 OS:=$(shell uname)
-ifeq ($(OS),Darwin)
-	OPT := $(OPT) -Wa,-q
-else
-    OPT := $(OPT) -flto
+
+ifeq ($(shell uname),Darwin)
+	ifneq (,$(findstring "g++",$(CXX)))
+		FLAGS := $(FLAGS) -Wa,-q
+        CLHASH_CHECKOUT := "&& git checkout mac"
+    else
+        CLHASH_CHECKOUT := "&& git checkout master"
+	endif
 endif
 XXFLAGS=-fno-rtti
-CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS)
+CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++1z $(WARNINGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread -lhll -lcrypto
 LD=-L.
@@ -42,7 +48,7 @@ libhll.a:
 obj: $(OBJS) $(EXEC_OBJS) libhll.a
 
 clhash.o: clhash/src/clhash.c
-	cd clhash && git checkout mac && make && cd .. && mv clhash/clhash.o .
+	cp clhash/clhash.o . || (cd clhash $(CLHASH_CHECKOUT) && make && cd .. && mv clhash/clhash.o .)
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB)

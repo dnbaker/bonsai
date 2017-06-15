@@ -145,7 +145,7 @@ public:
                 if(kh_exist(h, ki)) {
                     auto m(tmp.find(kh_key(h, ki)));
                     if(m == tmp.end()) m = tmp.emplace(kh_key(h, ki),
-                                                       std::move(std::vector<std::uint64_t>(len))).first;
+                                                       std::vector<std::uint64_t>(len)).first;
                     m->second[i >> 6] |= 1u << (i & 63u);
                 }
             }

@@ -1,11 +1,7 @@
 #ifndef _HASH_H_
 #define _HASH_H_
 #include "util.h"
-#if __cplusplus < 201700 // c++ < c++17
-#  define REGISTER register
-#else // c++17
-#  define REGISTER
-#endif // c++17
+#define REGISTER
 
 
 namespace emp {

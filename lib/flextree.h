@@ -12,9 +12,8 @@ using popcnt::vec_popcnt;
 using NodeType = std::pair<const std::vector<std::uint64_t>, fnode_t>;
 
 struct fnode_t {
-
     std::uint64_t                        n_;  // Number of kmers at this point in tree.
-    const NodeType                    *laa_;  // lowest unadded ancestor
+    const NodeType                    *laa_;  // lowest added ancestor
     std::vector<NodeType *>        subsets_;
     const std::uint32_t                 bc_;
 
