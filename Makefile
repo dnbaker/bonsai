@@ -2,25 +2,29 @@
 CXX=g++
 CC=gcc
 
-CLHASH_CHECKOUT = ""
-WARNINGS=-Wall -Wextra -Wno-char-subscripts \
-         -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
-         -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
-         # -pedantic
-DBG:= -D_GLIBCXX_DEBUG # -DNDEBUG # -fno-inline
-OPT:= -O3 -funroll-loops -ffast-math \
-	  -fopenmp \
-      -pipe -fno-strict-aliasing -march=native -mpclmul # -DUSE_PAR_HELPERS
-OS:=$(shell uname)
+GMATCH=$(findstring g++,$(CXX))
 
-ifeq ($(shell uname),Darwin)
-	ifneq (,$(findstring "g++",$(CXX)))
-		FLAGS := $(FLAGS) -Wa,-q
-        CLHASH_CHECKOUT := "&& git checkout mac"
-    else
-        CLHASH_CHECKOUT := "&& git checkout master"
+CLHASH_CHECKOUT = "&& git checkout master"
+WARNINGS=-Wall -Wextra -Wno-char-subscripts \
+		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
+		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
+		 # -pedantic
+DBG:= -D_GLIBCXX_DEBUG # -DNDEBUG # -fno-inline
+OS:=$(shell uname)
+FLAGS=
+
+ifeq (,$(findstring g++,$(CXX)))
+	ifeq ($(shell uname),Darwin)
+		ifeq (,$(findstring clang,$(CXX)))
+			FLAGS := $(FLAGS) -Wa,-q
+			CLHASH_CHECKOUT := "&& git checkout mac"
+		endif
 	endif
 endif
+
+OPT:= -O3 -funroll-loops -ffast-math \
+	  -fopenmp \
+	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) # -DUSE_PAR_HELPERS
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++1z $(WARNINGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
@@ -36,14 +40,14 @@ EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/*.cpp))
 EX=$(patsubst src/%.o,%,$(EXEC_OBJS))
 
 HEADERS=lib/encoder.h lib/kmerutil.h lib/spacer.h lib/misc.h \
-        lib/cms.h lib/kseq_declare.h lib/feature_min.h hll/hll.h lib/hash.h lib/db.h
+		lib/cms.h lib/kseq_declare.h lib/feature_min.h hll/hll.h lib/hash.h lib/db.h
 
 INCLUDE=-I. -Ilib
 
 all: $(OBJS) $(EX) unit
 
 libhll.a:
-	cd hll && make && cp libhll.a ..
+	cd hll && make CXX=$(CXX) && cp libhll.a ..
 
 obj: $(OBJS) $(EXEC_OBJS) libhll.a
 
@@ -57,6 +61,7 @@ test/%.o: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 %.o: %.cpp
+	echo "match: " $(GMATCH) && \
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 %: src/%.o $(OBJS) libhll.a

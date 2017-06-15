@@ -221,7 +221,6 @@ tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
 {
   std::set<tax_t> max_taxa;
   tax_t max_taxon(0), max_score(0);
-  auto it(hit_counts.cbegin());
 
   // Sum each taxon's LTR path
   for(auto it(hit_counts.cbegin()), e(hit_counts.cend()); it != e; ++it) {
