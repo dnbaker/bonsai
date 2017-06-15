@@ -96,7 +96,9 @@ public:
         if(nelem == 0) {
             auto bccpy(bitcount_);
             kroundup32(bccpy);
-            LOG_DEBUG("nelem defaulting to %zu\n", static_cast<std::size_t>(bccpy));
+            ++bccpy;
+            kroundup32(bccpy); //
+            LOG_DEBUG("elements to add defaulting to %zu\n", static_cast<std::size_t>(bccpy));
         }
         for(std::size_t i(0); i < nelem; ++i) {
             auto bit(heap_.begin());

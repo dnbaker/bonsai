@@ -270,6 +270,12 @@ std::string get_firstline(const char *fn) {
     static const std::size_t bufsz(2048);
     char buf[bufsz];
     std::string ret(gzgets(fp, buf, bufsz));
+    if(ret.back() != '\n')
+        throw std::runtime_error(std::string("[E:get_firstline] line from ") +
+                                 fn + " did not fit in buffer of size " +
+                                 std::to_string(bufsz) +
+                                 ". Try recompiling with a larger "
+                                 "buffer or rewrite get_firstline.");
     ret.pop_back();
     gzclose(fp);
     return ret;

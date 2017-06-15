@@ -18,9 +18,9 @@ def generate_enum(clades, maxl):
     enum_str += "\n".join("    %s%s= %i," % (clade.upper(),
                                              (maxl - len(clade) + 1) * ' ',
                                              id)
-                          for id, clade in enumerate(clades))
-    enum_str += ("\n    ROOT %s= -1,"
-                 "\n    NO_RANK %s= -2\n};\n\n" % ((maxl - 4) * ' ',
+                          for id, clade in enumerate(clades, start=2))
+    enum_str += ("\n    ROOT %s= 1,"
+                 "\n    NO_RANK %s= 0\n};\n\n" % ((maxl - 4) * ' ',
                                                    (maxl - 7) * ' '))
     return enum_str
 
@@ -71,7 +71,7 @@ def generate_code(clades):
                      "\n".join("#include <%s>" % i for i in
                                ("string", "iostream", "cassert",
                                 "unordered_map", "cstring")),
-                     prefix, hdr, suffix,
+                     prefix, hdr, "#define LINE_LVL_OFFSET 0\n", suffix,
                      "#endif // #ifndef _CLADE_HEADER_H__\n"))
     return hdr, retstr
 
@@ -89,6 +89,7 @@ def main():
     argv = sys.argv
     addstr = ""
     endstr = ""
+    standalone = False
     for i in argv:
         if i in ["-h", "--help", "-?"]:
             sys.stderr.write("Usage: python %s <namesfile.txt> "
@@ -106,14 +107,18 @@ def main():
                       "assert(std::strcmp(pair.first.data(), classlvl_arr"
                       "[(int)pair.second + 2]) == 0);}"
                       "\n}\n")
+            standalone = True
     argv = [i for i in argv if i not in ["-h", "-c", "--standalone",
                                          "--help", "-?"]]
     with open(argv[1]) if argv[1:] else stdout as f:
         clades = [line.strip() for line in f]
     doth, dotc = generate_code(clades)
-    print("//.h:\n" + addstr + doth,
+    if standalone:
+        addstr = "//.h:\n" + addstr
+        dotc = "//.cpp:\n" + dotc
+    print(addstr + doth,
           file=open(argv[2], "w") if argv[2:] else sys.stderr)
-    print("//.cpp:\n" + dotc + endstr,
+    print(dotc + endstr,
           file=open(argv[3], "w") if len(argv) >= 3 else sys.stdout)
     return 0
 

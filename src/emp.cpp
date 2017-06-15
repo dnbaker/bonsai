@@ -9,10 +9,13 @@
 #include "lib/glob.h"
 #include "lib/flextree.h"
 #include <functional>
+#include <fstream>
 
 using namespace emp;
 
 using namespace std::literals;
+using std::cerr;
+using std::cout;
 
 int classify_main(int argc, char *argv[]) {
     int co, num_threads(16), emit_kraken(1), emit_fastq(0), emit_all(0), chunk_size(1 << 20), per_set(32);
@@ -276,10 +279,12 @@ int metatree_main(int argc, char *argv[]) {
     }
     khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));
     LOG_DEBUG("Parsed name hash.\n");
-    LOG_DEBUG("Built parent map.\n");
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 5, argv + argc));
-
+#if !NDEBUG
+    cerr << "Processing " << inpaths.size() << " inpaths:\n";
+    for(const auto &str: inpaths) cerr << str << '\n';
+#endif
     FlexMap fm(5);
 #ifdef TAX_CHECK
     khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
@@ -318,52 +323,35 @@ int metatree_main(int argc, char *argv[]) {
 #endif
     kh_destroy(p, full_taxmap);
     if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
-#if 0
-    std::unordered_map<tax_t, std::vector<tax_t>> inverted_map(invert_parent_map(taxmap));
-    LOG_DEBUG("Sorted nodes.\n");
-    tree::SortedNodeGuide guide(taxmap);
-    Database<khash_t(c)> db(argv[optind]);
-    Spacer sp(db.k_, db.w_, db.s_);
-    for(auto &i: sp.s_) {
-        --i;
-        LOG_DEBUG("Value in spacer is %i\n", (int)i);
+
+// Core
+    std::vector<tax_t> taxes;
+    {
+        std::unordered_set<tax_t> taxset;
+        for(khiter_t ki(0); ki != kh_end(taxmap); ++ki)
+            if(kh_exist(taxmap, ki))
+                taxset.insert(kh_key(taxmap, ki));
+        taxes = std::move(std::vector<tax_t>(taxset.begin(), taxset.end()));
     }
-    std::vector<tax_t> nodes(std::move(guide.get_nodes()));
-    for(const auto tax: nodes) {
-        std::fprintf(stderr, "node %u has parent %u and depth %u\n", tax, get_parent(taxmap, tax), node_depth(taxmap, tax));
-    }
-    std::vector<std::string> to_fetch;
-    std::unordered_set<tax_t> parents;
-    std::tie(to_fetch, parents) = std::move(tree::invert_lca_map(db, folder.data(), dry_run));
-    std::unordered_set<tax_t> used_lcas([&to_fetch](){std::unordered_set<tax_t> ret;for(auto &i: to_fetch) ret.emplace(std::atoi(i.data())); return ret;}());
-    if(to_fetch.empty()) LOG_EXIT("No binary files to grab from.\n");
-    LOG_DEBUG("Fetched! Making tx2g\n");
-    std::unordered_map<tax_t, strlist> tx2g(tax2genome_map(name_hash, inpaths));
-    validate_db(db, used_lcas, tx2g, num_threads);
-    LOG_DEBUG("Made! Printing founds genome paths with tax ids.\n");
-    for(auto &kv: tx2g) {
-        std::fprintf(stderr, "Key %u has %zu paths\n", kv.first, fllen(kv.second));
-        for(auto &path: kv.second)
-            std::fprintf(stderr, "Taxid %u has path %s and first line %s\n", kv.first, path.data(), get_firstline(path.data()).data());
-        if(fllen(kv.second) == 0) LOG_EXIT("FL with key %u has length 0\n");
-    }
-    tree_adjudicator_t ta(kh_size(taxmap), taxmap, false);
-    for(auto tax_iter(std::begin(nodes)), end_iter(tax_iter); end_iter < std::end(nodes); tax_iter = ++end_iter) {
-        const tax_t parent_tax(get_parent(taxmap, *tax_iter));
-        while(end_iter < std::end(nodes) && get_parent(taxmap, *end_iter++) == parent_tax);
-        std::fprintf(stderr, "Number in clade to clean up: %zd\n", (ssize_t)(end_iter - tax_iter));
-        if(end_iter - tax_iter < 3)          {
-            LOG_WARNING("Skipping clade of size %zd.\n", (ssize_t)(end_iter - tax_iter));
-            continue;
+    std::unordered_map<tax_t, ClassLevel> taxclassmap;
+    {
+        std::ifstream ifs(argv[optind + 1]);
+        std::string buffer;
+        tax_t t;
+        if(!ifs.good()) throw "a party";
+        for(std::string line; std::getline(ifs, line);) {
+            t = atoi(line.data());
+            if(kh_get(p, taxmap, t) == kh_end(taxmap)) continue;
+            taxclassmap.emplace(t, get_linelvl(line.data(), buffer, classlvl_map));
         }
-        if(!used_as_lca(parent_tax, folder)) {
-            const bool in_map(parents.find(parent_tax) != parents.end());
-            LOG_WARNING("LCA %u not used in map. In hash set? %s. Skipping.\n", parent_tax, in_map ? "true": "false");
-            continue;
-        }
-        ta.emplace_subtree(taxmap, parent_tax, folder, sp, tx2g, inverted_map, num_threads);
     }
-#endif
+    std::sort(taxes.begin(), taxes.end(), [&tcm=taxclassmap](const tax_t a, const tax_t b) {
+        auto ma(tcm.find(a)), mb(tcm.find(b));
+        if(ma == tcm.end()) throw std::runtime_error("Missing taxid from tcm for a.");
+        if(mb == tcm.end()) throw std::runtime_error("Missing taxid from tcm for b.");
+        return (ma->second == mb->second) ? a < b: ma->second > mb->second;
+    });
+// Cleanup
     destroy_name_hash(name_hash);
     kh_destroy(p, taxmap);
     return EXIT_SUCCESS;

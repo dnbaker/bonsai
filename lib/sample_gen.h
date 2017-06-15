@@ -1,4 +1,3 @@
-//.h:
 #ifndef _CLADE_HEADER_H__
 #define _CLADE_HEADER_H__
 #include <string>
@@ -9,41 +8,43 @@
 namespace emp {
 
 enum class ClassLevel:int {
-    SUPERKINGDOM = 0,
-    KINGDOM      = 1,
-    SUBKINGDOM   = 2,
-    SUPERPHYLUM  = 3,
-    PHYLUM       = 4,
-    SUBPHYLUM    = 5,
-    SUPERCLASS   = 6,
-    CLASS        = 7,
-    SUBCLASS     = 8,
-    INFRACLASS   = 9,
-    COHORT       = 10,
-    SUPERORDER   = 11,
-    ORDER        = 12,
-    SUBORDER     = 13,
-    INFRAORDER   = 14,
-    PARVORDER    = 15,
-    SUPERFAMILY  = 16,
-    FAMILY       = 17,
-    SUBFAMILY    = 18,
-    TRIBE        = 19,
-    SUBTRIBE     = 20,
-    GENUS        = 21,
-    SUBGENUS     = 22,
-    SPECIES      = 23,
-    SUBSPECIES   = 24,
-    GROUP        = 25,
-    SUBGROUP     = 26,
-    VARIETAS     = 27,
-    FORMA        = 28,
-    ROOT         = -1,
-    NO_RANK      = -2
+    SUPERKINGDOM = 2,
+    KINGDOM      = 3,
+    SUBKINGDOM   = 4,
+    SUPERPHYLUM  = 5,
+    PHYLUM       = 6,
+    SUBPHYLUM    = 7,
+    SUPERCLASS   = 8,
+    CLASS        = 9,
+    SUBCLASS     = 10,
+    INFRACLASS   = 11,
+    COHORT       = 12,
+    SUPERORDER   = 13,
+    ORDER        = 14,
+    SUBORDER     = 15,
+    INFRAORDER   = 16,
+    PARVORDER    = 17,
+    SUPERFAMILY  = 18,
+    FAMILY       = 19,
+    SUBFAMILY    = 20,
+    TRIBE        = 21,
+    SUBTRIBE     = 22,
+    GENUS        = 23,
+    SUBGENUS     = 24,
+    SPECIES      = 25,
+    SUBSPECIES   = 26,
+    GROUP        = 27,
+    SUBGROUP     = 28,
+    VARIETAS     = 29,
+    FORMA        = 30,
+    ROOT         = 1,
+    NO_RANK      = 0
 };
 
 extern const char *classlvl_arr[31];
 extern const std::unordered_map<std::string, ClassLevel> classlvl_map;
+
+#define LINE_LVL_OFFSET 0
 
 
 } // namespace emp

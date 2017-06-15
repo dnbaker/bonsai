@@ -195,8 +195,9 @@ uint32_t lca(std::map<uint32_t, uint32_t> &parent_map, uint32_t a, uint32_t b);
 std::map<uint32_t, uint32_t> kh2kr(khash_t(p) *map);
 
 bool isfile(const char *path) noexcept;
+
 template<typename T>
-std::size_t fllen(std::forward_list<T> &list) {
+std::size_t fllen(const std::forward_list<T> &list) {
     size_t ret(0);
     for(auto i(list.begin()); i != list.end(); ++i) {
         ++ret;
@@ -205,7 +206,7 @@ std::size_t fllen(std::forward_list<T> &list) {
 }
 
 template<typename Key, typename Map>
-inline bool has_key(Key &key, Map &map) {
+inline bool has_key(const Key &key, const Map &map) {
     return map.find(key) != map.end();
 }
 
@@ -241,8 +242,8 @@ varitas
 forma
 #endif
 
-INLINE const char *get_lvlname(ClassLevel lvl) {return classlvl_arr[static_cast<int>(lvl) + 2];}
-ClassLevel get_linelvl(const char *line);
+INLINE const char *get_lvlname(ClassLevel lvl) {return classlvl_arr[static_cast<int>(lvl) + LINE_LVL_OFFSET];}
+ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unordered_map<std::string, ClassLevel> &map);
 
 
 } // namespace emp

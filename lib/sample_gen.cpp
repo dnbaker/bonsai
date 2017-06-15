@@ -1,4 +1,3 @@
-//.cpp:
 #include "sample_gen.h"
 namespace emp {
 const char *classlvl_arr[31] {
