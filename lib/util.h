@@ -52,6 +52,11 @@
 using tax_t = std::uint32_t;
 #endif
 
+
+#if !(defined(HAS_KPUTUW__) && HAS_KPUTUW__)
+#define kputuw_ kputuw
+#endif
+
 #define TIME_CODE(code, name) do             \
 {                                            \
     auto i(std::chrono::system_clock::now());\
