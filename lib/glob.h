@@ -8,7 +8,7 @@ namespace emp {
 
 struct potential_node_t {
     const unsigned                    subtree_index_;
-    const std::vector<std::uint64_t> *bits_; // View, does not own.
+    const bitvec_t *bits_; // View, does not own.
     std::uint64_t                     score_;
     bool operator<(const potential_node_t &other) const {
         return std::tie(score_, bits_, subtree_index_) <
@@ -22,7 +22,7 @@ struct potential_node_t {
         return std::tie(score_, bits_, subtree_index_) ==
                std::tie(other.score_, other.bits_, other.subtree_index_);
     }
-    potential_node_t(const std::vector<std::uint64_t> *bits, std::uint64_t score, unsigned subtree_index):
+    potential_node_t(const bitvec_t *bits, std::uint64_t score, unsigned subtree_index):
             subtree_index_(subtree_index), bits_(bits), score_(score) {
         if(bits == nullptr) throw std::runtime_error("bitmap pointer is null.");
     }
@@ -33,7 +33,7 @@ class tree_glob_t {
     using tax_path_map_t = std::unordered_map<std::uint32_t, std::forward_list<std::string>>;
 public:
     const tax_t                                parent_;
-    count::Counter<std::vector<std::uint64_t>> counts_;
+    count::Counter<bitvec_t> counts_;
     adjmap_t                                   fwd_;
     adjmap_t                                   rev_;
     std::vector<tax_t>                         taxes_;
@@ -97,12 +97,12 @@ struct tree_adjudicator_t {
         return std::fputs("#New node id\tParent\tChildren\n", fp);
     }
     int write_new_node(std::FILE *fp, const potential_node_t &node);
-    void adjust_children(const std::vector<std::uint64_t> *bits, const unsigned subtree_index) {
-        std::set<const std::vector<std::uint64_t> *> adjusted;
+    void adjust_children(const bitvec_t *bits, const unsigned subtree_index) {
+        std::set<const bitvec_t *> adjusted;
         adjust_children(bits, adjusted, subtree_index);
     }
-    void adjust_children(const std::vector<std::uint64_t> *bits,
-                         std::set<const std::vector<std::uint64_t> *> &adjusted,
+    void adjust_children(const bitvec_t *bits,
+                         std::set<const bitvec_t *> &adjusted,
                          const unsigned subtree_index) {
         if(adjusted.find(bits) != adjusted.end()) return;
         auto it(subtrees_[subtree_index].fwd_.find(bits));

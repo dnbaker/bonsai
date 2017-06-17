@@ -27,7 +27,7 @@ std::uint64_t vec_popcnt(const std::string &vec) {
     return vec_popcnt(vec.data(), vec.size());
 }
 template<>
-std::uint64_t vec_bitdiff(const std::vector<std::uint64_t> &a, const std::vector<std::uint64_t> &b);
+std::uint64_t vec_bitdiff(const bitvec_t &a, const bitvec_t &b);
 
 } // namespace popcnt
 

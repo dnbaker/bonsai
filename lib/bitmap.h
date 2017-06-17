@@ -100,7 +100,7 @@ public:
     }
 };
 
-using adjmap_t = AdjacencyList<std::vector<std::uint64_t>>;
+using adjmap_t = AdjacencyList<bitvec_t>;
 
 
 /*
@@ -129,11 +129,11 @@ int veccmp(const std::vector<T> &a, const std::vector<T> &b) {
 }
 
 class bitmap_t {
-    std::unordered_map<std::uint64_t, std::vector<std::uint64_t>> core_;
+    std::unordered_map<std::uint64_t, bitvec_t> core_;
 
 public:
-    std::unordered_map<std::uint64_t, std::vector<std::uint64_t>> fill(const kgset_t &set) {
-        std::unordered_map<std::uint64_t, std::vector<std::uint64_t>> tmp;
+    std::unordered_map<std::uint64_t, bitvec_t> fill(const kgset_t &set) {
+        std::unordered_map<std::uint64_t, bitvec_t> tmp;
         const unsigned len((set.size() + 63) >> 6);
         khash_t(all) *h;
         const auto &vec(set.get_core());
@@ -145,7 +145,7 @@ public:
                 if(kh_exist(h, ki)) {
                     auto m(tmp.find(kh_key(h, ki)));
                     if(m == tmp.end()) m = tmp.emplace(kh_key(h, ki),
-                                                       std::vector<std::uint64_t>(len)).first;
+                                                       bitvec_t(len)).first;
                     m->second[i >> 6] |= 1u << (i & 63u);
                 }
             }
@@ -175,13 +175,13 @@ public:
     bitmap_t(bitmap_t &&other)            = default;
     bitmap_t &operator=(bitmap_t &&other) = default;
 
-    count::Counter<std::vector<std::uint64_t>> to_counter();
+    count::Counter<bitvec_t> to_counter();
 };
 
 
 
-std::uint64_t score_node_addn(const std::vector<std::uint64_t> &bitstring,
-                              const adjmap_t &am, const count::Counter<std::vector<std::uint64_t>> &counts, std::size_t nelem);
+std::uint64_t score_node_addn(const bitvec_t &bitstring,
+                              const adjmap_t &am, const count::Counter<bitvec_t> &counts, std::size_t nelem);
 
 }
 

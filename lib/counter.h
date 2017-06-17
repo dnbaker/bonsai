@@ -45,6 +45,7 @@ namespace std {
     }
   };
 
+
   template <typename T>
   struct hash<pair<int, vector<T>>>
   {
@@ -139,7 +140,7 @@ public:
 
     const std::unordered_map<T, std::size_t, Hash> &get_map() { return map_;}
 
-    template<typename = std::enable_if<std::is_same<std::vector<std::uint64_t>, T>::value>>
+    template<typename = std::enable_if<std::is_same<bitvec_t, T>::value>>
     std::unordered_map<unsigned, unsigned> *make_hist() {
         std::unordered_map<unsigned, unsigned>::iterator m;
         LOG_DEBUG("map size: %zu\n", map_.size());

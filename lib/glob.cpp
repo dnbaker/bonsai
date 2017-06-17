@@ -84,7 +84,7 @@ int tree_adjudicator_t::adjusting_write(std::FILE *fp) {
 }
 
 int tree_adjudicator_t::write_new_node(std::FILE *fp, const potential_node_t &node) {
-        const std::vector<std::uint64_t> &v(*node.bits_);
+        const bitvec_t &v(*node.bits_);
         tax_t new_id(std::rand());
         khiter_t ki;
         int khr;

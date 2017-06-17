@@ -9,20 +9,19 @@ namespace emp {
 struct fnode_t;
 using popcnt::vec_bitdiff;
 using popcnt::vec_popcnt;
-using NodeType = std::pair<const std::vector<std::uint64_t>, fnode_t>;
+using NodeType = std::pair<const bitvec_t, fnode_t>;
 
 struct fnode_t {
-    std::uint64_t                        n_;  // Number of kmers at this point in tree.
-    const NodeType                    *laa_;  // lowest added ancestor
-    std::vector<NodeType *>        subsets_;
-    const std::uint32_t                 bc_;
+    std::uint64_t                 n_;  // Number of kmers at this point in tree.
+    const NodeType             *laa_;  // lowest added ancestor
+    std::vector<NodeType *> subsets_;
+    const std::uint32_t          bc_;
 
     fnode_t(std::uint32_t bc, const std::uint64_t n):
         n_{n}, laa_{nullptr}, bc_{bc} {}
 
     bool added() const {return laa_ && &laa_->second == this;}
 };
-
 
 
 INLINE std::uint64_t get_score(const NodeType &node) {
@@ -49,8 +48,7 @@ class FlexMap {
         }
     };
 
-    std::unordered_map<std::vector<std::uint64_t>, fnode_t> map_;
-    std::set<NodeType *, node_lt>                           heap_;
+    std::unordered_map<bitvec_t, fnode_t> map_;
     std::uint64_t                                           n_;
     std::uint32_t                                           bitcount_;
 
@@ -58,7 +56,6 @@ public:
     void prepare_data() {
         build_adjlist();
         fill_heap();
-        run_collapse();
     }
     void build_adjlist() {
         for(auto i(map_.begin()), ie(map_.end()); i != ie; ++i) {
@@ -84,34 +81,16 @@ public:
             }
         }
     }
-    void fill_heap() {
+    void add_to_heap(std::set<NodeType *, node_lt> &heap) const {
         for(auto &pair: map_) {
-            heap_.insert(&pair);
-        }
-    }
-    void run_collapse(std::size_t nelem=0) {
-        assert(map_.size());
-        assert(heap_.size());
-        if(nelem == 0) {
-            auto bccpy(bitcount_);
-            kroundup32(bccpy);
-            ++bccpy;
-            kroundup32(bccpy); //
-            LOG_DEBUG("elements to add defaulting to %zu\n", static_cast<std::size_t>(bccpy));
-        }
-        for(std::size_t i(0); i < nelem; ++i) {
-            auto bit(heap_.begin());
-            (*bit)->second.laa_ = *bit;
-            throw std::runtime_error("NotImplementedError");
-            // Make a list of all pointers to remove and reinsert to the map.
-            heap_.erase(bit);
+            heap.insert(&pair);
         }
     }
 public:
     FlexMap(std::uint32_t bitcount): n_{0}, bitcount_{bitcount} {
     }
 
-    INLINE void add(std::vector<std::uint64_t> &&elem) {
+    INLINE void add(bitvec_t &&elem) {
 #if __GNUC__ >= 7
         if(auto match = map_.find(elem); match == map_.end())
 #else
@@ -123,10 +102,54 @@ public:
         else ++match->second.n_;
         ++n_;
     }
+};
 
-    /* TODO: {
+class FMEmitter {
+    std::vector<FlexMap>      subtrees_;
+    std::set<NodeType *, node_lt> heap_;
+    khash_t(p)                    *tax_;
+    void run_collapse(std::FILE* fp=stdout, std::size_t nelem=0) {
+        assert(heap_.size());
+        if(nelem == 0) {
+            auto bccpy(kh_size(tax_));
+            kroundup32(bccpy);
+            ++bccpy;
+            kroundup32(bccpy); //
+            nelem = bccpy - kh_size(tax_);
+            LOG_DEBUG("elements to add defaulting to %zu more [nodes addable before reaching 2 * nearest power of two (%zu).]\n", nelem, static_cast<std::size_t>(bccpy));
+        }
+        std::unordered_set<NodeType *> to_reinsert;
+        ks::KString ks;
+        for(std::size_t i(0); i < nelem; ++i) {
+            const auto bptr(*heap_.begin());
+            if((bptr->second.added()) {
+                LOG_WARNING("Cannot add more nodes. [Best candidate is impossible.] Breaking from loop.");
+                break;
+            } else bptr->second.laa_ = bptr;
+            for(auto other: bptr->second.subsets_) {
+                to_reinsert.insert(other);
+            }
+            //Emit results
+            format_emitted_node(ks, bptr);
+            if(ks.size() > 1 << 16) {
+                std::fwrite(ks.data(), 1, ks.size(), fp);
+                ks.clear();
+            }
+            
+            // Make a list of all pointers to remove and reinsert to the map.
+            heap_.erase(heap_.begin());
+            for(const auto el: to_reinsert) heap_.erase(el);
+            for(const auto el: to_reinsert) heap_.insert(el);
+            to_reinsert.clear();
+            heap_.insert(bptr);
+        }
+        std::fwrite(ks.data(), 1, ks.size(), fp);
+        ks.clear();
+    }
+    void format_emitted_node(ks::KString &ks, NodeType *node) {
         
-    */
+    }
+    FMEmitter(khash_t(p) *tax): tax_{tax} {}
 };
 
 } // namespace emp
