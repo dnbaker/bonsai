@@ -285,7 +285,8 @@ int metatree_main(int argc, char *argv[]) {
     cerr << "Processing " << inpaths.size() << " inpaths:\n";
     for(const auto &str: inpaths) cerr << str << '\n';
 #endif
-    FlexMap fm(5);
+    //bitvec_t bv{1000, 330303, 42342342, 2304234, 234023, 40, 0x23, 4, 2304, 234};
+    FlexMap fm(5, 3);
 #ifdef TAX_CHECK
     khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, full_taxmap, name_hash));

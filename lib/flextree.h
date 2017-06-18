@@ -15,10 +15,13 @@ struct fnode_t {
     std::uint64_t                 n_;  // Number of kmers at this point in tree.
     const NodeType             *laa_;  // lowest added ancestor
     std::vector<NodeType *> subsets_;
-    const std::uint32_t          bc_;
+    const std::uint32_t          pc_;  // cached popcount of bitvector
+    const std::uint32_t       bc_:20;  // bitcount in family
+    const std::uint32_t       si_:12;  // Note: if more than 1<<12 (4096) subtrees are used, this fails.
 
-    fnode_t(std::uint32_t bc, const std::uint64_t n):
-        n_{n}, laa_{nullptr}, bc_{bc} {}
+    fnode_t(const bitvec_t &bits, std::uint32_t bc, std::uint32_t subtree_index, const std::uint64_t n=0):
+        n_{n}, laa_{nullptr}, pc_{static_cast<std::uint32_t>(bits.size())},
+        bc_{bc},  si_{subtree_index} {}
 
     bool added() const {return laa_ && &laa_->second == this;}
 };
@@ -26,17 +29,13 @@ struct fnode_t {
 INLINE std::uint64_t get_score(const NodeType &node) {
     if(node.second.added()) return 0;
     std::uint64_t ret(node.second.n_);
-    for(auto s: node.second.subsets_) {
-        if(s->second.added()) continue;
-        if(s->second.laa_ == nullptr) ret += s->second.n_;
-        else if(s->second.laa_ != s &&
-                vec_bitdiff(s->first, node.first) <
-                    vec_bitdiff(s->first, s->second.laa_->first)) {
-            ret += s->second.n_;
-        }
-    }
-    return node.second.laa_ ? vec_bitdiff(node.second.laa_->first, node.first) * ret
-                            : node.second.bc_ - vec_popcnt(node.first) * ret;
+    for(auto s: node.second.subsets_)
+        if(s->second.added() == false)
+            if(s->second.laa_ == nullptr ||
+               (s->second.laa_ != s && s->second.laa_->second.pc_ > node.second.pc_))
+                ret += s->second.n_;
+    return ((node.second.laa_ ? node.second.laa_->second.pc_
+                              : node.second.bc_) - node.second.pc_) * ret;
 }
 
 struct node_lt {
@@ -48,8 +47,9 @@ struct node_lt {
 class FlexMap {
 
     std::unordered_map<bitvec_t, fnode_t> map_;
-    std::uint64_t                                           n_;
-    std::uint32_t                                           bitcount_;
+    std::uint64_t                           n_;
+    std::uint32_t                    bitcount_;
+    const std::uint32_t                    id_;
 
 public:
     void prepare_data() {
@@ -85,7 +85,7 @@ public:
         }
     }
 public:
-    FlexMap(std::uint32_t bitcount): n_{0}, bitcount_{bitcount} {
+    FlexMap(std::uint32_t bitcount, std::uint32_t id): n_{0}, bitcount_{bitcount}, id_{id} {
     }
 
     INLINE void add(bitvec_t &&elem) {
@@ -96,7 +96,7 @@ public:
         if(match == map_.end())
 #endif
             map_.emplace(std::move(elem),
-                         std::forward<fnode_t>(fnode_t(bitcount_, UINT64_C(1))));
+                         std::forward<fnode_t>(fnode_t(elem, bitcount_, id_, UINT64_C(1))));
         else ++match->second.n_;
         ++n_;
     }
@@ -105,7 +105,7 @@ public:
 class FMEmitter {
     std::vector<FlexMap>      subtrees_;
     std::set<NodeType *, node_lt> heap_;
-    khash_t(p)                    *tax_;
+    khash_t(p)              *const tax_;
     void run_collapse(std::FILE* fp=stdout, std::size_t nelem=0) {
         assert(heap_.size());
         if(nelem == 0) {
@@ -116,7 +116,7 @@ class FMEmitter {
             nelem = bccpy - kh_size(tax_);
             LOG_DEBUG("elements to add defaulting to %zu more [nodes addable before reaching 2 * nearest power of two (%zu).]\n", nelem, static_cast<std::size_t>(bccpy));
         }
-        std::unordered_set<NodeType *> to_reinsert;
+        std::vector<NodeType *> to_reinsert;
         ks::KString ks;
         for(std::size_t i(0); i < nelem; ++i) {
             const auto bptr(*heap_.begin());
@@ -125,7 +125,10 @@ class FMEmitter {
                 break;
             } else bptr->second.laa_ = bptr;
             for(auto other: bptr->second.subsets_) {
-                to_reinsert.insert(other);
+                to_reinsert.push_back(other);
+                if(other->second.laa_ == nullptr ||
+                   other->second.laa_->second.pc_ > bptr->second.pc_)
+                    other->second.laa_ = bptr;
             }
             //Emit results
             format_emitted_node(ks, bptr);
@@ -133,16 +136,24 @@ class FMEmitter {
                 std::fwrite(ks.data(), 1, ks.size(), fp);
                 ks.clear();
             }
-            
+
             // Make a list of all pointers to remove and reinsert to the map.
             heap_.erase(heap_.begin());
             for(const auto el: to_reinsert) heap_.erase(el);
+            // Might I need to remove all parents to recalculate their scores?
             for(const auto el: to_reinsert) heap_.insert(el);
             to_reinsert.clear();
             heap_.insert(bptr);
         }
         std::fwrite(ks.data(), 1, ks.size(), fp);
         ks.clear();
+    }
+    void emplace_subtree() {
+        if(subtrees_.size() > 1 << 12)
+            throw std::runtime_error("Too many subtrees. Increase the number of bits in fnode_t::si_.");
+#if NDEBUG
+        static_assert(false, "NotImplementedError('Write this code!')");
+#endif
     }
     void format_emitted_node(ks::KString &ks, NodeType *node) {
         
