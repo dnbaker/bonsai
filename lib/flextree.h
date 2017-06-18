@@ -23,7 +23,6 @@ struct fnode_t {
     bool added() const {return laa_ && &laa_->second == this;}
 };
 
-
 INLINE std::uint64_t get_score(const NodeType &node) {
     if(node.second.added()) return 0;
     std::uint64_t ret(node.second.n_);
@@ -40,13 +39,13 @@ INLINE std::uint64_t get_score(const NodeType &node) {
                             : node.second.bc_ - vec_popcnt(node.first) * ret;
 }
 
-class FlexMap {
+struct node_lt {
+    bool operator()(const NodeType *a, const NodeType *b) const {
+        return get_score(*a) > get_score(*b);
+    }
+};
 
-    struct node_lt {
-        bool operator()(const NodeType *a, const NodeType *b) const {
-            return get_score(*a) > get_score(*b);
-        }
-    };
+class FlexMap {
 
     std::unordered_map<bitvec_t, fnode_t> map_;
     std::uint64_t                                           n_;
@@ -55,7 +54,6 @@ class FlexMap {
 public:
     void prepare_data() {
         build_adjlist();
-        fill_heap();
     }
     void build_adjlist() {
         for(auto i(map_.begin()), ie(map_.end()); i != ie; ++i) {
@@ -81,7 +79,7 @@ public:
             }
         }
     }
-    void add_to_heap(std::set<NodeType *, node_lt> &heap) const {
+    void add_to_heap(std::set<const NodeType *, node_lt> &heap) const {
         for(auto &pair: map_) {
             heap.insert(&pair);
         }
@@ -122,7 +120,7 @@ class FMEmitter {
         ks::KString ks;
         for(std::size_t i(0); i < nelem; ++i) {
             const auto bptr(*heap_.begin());
-            if((bptr->second.added()) {
+            if(bptr->second.added()) {
                 LOG_WARNING("Cannot add more nodes. [Best candidate is impossible.] Breaking from loop.");
                 break;
             } else bptr->second.laa_ = bptr;

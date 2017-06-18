@@ -9,7 +9,7 @@
 #include <set>
 #include <unordered_map>
 #include <vector>
-#include "lib/logutil.h"
+#include "lib/util.h"
 #include "lib/ks.h"
 #include "clhash/include/clhash.h"
 
@@ -26,6 +26,14 @@ public:
     const void *get()        const {return random_;}
     const void *operator->() const {return random_;}
     operator const void *()  const {return random_;}
+    template<typename T>
+    std::uint64_t hash(const T *p, std::size_t nbytes) {
+        return clhash(random_, p, nbytes);
+    }
+    template<typename T>
+    std::uint64_t hash(const std::vector<T>& vec) {
+        return hash(vec.data(), vec.size() * sizeof(T));
+    }
 
     ~rand_holder()    {std::free(const_cast<void *>(random_));}
 };
