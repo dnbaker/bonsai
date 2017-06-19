@@ -23,10 +23,15 @@ public:
     explicit KString(size_t size): ks_({0, size, size ? (char *)std::malloc(size): nullptr}) {}
     explicit KString(size_t used, size_t max, char *str): ks_({used, max, str}) {}
     explicit KString(const char *str) {
-        ks_.l = strlen(str);
-        ks_.m = kroundup64(ks_.l);
-        ks_.s = (char *)malloc(ks_.m);
-        memcpy(ks_.s, str, ks_.l + 1);
+        if(str == nullptr) {
+            ks_.l = ks_.m = 0;
+            ks_.s = nullptr;
+        } else {
+            ks_.l = strlen(str);
+            ks_.m = kroundup64(ks_.l);
+            ks_.s = (char *)malloc(ks_.m);
+            memcpy(ks_.s, str, ks_.l + 1);
+        }
     }
 
     operator kstring_t       *()       {return &ks_;}
