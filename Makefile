@@ -9,7 +9,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
 		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
 		 # -pedantic
-DBG:= -D_GLIBCXX_DEBUG # -DNDEBUG # -fno-inline
+DBG:= # -DNDEBUG # -fno-inline
 OS:=$(shell uname)
 FLAGS=
 
@@ -28,7 +28,7 @@ OPT:= -O3 -funroll-loops -ffast-math \
 	  -fopenmp \
 	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) # -DUSE_PAR_HELPERS
 XXFLAGS=-fno-rtti
-CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++1z $(WARNINGS)
+CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread -lhll -lcrypto
 LD=-L.

@@ -14,6 +14,8 @@
 #include "klib/kstring.h"
 #include "khash64.h"
 #include "lib/logutil.h"
+#include "lib/dsv.h"
+#include "lib/ufa.h"
 #include "lib/sample_gen.h"
 
 #ifdef __GNUC__
