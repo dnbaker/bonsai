@@ -9,7 +9,7 @@
 #define PACKED
 #endif
 
-namespace uf { namespace fds {
+namespace emp { namespace dsv {
 
 template<typename T, typename size_type=std::uint32_t>
 class DisjointSetVector {
@@ -67,6 +67,6 @@ public:
     bool same_set(ufnode_t &a, ufnode_t &b) {return find(a) == find(b);}
 };
 
-}} // namespace emp::fds
+}} // namespace emp::dsv
 
 #endif // _UNION_FIND__
