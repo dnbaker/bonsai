@@ -7,8 +7,8 @@ GMATCH=$(findstring g++,$(CXX))
 CLHASH_CHECKOUT = "&& git checkout master"
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
-		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter
-		 # -pedantic
+		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
+		 -pedantic
 DBG:= # -DNDEBUG # -fno-inline
 OS:=$(shell uname)
 FLAGS=

@@ -1,6 +1,10 @@
 #ifndef _UNION_FIND_ADAPTER__
 #define _UNION_FIND_ADAPTER__
 
+#include <cstdint>
+#include <memory>
+#include <iostream>
+
 #if (defined(__GNUC__) && __GNUC__) || (defined(__clang__) && __clang__)
 #define PACKED __attribute__((packed))
 #else
@@ -16,8 +20,17 @@ struct Classified {
     operator       J&()       {return i;}
     operator const J&() const {return i;}
 
-    Classified<J>() {}
-    template<typename T> Classified<J>(T j): i(j) {}
+    Classified<J>() {
+        static_assert(std::is_standard_layout<Classified<J>>::value && sizeof(J) == sizeof(Classified<J>), "J does not have standard layout");
+#if !NDEBUG
+        std::cerr << "Creating with default constructor. Value: " << i << '\n';
+#endif
+    }
+    template<typename T> Classified<J>(T j): i(j) {
+#if !NDEBUG
+        std::cerr << "Creating with templated constructor. Value: " << i << '\n';
+#endif
+    }
 };
 
 using Double   = Classified<double>;
