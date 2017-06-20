@@ -30,11 +30,11 @@ public:
 #if NDEBUG
 public:
 #endif
-    size_type find(ufnode_t &node) {
+    size_type find(ufnode_t &node) noexcept {
         const size_type index(&node - v_.data());
         return find(&node - v_.data());
     }
-    size_type find(size_type index) {
+    size_type find(size_type index) noexcept {
         if(v_[index].p_ == index) v_[index].p_ = find(v_[v_[index].p_]);
         return v_[index].p_;
     }
@@ -46,25 +46,25 @@ public:
         return v_.size() - 1;
     }
 
-    auto size()   const {return v_.size();}
-    auto begin()        {return v_.begin();}
-    auto end()          {return v_.end();}
-    auto cbegin() const {return v_.cbegin();}
-    auto cend()   const {return v_.cend();}
+    auto size()   const noexcept {return v_.size();}
+    auto begin()        noexcept {return v_.begin();}
+    auto end()          noexcept {return v_.end();}
+    auto cbegin() const noexcept {return v_.cbegin();}
+    auto cend()   const noexcept {return v_.cend();}
     DisjointSetVector():  n_{0} {}
 
-    void perform_union(size_type ai, size_type bi) {
+    void perform_union(size_type ai, size_type bi) noexcept {
         if(ai == bi) return;
         if(v_[ai].r_ < v_[bi].r_) v_[ai].p_ = bi;
         if(v_[ai].r_ > v_[bi].r_) v_[bi].p_ = ai;
         else v_[ai].p_ = bi, --n_[v_[ai].r_], ++n_[++v_[bi].r_];
     }
 
-    void perform_union(ufnode_t &a, ufnode_t &b) {
+    void perform_union(ufnode_t &a, ufnode_t &b) noexcept {
         return perform_union(find(a), find(b));
     }
 
-    bool same_set(ufnode_t &a, ufnode_t &b) {return find(a) == find(b);}
+    bool same_set(ufnode_t &a, ufnode_t &b) noexcept {return find(a) == find(b);}
 };
 
 }} // namespace emp::dsv
