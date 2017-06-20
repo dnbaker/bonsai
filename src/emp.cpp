@@ -268,6 +268,17 @@ int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
     int c, dry_run(0), num_threads(-1);
     std::string paths_file, folder, spacing;
+    using ssmap_t = ufa::uf_adapter<std::unordered_map<std::string, std::string>>;
+    ssmap_t sm1;
+    sm1.emplace("hello", "world");
+    sm1.emplace("h", "w");
+    ssmap_t sm2 {
+        std::initializer_list<std::pair<const std::string, std::string>> {
+            {"ZOMG", "IZZLES"},
+            {"lemon", "cake"}
+        }
+    };
+    ufa::perform_union(sm1, sm2);
     while((c = getopt(argc, argv, "p:w:k:s:f:F:h?d")) >= 0) {
         switch(c) {
             case '?': case 'h': return metatree_usage(*argv);
@@ -378,7 +389,7 @@ int hist_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
-static std::vector<std::pair<std::string, int (*)(int, char **)>> mains {
+const static std::unordered_map<std::string, int (*) (int, char **)> mains {
     {"phase1", phase1_main},
     {"p1",     phase1_main},
     {"phase2", phase2_main},
@@ -389,9 +400,10 @@ static std::vector<std::pair<std::string, int (*)(int, char **)>> mains {
     {"metatree", metatree_main},
     {"classify", classify_main}
 };
-int main(int argc, char *argv[]) {
 
-    if(argc > 1) for(auto &i: mains) if(i.first == argv[1]) return i.second(argc - 1, argv + 1);
+int main(int argc, char *argv[]) {
+    auto m(mains.find(argv[1]));
+    if(m != mains.end()) return m->second(argc - 1, argv + 1);
     std::fprintf(stderr, "No valid subcommand provided. Options: phase1, phase2, classify, hll, metatree\n");
     return EXIT_FAILURE;
 }
