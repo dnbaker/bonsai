@@ -28,6 +28,7 @@ using Int      = Classified<int>;
 using Uint8_t  = Classified<uint8_t>;
 using Uint16_t = Classified<uint16_t>;
 using Uint32_t = Classified<uint32_t>;
+using Uint64_t = Classified<uint64_t>;
 using Int8_t   = Classified<int8_t>;
 using Int16_t  = Classified<int16_t>;
 using Int32_t  = Classified<int32_t>;
