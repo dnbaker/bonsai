@@ -225,6 +225,24 @@ inline bool has_key(const Key &key, const Map &map) {
     return map.find(key) != map.end();
 }
 
+#if !NDEBUG
+template<typename T, class Compare=std::less<T>>
+void assert_sorted(const T &container) {
+    Compare cmp;
+    using std::begin;
+    auto it(begin(container));
+    auto it2(it);
+    if(it2 != end(container)) ++it2;
+    while(it2 != end(container)) {
+        assert(cmp(*it, *it2));
+        ++it, ++it2;
+    }
+}
+#else
+#define assert_sorted(container)
+#endif
+
+
 #if 0
 superkingdom
 kingdom

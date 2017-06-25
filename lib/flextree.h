@@ -15,9 +15,10 @@ struct fnode_t {
     std::uint64_t                 n_;  // Number of kmers at this point in tree.
     const NodeType             *laa_;  // lowest added ancestor
     std::vector<NodeType *> subsets_;
+    std::vector<NodeType *> parents_;
     const std::uint32_t          pc_;  // cached popcount of bitvector
-    const std::uint32_t       bc_:20;  // bitcount in family
-    const std::uint32_t       si_:12;  // Note: if more than 1<<12 (4096) subtrees are used, this fails.
+    const std::uint32_t          bc_;  // bitcount in family
+    const std::uint32_t          si_;
 
     fnode_t(const bitvec_t &bits, std::uint32_t bc, std::uint32_t subtree_index, const std::uint64_t n=0):
         n_{n}, laa_{nullptr}, pc_{static_cast<std::uint32_t>(bits.size())},
@@ -62,6 +63,7 @@ public:
                 switch(veccmp(i->first, j->first)) {
                     case 1:
                         i->second.subsets_.emplace_back(&*j);
+                        j->second.parents_.emplace_back(&*i);
 #if !NDEBUG
                     {
                         for(auto ii(i->first.cbegin()), ji(j->first.cbegin()), ei(i->first.cend()); ii != ei; ++ii, ++ji) {
@@ -74,6 +76,7 @@ public:
                         break;
                     case 2:
                         j->second.subsets_.emplace_back(&*i);
+                        i->second.parents_.emplace_back(&*j);
                         break;
                 }
             }
@@ -117,6 +120,8 @@ class FMEmitter {
     std::set<NodeType *, node_lt> heap_;
     std::unordered_set<tax_t>    added_;
     khash_t(p)              *const tax_;
+    // Need taxid to paths map
+    // 
     void run_collapse(std::FILE* fp=stdout, std::size_t nelem=0) {
         assert(heap_.size());
         if(nelem == 0) {
@@ -127,7 +132,7 @@ class FMEmitter {
             nelem = bccpy - kh_size(tax_);
             LOG_DEBUG("elements to add defaulting to %zu more [nodes addable before reaching 2 * nearest power of two (%zu).]\n", nelem, static_cast<std::size_t>(bccpy));
         }
-        std::vector<NodeType *> to_reinsert;
+        std::unordered_set<NodeType *> to_reinsert;
         ks::KString ks;
         for(std::size_t i(0); i < nelem; ++i) {
             const auto bptr(*heap_.begin());
@@ -138,11 +143,17 @@ class FMEmitter {
 #if NDEBUG
            static_assert(false, "raise NotImplementedError('Take nodes from parents of affected nodes out of the tree and put them back in.')");
 #endif
+            for(const auto parent: bptr->second.parents_) {
+                to_reinsert.insert(parent);
+            }
             for(auto other: bptr->second.subsets_) {
-                to_reinsert.push_back(other);
+                to_reinsert.insert(other);
                 if(other->second.laa_ == nullptr ||
                    other->second.laa_->second.pc_ > bptr->second.pc_)
                     other->second.laa_ = bptr;
+                for(const auto parent: other->second.parents_) {
+                    to_reinsert.insert(parent);
+                }
             }
             //Emit results
             format_emitted_node(ks, bptr);
@@ -154,17 +165,15 @@ class FMEmitter {
             // Make a list of all pointers to remove and reinsert to the map.
             heap_.erase(heap_.begin());
             for(const auto el: to_reinsert) heap_.erase(el);
-            // Might I need to remove all parents to recalculate their scores?
             for(const auto el: to_reinsert) heap_.insert(el);
             to_reinsert.clear();
             heap_.insert(bptr);
+            assert_sorted<decltype(heap_), node_lt>(heap_);
         }
         std::fwrite(ks.data(), 1, ks.size(), fp);
         ks.clear();
     }
     FlexMap &emplace_subtree(unsigned ngenomes) {
-        if(subtrees_.size() >= (1 << 12))
-            throw std::runtime_error("Too many subtrees. Increase the number of bits in fnode_t::si_.");
 #if __cplusplus < 201700LL
         subtrees_.emplace_back(ngenomes, subtrees_.size());
         return subtrees_.back();
@@ -172,7 +181,7 @@ class FMEmitter {
         return subtrees_.emplace_back(ngenomes, subtrees_.size());
 #endif
     }
-    void format_emitted_node(ks::KString &ks, NodeType *node) const {
+    void format_emitted_node(ks::KString &ks, const NodeType *node) const {
         
     }
     // Also need a map of taxid to tax level.

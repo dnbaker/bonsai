@@ -268,25 +268,15 @@ using pkh_t = kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_h
 
 int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
-    int c, dry_run(0), num_threads(-1);
+    int c, dry_run(0), num_threads(-1), k(31);
     std::string paths_file, folder, spacing;
-    using ssmap_t = ufa::uf_adapter<std::unordered_map<std::string, std::string>>;
-    ssmap_t sm1;
-    sm1.emplace("hello", "world");
-    sm1.emplace("h", "w");
-    ssmap_t sm2 {
-        std::initializer_list<std::pair<const std::string, std::string>> {
-            {"ZOMG", "IZZLES"},
-            {"lemon", "cake"}
-        }
-    };
-    ufa::perform_union(sm1, sm2);
     while((c = getopt(argc, argv, "p:w:k:s:f:F:h?d")) >= 0) {
         switch(c) {
             case '?': case 'h': return metatree_usage(*argv);
-            case 'f': folder = optarg; break;
-            case 'F': paths_file = optarg; break;
-            case 'd': dry_run = 1; break;
+            case 'f': folder      = optarg;       break;
+            case 'k': k           = atoi(optarg); break;
+            case 'F': paths_file  = optarg;       break;
+            case 'd': dry_run     = 1;            break;
             case 'p': num_threads = atoi(optarg); break;
         }
     }
@@ -298,7 +288,6 @@ int metatree_main(int argc, char *argv[]) {
     cerr << "Processing " << inpaths.size() << " inpaths:\n";
     for(const auto &str: inpaths) cerr << str << '\n';
 #endif
-    //bitvec_t bv{1000, 330303, 42342342, 2304234, 234023, 40, 0x23, 4, 2304, 234};
     FlexMap fm(5, 3);
 #ifdef TAX_CHECK
     khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
