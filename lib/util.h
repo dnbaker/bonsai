@@ -277,7 +277,8 @@ forma
 
 INLINE const char *get_lvlname(ClassLevel lvl) {return classlvl_arr[static_cast<int>(lvl) + LINE_LVL_OFFSET];}
 ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unordered_map<std::string, ClassLevel> &map);
-std::vector<tax_t> get_tax_depths(khash_t(p) *taxmap, const char *path);
+std::vector<tax_t> get_sorted_taxes(const khash_t(p) *taxmap, const char *path);
+std::unordered_map<tax_t, ClassLevel> get_tax_depths(const khash_t(p) *taxmap, const char *path);
 
 
 } // namespace emp

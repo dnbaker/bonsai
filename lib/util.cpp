@@ -364,8 +364,20 @@ ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unorder
     if(m == map.end()) throw std::runtime_error(std::string("Unexpected field entry ") + buffer);
     return m->second;
 }
+std::unordered_map<tax_t, ClassLevel> get_tax_depths(const khash_t(p) *taxmap, const char *path) {
+    std::unordered_map<tax_t, ClassLevel> ret;
+    std::ifstream ifs(path);
+    std::string buffer;
+    tax_t t;
+    if(!ifs.good()) throw "a party";
+    for(std::string line; std::getline(ifs, line);) {
+        t = atoi(line.data());
+        if(kh_get(p, taxmap, t) == kh_end(taxmap)) continue;
+        ret.emplace(t, get_linelvl(line.data(), buffer, classlvl_map));
+    }
+}
 
-std::vector<tax_t> get_tax_depths(khash_t(p) *taxmap, const char *path) {
+std::vector<tax_t> get_sorted_taxes(const khash_t(p) *taxmap, const char *path) {
     std::vector<tax_t> taxes;
     {
         std::unordered_set<tax_t> taxset;
@@ -374,18 +386,7 @@ std::vector<tax_t> get_tax_depths(khash_t(p) *taxmap, const char *path) {
                 taxset.insert(kh_key(taxmap, ki));
         taxes = std::vector<tax_t>(taxset.begin(), taxset.end());
     }
-    std::unordered_map<tax_t, ClassLevel> taxclassmap;
-    {
-        std::ifstream ifs(path);
-        std::string buffer;
-        tax_t t;
-        if(!ifs.good()) throw "a party";
-        for(std::string line; std::getline(ifs, line);) {
-            t = atoi(line.data());
-            if(kh_get(p, taxmap, t) == kh_end(taxmap)) continue;
-            taxclassmap.emplace(t, get_linelvl(line.data(), buffer, classlvl_map));
-        }
-    }
+    std::unordered_map<tax_t, ClassLevel> taxclassmap(get_tax_depths(taxmap, path));
     std::sort(taxes.begin(), taxes.end(), [&tcm=taxclassmap](const tax_t a, const tax_t b) {
         auto ma(tcm.find(a)), mb(tcm.find(b));
         if(ma == tcm.end()) throw std::runtime_error("Missing taxid from tcm for a.");

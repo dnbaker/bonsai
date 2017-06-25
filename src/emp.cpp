@@ -120,6 +120,7 @@ int phase2_main(int argc, char *argv[]) {
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 2, argv + argc));
+    if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
     LOG_DEBUG("Got paths\n");
     if(score_scheme::LEX == mode) {
         if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for lexicographic mode for final database generation.");
@@ -272,7 +273,7 @@ int metatree_main(int argc, char *argv[]) {
     std::string paths_file, folder, spacing;
     while((c = getopt(argc, argv, "p:w:k:s:f:F:h?d")) >= 0) {
         switch(c) {
-            case '?': case 'h': return metatree_usage(*argv);
+            case '?': case 'h':     return metatree_usage(*argv);
             case 'f': folder      = optarg;       break;
             case 'k': k           = atoi(optarg); break;
             case 'F': paths_file  = optarg;       break;
@@ -325,10 +326,10 @@ int metatree_main(int argc, char *argv[]) {
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, full_taxmap, name_hash));
 #endif
     kh_destroy(p, full_taxmap);
-    if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
 
 // Core
-    std::vector<tax_t> taxes(get_tax_depths(taxmap, argv[optind + 1]));
+    std::vector<tax_t> taxes(get_sorted_taxes(taxmap, argv[optind + 1]));
+
     count::Counter<std::uint32_t> counter;
     return EXIT_SUCCESS;
 }
@@ -353,7 +354,7 @@ int hist_main(int argc, char *argv[]) {
     if(ofp != stdout) std::fclose(ofp);
      return EXIT_SUCCESS;
  }
- 
+
 
 const static std::unordered_map<std::string, int (*) (int, char **)> mains {
     {"phase1", phase1_main},

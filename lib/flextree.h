@@ -116,10 +116,11 @@ public:
 };
 
 class FMEmitter {
-    std::vector<FlexMap>      subtrees_;
-    std::set<NodeType *, node_lt> heap_;
-    std::unordered_set<tax_t>    added_;
-    khash_t(p)              *const tax_;
+    std::vector<FlexMap>       subtrees_;
+    std::set<NodeType *, node_lt>  heap_;
+    std::unordered_set<tax_t>     added_;
+    khash_t(p)               *const tax_;
+    const std::unordered_map<tax_t, strlist> &tpm_;
     // Need taxid to paths map
     // 
     void run_collapse(std::FILE* fp=stdout, std::size_t nelem=0) {
@@ -185,7 +186,7 @@ class FMEmitter {
         
     }
     // Also need a map of taxid to tax level.
-    FMEmitter(khash_t(p) *tax): tax_{tax} {}
+    FMEmitter(khash_t(p) *tax, const std::unordered_map<tax_t, strlist> &taxpathmap): tax_{tax}, tpm_{taxpathmap} {}
 };
 
 } // namespace emp
