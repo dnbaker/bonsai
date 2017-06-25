@@ -16,6 +16,8 @@ using namespace emp;
 using namespace std::literals;
 using std::cerr;
 using std::cout;
+using std::begin;
+using std::end;
 
 int classify_main(int argc, char *argv[]) {
     int co, num_threads(16), emit_kraken(1), emit_fastq(0), emit_all(0), chunk_size(1 << 20), per_set(32);
@@ -337,37 +339,11 @@ int metatree_main(int argc, char *argv[]) {
     if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
 
 // Core
-    std::vector<tax_t> taxes;
-    {
-        std::unordered_set<tax_t> taxset;
-        for(khiter_t ki(0); ki != kh_end(taxmap); ++ki)
-            if(kh_exist(taxmap, ki))
-                taxset.insert(kh_key(taxmap, ki));
-        taxes = std::vector<tax_t>(taxset.begin(), taxset.end());
-    }
-    std::unordered_map<tax_t, ClassLevel> taxclassmap;
-    {
-        std::ifstream ifs(argv[optind + 1]);
-        std::string buffer;
-        tax_t t;
-        if(!ifs.good()) throw "a party";
-        for(std::string line; std::getline(ifs, line);) {
-            t = atoi(line.data());
-            if(kh_get(p, taxmap, t) == kh_end(taxmap)) continue;
-            taxclassmap.emplace(t, get_linelvl(line.data(), buffer, classlvl_map));
-        }
-    }
-    std::sort(taxes.begin(), taxes.end(), [&tcm=taxclassmap](const tax_t a, const tax_t b) {
-        auto ma(tcm.find(a)), mb(tcm.find(b));
-        if(ma == tcm.end()) throw std::runtime_error("Missing taxid from tcm for a.");
-        if(mb == tcm.end()) throw std::runtime_error("Missing taxid from tcm for b.");
-        return (ma->second == mb->second) ? a < b: ma->second > mb->second;
-    });
-// Cleanup
-    destroy_name_hash(name_hash);
-    kh_destroy(p, taxmap);
+    std::vector<tax_t> taxes(get_tax_depths(taxmap, argv[optind + 1]));
+    count::Counter<std::uint32_t> counter;
     return EXIT_SUCCESS;
 }
+
 
 int hist_main(int argc, char *argv[]) {
     Database<khash_t(c)> db(argv[1]);
@@ -386,8 +362,9 @@ int hist_main(int argc, char *argv[]) {
     std::fputs("Name\tCount\n", ofp);
     for(auto &i: structs) std::fprintf(ofp, "%u\t%u\n", i.first, i.second);
     if(ofp != stdout) std::fclose(ofp);
-    return EXIT_SUCCESS;
-}
+     return EXIT_SUCCESS;
+ }
+ 
 
 const static std::unordered_map<std::string, int (*) (int, char **)> mains {
     {"phase1", phase1_main},

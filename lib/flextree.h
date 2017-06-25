@@ -85,7 +85,7 @@ public:
         }
     }
 public:
-    FlexMap(std::uint32_t bitcount, std::uint32_t id): n_{0}, bitcount_{bitcount}, id_{id} {
+    FlexMap(std::uint32_t id, std::uint32_t bitcount): n_{0}, bitcount_{bitcount}, id_{id} {
     }
 
     INLINE void add(bitvec_t &&elem) {
@@ -100,11 +100,22 @@ public:
         else ++match->second.n_;
         ++n_;
     }
+    template<typename T>
+    void process(const T &container, const khash_t(name) *name_hash) {
+        const size_t nelem(size(container));
+        std::map<std::string, tax_t> pathmap;
+        std::unordered_map<tax_t, unsigned> taxmap;
+        for(const auto &el: container) {
+            const tax_t tax(get_taxid(el.data(), name_hash));
+            pathmap.emplace(el, tax);
+        }
+    }
 };
 
 class FMEmitter {
     std::vector<FlexMap>      subtrees_;
     std::set<NodeType *, node_lt> heap_;
+    std::unordered_set<tax_t>    added_;
     khash_t(p)              *const tax_;
     void run_collapse(std::FILE* fp=stdout, std::size_t nelem=0) {
         assert(heap_.size());
@@ -121,9 +132,12 @@ class FMEmitter {
         for(std::size_t i(0); i < nelem; ++i) {
             const auto bptr(*heap_.begin());
             if(bptr->second.added()) {
-                LOG_WARNING("Cannot add more nodes. [Best candidate is impossible.] Breaking from loop.");
+                LOG_WARNING("Cannot add more nodes. [Best candidate is impossible.] Breaking from loop.\n");
                 break;
             } else bptr->second.laa_ = bptr;
+#if NDEBUG
+           static_assert(false, "raise NotImplementedError('Take nodes from parents of affected nodes out of the tree and put them back in.')");
+#endif
             for(auto other: bptr->second.subsets_) {
                 to_reinsert.push_back(other);
                 if(other->second.laa_ == nullptr ||
@@ -148,16 +162,20 @@ class FMEmitter {
         std::fwrite(ks.data(), 1, ks.size(), fp);
         ks.clear();
     }
-    void emplace_subtree() {
-        if(subtrees_.size() > 1 << 12)
+    FlexMap &emplace_subtree(unsigned ngenomes) {
+        if(subtrees_.size() >= (1 << 12))
             throw std::runtime_error("Too many subtrees. Increase the number of bits in fnode_t::si_.");
-#if NDEBUG
-        static_assert(false, "NotImplementedError('Write this code!')");
+#if __cplusplus < 201700LL
+        subtrees_.emplace_back(ngenomes, subtrees_.size());
+        return subtrees_.back();
+#else
+        return subtrees_.emplace_back(ngenomes, subtrees_.size());
 #endif
     }
-    void format_emitted_node(ks::KString &ks, NodeType *node) {
+    void format_emitted_node(ks::KString &ks, NodeType *node) const {
         
     }
+    // Also need a map of taxid to tax level.
     FMEmitter(khash_t(p) *tax): tax_{tax} {}
 };
 

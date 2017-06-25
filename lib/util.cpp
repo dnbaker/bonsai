@@ -3,6 +3,8 @@
 #include <cassert>
 #include <cstring>
 #include <zlib.h>
+#include <sstream>
+#include <fstream>
 
 namespace emp {
 
@@ -55,7 +57,7 @@ std::vector<tax_t> get_all_descendents(const std::unordered_map<tax_t, std::vect
 // lh3's benchmarks indicate that his is only as fast as std::map,
 // though it uses less than half the memory. The thing is, taxonomic trees
 // aren't that deep.
-// We don't gain much from optimizing that.
+// I don't think we'd gain anything practical with that.
 tax_t lca(const khash_t(p) *map, tax_t a, tax_t b) noexcept {
     // Use std::set to use RB trees for small set rather than hash table.
     std::set<tax_t> nodes;
@@ -361,6 +363,36 @@ ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unorder
     auto m(map.find(buffer));
     if(m == map.end()) throw std::runtime_error(std::string("Unexpected field entry ") + buffer);
     return m->second;
+}
+
+std::vector<tax_t> get_tax_depths(khash_t(p) *taxmap, const char *path) {
+    std::vector<tax_t> taxes;
+    {
+        std::unordered_set<tax_t> taxset;
+        for(khiter_t ki(0); ki != kh_end(taxmap); ++ki)
+            if(kh_exist(taxmap, ki))
+                taxset.insert(kh_key(taxmap, ki));
+        taxes = std::vector<tax_t>(taxset.begin(), taxset.end());
+    }
+    std::unordered_map<tax_t, ClassLevel> taxclassmap;
+    {
+        std::ifstream ifs(path);
+        std::string buffer;
+        tax_t t;
+        if(!ifs.good()) throw "a party";
+        for(std::string line; std::getline(ifs, line);) {
+            t = atoi(line.data());
+            if(kh_get(p, taxmap, t) == kh_end(taxmap)) continue;
+            taxclassmap.emplace(t, get_linelvl(line.data(), buffer, classlvl_map));
+        }
+    }
+    std::sort(taxes.begin(), taxes.end(), [&tcm=taxclassmap](const tax_t a, const tax_t b) {
+        auto ma(tcm.find(a)), mb(tcm.find(b));
+        if(ma == tcm.end()) throw std::runtime_error("Missing taxid from tcm for a.");
+        if(mb == tcm.end()) throw std::runtime_error("Missing taxid from tcm for b.");
+        return (ma->second == mb->second) ? a < b: ma->second > mb->second;
+    });
+    return taxes;
 }
 
 } //namespace emp

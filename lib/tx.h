@@ -103,7 +103,7 @@ public:
         LOG_DEBUG("Tax reserved size %zu\n", taxes_.capacity());
         for(auto &pair: pm) {
             taxes_.push_back(pair.first);
-            assert(fllen(pair.second) > 0);
+            assert(emp::size(pair.second) > 0);
             tmpfl.push_back(&pair.second);
         }
         LOG_DEBUG("Tax filled size %zu. Core size: %zu\n", taxes_.size(), core_.size());

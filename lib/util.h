@@ -1,16 +1,18 @@
 #ifndef _EMP_UTIL_H__
 #define _EMP_UTIL_H__
-#include <cstdlib>
-#include <cstdio>
+#include <algorithm>
+#include <chrono>
 #include <cinttypes>
 #include <cstdint>
-#include <type_traits>
-#include <map>
+#include <cstdio>
+#include <cstdlib>
 #include <forward_list>
-#include <vector>
-#include <unordered_map>
 #include <limits>
-#include <chrono>
+#include <map>
+#include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 #include "klib/kstring.h"
 #include "khash64.h"
 #include "lib/logutil.h"
@@ -206,7 +208,11 @@ std::map<uint32_t, uint32_t> kh2kr(khash_t(p) *map);
 bool isfile(const char *path) noexcept;
 
 template<typename T>
-std::size_t fllen(const std::forward_list<T> &list) {
+std::size_t size(const T &container) {
+    return container.size();
+}
+template<typename T>
+std::size_t size(const std::forward_list<T> &list) {
     size_t ret(0);
     for(auto i(list.begin()); i != list.end(); ++i) {
         ++ret;
@@ -253,6 +259,7 @@ forma
 
 INLINE const char *get_lvlname(ClassLevel lvl) {return classlvl_arr[static_cast<int>(lvl) + LINE_LVL_OFFSET];}
 ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unordered_map<std::string, ClassLevel> &map);
+std::vector<tax_t> get_tax_depths(khash_t(p) *taxmap, const char *path);
 
 
 } // namespace emp
