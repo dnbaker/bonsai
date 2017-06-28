@@ -369,8 +369,12 @@ const static std::unordered_map<std::string, int (*) (int, char **)> mains {
 };
 
 int main(int argc, char *argv[]) {
-    auto m(mains.find(argv[1]));
-    if(m != mains.end()) return m->second(argc - 1, argv + 1);
-    std::fprintf(stderr, "No valid subcommand provided. Options: phase1, phase2, classify, hll, metatree\n");
+    if(argc > 1) {
+        auto m(mains.find(argv[1]));
+        if(m != mains.end()) {
+            return m->second(argc - 1, argv + 1);
+        }
+    }
+    std::fputs("No valid subcommand provided. Options: phase1, phase2, classify, hll, metatree\n", stderr);
     return EXIT_FAILURE;
 }

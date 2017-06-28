@@ -7,7 +7,7 @@ namespace popcnt {
 
 
 std::uint64_t vec_popcnt(const char *p, const std::size_t l) {
-    const std::uint64_t *arr((std::uint64_t *)p);
+    const std::uint64_t *arr((const std::uint64_t *)p);
     std::uint64_t ret(0);
     const std::uint64_t nloops(l >> 3);
     for(std::size_t i(0); i < nloops; ++i)  ret += popcount(arr[i]);

@@ -28,7 +28,7 @@ OPT:= -O3 -funroll-loops -ffast-math \
 	  -fopenmp \
 	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) # -DUSE_PAR_HELPERS
 XXFLAGS=-fno-rtti
-CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS)
+CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++1z $(WARNINGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
 LIB=-lz -pthread -lhll -lcrypto
 LD=-L.
