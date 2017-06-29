@@ -1,3 +1,5 @@
+#include <functional>
+#include <fstream>
 #include "lib/feature_min.h"
 #include "lib/util.h"
 #include "lib/database.h"
@@ -8,8 +10,7 @@
 #include "lib/khpp.h"
 #include "lib/glob.h"
 #include "lib/flextree.h"
-#include <functional>
-#include <fstream>
+#include "cppitertools/groupby.hpp"
 
 using namespace emp;
 
@@ -281,6 +282,7 @@ int metatree_main(int argc, char *argv[]) {
             case 'p': num_threads = atoi(optarg); break;
         }
     }
+    Spacer sp(k, k, nullptr);
     khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));
     LOG_DEBUG("Parsed name hash.\n");
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
@@ -329,7 +331,14 @@ int metatree_main(int argc, char *argv[]) {
 // Core
     std::vector<tax_t> taxes(get_sorted_taxes(taxmap, argv[optind + 1]));
     auto tx2gt(tax2genome_map(name_hash, inpaths));
-    FlexMap fm(tx2gt, 31);
+    FMEmitter fme(taxmap, tx2gt);
+    std::vector<tax_t> tmptaxes;
+    for(auto &&pair: iter::groupby(taxes, [tm=taxmap](const tax_t a){return get_parent(tm, a);})) {
+        for(auto tax: pair.second) tmptaxes.push_back(tax);
+        std::cerr << "Going through taxes with parent = " << static_cast<tax_t>(pair.first) << '\n';
+        fme.process_subtree(begin(tmptaxes), end(tmptaxes), sp, num_threads, nullptr);
+        tmptaxes.clear();
+    }
 
     count::Counter<std::uint32_t> counter;
     return EXIT_SUCCESS;

@@ -82,9 +82,10 @@ public:
             }
         }
     }
-    void add_to_heap(std::set<const NodeType *, node_lt> &heap) const {
+    template<typename T, typename LT>
+    void add_to_heap(std::set<T, LT> &heap) const {
         for(auto &pair: map_) {
-            heap.insert(&pair);
+            heap.insert(const_cast<std::pair<const std::vector<long long unsigned int>, emp::fnode_t>*>(&pair));
         }
     }
 public:
@@ -112,16 +113,6 @@ public:
         }
 
     }
-    template<typename T>
-    void process(const T &container, const khash_t(name) *name_hash) {
-        const size_t nelem(size(container));
-        std::map<std::string, tax_t> pathmap;
-        std::unordered_map<tax_t, unsigned> taxmap;
-        for(const auto &el: container) {
-            const tax_t tax(get_taxid(el.data(), name_hash));
-            pathmap.emplace(el, tax);
-        }
-    }
 };
 
 class FMEmitter {
@@ -130,6 +121,7 @@ class FMEmitter {
     std::unordered_set<tax_t>     added_;
     khash_t(p)               *const tax_;
     const std::unordered_map<tax_t, strlist> &tpm_;
+public:
     // Need taxid to paths map
     //
     void run_collapse(std::FILE* fp=stdout, std::size_t nelem=0) {
@@ -158,11 +150,12 @@ class FMEmitter {
             }
             for(auto other: bptr->second.subsets_) {
                 to_reinsert.insert(other);
-                if(other->second.laa_ == nullptr ||
-                   other->second.laa_->second.pc_ > bptr->second.pc_)
+                if(!!other->second.added() &&
+                   (other->second.laa_ == nullptr ||
+                    other->second.laa_->second.pc_ > bptr->second.pc_))
                     other->second.laa_ = bptr;
                 for(const auto parent: other->second.parents_) {
-                    to_reinsert.insert(parent);
+                    if(!parent->second.added()) to_reinsert.insert(parent);
                 }
             }
             //Emit results
@@ -192,6 +185,24 @@ class FMEmitter {
     }
     void format_emitted_node(ks::KString &ks, const NodeType *node) const {
 
+    }
+    template<typename T>
+    FlexMap &process_subtree(T bit, T eit, const Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr) {
+        std::unordered_map<tax_t, strlist> tmpmap;
+        for(;bit != eit; ++bit) {
+            const tax_t tax(*bit);
+            auto m(tpm_.find(tax));
+            if(m == tpm_.end()) {
+                LOG_DEBUG("No paths found for tax %u. Continuing.\n", tax);
+                continue;
+            }
+            tmpmap.emplace(m->first, m->second);
+        }
+        auto ret(emplace_subtree(tmpmap));
+        ret.fill(tmpmap, sp, num_threads, acc);
+        ret.build_adjlist();
+        ret.add_to_heap(heap_);
+        return subtrees_.back();
     }
     // Also need a map of taxid to tax level.
     FMEmitter(khash_t(p) *tax, const std::unordered_map<tax_t, strlist> &taxpathmap): tax_{tax}, tpm_{taxpathmap} {}
