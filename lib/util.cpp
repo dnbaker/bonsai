@@ -364,6 +364,7 @@ ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unorder
     if(m == map.end()) throw std::runtime_error(std::string("Unexpected field entry ") + buffer);
     return m->second;
 }
+
 std::unordered_map<tax_t, ClassLevel> get_tax_depths(const khash_t(p) *taxmap, const char *path) {
     std::unordered_map<tax_t, ClassLevel> ret;
     std::ifstream ifs(path);
@@ -375,6 +376,7 @@ std::unordered_map<tax_t, ClassLevel> get_tax_depths(const khash_t(p) *taxmap, c
         if(kh_get(p, taxmap, t) == kh_end(taxmap)) continue;
         ret.emplace(t, get_linelvl(line.data(), buffer, classlvl_map));
     }
+    return ret;
 }
 
 std::vector<tax_t> get_sorted_taxes(const khash_t(p) *taxmap, const char *path) {
