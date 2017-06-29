@@ -73,7 +73,7 @@ struct kg_data {
 
 struct kg_list_data {
     std::vector<khash_t(all) *> &core_;
-    std::vector<std::forward_list<std::string>*> &fl_;
+    const std::vector<const std::forward_list<std::string>*> &fl_;
     const Spacer                &sp_;
     const khash_t(all)          *acceptable_;
 };
@@ -86,7 +86,7 @@ class kgset_t {
     std::vector<khash_t(all) *> core_;
     std::vector<std::string>    paths_;
     const khash_t(all)         *acceptable_;
-    std::unordered_map<std::uint32_t, std::forward_list<std::string>> *fl_;
+    const std::unordered_map<std::uint32_t, std::forward_list<std::string>> *fl_;
     std::vector<tax_t>         taxes_;
 
 public:
@@ -95,10 +95,10 @@ public:
         kg_data data{core_, paths, sp, acceptable_};
         kt_for(num_threads, &kg_helper, (void *)&data, core_.size());
     }
-    void fill(std::unordered_map<std::uint32_t, std::forward_list<std::string>> *path_map, const Spacer &sp, int num_threads=-1) {
+    void fill(const std::unordered_map<std::uint32_t, std::forward_list<std::string>> *path_map, const Spacer &sp, int num_threads=-1) {
         auto &pm(*path_map);
         if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
-        std::vector<std::forward_list<std::string>*> tmpfl;
+        std::vector<const std::forward_list<std::string>*> tmpfl;
         taxes_.reserve(pm.size());
         LOG_DEBUG("Tax reserved size %zu\n", taxes_.capacity());
         for(auto &pair: pm) {
@@ -114,17 +114,17 @@ public:
     const std::vector<khash_t(all) *> &get_core() const {return core_;}
     std::vector<std::string>    &get_paths() {return paths_;}
     // Encoding constructor
-    kgset_t(typename std::vector<std::string>::iterator begin, typename std::vector<std::string>::iterator end,
+    kgset_t(typename std::vector<std::string>::const_iterator begin, typename std::vector<std::string>::const_iterator end,
             const Spacer &sp, int num_threads=-1, const khash_t(all) *acc=nullptr): paths_(begin, end), acceptable_(acc), fl_(nullptr) {
         core_.reserve(end - begin);
         for(std::size_t i(0), end(paths_.size()); i != end; ++i) core_.emplace_back(kh_init(all));
         fill(paths_, sp, num_threads);
     }
     // Encoding constructor
-    kgset_t(std::vector<std::string> &paths, const Spacer &sp, int num_threads=-1, const khash_t(all) *acc=nullptr):
+    kgset_t(const std::vector<std::string> &paths, const Spacer &sp, int num_threads=-1, const khash_t(all) *acc=nullptr):
         kgset_t(std::begin(paths), std::end(paths), sp, num_threads, acc) {
     }
-    kgset_t(std::unordered_map<std::uint32_t, std::forward_list<std::string>> &list,
+    kgset_t(const std::unordered_map<std::uint32_t, std::forward_list<std::string>> &list,
             const Spacer &sp, int num_threads=-1, const khash_t(all) *acc=nullptr): acceptable_(acc), fl_(&list) {
         LOG_DEBUG("Acc? %p\n", (void *)acc);
         if(list.size() == 0) LOG_EXIT("List size is 0\n");

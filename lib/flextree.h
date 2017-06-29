@@ -103,6 +103,10 @@ public:
         else ++match->second.n_;
         ++n_;
     }
+    void fill(const std::unordered_map<tax_t, strlist> &list, const Spacer &sp, int num_threads=-1,
+              khash_t(all) *acc=nullptr) {
+        kgset_t kgs(list, sp, num_threads, acc);
+    }
     template<typename T>
     void process(const T &container, const khash_t(name) *name_hash) {
         const size_t nelem(size(container));
@@ -174,10 +178,9 @@ class FMEmitter {
         std::fwrite(ks.data(), 1, ks.size(), fp);
         ks.clear();
     }
-    FlexMap &emplace_subtree(unsigned ngenomes) {
+    FlexMap &emplace_subtree(const strlist &) {
 #if __cplusplus < 201700LL
-        subtrees_.emplace_back(ngenomes, subtrees_.size());
-        return subtrees_.back();
+        return subtrees_.emplace_back(ngenomes, subtrees_.size()), subtrees_.back();
 #else
         return subtrees_.emplace_back(ngenomes, subtrees_.size());
 #endif

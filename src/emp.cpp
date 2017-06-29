@@ -329,6 +329,7 @@ int metatree_main(int argc, char *argv[]) {
 
 // Core
     std::vector<tax_t> taxes(get_sorted_taxes(taxmap, argv[optind + 1]));
+    auto tx2gt(tax2genome_map(name_hash, inpaths));
 
     count::Counter<std::uint32_t> counter;
     return EXIT_SUCCESS;
