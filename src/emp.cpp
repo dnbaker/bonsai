@@ -270,16 +270,19 @@ using pkh_t = kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_h
 
 int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
-    int c, dry_run(0), num_threads(-1), k(31);
+    int c, num_threads(-1), k(31), nelem(0);
+    FILE *ofp(stdout);
     std::string paths_file, folder, spacing;
-    while((c = getopt(argc, argv, "p:w:k:s:f:F:h?d")) >= 0) {
+    while((c = getopt(argc, argv, "p:w:k:s:f:F:n:h?d")) >= 0) {
         switch(c) {
             case '?': case 'h':     return metatree_usage(*argv);
             case 'f': folder      = optarg;       break;
             case 'k': k           = atoi(optarg); break;
             case 'F': paths_file  = optarg;       break;
+            case 'o': ofp         = fopen(optarg, "w"); break;
             case 'd': dry_run     = 1;            break;
             case 'p': num_threads = atoi(optarg); break;
+            case 'n': nelem       = strtoull(optarg, 0, 10); break;
         }
     }
     Spacer sp(k, k, nullptr);
@@ -339,8 +342,8 @@ int metatree_main(int argc, char *argv[]) {
         fme.process_subtree(begin(tmptaxes), end(tmptaxes), sp, num_threads, nullptr);
         tmptaxes.clear();
     }
-
-    count::Counter<std::uint32_t> counter;
+    fme.run_collapse(ofp, nelem);
+    if(ofp != stdout) fclose(ofp);
     return EXIT_SUCCESS;
 }
 

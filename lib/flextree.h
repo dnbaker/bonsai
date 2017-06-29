@@ -21,8 +21,8 @@ struct fnode_t {
     const std::uint32_t          si_;
 
     fnode_t(const bitvec_t &bits, std::uint32_t bc, std::uint32_t subtree_index, const std::uint64_t n=0):
-        n_{n}, laa_{nullptr}, pc_{static_cast<std::uint32_t>(bits.size())},
-        bc_{bc},  si_{subtree_index} {}
+        n_{n}, laa_{nullptr}, pc_{static_cast<std::uint32_t>(popcnt::vec_popcnt(bits))},
+        bc_{bc}, si_{subtree_index} {}
 
     bool added() const {return laa_ && &laa_->second == this;}
 };
@@ -136,7 +136,7 @@ public:
         }
         std::unordered_set<NodeType *> to_reinsert;
         ks::KString ks;
-        for(std::size_t i(0); i < nelem; ++i) {
+        while(added_.size() < nelem) {
             const auto bptr(*heap_.begin());
             if(bptr->second.added()) {
                 LOG_WARNING("Cannot add more nodes. [Best candidate is impossible.] Breaking from loop.\n");
@@ -184,7 +184,13 @@ public:
 #endif
     }
     void format_emitted_node(ks::KString &ks, const NodeType *node) const {
-
+        std::uint32_t id(rand());
+        while(kh_get(p, tax_, id) != kh_end(tax_)) id = rand();
+        // Format node
+        // List genomes/taxids which it subsumes
+        // List parent
+        // List children
+        // Maybe summary stats?
     }
     template<typename T>
     FlexMap &process_subtree(T bit, T eit, const Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr) {
