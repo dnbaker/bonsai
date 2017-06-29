@@ -88,7 +88,8 @@ public:
         }
     }
 public:
-    FlexMap(std::uint32_t id, std::uint32_t bitcount): n_{0}, bitcount_{bitcount}, id_{id} {
+    FlexMap(const std::unordered_map<tax_t, strlist> &map, std::uint32_t id):
+        n_{0}, bitcount_{static_cast<std::uint32_t>(map.size())}, id_{id} {
     }
 
     INLINE void add(bitvec_t &&elem) {
@@ -105,7 +106,11 @@ public:
     }
     void fill(const std::unordered_map<tax_t, strlist> &list, const Spacer &sp, int num_threads=-1,
               khash_t(all) *acc=nullptr) {
-        kgset_t kgs(list, sp, num_threads, acc);
+        {
+            bitmap_t bm(kgset_t(list, sp, num_threads, acc));
+            for(auto &&pair: bm.get_map()) add(std::move(pair.second));
+        }
+
     }
     template<typename T>
     void process(const T &container, const khash_t(name) *name_hash) {
@@ -126,7 +131,7 @@ class FMEmitter {
     khash_t(p)               *const tax_;
     const std::unordered_map<tax_t, strlist> &tpm_;
     // Need taxid to paths map
-    // 
+    //
     void run_collapse(std::FILE* fp=stdout, std::size_t nelem=0) {
         assert(heap_.size());
         if(nelem == 0) {
@@ -178,15 +183,15 @@ class FMEmitter {
         std::fwrite(ks.data(), 1, ks.size(), fp);
         ks.clear();
     }
-    FlexMap &emplace_subtree(const strlist &) {
+    FlexMap &emplace_subtree(const std::unordered_map<tax_t, strlist> &paths) {
 #if __cplusplus < 201700LL
-        return subtrees_.emplace_back(ngenomes, subtrees_.size()), subtrees_.back();
+        return subtrees_.emplace_back(paths, subtrees_.size()), subtrees_.back();
 #else
-        return subtrees_.emplace_back(ngenomes, subtrees_.size());
+        return subtrees_.emplace_back(paths, subtrees_.size());
 #endif
     }
     void format_emitted_node(ks::KString &ks, const NodeType *node) const {
-        
+
     }
     // Also need a map of taxid to tax level.
     FMEmitter(khash_t(p) *tax, const std::unordered_map<tax_t, strlist> &taxpathmap): tax_{tax}, tpm_{taxpathmap} {}

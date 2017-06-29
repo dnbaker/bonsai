@@ -289,7 +289,6 @@ int metatree_main(int argc, char *argv[]) {
     cerr << "Processing " << inpaths.size() << " inpaths:\n";
     for(const auto &str: inpaths) cerr << str << '\n';
 #endif
-    FlexMap fm(5, 3);
 #ifdef TAX_CHECK
     khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, full_taxmap, name_hash));
@@ -330,6 +329,7 @@ int metatree_main(int argc, char *argv[]) {
 // Core
     std::vector<tax_t> taxes(get_sorted_taxes(taxmap, argv[optind + 1]));
     auto tx2gt(tax2genome_map(name_hash, inpaths));
+    FlexMap fm(tx2gt, 31);
 
     count::Counter<std::uint32_t> counter;
     return EXIT_SUCCESS;

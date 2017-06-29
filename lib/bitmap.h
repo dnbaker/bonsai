@@ -153,6 +153,9 @@ public:
         return tmp;
     }
 
+    auto &get_map() {return core_;}
+    auto &cget_map() const {return static_cast<const decltype(core_)&>(core_);}
+
     bitmap_t(){}
     bitmap_t(const kgset_t &set) {
         const auto tmp(fill(set));
