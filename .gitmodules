@@ -16,3 +16,6 @@
 [submodule "kraken"]
 	path = kraken
 	url = https://github.com/derrickwood/kraken
+[submodule "pdqsort"]
+	path = pdqsort
+	url = https://github.com/orlp/pdqsort

@@ -12,6 +12,16 @@
 #include "lib/flextree.h"
 #include "cppitertools/groupby.hpp"
 
+#ifdef USE_PDQSORT
+#pragma message("Using pdqsort")
+#include "pdqsort/pdqsort.h"
+#define SORT ::pdq::sort
+#define SORT_BRANCHLESS ::pdq::sort_branchless
+#else
+#define SORT ::std::sort
+#define SORT_BRANCHLESS ::std::sort
+#endif
+
 using namespace emp;
 
 using namespace std::literals;
@@ -273,14 +283,13 @@ int metatree_main(int argc, char *argv[]) {
     int c, num_threads(-1), k(31), nelem(0);
     FILE *ofp(stdout);
     std::string paths_file, folder, spacing;
-    while((c = getopt(argc, argv, "p:w:k:s:f:F:n:h?d")) >= 0) {
+    while((c = getopt(argc, argv, "p:w:k:s:f:F:n:h?")) >= 0) {
         switch(c) {
             case '?': case 'h':     return metatree_usage(*argv);
             case 'f': folder      = optarg;       break;
             case 'k': k           = atoi(optarg); break;
             case 'F': paths_file  = optarg;       break;
             case 'o': ofp         = fopen(optarg, "w"); break;
-            case 'd': dry_run     = 1;            break;
             case 'p': num_threads = atoi(optarg); break;
             case 'n': nelem       = strtoull(optarg, 0, 10); break;
         }
@@ -359,8 +368,12 @@ int hist_main(int argc, char *argv[]) {
     using elcount = std::pair<tax_t, std::uint32_t>;
     std::vector<elcount> structs;
     for(auto& i: cmap) structs.emplace_back(i.first, i.second);
-    std::sort(std::begin(structs), std::end(structs), [] (elcount &a, elcount &b) {
+    SORT(std::begin(structs), std::end(structs), [] (const elcount &a, const elcount &b) {
         return a.second < b.second;
+    });
+    SORT_BRANCHLESS(std::begin(structs), std::end(structs), [] (const elcount &a, const elcount &b) {
+        return b.second % static_cast<size_t>(a.second * a.second / b.second) <
+               a.second % static_cast<size_t>(b.second * b.second / a.second);
     });
     std::fputs("Name\tCount\n", ofp);
     for(auto &i: structs) std::fprintf(ofp, "%u\t%u\n", i.first, i.second);
@@ -370,13 +383,13 @@ int hist_main(int argc, char *argv[]) {
 
 
 const static std::unordered_map<std::string, int (*) (int, char **)> mains {
-    {"phase1", phase1_main},
-    {"p1",     phase1_main},
-    {"phase2", phase2_main},
-    {"p2",     phase2_main},
-    {"lca", phase1_main},
-    {"hll", hll_main},
-    {"hist", hist_main},
+    {"phase1",   phase1_main},
+    {"p1",       phase1_main},
+    {"phase2",   phase2_main},
+    {"p2",       phase2_main},
+    {"lca",      phase1_main},
+    {"hll",      hll_main},
+    {"hist",     hist_main},
     {"metatree", metatree_main},
     {"classify", classify_main}
 };
@@ -384,9 +397,7 @@ const static std::unordered_map<std::string, int (*) (int, char **)> mains {
 int main(int argc, char *argv[]) {
     if(argc > 1) {
         auto m(mains.find(argv[1]));
-        if(m != mains.end()) {
-            return m->second(argc - 1, argv + 1);
-        }
+        if(m != mains.end()) return m->second(argc - 1, argv + 1);
     }
     std::fputs("No valid subcommand provided. Options: phase1, phase2, classify, hll, metatree\n", stderr);
     return EXIT_FAILURE;
