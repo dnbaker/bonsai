@@ -40,7 +40,7 @@ public:
                 tmp.emplace(kh_key(taxmap, ki), nodes_.size() - 1); // Convert this back into proper parent map.
             }
         }
-        std::sort(std::begin(nodes_), std::end(nodes_), [taxmap] (const tax_t a, const tax_t b) {
+        SORT(std::begin(nodes_), std::end(nodes_), [taxmap] (const tax_t a, const tax_t b) {
             tax_t aa(node_depth(taxmap, a)), bb(node_depth(taxmap, b));
             if(aa != bb) return aa > bb;
             if((aa = get_parent(taxmap, a)) != // Set and compare lexicographically by parents.

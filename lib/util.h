@@ -57,6 +57,15 @@
 using tax_t = std::uint32_t;
 #endif
 
+#ifdef USE_PDQSORT
+#pragma message("Using pdqsort")
+#include "pdqsort/pdqsort.h"
+#define SORT ::pdq::sort
+#define SORT_BRANCHLESS ::pdq::sort_branchless
+#else
+#define SORT ::std::sort
+#define SORT_BRANCHLESS ::std::sort
+#endif
 
 #ifndef HAS_KPUTUW__
 #define kputuw_ kputuw

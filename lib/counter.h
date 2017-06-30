@@ -167,7 +167,7 @@ public:
         for(const auto &i: *hist_)
             countset.insert(i.first);
         std::vector<unsigned> counts(countset.begin(), countset.end());
-        std::sort(counts.begin(), counts.end());
+        SORT(counts.begin(), counts.end());
         std::fputs("#Count\tNumber of occurrences\n", fp);
         for(auto count: counts) ret += std::fprintf(fp, "%u\t%u\n", count, hist_->find(count)->second);
         return ret;
@@ -193,7 +193,7 @@ public:
         std::vector<vecc_t> vc;
         vc.reserve(map_.size());
         for(auto &i: map_) vc.emplace_back(&i.first, i.second);
-        std::sort(std::begin(vc), std::end(vc));
+        SORT(std::begin(vc), std::end(vc));
         ksprintf(static_cast<kstring_t*>(ks), "#Number of distinct patterns: %zu\n", vc.size());
         ksprintf(static_cast<kstring_t*>(ks), "#Pattern\tCount\tNumber of bits set in pattern\n");
         for(const auto &i: vc) {

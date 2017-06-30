@@ -11,6 +11,17 @@
 #include "klib/kseq.h"
 #include "klib/kthread.h"
 
+#ifdef USE_PDQSORT
+#pragma message("Using pdqsort")
+#include "pdqsort/pdqsort.h"
+#define SORT ::pdq::sort
+#define SORT_BRANCHLESS ::pdq::sort_branchless
+#else
+#define SORT ::std::sort
+#define SORT_BRANCHLESS ::std::sort
+#endif
+
+
 KSEQ_INIT(gzFile, gzread)
 
 struct kth {
@@ -67,7 +78,7 @@ int main(int argc, char **argv) {
     std::vector<std::size_t> lens;
     lens.reserve(data.size());
     for(auto &pair: data) lens.emplace_back(pair.first);
-    std::sort(lens.begin(), lens.end());
+    SORT(lens.begin(), lens.end());
     for(auto len: lens)
         gzprintf(ofp, "#Len: %zu\tCount: %zu\n", len, data[len]);
     gzclose(ofp);

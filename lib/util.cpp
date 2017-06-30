@@ -389,7 +389,7 @@ std::vector<tax_t> get_sorted_taxes(const khash_t(p) *taxmap, const char *path) 
         taxes = std::vector<tax_t>(taxset.begin(), taxset.end());
     }
     std::unordered_map<tax_t, ClassLevel> taxclassmap(get_tax_depths(taxmap, path));
-    std::sort(taxes.begin(), taxes.end(), [&tcm=taxclassmap,tm=taxmap](const tax_t a, const tax_t b) {
+    SORT(taxes.begin(), taxes.end(), [&tcm=taxclassmap,tm=taxmap](const tax_t a, const tax_t b) {
         auto ma(tcm.find(a)), mb(tcm.find(b));
         if(ma == tcm.end()) throw std::runtime_error("Missing taxid from tcm for a.");
         if(mb == tcm.end()) throw std::runtime_error("Missing taxid from tcm for b.");
