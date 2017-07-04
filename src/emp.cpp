@@ -332,8 +332,8 @@ int metatree_main(int argc, char *argv[]) {
 
 // Core
     std::vector<tax_t> taxes(get_sorted_taxes(taxmap, argv[optind + 1]));
-    auto tx2gt(tax2genome_map(name_hash, inpaths));
-    FMEmitter fme(taxmap, tx2gt);
+    auto tx2desc_map(tax2desc_genome_map(tax2genome_map(name_hash, inpaths), taxmap, taxes));
+    FMEmitter fme(taxmap, tx2desc_map);
     std::vector<tax_t> tmptaxes;
     for(auto &&pair: iter::groupby(taxes, [tm=taxmap](const tax_t a){return get_parent(tm, a);})) {
         for(auto tax: pair.second) tmptaxes.push_back(tax);

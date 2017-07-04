@@ -235,12 +235,11 @@ inline bool has_key(const Key &key, const Map &map) {
 }
 
 #if !NDEBUG
-template<typename T, class Compare=std::less<T>>
+template<typename T, class Compare=std::less<typename T::value_type>>
 void assert_sorted(const T &container) {
     Compare cmp;
     using std::begin;
-    auto it(begin(container));
-    auto it2(it);
+    auto it(begin(container)), it2(begin(container));
     if(it2 != end(container)) ++it2;
     while(it2 != end(container)) {
         assert(cmp(*it, *it2));
@@ -288,7 +287,7 @@ INLINE const char *get_lvlname(ClassLevel lvl) {return classlvl_arr[static_cast<
 ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unordered_map<std::string, ClassLevel> &map);
 std::vector<tax_t> get_sorted_taxes(const khash_t(p) *taxmap, const char *path);
 std::unordered_map<tax_t, ClassLevel> get_tax_depths(const khash_t(p) *taxmap, const char *path);
-
+std::unordered_map<tax_t, strlist> tax2desc_genome_map(const std::unordered_map<tax_t, strlist> &tx2g, const khash_t(p) *taxmap, const std::vector<tax_t> &sorted_taxes);
 
 } // namespace emp
 

@@ -330,8 +330,44 @@ std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map, const
         if(taxid == UINT32_C(-1)) continue;
         LOG_INFO("Found taxid %u\n", taxid);
         auto m(ret.find(taxid));
-        if(m == ret.end()) ret.emplace(taxid, std::forward_list<std::string>{path});
+        if(m == ret.end()) ret.emplace(taxid, strlist{path});
         else m->second.emplace_front(path);
+    }
+    return ret;
+}
+
+namespace {
+template<typename T> class TD;
+}
+
+std::unordered_map<tax_t, strlist> tax2desc_genome_map(
+        const std::unordered_map<tax_t, strlist> &tx2g,
+        const khash_t(p) *taxmap, const std::vector<tax_t> &sorted_taxes) {
+    std::unordered_map<tax_t, std::set<tax_t>> ptc_map;
+    typename std::unordered_map<tax_t, std::set<tax_t>>::iterator it;
+    typename std::unordered_map<tax_t, strlist>::const_iterator pit;
+    khiter_t ki;
+    ptc_map.reserve(kh_size(taxmap));
+    assert_sorted(sorted_taxes);
+    for(const auto tax: sorted_taxes) {
+        if((ki = kh_get(p, taxmap, tax)) == kh_end(taxmap)) throw std::runtime_error("Missing tax");
+        const tax_t parent(get_parent(taxmap, tax));
+        if((it = ptc_map.find(parent)) == ptc_map.end()) {
+            it = ptc_map.emplace(parent, std::set<tax_t>(ptc_map[tax].begin(), ptc_map[tax].end())).first;
+        } else {
+            //auto &thing = ptc_map[tax];
+            //TD<decltype(thing)> t;
+            auto map_iter(ptc_map.find(tax));
+            for(const auto &i: map_iter->second) it->second.insert(i);
+        }
+    }
+    std::unordered_map<tax_t, strlist> ret;
+    for(const auto &pair: ptc_map) {
+        strlist list;
+        for(const auto child: pair.second)
+            if((pit = tx2g.find(child)) != tx2g.end())
+                list.insert_after(list.begin(), pit->second.begin(), pit->second.end());
+        ret.emplace(pair.first, std::move(list));
     }
     return ret;
 }
