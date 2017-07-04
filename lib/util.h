@@ -73,10 +73,10 @@ using tax_t = std::uint32_t;
 
 #define TIME_CODE(code, name) do             \
 {                                            \
-    auto i(std::chrono::system_clock::now());\
+    auto i_##_name(::std::chrono::system_clock::now());\
     { code }                                 \
-    auto j(std::chrono::system_clock::now());\
-    fprintf(stderr, "Task %s took %lf\ns", name, std::chrono::duration<double>(j - i).count());\
+    auto j_##_name(::std::chrono::system_clock::now());\
+    fprintf(stderr, "Task %s took %lf\ns", name, std::chrono::duration<double>(j_##_name - i_##_name).count());\
 } while(0)
 
 template<typename T> class TD; // For debugging
