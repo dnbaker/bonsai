@@ -347,6 +347,7 @@ int metatree_main(int argc, char *argv[]) {
     }
     fme.run_collapse(mx + 1, ofp, nelem);
     if(ofp != stdout) fclose(ofp);
+    kh::khpp_t<size_t, size_t> test;
     return EXIT_SUCCESS;
 }
 

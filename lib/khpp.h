@@ -11,11 +11,118 @@ struct khpp_t {
     using index_type = std::uint64_t;
     index_type n_buckets, size, n_occupied, upper_bound;
     khint32_t *flags;
-    khkey_t *keys;
-    khval_t *vals;
+    khkey_t   *keys;
+    khval_t   *vals;
     mutable std::shared_mutex m;
     hash_equal he;
     hash_func hf;
+
+    struct iterator {
+        khpp_t<khkey_t, khval_t, hash_func, hash_equal, is_map> &t_;
+        khint_t ki;
+        khkey_t &first() {
+            return t_.keys[ki];
+        }
+        khval_t &second() {
+            if constexpr(!is_map)
+                throw std::runtime_error("Cannot call second for a hash set.");
+            return t_.vals[ki];
+        }
+        iterator &operator++() {
+            if(ki < t_.n_buckets) {
+                do {++ki;}
+                while(ki < t_.n_buckets && __ac_iseither(t_.flags, (ki)));
+            }
+            return *this;
+        }
+        iterator operator++(int) {
+            iterator ret(*this);
+            operator++();
+            return ret;
+        }
+        iterator(khpp_t<khkey_t, khval_t, hash_func, hash_equal, is_map> &map, khint_t ki=0):
+            t_(map), ki(ki) {}
+        bool operator !=(const iterator &other) {
+            return ki != other.ki;
+        }
+        bool operator ==(const iterator &other) {
+            return ki == other.ki;
+        }
+        bool operator <=(const iterator &other) {
+            return ki <= other.ki;
+        }
+        bool operator <(const iterator &other) {
+            return ki < other.ki;
+        }
+        bool operator >(const iterator &other) {
+            return ki > other.ki;
+        }
+        bool operator >=(const iterator &other) {
+            return ki >= other.ki;
+        }
+        iterator &operator -=(index_type diff) {
+            if(ki >= diff) {
+                ki -= diff;
+            } else {
+                throw std::runtime_error("Out of range.");
+            }
+            return *this;
+        }
+        iterator &operator +=(index_type diff) {
+            if(ki <= t_->n_buckets - diff) {
+                ki += diff;
+            } else {
+                throw std::runtime_error("Out of range.");
+            }
+            return *this;
+        }
+        iterator operator +(index_type offset) {
+            offset += ki;
+            if(offset > t_->n_buckets) {
+                throw std::runtime_error("Out of range.");
+            }
+            return iterator(t_, offset);
+        }
+        iterator operator -(index_type offset) {
+            if(offset > ki) {
+                throw std::runtime_error("Out of range.");
+            }
+            offset -= ki;
+            return iterator(t_, offset);
+        }
+    };
+    struct const_iterator {
+        const khpp_t<khkey_t, khval_t, hash_func, hash_equal, is_map> &t_;
+        khint_t ki;
+        khkey_t &first() {
+            return t_.keys[ki];
+        }
+        khval_t &second() {
+            if constexpr(!is_map)
+                throw std::runtime_error("Cannot call second for a hash set.");
+            return t_.vals[ki];
+        }
+        const_iterator &operator++(){
+            if(ki < t_.n_buckets) {
+                do {++ki;}
+                while(ki < t_.n_buckets && __ac_iseither(t_.flags, ki));
+            }
+            return *this;
+        }
+        const_iterator operator++(int) {
+            const_iterator ret(*this);
+            operator++();
+            return ret;
+        }
+        const_iterator(const khpp_t<khkey_t, khval_t, hash_func, hash_equal, is_map> &map, khint_t ki=0):
+            t_(map), ki(ki) {}
+    };
+
+    iterator begin() {return iterator(*this);}
+    iterator end()   {return iterator(*this, n_buckets);}
+    const_iterator cbegin() {return const_iterator(*this);}
+    const_iterator cend()   {return const_iterator(*this, n_buckets);}
+
 
     static constexpr double HASH_UPPER = 0.77;
     khpp_t(): n_buckets(0), size(0), n_occupied(0), upper_bound(0), flags(0), keys(0), vals(0) {
@@ -92,7 +199,7 @@ struct khpp_t {
         return x;
     }
     index_type nb() const {return n_buckets;}
-    khval_t &operator[](khkey_t &key) {
+    khval_t &operator[](const khkey_t &key) {
         std::shared_lock<std::shared_mutex>(m);
         index_type ki(iget(key));
         int khr;
