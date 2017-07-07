@@ -135,13 +135,14 @@ struct khpp_t {
         free(keys);
     }
     void clear() {
-        std::lock_guard<std::mutex> lock(m);
+        m.lock();
         if (flags) {
             memset(flags, 0xaa, __ac_fsize(n_buckets) * sizeof(khint32_t));
             size = n_occupied = 0;
         }
+        m.unlock();
     }
-    index_type iget(khkey_t &key)
+    index_type iget(const khkey_t &key)
     {
         std::shared_lock<std::mutex> lock(m);
         if (n_buckets) {
@@ -157,7 +158,7 @@ struct khpp_t {
         }
         return 0;
     }
-    index_type iput(khkey_t &key, int *ret)
+    index_type iput(const khkey_t &key, int *ret)
     {
         index_type x;
         if (n_occupied >= upper_bound) { /* update the hash table */
@@ -169,7 +170,6 @@ struct khpp_t {
                 *ret = -1; return n_buckets;
             }
         } /* TODO: to implement automatically shrinking; resize() already support shrinking */
-        std::lock_guard<std::mutex> lock(m);
         {
             index_type k, i, site, last, mask = n_buckets - 1, step = 0;
             x = site = n_buckets; k = hf(key); i = k & mask;
@@ -187,6 +187,7 @@ struct khpp_t {
                 }
             }
         }
+        m.lock();
         if (__ac_isempty(flags, x)) { /* not present at all */
             keys[x] = key;
             __ac_set_isboth_false(flags, x);
@@ -198,6 +199,7 @@ struct khpp_t {
             ++size;
             *ret = 2;
         } else *ret = 0; /* Don't touch keys[x] if present and not deleted */
+        m.unlock();
         return x;
     }
     index_type nb() const {return n_buckets;}
@@ -285,7 +287,7 @@ struct khpp_t {
         std::shared_lock<std::mutex>(m);
         return __sync_bool_compare_and_swap(vals + ki, vals[ki], val);
     }
-    void set(khkey_t &key, const khval_t &val)
+    void set(const khkey_t &key, const khval_t &val)
     {
         khiter_t ki;
         int khr;
@@ -302,7 +304,30 @@ struct khpp_t {
         std::shared_lock<std::mutex> lock(m);
         func_set_impl(func, key, val);
     }
-
+    khpp_t &operator=(const khpp_t &other) {
+        if(this == &other) return *this;
+        std::memcpy(this, &other, sizeof(*this));
+        flags = static_cast<khint32_t *>(malloc(__ac_fsize(n_buckets) * sizeof(khint32_t)));
+        std::memcpy(flags, other.flags, __ac_fsize(n_buckets) * sizeof(khint32_t));
+        vals  = static_cast<khval_t *>(malloc(n_buckets * sizeof(khval_t)));
+        std::memcpy(vals, other.vals, n_buckets * sizeof(khval_t));
+        keys  = static_cast<khkey_t *>(malloc(n_buckets * sizeof(khkey_t)));
+        std::memcpy(keys, other.keys, n_buckets * sizeof(khkey_t));
+        return *this;
+    }
+    khpp_t &operator=(khpp_t &&other) {
+        if(this == &other) return *this;
+        std::memcpy(this, &other, sizeof(*this));
+        std::memset(&other, 0, sizeof(other));
+        return *this;
+    }
+	void del(khint_t x)
+	{
+		if (x != n_buckets && !__ac_iseither(flags, x)) {
+			__ac_set_isdel_true(flags, x);
+			__sync_fetch_and_sub(&size, 1);
+		}
+	}
 };
 
 }

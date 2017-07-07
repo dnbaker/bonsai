@@ -76,7 +76,7 @@ using tax_t = std::uint32_t;
     auto i_##_name(::std::chrono::system_clock::now());\
     { code }                                 \
     auto j_##_name(::std::chrono::system_clock::now());\
-    fprintf(stderr, "Task %s took %lf\ns", name, std::chrono::duration<double>(j_##_name - i_##_name).count());\
+    fprintf(stderr, "Task %s took %lfs\n", name, std::chrono::duration<double>(j_##_name - i_##_name).count());\
 } while(0)
 
 template<typename T> class TD; // For debugging
