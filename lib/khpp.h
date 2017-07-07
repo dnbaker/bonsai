@@ -192,18 +192,22 @@ struct khpp_t {
                 }
             }
         }
-        if (__ac_isempty(flags, x)) { /* not present at all */
-            while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
-            __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
-            __sync_fetch_and_add(&size, 1);
-            __sync_fetch_and_add(&n_occupied, 1);
-            *ret = 1;
-        } else if (__ac_isdel(flags, x)) { /* deleted */
-            while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
-            __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
-            __sync_fetch_and_add(&size, 1);
-            *ret = 2;
-        } else *ret = 0; /* Don't touch keys[x] if present and not deleted */
+        switch((flags[x>>4]>>((x&0xfU)<<1))&3) {
+            case 0:
+                while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
+                __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
+                __sync_fetch_and_add(&size, 1);
+                __sync_fetch_and_add(&n_occupied, 1);
+                *ret = 1;
+                break;
+            case 1:
+                while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
+                __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
+                __sync_fetch_and_add(&size, 1);
+                *ret = 2;
+                break;
+            default: *ret = 0; /* Don't touch keys[x] if present and not deleted */
+        }
         return x;
     }
     index_type nb() const {return n_buckets;}
