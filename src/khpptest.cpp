@@ -7,6 +7,15 @@
 #include <fstream>
 #include <cassert>
 
+void parallel_add_els(emp::kh::khpp_t<int, int> &map, const std::vector<int> &els, int nthreads) {
+    int ret;
+    const size_t nels(els.size());
+    #pragma omp parallel for num_threads(nthreads)
+    for(size_t i = 0; i < nels; ++i) {
+        map.iput(els[i], &ret);
+    }
+}
+
 int main(int argc, char *argv[]) {
     int nels(1 << 10), nthreads(1), c, csum(0);
     emp::kh::khpp_t<int, int> map;
@@ -20,25 +29,26 @@ int main(int argc, char *argv[]) {
             case 'p': nthreads = atoi(optarg); break;
         }
     }
-    std::set<int> els;
-    while(els.size() < static_cast<unsigned>(nels)) els.insert(std::rand());
+    std::set<int> tels;
+    while(tels.size() < static_cast<unsigned>(nels)) tels.insert(std::rand());
+    std::vector<int> els(tels.begin(), tels.end());
     int ret;
     omp_set_num_threads(nthreads);
-    TIME_CODE(
-    {
-        auto it(els.begin());
-        for(int i = 0; i < nels; ++i) {
-            map.iput(*it++, &ret);
-        }
-    }, "parallel build.");
     map = decltype(map)();
     TIME_CODE(
     {
         auto it(els.begin());
-        for(int i = 0; i < nels; ++i) {
+        for(size_t i = 0; i < static_cast<unsigned>(nels); ++i) {
             map.iput(*it++, &ret);
         }
     }, "single build.");
+    map = decltype(map)();
+    assert(map.size == 0);
+    TIME_CODE(
+    {
+        parallel_add_els(map, els, nthreads);
+    }, "parallel build.");
+
     TIME_CODE(
     {
         auto it(map.begin());
@@ -54,11 +64,22 @@ int main(int argc, char *argv[]) {
         for(khiter_t ki = 0;ki != map.n_buckets; ++ki) if(map.exist(ki)) csum += map.vals[ki];
     }
               , "kh iteration.");
-    std::set<int> cmp;
+    map = decltype(map)();
+    els.clear();
+    for(size_t i(0); i < nels; els.push_back(i++));
+    for(size_t i = 0; i < nels; ++i) map.iput(i, &ret);
+    std::vector<int> cmp;
     for(auto it(map.begin()); it != map.end(); ++it) {
-        cmp.insert(it.first());
+        cmp.push_back(it.first());
     }
-    assert(cmp == els);
+    if(cmp != els) {
+        std::cerr << "cmp: \n";
+        for(const auto i: cmp) std::cerr << i << ", ";
+        std::cerr << '\n';
+        std::cerr << "els: \n";
+        for(const auto i: els) std::cerr << i << ", ";
+        std::cerr << '\n';
+    }
     for(auto it(map.begin()), eit(map.end()); it != eit; ++it) ofs << "Outputting stuff. Key: " << it.first() << ". Value: " << it.second() << "\n";
     std::fprintf(stderr, "Sum of all the stuffs: %i\n", csum);
     return EXIT_SUCCESS;

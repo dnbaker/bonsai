@@ -2,6 +2,7 @@
 #define KHPP_H__
 #include "lib/khash64.h"
 #include "lib/hash.h"
+using std::shared_mutex;
 
 namespace emp {
 namespace kh {
@@ -13,12 +14,14 @@ struct khpp_t {
     khint32_t *flags;
     khkey_t   *keys;
     khval_t   *vals;
-    mutable std::mutex m;
+    mutable shared_mutex m;
     hash_equal he;
     hash_func hf;
+    using map_type = khpp_t<khkey_t, khval_t, hash_func, hash_equal, is_map>;
+    static constexpr double HASH_UPPER = 0.77;
 
     struct iterator {
-        khpp_t<khkey_t, khval_t, hash_func, hash_equal, is_map> &t_;
+        map_type &t_;
         khint_t ki;
         khkey_t &first() {
             return t_.keys[ki];
@@ -40,7 +43,7 @@ struct khpp_t {
             operator++();
             return ret;
         }
-        iterator(khpp_t<khkey_t, khval_t, hash_func, hash_equal, is_map> &map, khint_t ki=0):
+        iterator(map_type &map, khint_t ki=0):
             t_(map), ki(ki) {}
         bool operator !=(const iterator &other) {
             return ki != other.ki;
@@ -92,7 +95,7 @@ struct khpp_t {
         }
     };
     struct const_iterator {
-        const khpp_t<khkey_t, khval_t, hash_func, hash_equal, is_map> &t_;
+        const map_type &t_;
         khint_t ki;
         khkey_t &first() {
             return t_.keys[ki];
@@ -114,7 +117,7 @@ struct khpp_t {
             operator++();
             return ret;
         }
-        const_iterator(const khpp_t<khkey_t, khval_t, hash_func, hash_equal, is_map> &map, khint_t ki=0):
+        const_iterator(const map_type &map, khint_t ki=0):
             t_(map), ki(ki) {}
     };
 
@@ -126,7 +129,6 @@ struct khpp_t {
     const_iterator cend()   {return const_iterator(*this, n_buckets);}
 
 
-    static constexpr double HASH_UPPER = 0.77;
     khpp_t(): n_buckets(0), size(0), n_occupied(0), upper_bound(0), flags(0), keys(0), vals(0) {
     }
     ~khpp_t() {
@@ -135,16 +137,19 @@ struct khpp_t {
         free(keys);
     }
     void clear() {
-        m.lock();
         if (flags) {
-            memset(flags, 0xaa, __ac_fsize(n_buckets) * sizeof(khint32_t));
-            size = n_occupied = 0;
+            m.lock();
+            std::memset(flags, 0xaa, __ac_fsize(n_buckets) * sizeof(khint32_t));
+            m.unlock();
+            __sync_fetch_and_sub(&size, size);
+            __sync_fetch_and_sub(&n_occupied, n_occupied);
+            assert(size == 0);
+            assert(n_occupied == 0);
         }
-        m.unlock();
     }
     index_type iget(const khkey_t &key)
     {
-        std::shared_lock<std::mutex> lock(m);
+        std::shared_lock<shared_mutex> lock(m);
         if (n_buckets) {
             index_type k, i, last, mask, step = 0;
             mask = n_buckets - 1;
@@ -187,24 +192,27 @@ struct khpp_t {
                 }
             }
         }
-        m.lock();
         if (__ac_isempty(flags, x)) { /* not present at all */
-            keys[x] = key;
+            while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
+            m.lock();
             __ac_set_isboth_false(flags, x);
-            ++size; ++n_occupied;
+            m.unlock();
+			__sync_fetch_and_add(&size, 1);
+			__sync_fetch_and_add(&n_occupied, 1);
             *ret = 1;
         } else if (__ac_isdel(flags, x)) { /* deleted */
+            m.lock();
             keys[x] = key;
             __ac_set_isboth_false(flags, x);
+            m.unlock();
             ++size;
             *ret = 2;
         } else *ret = 0; /* Don't touch keys[x] if present and not deleted */
-        m.unlock();
         return x;
     }
     index_type nb() const {return n_buckets;}
     khval_t &operator[](const khkey_t &key) {
-        std::shared_lock<std::mutex>(m);
+        std::shared_lock<shared_mutex>(m);
         index_type ki(iget(key));
         int khr;
         if(ki == nb()) ki = iput(key, &khr);
@@ -212,7 +220,7 @@ struct khpp_t {
     }
     void del(index_type x)
     {
-        std::lock_guard<std::mutex>(m);
+        std::lock_guard<shared_mutex>(m);
         if (x != n_buckets && !__ac_iseither(flags, x)) {
             __ac_set_isdel_true(flags, x);
             --size;
@@ -220,7 +228,7 @@ struct khpp_t {
     }
     int resize(index_type new_n_buckets)
     { /* This function uses 0.25*n_buckets bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets. */
-        std::lock_guard<std::mutex> lock(m);
+        if(new_n_buckets == n_buckets) return n_buckets;
         khint32_t *new_flags = 0;
         index_type j = 1;
         {
@@ -228,29 +236,32 @@ struct khpp_t {
             if (new_n_buckets < 4) new_n_buckets = 4;
             if (size >= (index_type)(new_n_buckets * HASH_UPPER + 0.5)) j = 0;    /* requested size is too small */
             else { /* hash table size to be changed (shrink or expand); rehash */
+                m.lock();
                 new_flags = (khint32_t*)kmalloc(__ac_fsize(new_n_buckets) * sizeof(khint32_t));
                 if (!new_flags) return -1;
-                memset(new_flags, 0xaa, __ac_fsize(new_n_buckets) * sizeof(khint32_t));
+                std::memset(new_flags, 0xaa, __ac_fsize(new_n_buckets) * sizeof(khint32_t));
                 if (n_buckets < new_n_buckets) {    /* expand */
                     khkey_t *new_keys = (khkey_t*)krealloc((void *)keys, new_n_buckets * sizeof(khkey_t));
                     if (!new_keys) { kfree(new_flags); return -1; }
                     keys = new_keys;
-                    if (is_map) {
+                    if constexpr(is_map) {
                         khval_t *new_vals = (khval_t*)krealloc((void *)vals, new_n_buckets * sizeof(khval_t));
                         if (!new_vals) { kfree(new_flags); return -1; }
                         vals = new_vals;
                     }
                 } /* otherwise shrink */
+                m.unlock();
             }
         }
         if (j) { /* rehashing is needed */
+            m.lock();
             for (j = 0; j != n_buckets; ++j) {
                 if (__ac_iseither(flags, j) == 0) {
                     khkey_t key = keys[j];
                     khval_t val;
                     index_type new_mask;
                     new_mask = new_n_buckets - 1;
-                    if (is_map) val = vals[j];
+                    if constexpr(is_map) val = vals[j];
                     __ac_set_isdel_true(flags, j);
                     while (1) { /* kick-out process; sort of like in Cuckoo hashing */
                         index_type k, i, step = 0;
@@ -260,11 +271,11 @@ struct khpp_t {
                         __ac_set_isempty_false(new_flags, i);
                         if (i < n_buckets && __ac_iseither(flags, i) == 0) { /* kick out the existing element */
                             { khkey_t tmp = keys[i]; keys[i] = key; key = tmp; }
-                            if (is_map) { khval_t tmp = vals[i]; vals[i] = val; val = tmp; }
+                            if constexpr(is_map) { khval_t tmp = vals[i]; vals[i] = val; val = tmp; }
                             __ac_set_isdel_true(flags, i); /* mark it as deleted in the old hash table */
                         } else { /* write the element and jump out of the loop */
                             keys[i] = key;
-                            if (is_map) vals[i] = val;
+                            if constexpr(is_map) vals[i] = val;
                             break;
                         }
                     }
@@ -272,19 +283,20 @@ struct khpp_t {
             }
             if (n_buckets > new_n_buckets) { /* shrink the hash table */
                 keys = (khkey_t*)krealloc((void *)keys, new_n_buckets * sizeof(khkey_t));
-                if (is_map) vals = (khval_t*)krealloc((void *)vals, new_n_buckets * sizeof(khval_t));
+                if constexpr(is_map) vals = (khval_t*)krealloc((void *)vals, new_n_buckets * sizeof(khval_t));
             }
             kfree(flags); /* free the working space */
             flags = new_flags;
             n_buckets = new_n_buckets;
             n_occupied = size;
             upper_bound = (index_type)(n_buckets * HASH_UPPER + 0.5);
+            m.unlock();
         }
         return 0;
     }
     bool try_set(const index_type ki, const khval_t &val)
     {
-        std::shared_lock<std::mutex>(m);
+        std::shared_lock<shared_mutex>(m);
         return __sync_bool_compare_and_swap(vals + ki, vals[ki], val);
     }
     void set(const khkey_t &key, const khval_t &val)
@@ -296,12 +308,12 @@ struct khpp_t {
     }
     template<typename T>
     void func_set(T func, khkey_t &key, const khval_t &val) {
-        std::shared_lock<std::mutex> lock(m);
+        std::shared_lock<shared_mutex> lock(m);
         func_set_impl(func, key, val);
     }
     template<typename T>
     void func_set_impl(T func, khkey_t &key, const khval_t &val) {
-        std::shared_lock<std::mutex> lock(m);
+        std::shared_lock<shared_mutex> lock(m);
         func_set_impl(func, key, val);
     }
     khpp_t &operator=(const khpp_t &other) {
