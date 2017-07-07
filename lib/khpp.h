@@ -13,7 +13,7 @@ struct khpp_t {
     khint32_t *flags;
     khkey_t   *keys;
     khval_t   *vals;
-    mutable std::shared_mutex m;
+    mutable std::mutex m;
     hash_equal he;
     hash_func hf;
 
@@ -31,7 +31,7 @@ struct khpp_t {
         iterator &operator++() {
             if(ki < t_.n_buckets) {
                 do {++ki;}
-                while(ki < t_.n_buckets && __ac_iseither(t_.flags, (ki)));
+                while(ki < t_.n_buckets && !t_.exist(ki));
             }
             return *this;
         }
@@ -105,7 +105,7 @@ struct khpp_t {
         const_iterator &operator++(){
             if(ki < t_.n_buckets) {
                 do {++ki;}
-                while(ki < t_.n_buckets && __ac_iseither(t_.flags, ki));
+                while(ki < t_.n_buckets && !t_.exist(ki));
             }
             return *this;
         }
@@ -117,6 +117,8 @@ struct khpp_t {
         const_iterator(const khpp_t<khkey_t, khval_t, hash_func, hash_equal, is_map> &map, khint_t ki=0):
             t_(map), ki(ki) {}
     };
+
+    bool exist(index_type ix) const {return !__ac_iseither(flags, ix);}
 
     iterator begin() {return iterator(*this);}
     iterator end()   {return iterator(*this, n_buckets);}
@@ -133,7 +135,7 @@ struct khpp_t {
         free(keys);
     }
     void clear() {
-        std::unique_lock<std::shared_mutex>(m);
+        std::lock_guard<std::mutex> lock(m);
         if (flags) {
             memset(flags, 0xaa, __ac_fsize(n_buckets) * sizeof(khint32_t));
             size = n_occupied = 0;
@@ -141,7 +143,7 @@ struct khpp_t {
     }
     index_type iget(khkey_t &key)
     {
-        std::shared_lock<std::shared_mutex>(m);
+        std::shared_lock<std::mutex> lock(m);
         if (n_buckets) {
             index_type k, i, last, mask, step = 0;
             mask = n_buckets - 1;
@@ -167,7 +169,7 @@ struct khpp_t {
                 *ret = -1; return n_buckets;
             }
         } /* TODO: to implement automatically shrinking; resize() already support shrinking */
-        std::unique_lock<std::shared_mutex>(m);
+        std::lock_guard<std::mutex> lock(m);
         {
             index_type k, i, site, last, mask = n_buckets - 1, step = 0;
             x = site = n_buckets; k = hf(key); i = k & mask;
@@ -200,7 +202,7 @@ struct khpp_t {
     }
     index_type nb() const {return n_buckets;}
     khval_t &operator[](const khkey_t &key) {
-        std::shared_lock<std::shared_mutex>(m);
+        std::shared_lock<std::mutex>(m);
         index_type ki(iget(key));
         int khr;
         if(ki == nb()) ki = iput(key, &khr);
@@ -208,7 +210,7 @@ struct khpp_t {
     }
     void del(index_type x)
     {
-        std::unique_lock<std::shared_mutex>(m);
+        std::lock_guard<std::mutex>(m);
         if (x != n_buckets && !__ac_iseither(flags, x)) {
             __ac_set_isdel_true(flags, x);
             --size;
@@ -216,6 +218,7 @@ struct khpp_t {
     }
     int resize(index_type new_n_buckets)
     { /* This function uses 0.25*n_buckets bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets. */
+        std::lock_guard<std::mutex> lock(m);
         khint32_t *new_flags = 0;
         index_type j = 1;
         {
@@ -223,7 +226,6 @@ struct khpp_t {
             if (new_n_buckets < 4) new_n_buckets = 4;
             if (size >= (index_type)(new_n_buckets * HASH_UPPER + 0.5)) j = 0;    /* requested size is too small */
             else { /* hash table size to be changed (shrink or expand); rehash */
-                std::unique_lock<std::shared_mutex>(m);
                 new_flags = (khint32_t*)kmalloc(__ac_fsize(new_n_buckets) * sizeof(khint32_t));
                 if (!new_flags) return -1;
                 memset(new_flags, 0xaa, __ac_fsize(new_n_buckets) * sizeof(khint32_t));
@@ -240,7 +242,6 @@ struct khpp_t {
             }
         }
         if (j) { /* rehashing is needed */
-            std::unique_lock<std::shared_mutex>(m);
             for (j = 0; j != n_buckets; ++j) {
                 if (__ac_iseither(flags, j) == 0) {
                     khkey_t key = keys[j];
@@ -281,7 +282,7 @@ struct khpp_t {
     }
     bool try_set(const index_type ki, const khval_t &val)
     {
-        std::shared_lock<std::shared_mutex>(m);
+        std::shared_lock<std::mutex>(m);
         return __sync_bool_compare_and_swap(vals + ki, vals[ki], val);
     }
     void set(khkey_t &key, const khval_t &val)
@@ -293,12 +294,12 @@ struct khpp_t {
     }
     template<typename T>
     void func_set(T func, khkey_t &key, const khval_t &val) {
-        std::shared_lock<std::shared_mutex> lock(m);
+        std::shared_lock<std::mutex> lock(m);
         func_set_impl(func, key, val);
     }
     template<typename T>
     void func_set_impl(T func, khkey_t &key, const khval_t &val) {
-        std::shared_lock<std::shared_mutex> lock(m);
+        std::shared_lock<std::mutex> lock(m);
         func_set_impl(func, key, val);
     }
 
