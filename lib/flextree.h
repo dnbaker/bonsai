@@ -145,9 +145,8 @@ public:
 #if NDEBUG
            static_assert(false, "raise NotImplementedError('Take nodes from parents of affected nodes out of the tree and put them back in.')");
 #endif
-            for(const auto parent: bptr->second.parents_) {
-                to_reinsert.insert(parent);
-            }
+            to_reinsert.insert(std::begin(bptr->second.parents_),
+                               std::end(bptr->second.parents_));
             for(auto other: bptr->second.subsets_) {
                 to_reinsert.insert(other);
                 if(!!other->second.added() &&
@@ -160,21 +159,18 @@ public:
             }
             //Emit results
             format_emitted_node(ks, bptr);
-            if(ks.size() > 1 << 16) {
-                std::fwrite(ks.data(), 1, ks.size(), fp);
-                ks.clear();
-            }
+
+            //  if(ks.size() >= (1 << 16))
+            if(ks.size() & 65536ul) ks.write(fp), ks.clear();
 
             // Make a list of all pointers to remove and reinsert to the map.
             heap_.erase(heap_.begin());
             for(const auto el: to_reinsert) heap_.erase(el);
-            for(const auto el: to_reinsert) heap_.insert(el);
-            to_reinsert.clear();
+            heap_.insert(to_reinsert.begin(), to_reinsert.end()), to_reinsert.clear();
             heap_.insert(bptr);
             assert_sorted<decltype(heap_), node_lt>(heap_);
         }
-        std::fwrite(ks.data(), 1, ks.size(), fp);
-        ks.clear();
+        ks.write(fp), ks.clear();
     }
     FlexMap &emplace_subtree(const std::unordered_map<tax_t, strlist> &paths) {
 #if __cplusplus < 201700LL
