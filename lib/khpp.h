@@ -195,13 +195,13 @@ struct khpp_t {
         if (__ac_isempty(flags, x)) { /* not present at all */
             while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
             __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
-			__sync_fetch_and_add(&size, 1);
-			__sync_fetch_and_add(&n_occupied, 1);
+            __sync_fetch_and_add(&size, 1);
+            __sync_fetch_and_add(&n_occupied, 1);
             *ret = 1;
         } else if (__ac_isdel(flags, x)) { /* deleted */
             while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
             __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
-			__sync_fetch_and_add(&size, 1);
+            __sync_fetch_and_add(&size, 1);
             *ret = 2;
         } else *ret = 0; /* Don't touch keys[x] if present and not deleted */
         return x;
@@ -218,7 +218,7 @@ struct khpp_t {
     {
         if (x != n_buckets && !__ac_iseither(flags, x)) {
             __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
-			__sync_fetch_and_sub(&size, 1);
+            __sync_fetch_and_sub(&size, 1);
         }
     }
     int resize(index_type new_n_buckets)
@@ -328,13 +328,13 @@ struct khpp_t {
         std::memset(&other, 0, sizeof(other));
         return *this;
     }
-	void del(khint_t x)
-	{
-		if (x != n_buckets && !__ac_iseither(flags, x)) {
-			__ac_set_isdel_true(flags, x);
-			__sync_fetch_and_sub(&size, 1);
-		}
-	}
+    void del(khint_t x)
+    {
+        if (x != n_buckets && !__ac_iseither(flags, x)) {
+            __ac_set_isdel_true(flags, x);
+            __sync_fetch_and_sub(&size, 1);
+        }
+    }
 };
 
 }
