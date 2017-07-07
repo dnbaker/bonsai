@@ -16,6 +16,7 @@ struct khpp_t {
     mutable std::shared_mutex m;
     hash_equal he;
     hash_func hf;
+
     static constexpr double HASH_UPPER = 0.77;
     khpp_t(): n_buckets(0), size(0), n_occupied(0), upper_bound(0), flags(0), keys(0), vals(0) {
     }

@@ -123,8 +123,7 @@ class FMEmitter {
     const std::unordered_map<tax_t, strlist> &tpm_;
 public:
     // Need taxid to paths map
-    //
-    void run_collapse(std::FILE* fp=stdout, std::size_t nelem=0) {
+    void run_collapse(tax_t maxtax, std::FILE* fp=stdout, std::size_t nelem=0) {
         assert(heap_.size());
         if(nelem == 0) {
             auto bccpy(kh_size(tax_));
@@ -142,9 +141,6 @@ public:
                 LOG_WARNING("Cannot add more nodes. [Best candidate is impossible.] Breaking from loop.\n");
                 break;
             } else bptr->second.laa_ = bptr;
-#if NDEBUG
-           static_assert(false, "raise NotImplementedError('Take nodes from parents of affected nodes out of the tree and put them back in.')");
-#endif
             to_reinsert.insert(std::begin(bptr->second.parents_),
                                std::end(bptr->second.parents_));
             for(auto other: bptr->second.subsets_) {
@@ -157,8 +153,7 @@ public:
                     if(!parent->second.added()) to_reinsert.insert(parent);
                 }
             }
-            //Emit results
-            format_emitted_node(ks, bptr);
+            format_emitted_node(ks, bptr, maxtax++);
 
             //  if(ks.size() >= (1 << 16))
             if(ks.size() & 65536ul) ks.write(fp), ks.clear();
@@ -179,7 +174,7 @@ public:
         return subtrees_.emplace_back(paths, subtrees_.size());
 #endif
     }
-    void format_emitted_node(ks::KString &ks, const NodeType *node) const {
+    void format_emitted_node(ks::KString &ks, const NodeType *node, tax_t taxid) const {
         std::uint32_t id(rand());
         while(kh_get(p, tax_, id) != kh_end(tax_)) id = rand();
         // Format node

@@ -328,6 +328,10 @@ int metatree_main(int argc, char *argv[]) {
     khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, full_taxmap, name_hash));
 #endif
+    tax_t mx(std::numeric_limits<tax_t>::min());
+    for(khiter_t ki(0); ki < kh_end(full_taxmap); ++ki) {
+        if(kh_exist(full_taxmap, ki)) if(kh_key(full_taxmap, ki) > mx) mx = kh_key(full_taxmap, ki);
+    }
     kh_destroy(p, full_taxmap);
 
 // Core
@@ -341,7 +345,7 @@ int metatree_main(int argc, char *argv[]) {
         fme.process_subtree(begin(tmptaxes), end(tmptaxes), sp, num_threads, nullptr);
         tmptaxes.clear();
     }
-    fme.run_collapse(ofp, nelem);
+    fme.run_collapse(mx + 1, ofp, nelem);
     if(ofp != stdout) fclose(ofp);
     return EXIT_SUCCESS;
 }
