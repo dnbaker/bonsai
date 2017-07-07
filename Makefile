@@ -9,6 +9,9 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
 		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
 		 -pedantic -DUSE_PDQSORT
+ifndef EXTRA
+	EXTRA:= 
+endif
 DBG:= # -DNDEBUG # -fno-inline
 OS:=$(shell uname)
 FLAGS=
@@ -26,7 +29,7 @@ endif
 
 OPT:= -O3 -funroll-loops -ffast-math \
 	  -fopenmp \
-	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) # -DUSE_PAR_HELPERS
+	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) $(EXTRA) # -DUSE_PAR_HELPERS
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++1z $(WARNINGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)

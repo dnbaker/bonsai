@@ -72,7 +72,7 @@ struct khpp_t {
             return *this;
         }
         iterator &operator +=(index_type diff) {
-            if(ki <= t_->n_buckets - diff) {
+            if(ki <= t_.n_buckets - diff) {
                 ki += diff;
             } else {
                 throw std::runtime_error("Out of range.");
@@ -81,7 +81,7 @@ struct khpp_t {
         }
         iterator operator +(index_type offset) {
             offset += ki;
-            if(offset > t_->n_buckets) {
+            if(offset > t_.n_buckets) {
                 throw std::runtime_error("Out of range.");
             }
             return iterator(t_, offset);
@@ -194,18 +194,14 @@ struct khpp_t {
         }
         if (__ac_isempty(flags, x)) { /* not present at all */
             while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
-            m.lock();
-            __ac_set_isboth_false(flags, x);
-            m.unlock();
+            __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
 			__sync_fetch_and_add(&size, 1);
 			__sync_fetch_and_add(&n_occupied, 1);
             *ret = 1;
         } else if (__ac_isdel(flags, x)) { /* deleted */
-            m.lock();
-            keys[x] = key;
-            __ac_set_isboth_false(flags, x);
-            m.unlock();
-            ++size;
+            while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
+            __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
+			__sync_fetch_and_add(&size, 1);
             *ret = 2;
         } else *ret = 0; /* Don't touch keys[x] if present and not deleted */
         return x;
@@ -220,10 +216,9 @@ struct khpp_t {
     }
     void del(index_type x)
     {
-        std::lock_guard<shared_mutex>(m);
         if (x != n_buckets && !__ac_iseither(flags, x)) {
-            __ac_set_isdel_true(flags, x);
-            --size;
+            __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
+			__sync_fetch_and_sub(&size, 1);
         }
     }
     int resize(index_type new_n_buckets)
