@@ -3,12 +3,15 @@
 #include <functional>
 #include "lib/khash64.h"
 #include "lib/hash.h"
+#include "tinythreadpp/source/fast_mutex.h"
 using std::shared_mutex;
 
 namespace emp {
 namespace kh {
 
-template<typename khkey_t, typename khval_t, typename hash_func=std::hash<khkey_t>, class hash_equal=std::equal_to<khkey_t>, bool is_map=true>
+template<typename khkey_t, typename khval_t,
+         typename hash_func=std::hash<khkey_t>, class hash_equal=std::equal_to<khkey_t>,
+         bool is_map=true, size_t BUCKET_OFFSET=8>
 struct khpp_t {
     using index_type = std::uint64_t;
     index_type n_buckets, size, n_occupied, upper_bound;
@@ -17,8 +20,10 @@ struct khpp_t {
     khval_t   *vals;
     mutable shared_mutex m;
     hash_equal he;
-    hash_func hf;
-    using map_type = khpp_t<khkey_t, khval_t, hash_func, hash_equal, is_map>;
+    hash_func  hf;
+    std::vector<tthread::fast_mutex> locks;
+    static const size_t LOCK_BUCKET_SIZE = 1ull << BUCKET_OFFSET;
+    using map_type = khpp_t<khkey_t, khval_t, hash_func, hash_equal, is_map, BUCKET_OFFSET>;
     static constexpr double HASH_UPPER = 0.77;
 
     struct iterator {
@@ -107,13 +112,13 @@ struct khpp_t {
     struct const_iterator {
         const map_type &t_;
         khint_t ki;
-        khkey_t &first() {
-            return t_.keys[ki];
+        const khkey_t &first() const {
+            return static_cast<const khkey_t &>(t_.keys[ki]);
         }
-        khval_t &second() {
+        const khval_t &second() const {
             if constexpr(!is_map)
                 throw std::runtime_error("Cannot call second for a hash set.");
-            return t_.vals[ki];
+            return static_cast<const khval_t &>(t_.vals[ki]);
         }
         const_iterator &operator++(){
             if(ki < t_.n_buckets) {
@@ -129,6 +134,54 @@ struct khpp_t {
         }
         const_iterator(const map_type &map, khint_t ki=0):
             t_(map), ki(ki) {}
+        bool operator !=(const const_iterator &other) {
+            return ki != other.ki;
+        }
+        bool operator ==(const const_iterator &other) {
+            return ki == other.ki;
+        }
+        bool operator <=(const const_iterator &other) {
+            return ki <= other.ki;
+        }
+        bool operator <(const const_iterator &other) {
+            return ki < other.ki;
+        }
+        bool operator >(const const_iterator &other) {
+            return ki > other.ki;
+        }
+        bool operator >=(const const_iterator &other) {
+            return ki >= other.ki;
+        }
+        const_iterator &operator -=(index_type diff) {
+            if(ki >= diff) {
+                ki -= diff;
+            } else {
+                throw std::runtime_error("Out of range.");
+            }
+            return *this;
+        }
+        const_iterator &operator +=(index_type diff) {
+            if(ki <= t_.n_buckets - diff) {
+                ki += diff;
+            } else {
+                throw std::runtime_error("Out of range.");
+            }
+            return *this;
+        }
+        const_iterator operator +(index_type offset) {
+            offset += ki;
+            if(offset > t_.n_buckets) {
+                throw std::runtime_error("Out of range.");
+            }
+            return const_iterator(t_, offset);
+        }
+        const_iterator operator -(index_type offset) {
+            if(offset > ki) {
+                throw std::runtime_error("Out of range.");
+            }
+            offset -= ki;
+            return const_iterator(t_, offset);
+        }
     };
 
     bool exist(index_type ix) const {return !__ac_iseither(flags, ix);}
@@ -166,7 +219,7 @@ struct khpp_t {
             k = hf(key); i = k & mask;
             last = i;
             while (!__ac_isempty(flags, i) && (__ac_isdel(flags, i) || !he(keys[i], key)))
-                if((i = (i + (++step)) & mask)
+                if((i = (i + (++step)) & mask))
                     return n_buckets;
             return __ac_iseither(flags, i) ? n_buckets : i;
         }
@@ -260,16 +313,16 @@ struct khpp_t {
             if (size >= (index_type)(new_n_buckets * HASH_UPPER + 0.5)) j = 0;    /* requested size is too small */
             else { /* hash table size to be changed (shrink or expand); rehash */
                 std::lock_guard<decltype(m)> lock(m);
-                new_flags = (khint32_t*)kmalloc(__ac_fsize(new_n_buckets) * sizeof(khint32_t));
+                new_flags = (khint32_t*)std::malloc(__ac_fsize(new_n_buckets) * sizeof(khint32_t));
                 if (!new_flags) return -1;
                 std::memset(new_flags, 0xaa, __ac_fsize(new_n_buckets) * sizeof(khint32_t));
                 if (n_buckets < new_n_buckets) {    /* expand */
-                    khkey_t *new_keys = (khkey_t*)krealloc((void *)keys, new_n_buckets * sizeof(khkey_t));
-                    if (!new_keys) { kfree(new_flags); return -1; }
+                    khkey_t *new_keys = (khkey_t*)std::realloc((void *)keys, new_n_buckets * sizeof(khkey_t));
+                    if (!new_keys) { std::free(new_flags); return -1; }
                     keys = new_keys;
                     if constexpr(is_map) {
-                        khval_t *new_vals = (khval_t*)krealloc((void *)vals, new_n_buckets * sizeof(khval_t));
-                        if (!new_vals) { kfree(new_flags); return -1; }
+                        khval_t *new_vals = (khval_t*)std::realloc((void *)vals, new_n_buckets * sizeof(khval_t));
+                        if (!new_vals) { std::free(new_flags); return -1; }
                         vals = new_vals;
                     }
                 } /* otherwise shrink */
@@ -304,28 +357,17 @@ struct khpp_t {
                 }
             }
             if (n_buckets > new_n_buckets) { /* shrink the hash table */
-                keys = (khkey_t*)krealloc((void *)keys, new_n_buckets * sizeof(khkey_t));
-                if constexpr(is_map) vals = (khval_t*)krealloc((void *)vals, new_n_buckets * sizeof(khval_t));
+                keys = static_cast<khkey_t *>(std::realloc((void *)keys, new_n_buckets * sizeof(khkey_t)));
+                if constexpr(is_map) vals = (khval_t*)std::realloc((void *)vals, new_n_buckets * sizeof(khval_t));
             }
-            kfree(flags); /* free the working space */
-            flags = new_flags;
-            n_buckets = new_n_buckets;
-            n_occupied = size;
-            upper_bound = (index_type)(n_buckets * HASH_UPPER + 0.5);
+            std::free(flags); /* free the working space */
+            flags       = new_flags;
+            n_buckets   = new_n_buckets;
+            n_occupied  = size;
+            upper_bound = static_cast<index_type>(n_buckets * HASH_UPPER + 0.5);
+            locks.resize(n_buckets >> BUCKET_OFFSET);
         }
         return 0;
-    }
-    bool try_set(const index_type ki, const khval_t &val)
-    {
-        std::shared_lock<shared_mutex>(m);
-        return __sync_bool_compare_and_swap(vals + ki, vals[ki], val);
-    }
-    void set(const khkey_t &key, const khval_t &val)
-    {
-        khiter_t ki;
-        int khr;
-        if((ki = iget(key)) == nb()) ki = iput(key, &khr);
-        while(!try_set(ki, val));
     }
     template<typename T>
     void func_set(T func, khkey_t &key, const khval_t &val) {
@@ -335,7 +377,6 @@ struct khpp_t {
     template<typename T>
     void func_set_impl(T func, khkey_t &key, const khval_t &val) {
         std::shared_lock<shared_mutex> lock(m);
-        func_set_impl(func, key, val);
     }
     khpp_t &operator=(const khpp_t &other) {
         if(this == &other) return *this;
@@ -349,13 +390,15 @@ struct khpp_t {
         return *this;
     }
     khpp_t &operator=(khpp_t &&other) {
-        if(this == &other) return *this;
-        std::memcpy(this, &other, sizeof(*this));
-        std::memset(&other, 0, sizeof(other));
+        if(this != &other) {
+            std::memcpy(this, &other, sizeof(*this));
+            std::memset(&other, 0, sizeof(other));
+        }
         return *this;
     }
 	void del(khint_t x)
 	{
+        //TODO: atomicize __ac_set_isdel_true
 		if (x != n_buckets && !__ac_iseither(flags, x)) {
 			__ac_set_isdel_true(flags, x);
 			__sync_fetch_and_sub(&size, 1);
