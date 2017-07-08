@@ -1,5 +1,6 @@
 #ifndef KHPP_H__
 #define KHPP_H__
+#include <functional>
 #include "lib/khash64.h"
 #include "lib/hash.h"
 using std::shared_mutex;
@@ -23,6 +24,7 @@ struct khpp_t {
     struct iterator {
         map_type &t_;
         khint_t ki;
+        using pair_type = std::pair<std::reference_wrapper<khkey_t>, std::reference_wrapper<khval_t>>;
         khkey_t &first() {
             return t_.keys[ki];
         }
@@ -42,6 +44,14 @@ struct khpp_t {
             iterator ret(*this);
             operator++();
             return ret;
+        }
+        auto operator*() {
+            return std::make_pair(std::ref(t_.keys[ki]),
+                                  std::ref(t_.vals[ki]));
+        }
+        auto operator*() const {
+            return std::make_pair(std::cref(t_.keys[ki]),
+                                  std::cref(t_.vals[ki]));
         }
         iterator(map_type &map, khint_t ki=0):
             t_(map), ki(ki) {}
@@ -123,8 +133,8 @@ struct khpp_t {
 
     bool exist(index_type ix) const {return !__ac_iseither(flags, ix);}
 
-    iterator begin() {return iterator(*this);}
-    iterator end()   {return iterator(*this, n_buckets);}
+    iterator begin()        {return iterator(*this);}
+    iterator end()          {return iterator(*this, n_buckets);}
     const_iterator cbegin() {return const_iterator(*this);}
     const_iterator cend()   {return const_iterator(*this, n_buckets);}
 
@@ -155,11 +165,10 @@ struct khpp_t {
             mask = n_buckets - 1;
             k = hf(key); i = k & mask;
             last = i;
-            while (!__ac_isempty(flags, i) && (__ac_isdel(flags, i) || !he(keys[i], key))) {
-                i = (i + (++step)) & mask;
-                if (i == last) return n_buckets;
-            }
-            return __ac_iseither(flags, i)? n_buckets : i;
+            while (!__ac_isempty(flags, i) && (__ac_isdel(flags, i) || !he(keys[i], key)))
+                if((i = (i + (++step)) & mask)
+                    return n_buckets;
+            return __ac_iseither(flags, i) ? n_buckets : i;
         }
         return 0;
     }
@@ -192,6 +201,24 @@ struct khpp_t {
                 }
             }
         }
+#ifdef ZOMGZ
+        switch((flags[x>>4]>>((x&0xfU)<<1))&3) {
+            case 0: *ret = 0; break; /* Don't touch keys[x] if present and not deleted */
+            case 2:
+                while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
+                __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
+                __sync_fetch_and_add(&size, 1);
+                __sync_fetch_and_add(&n_occupied, 1);
+                *ret = 1;
+                break;
+            case 1:
+                while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
+                __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
+                __sync_fetch_and_add(&size, 1);
+                *ret = 2;
+                break;
+        }
+#else
         if (__ac_isempty(flags, x)) { /* not present at all */
             while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
             __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
@@ -204,6 +231,7 @@ struct khpp_t {
 			__sync_fetch_and_add(&size, 1);
             *ret = 2;
         } else *ret = 0; /* Don't touch keys[x] if present and not deleted */
+#endif
         return x;
     }
     index_type nb() const {return n_buckets;}
@@ -231,7 +259,7 @@ struct khpp_t {
             if (new_n_buckets < 4) new_n_buckets = 4;
             if (size >= (index_type)(new_n_buckets * HASH_UPPER + 0.5)) j = 0;    /* requested size is too small */
             else { /* hash table size to be changed (shrink or expand); rehash */
-                m.lock();
+                std::lock_guard<decltype(m)> lock(m);
                 new_flags = (khint32_t*)kmalloc(__ac_fsize(new_n_buckets) * sizeof(khint32_t));
                 if (!new_flags) return -1;
                 std::memset(new_flags, 0xaa, __ac_fsize(new_n_buckets) * sizeof(khint32_t));
@@ -245,11 +273,10 @@ struct khpp_t {
                         vals = new_vals;
                     }
                 } /* otherwise shrink */
-                m.unlock();
             }
         }
         if (j) { /* rehashing is needed */
-            m.lock();
+            std::lock_guard<decltype(m)> lock(m);
             for (j = 0; j != n_buckets; ++j) {
                 if (__ac_iseither(flags, j) == 0) {
                     khkey_t key = keys[j];
@@ -285,7 +312,6 @@ struct khpp_t {
             n_buckets = new_n_buckets;
             n_occupied = size;
             upper_bound = (index_type)(n_buckets * HASH_UPPER + 0.5);
-            m.unlock();
         }
         return 0;
     }

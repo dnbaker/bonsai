@@ -37,10 +37,7 @@ int main(int argc, char *argv[]) {
     map = decltype(map)();
     TIME_CODE(
     {
-        auto it(els.begin());
-        for(size_t i = 0; i < static_cast<unsigned>(nels); ++i) {
-            map.iput(*it++, &ret);
-        }
+        for(size_t i = 0; i < static_cast<unsigned>(nels); map.iput(els[i++], &ret));
     }, "single build.");
     map = decltype(map)();
     assert(map.size == 0);
@@ -64,6 +61,19 @@ int main(int argc, char *argv[]) {
         for(khiter_t ki = 0;ki != map.n_buckets; ++ki) if(map.exist(ki)) csum += map.vals[ki];
     }
               , "kh iteration.");
+    TIME_CODE(
+    {
+        for(const auto el: map) //std::cerr << "el.first: " << el.first << "el.second: " << el.second << ".\n";
+            ret += el.first;
+    }
+              , "range for value");
+    TIME_CODE(
+    {
+        for(const auto &el: map)
+            // std::cerr << "el.first: " << el.first << "el.second: " << el.second << ".\n";
+            ret += el.first;
+    }
+              , "range for reference");
     map = decltype(map)();
     els.clear();
     for(size_t i(0); i < nels; els.push_back(i++));

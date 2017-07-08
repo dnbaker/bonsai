@@ -1,8 +1,6 @@
 #ifndef _HASH_H_
 #define _HASH_H_
 #include "util.h"
-#define REGISTER
-
 
 namespace emp {
 
@@ -22,17 +20,17 @@ constexpr INLINE std::uint64_t wang_hash(std::uint64_t key) {
   return key;
 }
 struct wang_hash_struct {
-    constexpr std::uint64_t operator()(std::uint64_t key) {return wang_hash(key);}
+    constexpr std::uint64_t operator()(std::uint64_t key) const {return wang_hash(key);}
 };
 template<typename T>
 struct ptr_wang_hash_struct {
     template<typename = typename std::enable_if<std::is_pointer<T>::value || sizeof(T) == 8>::type>
-    constexpr std::uint64_t operator()(T key) {return wang_hash(reinterpret_cast<std::uint64_t>(key));}
+    constexpr std::uint64_t operator()(T key) const {return wang_hash(reinterpret_cast<std::uint64_t>(key));}
 };
 
 template<typename T>
 struct idt_struct {
-    constexpr T operator()(const T key) {return key;}
+    constexpr T operator()(const T key) const {return key;}
 };
 
 // Geoffrey Irving
@@ -86,19 +84,19 @@ static INLINE int X31_hash_string(const char *s)
 // Slightly modified.
 // This is a 32-bit unsigned hash function for strings.
 static INLINE unsigned
-dbm_hash(REGISTER const char *str, REGISTER std::size_t len)
+dbm_hash(const char *str, std::size_t len)
 {
-    REGISTER unsigned n = 0;
+    unsigned n = 0;
 
 #define HASHC  (n = *str++ + (n << 16) + (n << 6) - n)
 #ifdef DUFF
     if(len) {
-        REGISTER int loop = (len + 7) >> 3;
+        int loop = (len + 7) >> 3;
         switch(len & 7) {
-        case 0: do {
-            HASHC;
-            case 7: HASHC; case 6: HASHC; case 5: HASHC;
-            case 4: HASHC; case 3: HASHC; case 2: HASHC;  case 1: HASHC;
+            case 0: do {
+                HASHC;
+                case 7: HASHC; case 6: HASHC; case 5: HASHC;
+                case 4: HASHC; case 3: HASHC; case 2: HASHC;  case 1: HASHC;
             } while (--loop);
         }
     }
@@ -108,9 +106,10 @@ dbm_hash(REGISTER const char *str, REGISTER std::size_t len)
     return n;
 }
 #undef HASHC
-static INLINE unsigned dbm_hash(REGISTER const char *str)
+
+static INLINE unsigned dbm_hash(const char *str)
 {
-    REGISTER unsigned n = *str;
+    unsigned n = *str;
     if(n) for(++str; *str; n = *str++ + ((n << 16) + (n << 6) - n));
     return n;
 }
