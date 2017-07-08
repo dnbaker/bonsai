@@ -37,10 +37,7 @@ int main(int argc, char *argv[]) {
     map = decltype(map)();
     TIME_CODE(
     {
-        auto it(els.begin());
-        for(size_t i = 0; i < static_cast<unsigned>(nels); ++i) {
-            map.iput(*it++, &ret);
-        }
+        for(size_t i = 0; i < static_cast<unsigned>(nels); map.iput(els[i++], &ret));
     }, "single build.");
     map = decltype(map)();
     assert(map.size == 0);
@@ -70,6 +67,7 @@ int main(int argc, char *argv[]) {
     for(size_t i = 0; i < nels; ++i) map.iput(i, &ret);
     std::vector<int> cmp;
     for(auto it(map.begin()); it != map.end(); ++it) {
+        std::cerr << "map first " << it.first() << " and second " << it.second() << ".\n";
         cmp.push_back(it.first());
     }
     if(cmp != els) {
