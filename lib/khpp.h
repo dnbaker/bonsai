@@ -418,15 +418,18 @@ struct khpp_t {
 		}
 	}
     template<typename LambdaType, typename... Args>
-    void upsert(const khkey_t &key, LambdaType lambda, Args &&... args) {
+    bool upsert(const khkey_t &key, LambdaType lambda, Args &&... args) {
         int khr;
         index_type pos;
+        bool ret;
+        if((pos = iget(key)) == 0) pos = iput(key, &khr, args...), ret = 0;
+        else ret = 1;
         std::shared_lock<shared_mutex> lock(m);
-        if((pos = iget(key)) == 0) pos = iput(key, &khr, args...);
         tthread::fast_mutex &local_lock(locks[pos >> BUCKET_OFFSET]);
         local_lock.lock();
         lambda();
         local_lock.unlock();
+        return ret;
     }
 };
 
