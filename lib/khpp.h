@@ -22,14 +22,15 @@ struct khpp_t {
     hash_equal he;
     hash_func  hf;
     std::vector<tthread::fast_mutex> locks;
+
     static const size_t LOCK_BUCKET_SIZE = 1ull << BUCKET_OFFSET;
-    using map_type = khpp_t<khkey_t, khval_t, hash_func, hash_equal, is_map, BUCKET_OFFSET>;
     static constexpr double HASH_UPPER = 0.77;
+
+    using map_type = khpp_t<khkey_t, khval_t, hash_func, hash_equal, is_map, BUCKET_OFFSET>;
 
     struct iterator {
         map_type &t_;
         khint_t ki;
-        using pair_type = std::pair<std::reference_wrapper<khkey_t>, std::reference_wrapper<khval_t>>;
         khkey_t &first() {
             return t_.keys[ki];
         }
@@ -60,25 +61,25 @@ struct khpp_t {
         }
         iterator(map_type &map, khint_t ki=0):
             t_(map), ki(ki) {}
-        bool operator !=(const iterator &other) {
+        bool operator!=(const iterator &other) {
             return ki != other.ki;
         }
-        bool operator ==(const iterator &other) {
+        bool operator==(const iterator &other) {
             return ki == other.ki;
         }
-        bool operator <=(const iterator &other) {
+        bool operator<=(const iterator &other) {
             return ki <= other.ki;
         }
-        bool operator <(const iterator &other) {
+        bool operator<(const iterator &other) {
             return ki < other.ki;
         }
-        bool operator >(const iterator &other) {
+        bool operator>(const iterator &other) {
             return ki > other.ki;
         }
-        bool operator >=(const iterator &other) {
+        bool operator>=(const iterator &other) {
             return ki >= other.ki;
         }
-        iterator &operator -=(index_type diff) {
+        iterator &operator-=(index_type diff) {
             if(ki >= diff) {
                 ki -= diff;
             } else {
@@ -86,7 +87,7 @@ struct khpp_t {
             }
             return *this;
         }
-        iterator &operator +=(index_type diff) {
+        iterator &operator+=(index_type diff) {
             if(ki <= t_.n_buckets - diff) {
                 ki += diff;
             } else {
@@ -94,14 +95,14 @@ struct khpp_t {
             }
             return *this;
         }
-        iterator operator +(index_type offset) {
+        iterator operator+(index_type offset) {
             offset += ki;
             if(offset > t_.n_buckets) {
                 throw std::runtime_error("Out of range.");
             }
             return iterator(t_, offset);
         }
-        iterator operator -(index_type offset) {
+        iterator operator-(index_type offset) {
             if(offset > ki) {
                 throw std::runtime_error("Out of range.");
             }
@@ -122,8 +123,7 @@ struct khpp_t {
         }
         const_iterator &operator++(){
             if(ki < t_.n_buckets) {
-                do {++ki;}
-                while(ki < t_.n_buckets && !t_.exist(ki));
+                do {++ki;} while(ki < t_.n_buckets && !t_.exist(ki));
             }
             return *this;
         }
@@ -134,25 +134,25 @@ struct khpp_t {
         }
         const_iterator(const map_type &map, khint_t ki=0):
             t_(map), ki(ki) {}
-        bool operator !=(const const_iterator &other) {
+        bool operator!=(const const_iterator &other) {
             return ki != other.ki;
         }
-        bool operator ==(const const_iterator &other) {
+        bool operator==(const const_iterator &other) {
             return ki == other.ki;
         }
-        bool operator <=(const const_iterator &other) {
+        bool operator<=(const const_iterator &other) {
             return ki <= other.ki;
         }
-        bool operator <(const const_iterator &other) {
+        bool operator<(const const_iterator &other) {
             return ki < other.ki;
         }
-        bool operator >(const const_iterator &other) {
+        bool operator>(const const_iterator &other) {
             return ki > other.ki;
         }
-        bool operator >=(const const_iterator &other) {
+        bool operator>=(const const_iterator &other) {
             return ki >= other.ki;
         }
-        const_iterator &operator -=(index_type diff) {
+        const_iterator &operator-=(index_type diff) {
             if(ki >= diff) {
                 ki -= diff;
             } else {
@@ -160,7 +160,7 @@ struct khpp_t {
             }
             return *this;
         }
-        const_iterator &operator +=(index_type diff) {
+        const_iterator &operator+=(index_type diff) {
             if(ki <= t_.n_buckets - diff) {
                 ki += diff;
             } else {
@@ -168,14 +168,14 @@ struct khpp_t {
             }
             return *this;
         }
-        const_iterator operator +(index_type offset) {
+        const_iterator operator+(index_type offset) {
             offset += ki;
             if(offset > t_.n_buckets) {
                 throw std::runtime_error("Out of range.");
             }
             return const_iterator(t_, offset);
         }
-        const_iterator operator -(index_type offset) {
+        const_iterator operator-(index_type offset) {
             if(offset > ki) {
                 throw std::runtime_error("Out of range.");
             }
@@ -195,9 +195,12 @@ struct khpp_t {
     khpp_t(): n_buckets(0), size(0), n_occupied(0), upper_bound(0), flags(0), keys(0), vals(0) {
     }
     ~khpp_t() {
-        free(flags);
-        free(vals);
-        free(keys);
+        if constexpr(!std::is_trivially_destructible<khval_t>::value) {
+            for(khiter_t i(0); i < n_buckets; ++i) if(exist(i)) vals[i].~khval_t();
+        }
+        std::free(flags);
+        if constexpr(is_map) std::free(vals);
+        std::free(keys);
     }
     void clear() {
         if (flags) {
@@ -225,7 +228,8 @@ struct khpp_t {
         }
         return 0;
     }
-    index_type iput(const khkey_t &key, int *ret)
+    template<typename... Args>
+    index_type iput(const khkey_t &key, int *ret, Args &&... args)
     {
         index_type x;
         if (n_occupied >= upper_bound) { /* update the hash table */
@@ -254,7 +258,7 @@ struct khpp_t {
                 }
             }
         }
-#ifdef ZOMGZ
+#if 1
         switch((flags[x>>4]>>((x&0xfU)<<1))&3) {
             case 0: *ret = 0; break; /* Don't touch keys[x] if present and not deleted */
             case 2:
@@ -277,6 +281,9 @@ struct khpp_t {
             __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
 			__sync_fetch_and_add(&size, 1);
 			__sync_fetch_and_add(&n_occupied, 1);
+            if constexpr(!std::is_trivially_destructible<khval_t>::value){
+                new (vals + x) khval_t;
+            }
             *ret = 1;
         } else if (__ac_isdel(flags, x)) { /* deleted */
             while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
@@ -400,10 +407,27 @@ struct khpp_t {
 	{
         //TODO: atomicize __ac_set_isdel_true
 		if (x != n_buckets && !__ac_iseither(flags, x)) {
+            tthread::fast_mutex &local_lock(locks[x >> BUCKET_OFFSET]);
+            local_lock.lock();
 			__ac_set_isdel_true(flags, x);
+            if constexpr(!std::is_trivially_destructible<khval_t>::value) {
+                flags[x].~khval_t();
+            }
+            local_lock.unlock();
 			__sync_fetch_and_sub(&size, 1);
 		}
 	}
+    template<typename LambdaType, typename... Args>
+    void upsert(const khkey_t &key, LambdaType lambda, Args &&... args) {
+        int khr;
+        index_type pos;
+        std::shared_lock<shared_mutex> lock(m);
+        if((pos = iget(key)) == 0) pos = iput(key, &khr, args...);
+        tthread::fast_mutex &local_lock(locks[pos >> BUCKET_OFFSET]);
+        local_lock.lock();
+        lambda();
+        local_lock.unlock();
+    }
 };
 
 }
