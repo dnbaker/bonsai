@@ -22,7 +22,7 @@ Prior Work
 ================
 
 We modified [khash](https://github.com/attractivechaos/klib) for our primary database,
-borrowed and modified code from [Kraken](https://github.com/DerrickWood/kraken) for XOR masking,
+borrowed and modified code from [Kraken](https://github.com/DerrickWood/kraken) for
 kmer encoding, taxonomy tree building and querying, and classification.
 
 We used a [custom allocator from StackOverflow](http://stackoverflow.com/questions/12942548/making-stdvector-allocate-aligned-memory)
