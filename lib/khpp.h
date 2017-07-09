@@ -27,6 +27,8 @@ struct khpp_t {
     static constexpr double HASH_UPPER = 0.77;
 
     using map_type = khpp_t<khkey_t, khval_t, hash_func, hash_equal, is_map, BUCKET_OFFSET>;
+    using key_type = khkey_t;
+    using val_type = khval_t;
 
     struct iterator {
         map_type &t_;
@@ -424,10 +426,9 @@ struct khpp_t {
         bool ret;
         if((pos = iget(key)) == 0) pos = iput(key, &khr, args...), ret = 0;
         else ret = 1;
-        std::shared_lock<shared_mutex> lock(m);
         tthread::fast_mutex &local_lock(locks[pos >> BUCKET_OFFSET]);
         local_lock.lock();
-        lambda();
+        lambda(key, vals[pos]);
         local_lock.unlock();
         return ret;
     }

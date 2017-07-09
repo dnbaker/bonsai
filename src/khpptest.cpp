@@ -8,11 +8,15 @@
 #include <cassert>
 
 void parallel_add_els(emp::kh::khpp_t<int, int> &map, const std::vector<int> &els, int nthreads) {
+    using map_type = emp::kh::khpp_t<int, int>;
     int ret;
     const size_t nels(els.size());
-    #pragma omp parallel for num_threads(nthreads)
+    nthreads = 1;
     for(size_t i = 0; i < nels; ++i) {
-        map.iput(els[i], &ret);
+        auto lambda = [](const typename map_type::key_type &key, typename map_type::val_type &el){
+            std::cerr << "Trying to execute.\n";
+        };
+        map.upsert(els[i], lambda, 0);
     }
 }
 
@@ -30,8 +34,15 @@ int main(int argc, char *argv[]) {
         }
     }
     std::set<int> tels;
-    while(tels.size() < static_cast<unsigned>(nels)) tels.insert(std::rand());
-    std::vector<int> els(tels.begin(), tels.end());
+    for(size_t i(0); i < nels; ++i) tels.insert(i);
+    std::vector<int> els;
+    for(const auto i: tels) els.insert(els.begin(), std::rand() & 0xF, i);
+    std::cerr << "size of els " << els.size() << '\n';
+    std::cerr << "size of tels " << tels.size() << '\n';
+    std::random_shuffle(els.begin(), els.end());
+    std::unordered_map<int, int> counts;
+    for(auto i: els) ++counts[i];
+    for(auto &pair: counts) std::cerr << pair.first << ", " << pair.second << '\n';
     int ret;
     omp_set_num_threads(nthreads);
     map = decltype(map)();
@@ -92,5 +103,9 @@ int main(int argc, char *argv[]) {
     for(auto it(map.begin()), eit(map.end()); it != eit; ++it) ofs << "Outputting stuff. Key: " << it.first() << ". Value: " << it.second() << "\n";
     map.clear();
     std::fprintf(stderr, "Sum of all the stuffs: %i\n", csum);
+    for(auto &pair: counts) {
+        auto m(map.iget(pair.first));
+        std::cerr << "Key: " << pair.first << ". Count in 1 thread: " << pair.second << ". Count in parallel: " << (m == map.n_buckets ? std::string("missing"): std::to_string(m)) << ".\n";
+    }
     return EXIT_SUCCESS;
 }
