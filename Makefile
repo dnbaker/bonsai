@@ -12,7 +12,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 ifndef EXTRA
 	EXTRA:= 
 endif
-DBG:= # -DNDEBUG # -fno-inline
+DBG:= -fno-inline # -DNDEBUG # -fno-inline
 OS:=$(shell uname)
 FLAGS=
 
@@ -27,7 +27,7 @@ ifneq (,$(findstring g++,$(CXX)))
 	endif
 endif
 
-OPT:= -O3 -funroll-loops \
+OPT:= -O0 -funroll-loops \
 	  -fopenmp \
 	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) $(EXTRA) # -DUSE_PAR_HELPERS
 XXFLAGS=-fno-rtti

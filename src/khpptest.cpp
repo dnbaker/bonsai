@@ -16,6 +16,7 @@ void parallel_add_els(emp::kh::khpp_t<int, int> &map, const std::vector<int> &el
         auto lambda = [](const typename map_type::key_type &key, typename map_type::val_type &el){
             std::cerr << "Trying to execute.\n";
         };
+        std::cerr << "made lambda\n";
         map.upsert(els[i], lambda, 0);
     }
 }
