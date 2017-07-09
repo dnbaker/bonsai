@@ -51,8 +51,7 @@ int main(int argc, char *argv[]) {
         auto it(map.begin());
         auto eit(map.end());
         while(it != eit) {
-            csum += it.second();
-            ++it;
+            csum += it++.second();
         }
     }
               , "khpp iteration.");
@@ -91,6 +90,7 @@ int main(int argc, char *argv[]) {
         std::cerr << '\n';
     }
     for(auto it(map.begin()), eit(map.end()); it != eit; ++it) ofs << "Outputting stuff. Key: " << it.first() << ". Value: " << it.second() << "\n";
+    map.clear();
     std::fprintf(stderr, "Sum of all the stuffs: %i\n", csum);
     return EXIT_SUCCESS;
 }

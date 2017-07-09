@@ -136,6 +136,7 @@ public:
         std::unordered_set<NodeType *> to_reinsert;
         ks::KString ks;
         while(added_.size() < nelem) {
+            assert_sorted<decltype(heap_), node_lt>(heap_);
             const auto bptr(*heap_.begin());
             if(bptr->second.added()) {
                 LOG_WARNING("Cannot add more nodes. [Best candidate is impossible.] Breaking from loop.\n");
@@ -149,9 +150,9 @@ public:
                    (other->second.laa_ == nullptr ||
                     other->second.laa_->second.pc_ > bptr->second.pc_))
                     other->second.laa_ = bptr;
-                for(const auto parent: other->second.parents_) {
-                    if(!parent->second.added()) to_reinsert.insert(parent);
-                }
+                for(const auto parent: other->second.parents_)
+                    if(!parent->second.added())
+                        to_reinsert.insert(parent);
             }
             format_emitted_node(ks, bptr, maxtax++);
 
@@ -163,7 +164,6 @@ public:
             for(const auto el: to_reinsert) heap_.erase(el);
             heap_.insert(to_reinsert.begin(), to_reinsert.end()), to_reinsert.clear();
             heap_.insert(bptr);
-            assert_sorted<decltype(heap_), node_lt>(heap_);
         }
         ks.write(fp), ks.clear();
     }
@@ -175,8 +175,6 @@ public:
 #endif
     }
     void format_emitted_node(ks::KString &ks, const NodeType *node, tax_t taxid) const {
-        std::uint32_t id(rand());
-        while(kh_get(p, tax_, id) != kh_end(tax_)) id = rand();
         // Format node
         // List genomes/taxids which it subsumes
         // List parent

@@ -27,7 +27,7 @@ ifneq (,$(findstring g++,$(CXX)))
 	endif
 endif
 
-OPT:= -O3 -funroll-loops -ffast-math \
+OPT:= -O3 -funroll-loops \
 	  -fopenmp \
 	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) $(EXTRA) # -DUSE_PAR_HELPERS
 XXFLAGS=-fno-rtti

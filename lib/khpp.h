@@ -222,7 +222,7 @@ struct khpp_t {
             k = hf(key); i = k & mask;
             last = i;
             while (!__ac_isempty(flags, i) && (__ac_isdel(flags, i) || !he(keys[i], key)))
-                if((i = (i + (++step)) & mask))
+                if((i = (i + (++step)) & mask) == last)
                     return n_buckets;
             return __ac_iseither(flags, i) ? n_buckets : i;
         }
@@ -260,7 +260,6 @@ struct khpp_t {
         }
 #if 1
         switch((flags[x>>4]>>((x&0xfU)<<1))&3) {
-            case 0: *ret = 0; break; /* Don't touch keys[x] if present and not deleted */
             case 2:
                 while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
                 __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
@@ -274,6 +273,7 @@ struct khpp_t {
                 __sync_fetch_and_add(&size, 1);
                 *ret = 2;
                 break;
+            case 0: *ret = 0; break; /* Don't touch keys[x] if present and not deleted */
         }
 #else
         if (__ac_isempty(flags, x)) { /* not present at all */
@@ -324,11 +324,11 @@ struct khpp_t {
                 if (!new_flags) return -1;
                 std::memset(new_flags, 0xaa, __ac_fsize(new_n_buckets) * sizeof(khint32_t));
                 if (n_buckets < new_n_buckets) {    /* expand */
-                    khkey_t *new_keys = (khkey_t*)std::realloc((void *)keys, new_n_buckets * sizeof(khkey_t));
+                    khkey_t *new_keys = static_cast<khkey_t *>(std::realloc((void *)keys, new_n_buckets * sizeof(khkey_t)));
                     if (!new_keys) { std::free(new_flags); return -1; }
                     keys = new_keys;
                     if constexpr(is_map) {
-                        khval_t *new_vals = (khval_t*)std::realloc((void *)vals, new_n_buckets * sizeof(khval_t));
+                        khval_t *new_vals = static_cast<khval_t *>(std::realloc((void *)vals, new_n_buckets * sizeof(khval_t)));
                         if (!new_vals) { std::free(new_flags); return -1; }
                         vals = new_vals;
                     }
@@ -365,14 +365,14 @@ struct khpp_t {
             }
             if (n_buckets > new_n_buckets) { /* shrink the hash table */
                 keys = static_cast<khkey_t *>(std::realloc((void *)keys, new_n_buckets * sizeof(khkey_t)));
-                if constexpr(is_map) vals = (khval_t*)std::realloc((void *)vals, new_n_buckets * sizeof(khval_t));
+                if constexpr(is_map) vals = static_cast<khval_t *>(std::realloc((void *)vals, new_n_buckets * sizeof(khval_t)));
             }
             std::free(flags); /* free the working space */
             flags       = new_flags;
             n_buckets   = new_n_buckets;
             n_occupied  = size;
             upper_bound = static_cast<index_type>(n_buckets * HASH_UPPER + 0.5);
-            locks.resize(n_buckets >> BUCKET_OFFSET);
+            locks.resize(std::min(n_buckets >> BUCKET_OFFSET, static_cast<decltype(n_buckets)>(1)));
         }
         return 0;
     }
