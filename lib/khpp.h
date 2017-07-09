@@ -6,6 +6,13 @@
 #include "tinythreadpp/source/fast_mutex.h"
 using std::shared_mutex;
 
+#if __GNUC__ >= 7
+#  define CONSTEXPR_IF if constexpr
+#else
+#  define CONSTEXPR_IF if
+#endif
+ 
+
 namespace emp {
 namespace kh {
 
@@ -37,7 +44,7 @@ struct khpp_t {
             return t_.keys[ki];
         }
         khval_t &second() {
-            if constexpr(!is_map)
+            CONSTEXPR_IF(!is_map)
                 throw std::runtime_error("Cannot call second for a hash set.");
             return t_.vals[ki];
         }
@@ -119,7 +126,7 @@ struct khpp_t {
             return static_cast<const khkey_t &>(t_.keys[ki]);
         }
         const khval_t &second() const {
-            if constexpr(!is_map)
+            CONSTEXPR_IF(!is_map)
                 throw std::runtime_error("Cannot call second for a hash set.");
             return static_cast<const khval_t &>(t_.vals[ki]);
         }
@@ -197,11 +204,11 @@ struct khpp_t {
     khpp_t(): n_buckets(0), size(0), n_occupied(0), upper_bound(0), flags(0), keys(0), vals(0) {
     }
     ~khpp_t() {
-        if constexpr(!std::is_trivially_destructible<khval_t>::value) {
+        CONSTEXPR_IF(!std::is_trivially_destructible<khval_t>::value) {
             for(khiter_t i(0); i < n_buckets; ++i) if(exist(i)) vals[i].~khval_t();
         }
         std::free(flags);
-        if constexpr(is_map) std::free(vals);
+        CONSTEXPR_IF(is_map) std::free(vals);
         std::free(keys);
     }
     void clear() {
@@ -283,7 +290,7 @@ struct khpp_t {
             __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
 			__sync_fetch_and_add(&size, 1);
 			__sync_fetch_and_add(&n_occupied, 1);
-            if constexpr(!std::is_trivially_destructible<khval_t>::value){
+            CONSTEXPR_IF(!std::is_trivially_destructible<khval_t>::value){
                 new (vals + x) khval_t;
             }
             *ret = 1;
@@ -304,13 +311,6 @@ struct khpp_t {
         if(ki == nb()) ki = iput(key, &khr);
         return vals[ki];
     }
-    void del(index_type x)
-    {
-        if (x != n_buckets && !__ac_iseither(flags, x)) {
-            __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
-			__sync_fetch_and_sub(&size, 1);
-        }
-    }
     int resize(index_type new_n_buckets)
     { /* This function uses 0.25*n_buckets bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets. */
         if(new_n_buckets == n_buckets) return n_buckets;
@@ -329,7 +329,7 @@ struct khpp_t {
                     khkey_t *new_keys = static_cast<khkey_t *>(std::realloc((void *)keys, new_n_buckets * sizeof(khkey_t)));
                     if (!new_keys) { std::free(new_flags); return -1; }
                     keys = new_keys;
-                    if constexpr(is_map) {
+                    CONSTEXPR_IF(is_map) {
                         khval_t *new_vals = static_cast<khval_t *>(std::realloc((void *)vals, new_n_buckets * sizeof(khval_t)));
                         if (!new_vals) { std::free(new_flags); return -1; }
                         vals = new_vals;
@@ -345,7 +345,7 @@ struct khpp_t {
                     khval_t val;
                     index_type new_mask;
                     new_mask = new_n_buckets - 1;
-                    if constexpr(is_map) val = vals[j];
+                    CONSTEXPR_IF(is_map) val = vals[j];
                     __ac_set_isdel_true(flags, j);
                     while (1) { /* kick-out process; sort of like in Cuckoo hashing */
                         index_type k, i, step = 0;
@@ -355,11 +355,11 @@ struct khpp_t {
                         __ac_set_isempty_false(new_flags, i);
                         if (i < n_buckets && __ac_iseither(flags, i) == 0) { /* kick out the existing element */
                             { khkey_t tmp = keys[i]; keys[i] = key; key = tmp; }
-                            if constexpr(is_map) { khval_t tmp = vals[i]; vals[i] = val; val = tmp; }
+                            CONSTEXPR_IF(is_map) { khval_t tmp = vals[i]; vals[i] = val; val = tmp; }
                             __ac_set_isdel_true(flags, i); /* mark it as deleted in the old hash table */
                         } else { /* write the element and jump out of the loop */
                             keys[i] = key;
-                            if constexpr(is_map) vals[i] = val;
+                            CONSTEXPR_IF(is_map) vals[i] = val;
                             break;
                         }
                     }
@@ -367,7 +367,7 @@ struct khpp_t {
             }
             if (n_buckets > new_n_buckets) { /* shrink the hash table */
                 keys = static_cast<khkey_t *>(std::realloc((void *)keys, new_n_buckets * sizeof(khkey_t)));
-                if constexpr(is_map) vals = static_cast<khval_t *>(std::realloc((void *)vals, new_n_buckets * sizeof(khval_t)));
+                CONSTEXPR_IF(is_map) vals = static_cast<khval_t *>(std::realloc((void *)vals, new_n_buckets * sizeof(khval_t)));
             }
             std::free(flags); /* free the working space */
             flags       = new_flags;
@@ -412,8 +412,8 @@ struct khpp_t {
             tthread::fast_mutex &local_lock(locks[x >> BUCKET_OFFSET]);
             local_lock.lock();
 			__ac_set_isdel_true(flags, x);
-            if constexpr(!std::is_trivially_destructible<khval_t>::value) {
-                flags[x].~khval_t();
+            CONSTEXPR_IF(!std::is_trivially_destructible<khval_t>::value) {
+                vals[x].~khval_t();
             }
             local_lock.unlock();
 			__sync_fetch_and_sub(&size, 1);
