@@ -201,7 +201,8 @@ struct khpp_t {
     const_iterator cend()   {return const_iterator(*this, n_buckets);}
 
 
-    khpp_t(): n_buckets(0), size(0), n_occupied(0), upper_bound(0), flags(0), keys(0), vals(0) {
+    khpp_t(size_t nb=4): n_buckets(0), size(0), n_occupied(0), upper_bound(0), flags(0), keys(0), vals(0), locks(1) {
+        resize(nb);
     }
     ~khpp_t() {
         CONSTEXPR_IF(!std::is_trivially_destructible<khval_t>::value) {
@@ -240,6 +241,7 @@ struct khpp_t {
     template<typename... Args>
     index_type iput(const khkey_t &key, int *ret, Args &&... args)
     {
+        std::shared_lock<shared_mutex> lock(m);
         index_type x;
         if (n_occupied >= upper_bound) { /* update the hash table */
             if (n_buckets > (size<<1)) {
@@ -258,49 +260,35 @@ struct khpp_t {
                 last = i;
                 while (!__ac_isempty(flags, i) && (__ac_isdel(flags, i) || !he(keys[i], key))) {
                     if (__ac_isdel(flags, i)) site = i;
-                    i = (i + (++step)) & mask;
-                    if (i == last) { x = site; break; }
+                    if ((i = (i + (++step)) & mask) == last) { x = site; break;}
                 }
-                if (x == n_buckets) {
-                    if (__ac_isempty(flags, i) && site != n_buckets) x = site;
-                    else x = i;
-                }
+                if (x == n_buckets) x = (__ac_isempty(flags, i) && site != n_buckets) ? site: i;
             }
         }
-#if 1
+        tthread::fast_mutex &local_lock(locks[x >> BUCKET_OFFSET]);
+        std::cerr << "Triyng to obtain lock for index " << (x >> BUCKET_OFFSET) << '\n';
+        local_lock.lock();
+        assert(locks.size());
+        std::cerr << "Obtained lock for index " << (x >> BUCKET_OFFSET) << '\n';
         switch((flags[x>>4]>>((x&0xfU)<<1))&3) {
             case 2:
-                while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
-                __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
-                __sync_fetch_and_add(&size, 1);
-                __sync_fetch_and_add(&n_occupied, 1);
+                keys[x] = key;
+                __ac_set_isboth_false(flags, x);
+                ++size, ++n_occupied;
+                vals[x] = khval_t(args...);
                 *ret = 1;
                 break;
             case 1:
-                while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
-                __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
-                __sync_fetch_and_add(&size, 1);
+                keys[x] = key;
+                __ac_set_isboth_false(flags, x);
+                ++size;
+                vals[x] = khval_t(args...);
                 *ret = 2;
                 break;
             case 0: *ret = 0; break; /* Don't touch keys[x] if present and not deleted */
         }
-#else
-        if (__ac_isempty(flags, x)) { /* not present at all */
-            while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
-            __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
-			__sync_fetch_and_add(&size, 1);
-			__sync_fetch_and_add(&n_occupied, 1);
-            CONSTEXPR_IF(!std::is_trivially_destructible<khval_t>::value){
-                new (vals + x) khval_t;
-            }
-            *ret = 1;
-        } else if (__ac_isdel(flags, x)) { /* deleted */
-            while(!__sync_bool_compare_and_swap(keys + x, keys[x], key));
-            __sync_fetch_and_and(flags + (x>>4), ~(3ull<<((x&0xfU)<<1)));
-			__sync_fetch_and_add(&size, 1);
-            *ret = 2;
-        } else *ret = 0; /* Don't touch keys[x] if present and not deleted */
-#endif
+        local_lock.unlock();
+        std::cerr << "Released lock for index " << (x >> BUCKET_OFFSET) << '\n';
         return x;
     }
     index_type nb() const {return n_buckets;}
@@ -308,7 +296,7 @@ struct khpp_t {
         std::shared_lock<shared_mutex>(m);
         index_type ki(iget(key));
         int khr;
-        if(ki == nb()) ki = iput(key, &khr);
+        if(ki == nb()) ki = iput(key, &khr), vals[ki] = khkey_t();
         return vals[ki];
     }
     int resize(index_type new_n_buckets)
@@ -374,7 +362,8 @@ struct khpp_t {
             n_buckets   = new_n_buckets;
             n_occupied  = size;
             upper_bound = static_cast<index_type>(n_buckets * HASH_UPPER + 0.5);
-            locks.resize(std::min(n_buckets >> BUCKET_OFFSET, static_cast<decltype(n_buckets)>(1)));
+            locks.resize(n_buckets < LOCK_BUCKET_SIZE ? 1: n_buckets >> BUCKET_OFFSET);
+            assert(locks.size());
         }
         return 0;
     }
@@ -425,22 +414,21 @@ struct khpp_t {
         int khr;
         index_type pos;
         bool ret;
-        std::cerr << "Checking for presence.\n";
+        std::shared_lock<shared_mutex> lock(m);
         if((pos = iget(key)) == n_buckets) {
             pos = iput(key, &khr, args...), ret = 0;
-        } else ret = 1;
-        std::cerr << "Making lock!\n";
+            std::cerr << "New key at " << pos << " out of " << n_buckets << '\n';
+        } ret = 1;
         tthread::fast_mutex &local_lock(locks[pos >> BUCKET_OFFSET]);
         local_lock.lock();
-        std::cerr << "Performing lambda!\n";
+        assert(!__ac_iseither(flags, pos));
+        assert(iget(key) != n_buckets);
         lambda(key, vals[pos]);
-        std::cerr << "Performed lambda!\n";
         local_lock.unlock();
-        std::cerr << "Returning!\n";
         return ret;
     }
 };
 
-}
-}
+} // namespace kh
+} // namespace emp
 #endif

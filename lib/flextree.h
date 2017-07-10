@@ -84,8 +84,15 @@ public:
     }
     template<typename T, typename LT>
     void add_to_heap(std::set<T, LT> &heap) const {
+#if 0
+        for(typename std::set<T, LT>::iterator it(map_.begin()), eit(map_.end()); it != eit; ++it) {
+            heap.insert(&*it);
+        }
+#endif
         for(auto &pair: map_) {
-            heap.insert(const_cast<std::pair<const std::vector<long long unsigned int>, emp::fnode_t>*>(&pair));
+            std::pair<const std::vector<std::uint64_t>, fnode_t> &ref((std::pair<const std::vector<std::uint64_t>, fnode_t> &)pair);
+            //heap.insert(const_cast<std::pair<const std::vector<long long unsigned int>, emp::fnode_t>*>(&pair));
+            heap.insert(&ref);
         }
     }
 public:

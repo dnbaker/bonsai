@@ -7,18 +7,19 @@
 #include <fstream>
 #include <cassert>
 
-void parallel_add_els(emp::kh::khpp_t<int, int> &map, const std::vector<int> &els, int nthreads) {
+auto parallel_add_els(emp::kh::khpp_t<int, int> &map, const std::vector<int> &els, int nthreads) {
     using map_type = emp::kh::khpp_t<int, int>;
     int ret;
     const size_t nels(els.size());
     nthreads = 1;
     for(size_t i = 0; i < nels; ++i) {
-        auto lambda = [](const typename map_type::key_type &key, typename map_type::val_type &el){
-            std::cerr << "Trying to execute.\n";
-        };
-        std::cerr << "made lambda\n";
-        map.upsert(els[i], lambda, 0);
+        map.upsert(els[i], [](const typename map_type::key_type &key, typename map_type::val_type &el){
+            std::cerr << "Trying to execute. Old key: " << key << ". Old val: " << el << '\n';
+            __sync_fetch_and_add(&el, 1);
+            std::cerr << "Tried to execute. New key: " << key << ". New val: " << el << '\n';
+        }, 0);
     }
+    return map.n_occupied;
 }
 
 int main(int argc, char *argv[]) {
@@ -35,7 +36,7 @@ int main(int argc, char *argv[]) {
         }
     }
     std::set<int> tels;
-    for(size_t i(0); i < nels; ++i) tels.insert(i);
+    for(int i(0); i < nels; ++i) tels.insert(i);
     std::vector<int> els;
     for(const auto i: tels) els.insert(els.begin(), std::rand() & 0xF, i);
     std::cerr << "size of els " << els.size() << '\n';
@@ -47,17 +48,20 @@ int main(int argc, char *argv[]) {
     int ret;
     omp_set_num_threads(nthreads);
     map = decltype(map)();
+    size_t npadded;
     TIME_CODE(
     {
         for(size_t i = 0; i < static_cast<unsigned>(nels); map.iput(els[i++], &ret));
+        npadded = map.n_occupied;
     }, "single build.");
+    std::cerr << "single num added." << npadded << "\n";
     map = decltype(map)();
     assert(map.size == 0);
     TIME_CODE(
     {
-        parallel_add_els(map, els, nthreads);
+        npadded = parallel_add_els(map, els, nthreads);
     }, "parallel build.");
-
+    std::cerr << "parallel num added." << npadded << "\n";
     TIME_CODE(
     {
         auto it(map.begin());
@@ -87,8 +91,8 @@ int main(int argc, char *argv[]) {
               , "range for reference");
     map = decltype(map)();
     els.clear();
-    for(size_t i(0); i < nels; els.push_back(i++));
-    for(size_t i = 0; i < nels; ++i) map.iput(i, &ret);
+    for(int i(0); i < nels; els.push_back(i++));
+    for(int i(0); i < nels; map.iput(i++, &ret));
     std::vector<int> cmp;
     for(auto it(map.begin()); it != map.end(); ++it) {
         cmp.push_back(it.first());
@@ -102,11 +106,12 @@ int main(int argc, char *argv[]) {
         std::cerr << '\n';
     }
     for(auto it(map.begin()), eit(map.end()); it != eit; ++it) ofs << "Outputting stuff. Key: " << it.first() << ". Value: " << it.second() << "\n";
-    map.clear();
     std::fprintf(stderr, "Sum of all the stuffs: %i\n", csum);
     for(auto &pair: counts) {
         auto m(map.iget(pair.first));
         std::cerr << "Key: " << pair.first << ". Count in 1 thread: " << pair.second << ". Count in parallel: " << (m == map.n_buckets ? std::string("missing"): std::to_string(m)) << ".\n";
     }
+    for(khiter_t i(0); i < map.n_buckets; ++i) if(map.exist(i)) std::cerr << "Key: " << map.keys[i] << " Val: " << map.vals[i] << "\n.";
+    map.clear();
     return EXIT_SUCCESS;
 }
