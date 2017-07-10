@@ -421,15 +421,22 @@ struct khpp_t {
 	}
     template<typename LambdaType, typename... Args>
     bool upsert(const khkey_t &key, LambdaType lambda, Args &&... args) {
+        // Returns 1 if the key was already present, 0 if it was not.
         int khr;
         index_type pos;
         bool ret;
-        if((pos = iget(key)) == 0) pos = iput(key, &khr, args...), ret = 0;
-        else ret = 1;
+        std::cerr << "Checking for presence.\n";
+        if((pos = iget(key)) == n_buckets) {
+            pos = iput(key, &khr, args...), ret = 0;
+        } else ret = 1;
+        std::cerr << "Making lock!\n";
         tthread::fast_mutex &local_lock(locks[pos >> BUCKET_OFFSET]);
         local_lock.lock();
+        std::cerr << "Performing lambda!\n";
         lambda(key, vals[pos]);
+        std::cerr << "Performed lambda!\n";
         local_lock.unlock();
+        std::cerr << "Returning!\n";
         return ret;
     }
 };
