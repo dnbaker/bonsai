@@ -6,6 +6,7 @@
 #include <iostream>
 #include <fstream>
 #include <cassert>
+template<typename T> class TD;
 
 void parallel_add_els(emp::kh::khpp_t<int, int> &map, const std::vector<int> &els, int nthreads) {
     using map_type = emp::kh::khpp_t<int, int>;
@@ -15,9 +16,11 @@ void parallel_add_els(emp::kh::khpp_t<int, int> &map, const std::vector<int> &el
     for(size_t i = 0; i < nels; ++i) {
         auto lambda = [](const typename map_type::key_type &key, typename map_type::val_type &el){
             std::cerr << "Trying to execute.\n";
+            __sync_fetch_and_add(&el, 1);
         };
         std::cerr << "made lambda\n";
         map.upsert(els[i], lambda, 0);
+        assert(map.iget(els[i]) != map.n_buckets);
     }
 }
 
@@ -35,7 +38,7 @@ int main(int argc, char *argv[]) {
         }
     }
     std::set<int> tels;
-    for(size_t i(0); i < nels; ++i) tels.insert(i);
+    for(int i(0); i < nels; ++i) tels.insert(i);
     std::vector<int> els;
     for(const auto i: tels) els.insert(els.begin(), std::rand() & 0xF, i);
     std::cerr << "size of els " << els.size() << '\n';
@@ -45,13 +48,31 @@ int main(int argc, char *argv[]) {
     for(auto i: els) ++counts[i];
     for(auto &pair: counts) std::cerr << pair.first << ", " << pair.second << '\n';
     int ret;
+    std::cerr << std::boolalpha;
     omp_set_num_threads(nthreads);
     map = decltype(map)();
     TIME_CODE(
     {
-        for(size_t i = 0; i < static_cast<unsigned>(nels); map.iput(els[i++], &ret));
+        for(int i = 0; i < static_cast<unsigned>(nels); map.iput(els[i++], &ret))
+            std::cerr << "Inserting element " << i << ".\n";
     }, "single build.");
     map = decltype(map)();
+    for(const auto i: tels) {
+        if(map.iget(i) == map.n_buckets) {
+            for(khiter_t ki(0); ki < map.n_buckets; ++ki) {
+                if(map.keys[ki] == i) {
+                    std::cerr << "Found key with is del ? " << !!__ac_isdel(map.flags, ki) << " is empty " << !!__ac_isempty(map.flags, ki) << ".\n";
+                    break;
+                }
+                std::cerr << "COuld not find key even with wrong flags.\n";
+            }
+        }
+    }
+    for(auto i: map) {
+        std::cerr << "Find element " << i.first << " in map.\n";
+        assert(tels.find(i.first) != tels.end());
+    }
+    std::cerr << "Single build worked.\n";
     assert(map.size == 0);
     TIME_CODE(
     {
