@@ -275,14 +275,14 @@ struct khpp_t {
                 keys[x] = key;
                 __ac_set_isboth_false(flags, x);
                 ++size, ++n_occupied;
-                vals[x] = khval_t(args...);
+                vals[x] = khval_t(std::forward<Args>(args)...);
                 *ret = 1;
                 break;
             case 1:
                 keys[x] = key;
                 __ac_set_isboth_false(flags, x);
                 ++size;
-                vals[x] = khval_t(args...);
+                vals[x] = khval_t(std::forward<Args>(args)...);
                 *ret = 2;
                 break;
             case 0: *ret = 0; break; /* Don't touch keys[x] if present and not deleted */
@@ -296,7 +296,7 @@ struct khpp_t {
         std::shared_lock<shared_mutex>(m);
         index_type ki(iget(key));
         int khr;
-        if(ki == nb()) ki = iput(key, &khr), vals[ki] = khkey_t();
+        if(ki == nb()) ki = iput(key, &khr), vals[ki] = khval_t();
         return vals[ki];
     }
     int resize(index_type new_n_buckets)
@@ -416,7 +416,7 @@ struct khpp_t {
         bool ret;
         std::shared_lock<shared_mutex> lock(m);
         if((pos = iget(key)) == n_buckets) {
-            pos = iput(key, &khr, args...), ret = 0;
+            pos = iput(key, &khr, std::forward<Args>(args)...), ret = 0;
             std::cerr << "New key at " << pos << " out of " << n_buckets << '\n';
         } ret = 1;
         tthread::fast_mutex &local_lock(locks[pos >> BUCKET_OFFSET]);
