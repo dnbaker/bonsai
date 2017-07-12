@@ -18,14 +18,14 @@ namespace ks {
 class KString {
     kstring_t ks_;
 
+
 public:
 
     explicit KString(size_t size): ks_({0, size, size ? (char *)std::malloc(size): nullptr}) {}
     explicit KString(size_t used, size_t max, char *str): ks_({used, max, str}) {}
     explicit KString(const char *str) {
         if(str == nullptr) {
-            ks_.l = ks_.m = 0;
-            ks_.s = nullptr;
+            memset(this, 0, sizeof *this);
         } else {
             ks_.l = strlen(str);
             ks_.m = kroundup64(ks_.l);
@@ -33,9 +33,6 @@ public:
             memcpy(ks_.s, str, ks_.l + 1);
         }
     }
-
-    operator kstring_t       *()       {return &ks_;}
-    operator const kstring_t *() const {return &ks_;}
 
     KString(): KString(nullptr) {}
     ~KString() {free(ks_.s);}
@@ -86,7 +83,6 @@ public:
     }
 
     bool operator==(const char *str) const {
-        // Returns true for 
         return ks_.s ? str ? strcmp(str, ks_.s) == 0: 0: 1;
     }
 
@@ -131,13 +127,13 @@ public:
     char pop() {const char ret(ks_.s[--ks_.l]); ks_.s[ks_.l] = 0; return ret;}
     void pop(size_t n) {
         ks_.l = ks_.l > n ? ks_.l - n: 0;
-        ks_.s[ks_.l] = '\0';
+        ks_.s[ks_.l] = 0;
     }
 
-    void clear() {ks_.l = 0; ks_.s[0] = '\0';}
+    void clear() {ks_.l = 0;ks_.s[0] = '\0';}
 
-    const char *data() const {return ks_.s;}
-    char       *data() {return ks_.s;}
+    const char     *data() const {return ks_.s;}
+    char           *data() {return ks_.s;}
     auto resize(size_t new_size) {
         return ks_resize(&ks_, new_size);
     }
