@@ -337,12 +337,12 @@ int metatree_main(int argc, char *argv[]) {
         ks::KString ks;
         for(const auto &path: inpaths) {
             const char *s(path.data());
-            if(get_taxid(s, name_hash) == -1) {
+            if(get_taxid(s, name_hash) == UINT32_C(-1)) {
                 int khr;
                 std::string line(get_firstline(s));
                 const char *p(line.data());
                 while(*p && *p != ' ') ++p;
-                if(*p) *p = '\0', line.resize(p - line.data());
+                if(*p) line.resize(p - line.data());
                 khiter_t ki(kh_put(p, taxmap, mx, &khr));
                 kh_val(taxmap, ki) = 1; // Set to root. Could be improved, most certainly.
                 ks.putsn_("|Missing Taxid: Designating child of root. New id: ",
