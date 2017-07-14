@@ -296,6 +296,8 @@ int metatree_main(int argc, char *argv[]) {
 #ifdef TAX_CHECK
     khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, full_taxmap, name_hash));
+    // TODO: Consider adding all entries whose taxids are not found to 
+    // a heuristic nearest neighbor somehow.
     {
        auto kraken_tax(build_kraken_tax(argv[optind + 1]));
        {
@@ -310,12 +312,10 @@ int metatree_main(int argc, char *argv[]) {
        std::vector<tax_t> nsv;
        {
            std::set<tax_t> nodeset;
-           for(const auto &pair: kraken_tax) {
-               nodeset.insert(pair.first);
-               nodeset.insert(pair.second);
-           }
+           for(const auto &pair: kraken_tax)
+               nodeset.insert(pair.first), nodeset.insert(pair.second);
            if(nodeset.find(0) != nodeset.end()) nodeset.erase(0);
-           nsv = std::move(std::vector<tax_t>(nodeset.begin(), nodeset.end()));
+           nsv.assign(std::vector<tax_t>(nodeset.begin(), nodeset.end()));
        }
        for(auto i(nsv.cbegin()), e(nsv.cend()); i != e; ++i) {
            for(auto j(i + 1); j != e; ++j) {
@@ -333,6 +333,33 @@ int metatree_main(int argc, char *argv[]) {
         if(kh_exist(full_taxmap, ki)) if(kh_key(full_taxmap, ki) > mx) mx = kh_key(full_taxmap, ki);
     }
     kh_destroy(p, full_taxmap);
+    {
+        ks::KString ks;
+        for(const auto &path: inpaths) {
+            const char *s(path.data());
+            if(get_taxid(s, name_hash) == -1) {
+                int khr;
+                std::string line(get_firstline(s));
+                const char *p(line.data());
+                while(*p && *p != ' ') ++p;
+                if(*p) *p = '\0', line.resize(p - line.data());
+                khiter_t ki(kh_put(p, taxmap, mx, &khr));
+                kh_val(taxmap, ki) = 1; // Set to root. Could be improved, most certainly.
+                ks.putsn_("|Missing Taxid: Designating child of root. New id: ",
+                          sizeof("|Missing Taxid: Designating child of root.|ID:") - 1);
+                ks.putw_(kh_key(taxmap, ki));
+                ks.putc_('\t');
+                ks.putsn_("Desc:", 5);
+                ks.putsn_(line.data(), line.size());
+                ks.putc_('\t');
+                ks.putsn_("Path:", 5);
+                ks.putsn_(path.data(), path.size());
+                ks.putc_('\n');
+            }
+            if(ks.size() & (1 << 18)) ks.write(ofp), ks.clear();
+        }
+        ks.write(ofp), ks.clear();
+    }
 
 // Core
     std::vector<tax_t> taxes(get_sorted_taxes(taxmap, argv[optind + 1]));
@@ -340,14 +367,14 @@ int metatree_main(int argc, char *argv[]) {
     FMEmitter fme(taxmap, tx2desc_map);
     std::vector<tax_t> tmptaxes;
     for(auto &&pair: iter::groupby(taxes, [tm=taxmap](const tax_t a){return get_parent(tm, a);})) {
-        for(auto tax: pair.second) tmptaxes.push_back(tax);
+        // Copying just because I don't trust the lifetime management of iter::groupby.
+        for(const auto tax: pair.second) tmptaxes.push_back(tax);
         std::cerr << "Going through taxes with parent = " << static_cast<tax_t>(pair.first) << '\n';
         fme.process_subtree(begin(tmptaxes), end(tmptaxes), sp, num_threads, nullptr);
         tmptaxes.clear();
     }
     fme.run_collapse(mx + 1, ofp, nelem);
     if(ofp != stdout) fclose(ofp);
-    kh::khpp_t<size_t, size_t> test;
     return EXIT_SUCCESS;
 }
 
