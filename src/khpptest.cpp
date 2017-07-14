@@ -11,7 +11,7 @@ auto parallel_add_els(emp::kh::khpp_t<int, int> &map, const std::vector<int> &el
     using map_type = emp::kh::khpp_t<int, int>;
     int ret;
     const size_t nels(els.size());
-    nthreads = 1;
+    #pragma omp parallel num_threads(nthreads)
     for(size_t i = 0; i < nels; ++i) {
         map.upsert(els[i], [](const typename map_type::key_type &key, typename map_type::val_type &el){
             std::cerr << "Trying to execute. Old key: " << key << ". Old val: " << el << '\n';
@@ -19,7 +19,7 @@ auto parallel_add_els(emp::kh::khpp_t<int, int> &map, const std::vector<int> &el
             std::cerr << "Tried to execute. New key: " << key << ". New val: " << el << '\n';
         }, 0);
     }
-    return map.n_occupied;
+    return ret = map.n_occupied;
 }
 
 int main(int argc, char *argv[]) {
