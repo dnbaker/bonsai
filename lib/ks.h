@@ -6,7 +6,6 @@
 #include <cstdio>
 #include <iostream>
 #include <unistd.h>
-//#include "klib/kstring.h"
 
 #ifndef roundup64
 #define roundup64(x) (--(x), (x)|=(x)>>1, (x)|=(x)>>2, (x)|=(x)>>4, (x)|=(x)>>8, (x)|=(x)>>16, (x)|=(x)>>32, ++(x))
@@ -17,10 +16,9 @@ namespace ks {
 using std::size_t;
 
 class KString {
-public:
-
     size_t l, m;
     char     *s;
+public:
 
     explicit KString(size_t size): l(size), m(roundup64(size)), s(size ? static_cast<char *>(std::malloc(size * sizeof(char))): nullptr) {}
 
@@ -46,18 +44,10 @@ public:
     KString(): KString(nullptr) {}
     ~KString() {std::free(s);}
 
-#ifdef KSTRING_T
-    // kstring_t access:
-    kstring_t *operator->()             {return reinterpret_cast<kstring_t *>(this);}
-    const kstring_t *operator->() const {return reinterpret_cast<const kstring_t *>(this);}
-    operator kstring_t()                {return *reinterpret_cast<kstring_t *>(this);}
-    operator const kstring_t()    const {return *reinterpret_cast<const kstring_t *>(this);}
-
+#ifdef KSTRING_H
     // Access kstring
     kstring_t *ks()             {return reinterpret_cast<kstring_t *>(this);}
     const kstring_t *ks() const {return reinterpret_cast<const kstring_t *>(this);}
-#else
-    KString *operator->()             {return this;}
 #endif
 
     // Copy
@@ -66,8 +56,14 @@ public:
     }
 
     KString(const std::string &str): l(str.size()), m(l), s(static_cast<char *>(std::malloc(m))) {
-        roundup64(m);
-        std::memcpy(s, str.data(), l + 1);
+        m = roundup64(m);
+        std::memcpy(s, str.data(), (l + 1) * sizeof(char));
+    }
+
+    // Stealing ownership in a very mean way.
+    KString(std::string &&str): l(str.size()), m(l), s(const_cast<char *>(str.data())) {
+        m = roundup64(m);
+        std::memset(&str, 0, sizeof(str));
     }
 
     KString operator=(const KString &other)   {return KString(other);}
@@ -117,7 +113,7 @@ public:
                 return EOF;
         }
         s[l++] = c;
-        return c;
+        return 0;
     }
     int putw_(int c)  {
         char buf[16];
@@ -131,6 +127,24 @@ public:
             m = len + l + 2;
             roundup64(m);
             if ((tmp = static_cast<char*>(std::realloc(s, m * sizeof(char)))))
+                s = tmp;
+            else
+                return EOF;
+        }
+        for (i = len - 1; i >= 0; --i) s[l++] = buf[i];
+        return 0;
+    }
+    int putuw_(int c) {
+        char buf[16];
+        int len, i;
+        unsigned x;
+        if (c == 0) return putc('0');
+        for (len = 0, x = c; x > 0; x /= 10) buf[len++] = x%10 + '0';
+        if (len + l + 1 >= m) {
+            char *tmp;
+            m = len + l + 2;
+            roundup64(m);
+            if ((tmp = static_cast<char *>(std::realloc(s, m * sizeof(char)))))
                 s = tmp;
             else
                 return EOF;
@@ -157,23 +171,10 @@ public:
         for (i = len - 1; i >= 0; --i) s[l++] = buf[i];
         return 0;
     }
-    int putuw_(int c) {
-        char buf[16];
-        int len, i;
-        unsigned x;
-        if (c == 0) return putc('0');
-        for (len = 0, x = c; x > 0; x /= 10) buf[len++] = x%10 + '0';
-        if (len + l + 1 >= m) {
-            char *tmp;
-            m = len + l + 2;
-            roundup64(m);
-            if ((tmp = static_cast<char *>(std::realloc(s, m * sizeof(char)))))
-                s = tmp;
-            else
-                return EOF;
-        }
-        for (i = len - 1; i >= 0; --i) s[l++] = buf[i];
-        return 0;
+    int putuw(int c) {
+        c = putuw_(c);
+        s[l] = 0;
+        return c;
     }
     long putsn_(const char *str, long len) {
         if (len + l + 1 >= m) {
@@ -185,13 +186,9 @@ public:
             else
                 return EOF;
         }
-        std::memcpy(s + l, str, len);
+        std::memcpy(s + l, str, len * sizeof(char));
         l += len;
         return len;
-    }
-    int putuw(int c) {
-        c = putuw_(c), s[l] = 0;
-        return c;
     }
     int putc(int c) {
         c = putc_(c), s[l] = 0;
@@ -208,23 +205,20 @@ public:
         return c;
     }
     template<typename FMT=char, typename=std::enable_if_t<std::is_same<char, FMT>::value>>
+    int puts(const char *s) {return putsn_(s, std::strlen(s) + 1);}
+    template<typename FMT=char, typename=std::enable_if_t<std::is_same<char, FMT>::value>>
     long putsn(const char *str, long len)  {
         len = putsn_(str, len);
         s[l] = 0;
-        return len;
+        return l;
     }
-    template<typename FMT=char, typename=std::enable_if_t<std::is_same<char, FMT>::value>>
-    int puts(const char *s) {return putsn_(s, std::strlen(s) + 1);}
-    template<typename FMT=char, typename=std::enable_if_t<std::is_same<char, FMT>::value>>
     int sprintf(const char *fmt, ...) {
         size_t len;
         std::va_list ap;
         va_start(ap, fmt);
         len = vsnprintf(s + l, m - l, fmt, ap); // This line does not work with glibc 2.0. See `man snprintf'.
         if (len + 1 > m - l) {
-            m = l + len + 2;
-            roundup64(m);
-            s = static_cast<char*>(std::realloc(s, m * sizeof(char)));
+            resize(len + 1);
             len = vsnprintf(s + l, m - l, fmt, ap);
         }
         va_end(ap);
@@ -241,7 +235,7 @@ public:
     auto    end() const {return s + l;}
     auto cbegin() const {return const_cast<const char *>(s);}
     auto   cend() const {return const_cast<const char *>(s + l);}
-    auto pop() {const char ret(s[--l]); s[l] = 0; return ret;}
+    char pop() {const char ret(s[--l]); s[l] = 0; return ret;}
     void pop(size_t n) {
         l = l > n ? l - n: 0;
         s[l] = 0;
@@ -251,7 +245,7 @@ public:
 
     const char     *data() const {return s;}
     char           *data()       {return s;}
-    auto resize(size_t size) {
+    int resize(size_t size) {
         if (m < size) {
             char *tmp;
             m = size;

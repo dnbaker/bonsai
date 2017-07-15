@@ -306,6 +306,7 @@ tax_t get_taxid(const char *fn, khash_t(name) *name_hash) {
         gzclose(fp);
         return UINT32_C(-1);
     }
+    LOG_DEBUG("Successfully got taxid %u for path %s\n", kh_val(name_hash, ki), fn);
     gzclose(fp);
     return kh_val(name_hash, ki);
 }
