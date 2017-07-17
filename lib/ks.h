@@ -56,13 +56,13 @@ public:
     }
 
     KString(const std::string &str): l(str.size()), m(l), s(static_cast<char *>(std::malloc(m))) {
-        m = roundup64(m);
+        roundup64(m);
         std::memcpy(s, str.data(), (l + 1) * sizeof(char));
     }
 
     // Stealing ownership in a very mean way.
     KString(std::string &&str): l(str.size()), m(l), s(const_cast<char *>(str.data())) {
-        m = roundup64(m);
+        roundup64(m);
         std::memset(&str, 0, sizeof(str));
     }
 
