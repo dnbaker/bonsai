@@ -294,7 +294,6 @@ int metatree_main(int argc, char *argv[]) {
     for(const auto &str: inpaths) cerr << str << '\n';
 #endif
 
-    auto tax_depths(get_tax_depths(full_taxmap, argv[optind + 1]));
 
 #ifdef TAX_CHECK
     khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
@@ -399,12 +398,8 @@ int hist_main(int argc, char *argv[]) {
     SORT(std::begin(structs), std::end(structs), [] (const elcount &a, const elcount &b) {
         return a.second < b.second;
     });
-    SORT_BRANCHLESS(std::begin(structs), std::end(structs), [] (const elcount &a, const elcount &b) {
-        return b.second % static_cast<size_t>(a.second * a.second / b.second) <
-               a.second % static_cast<size_t>(b.second * b.second / a.second);
-    });
     std::fputs("Name\tCount\n", ofp);
-    for(auto &i: structs) std::fprintf(ofp, "%u\t%u\n", i.first, i.second);
+    for(const auto &i: structs) std::fprintf(ofp, "%u\t%u\n", i.first, i.second);
     if(ofp != stdout) std::fclose(ofp);
      return EXIT_SUCCESS;
  }
