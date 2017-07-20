@@ -293,8 +293,12 @@ int metatree_main(int argc, char *argv[]) {
     cerr << "Processing " << inpaths.size() << " inpaths:\n";
     for(const auto &str: inpaths) cerr << str << '\n';
 #endif
+
+    auto tax_depths(get_tax_depths(full_taxmap, argv[optind + 1]));
+
 #ifdef TAX_CHECK
     khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
+    auto tax_depths(get_tax_depths(full_taxmap, argv[optind + 1]));
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, full_taxmap, name_hash));
     // TODO: Consider adding all entries whose taxids are not found to 
     // a heuristic nearest neighbor somehow.
@@ -326,6 +330,7 @@ int metatree_main(int argc, char *argv[]) {
     }
 #else
     khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
+    auto tax_depths(get_tax_depths(full_taxmap, argv[optind + 1]));
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, full_taxmap, name_hash));
 #endif
     tax_t mx(std::numeric_limits<tax_t>::min());
@@ -364,7 +369,7 @@ int metatree_main(int argc, char *argv[]) {
 
 // Core
     std::vector<tax_t> taxes(get_sorted_taxes(taxmap, argv[optind + 1]));
-    auto tx2desc_map(tax2desc_genome_map(tax2genome_map(name_hash, inpaths), taxmap, taxes));
+    auto tx2desc_map(tax2desc_genome_map(tax2genome_map(name_hash, inpaths), taxmap, taxes, tax_depths));
     FMEmitter fme(taxmap, tx2desc_map);
     std::vector<tax_t> tmptaxes;
     for(auto &&pair: iter::groupby(taxes, [tm=taxmap](const tax_t a){return get_parent(tm, a);})) {

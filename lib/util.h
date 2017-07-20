@@ -241,8 +241,7 @@ inline bool has_key(const Key &key, const Map &map) {
 
 #if !NDEBUG
 template<typename T, class Compare=std::less<typename T::value_type>>
-void assert_sorted(const T &container) {
-    Compare cmp;
+void assert_sorted(const T &container, Compare cmp=Compare{}) {
     using std::begin;
     auto it(begin(container)), it2(begin(container));
     if(it2 != end(container)) ++it2;

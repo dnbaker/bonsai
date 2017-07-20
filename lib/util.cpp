@@ -325,14 +325,14 @@ std::map<uint32_t, uint32_t> kh2kr(khash_t(p) *map) {
 std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths) {
     tax_t taxid;
     std::unordered_map<tax_t, std::forward_list<std::string>> ret;
+    typename std::unordered_map<tax_t, std::forward_list<std::string>>::iterator m;
     ret.reserve(paths.size());
     for(const auto &path: paths) {
         taxid = get_taxid(path.data(), name_map);
         if(taxid == UINT32_C(-1)) continue;
         LOG_INFO("Found taxid %u\n", taxid);
-        auto m(ret.find(taxid));
-        if(m == ret.end()) ret.emplace(taxid, strlist{path});
-        else m->second.emplace_front(path);
+        if((m = ret.find(taxid)) == ret.end()) ret.emplace(taxid, strlist{path});
+        else                                   m->second.emplace_front(path);
     }
     return ret;
 }
@@ -343,25 +343,23 @@ template<typename T> class TD;
 
 std::unordered_map<tax_t, strlist> tax2desc_genome_map(
         const std::unordered_map<tax_t, strlist> &tx2g,
-        const khash_t(p) *taxmap, const std::vector<tax_t> &sorted_taxes) {
+        const khash_t(p) *taxmap, const std::vector<tax_t> &taxes,
+        const std::unordered_map<tax_t, ClassLevel> &lvl_map) {
     std::unordered_map<tax_t, std::set<tax_t>> ptc_map;
     typename std::unordered_map<tax_t, std::set<tax_t>>::iterator it;
     typename std::unordered_map<tax_t, strlist>::const_iterator pit;
-    khiter_t ki;
     ptc_map.reserve(kh_size(taxmap));
-    assert_sorted(sorted_taxes);
-    for(const auto tax: sorted_taxes) {
-        if((ki = kh_get(p, taxmap, tax)) == kh_end(taxmap)) throw std::runtime_error("Missing tax");
-        const tax_t parent(get_parent(taxmap, tax));
-        if((it = ptc_map.find(parent)) == ptc_map.end()) {
-            it = ptc_map.emplace(parent, std::set<tax_t>(ptc_map[tax].begin(), ptc_map[tax].end())).first;
-        } else {
-            //auto &thing = ptc_map[tax];
-            //TD<decltype(thing)> t;
-            auto map_iter(ptc_map.find(tax));
-            for(const auto &i: map_iter->second) it->second.insert(i);
-        }
-    }
+    std::vector<tax_t> sorted_taxes = taxes;
+    SORT(sorted_taxes.begin(), sorted_taxes.end(),
+         [&lvl_map](const tax_t a, const tax_t b) {
+             return lvl_map.at(a) < lvl_map.at(b);
+    });
+
+//// AND SUDDENLY
+
+
+//// A MIRACLE OCCURS
+
     std::unordered_map<tax_t, strlist> ret;
     for(const auto &pair: ptc_map) {
         strlist list;
@@ -378,7 +376,11 @@ bool isfile(const char *path) noexcept {
 }
 
 const char *bool2str(bool val) {
-    return val ? "true": "false";
+    static const char * vals [] {
+        "false",
+        "true"
+    };
+    return vals[val];
 }
 
 #define _KHD(x) template<> void khash_destroy(khash_t(x) *map) noexcept {kh_destroy(x, map);}
@@ -389,7 +391,6 @@ _KHD(64)
 _KHD(p)
 
 ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unordered_map<std::string, ClassLevel> &map) {
-    //1   |   1   |   no rank
     const char *p(strchr(line, '|'));
     if(!p || (p = strchr(p + 1, '|')) == nullptr)
         throw std::runtime_error("Improperly formatted line");
@@ -429,10 +430,10 @@ std::vector<tax_t> get_sorted_taxes(const khash_t(p) *taxmap, const char *path) 
     std::unordered_map<tax_t, ClassLevel> taxclassmap(get_tax_depths(taxmap, path));
     typename std::unordered_map<tax_t, ClassLevel>::iterator ma, mb;
     SORT(taxes.begin(), taxes.end(), [&tcm=taxclassmap,tm=taxmap,&ma,&mb](const tax_t a, const tax_t b) {
-        if((ma = tcm.find(a))== tcm.end()) return (mb = tcm.find(b)) == tcm.end() ? a < b: false;
-        if((mb = tcm.find(b))== tcm.end()) return true;
-        return (ma->second == mb->second) ? get_parent(tm, a) < get_parent(tm, b)
-                                          : ma->second > mb->second;
+        return (ma = tcm.find(a)) == tcm.end() ? (mb = tcm.find(b)) == tcm.end() ? a < b: false
+                                               : (mb = tcm.find(b)) == tcm.end() ? true
+                                                                                 : ma->second == mb->second ? get_parent(tm, a) < get_parent(tm, b)
+                                                                                                            : ma->second > mb->second;
     });
     return taxes;
 }
