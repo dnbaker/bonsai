@@ -341,11 +341,12 @@ int metatree_main(int argc, char *argv[]) {
                 int khr;
                 std::string line(get_firstline(s));
                 const char *p(line.data());
-                while(*p && *p != ' ') ++p;
+                while(*p && *p != '\n') ++p;
                 if(*p) line.resize(p - line.data());
                 khiter_t ki(kh_put(p, taxmap, mx, &khr));
+                ++mx;
                 kh_val(taxmap, ki) = 1; // Set to root. Could be improved, most certainly.
-                ks.putsn_("|Missing Taxid: Designating child of root. New id: ",
+                ks.putsn_("|Missing Taxid: Designating child of root.|ID:",
                           sizeof("|Missing Taxid: Designating child of root.|ID:") - 1);
                 ks.putw_(kh_key(taxmap, ki));
                 ks.putc_('\t');

@@ -389,8 +389,9 @@ _KHD(64)
 _KHD(p)
 
 ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unordered_map<std::string, ClassLevel> &map) {
+    //1   |   1   |   no rank
     const char *p(strchr(line, '|'));
-    if(!(p && (p = strchr(p, '|'))))
+    if(!p || (p = strchr(p + 1, '|')) == nullptr)
         throw std::runtime_error("Improperly formatted line");
     p = p + 2;
     const char *q(p);
@@ -398,7 +399,7 @@ ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unorder
     if(!*q) throw std::runtime_error("Improperly formatted line");
     buffer = std::string(p, q);
     auto m(map.find(buffer));
-    if(m == map.end()) throw std::runtime_error(std::string("Unexpected field entry ") + buffer);
+    if(m == map.end()) throw std::runtime_error(std::string("Unexpected field entry ") + buffer + " for line " + line);
     return m->second;
 }
 
@@ -426,10 +427,10 @@ std::vector<tax_t> get_sorted_taxes(const khash_t(p) *taxmap, const char *path) 
         taxes = std::vector<tax_t>(taxset.begin(), taxset.end());
     }
     std::unordered_map<tax_t, ClassLevel> taxclassmap(get_tax_depths(taxmap, path));
-    SORT(taxes.begin(), taxes.end(), [&tcm=taxclassmap,tm=taxmap](const tax_t a, const tax_t b) {
-        auto ma(tcm.find(a)), mb(tcm.find(b));
-        if(ma == tcm.end()) throw std::runtime_error("Missing taxid from tcm for a.");
-        if(mb == tcm.end()) throw std::runtime_error("Missing taxid from tcm for b.");
+    typename std::unordered_map<tax_t, ClassLevel>::iterator ma, mb;
+    SORT(taxes.begin(), taxes.end(), [&tcm=taxclassmap,tm=taxmap,&ma,&mb](const tax_t a, const tax_t b) {
+        if((ma = tcm.find(a))== tcm.end()) return (mb = tcm.find(b)) == tcm.end() ? a < b: false;
+        if((mb = tcm.find(b))== tcm.end()) return true;
         return (ma->second == mb->second) ? get_parent(tm, a) < get_parent(tm, b)
                                           : ma->second > mb->second;
     });
