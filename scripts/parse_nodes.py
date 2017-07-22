@@ -53,7 +53,7 @@ def generate_class_map(clades, maxl):
     for clade in clades:
         print("Adding clade level %s" % lmangle(clade))
     retc += "\n".join("    {\"%s\", %sClassLevel::%s}," %
-                      (lmangle(clade), (maxl - len(clade)) * ' ',
+                      (clade.lower(), (maxl - len(clade)) * ' ',
                        umangle(clade))
                       for clade in clades)
     retc += "\n};\n\n"

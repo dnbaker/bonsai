@@ -354,7 +354,9 @@ std::unordered_map<tax_t, strlist> tax2desc_genome_map(
          [&lvl_map](const tax_t a, const tax_t b) {
              return lvl_map.at(a) < lvl_map.at(b);
     });
-
+    for(auto it1(sorted_taxes.begin()), it2(it1 + 1); it2 != sorted_taxes.end(); ++it1, ++it2) {
+        assert(lvl_map.at(*it1) < lvl_map.at(*it2));
+    }
 //// AND SUDDENLY
 
 
@@ -399,8 +401,14 @@ ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unorder
     while(*q != '\t' && *q) ++q;
     if(!*q) throw std::runtime_error("Improperly formatted line");
     buffer = std::string(p, q);
+    std::cerr << "Buffer: " << buffer << ". line: " << line << '\n';
     auto m(map.find(buffer));
-    if(m == map.end()) throw std::runtime_error(std::string("Unexpected field entry ") + buffer + " for line " + line);
+    if(m == map.end()) {
+        for(const auto &pair: map) {
+            std::cerr << "Key: " << pair.first << ". Value: " << static_cast<int>(pair.second) << ".\n";
+        }
+        throw std::runtime_error(std::string("Unexpected field entry '") + buffer + "' for line " + line);
+    }
     return m->second;
 }
 
