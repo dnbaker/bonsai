@@ -1,6 +1,16 @@
 import sys
 
 
+def lmangle(s):
+    return s.lower().replace(" ", "_").replace("\t", " ")
+
+
+def umangle(s):
+    umanglestr = s.upper().replace(" ", "_").replace("\t", " ")
+    print("umangled: {{'%s': \"%s\"}}" % (s, umanglestr))
+    return s.upper().replace(" ", "_").replace("\t", " ")
+
+
 def get_level(line):
     gen = (i for i in line.strip().split("\t") if i != "|")
     next(gen)
@@ -15,7 +25,7 @@ def get_levels(path):
 
 def generate_enum(clades, maxl):
     enum_str = "enum class ClassLevel:int {\n"
-    enum_str += "\n".join("    %s%s= %i," % (clade.upper(),
+    enum_str += "\n".join("    %s%s= %i," % (umangle(clade),
                                              (maxl - len(clade) + 1) * ' ',
                                              id)
                           for id, clade in enumerate(clades, start=2))
@@ -29,7 +39,7 @@ def generate_class_names(clades):
     reth = "extern const char *classlvl_arr[%i];\n" % (len(clades) + 2)
     retc = "const char *classlvl_arr[%i] {\n" % (len(clades) + 2)
     retc += "    \"no rank\",\n    \"root\",\n"
-    retc += "\n".join("    \"%s\"," % clade.lower() for clade in clades)
+    retc += "\n".join("    \"%s\"," % lmangle(clade) for clade in clades)
     retc += "\n};\n\n"
     return reth, retc
 
@@ -40,9 +50,11 @@ def generate_class_map(clades, maxl):
     retc = "const std::unordered_map<std::string, ClassLevel> classlvl_map {\n"
     retc += "    {\"no rank\", %sClassLevel::NO_RANK},\n" % ((maxl - 7) * ' ')
     retc += "    {\"root\", %sClassLevel::ROOT},\n" % ((maxl - 4) * ' ')
+    for clade in clades:
+        print("Adding clade level %s" % lmangle(clade))
     retc += "\n".join("    {\"%s\", %sClassLevel::%s}," %
-                      (clade.lower(), (maxl - len(clade)) * ' ',
-                       clade.upper())
+                      (lmangle(clade), (maxl - len(clade)) * ' ',
+                       umangle(clade))
                       for clade in clades)
     retc += "\n};\n\n"
     return reth, retc
@@ -110,7 +122,7 @@ def main():
             standalone = True
     argv = [i for i in argv if i not in ["-h", "-c", "--standalone",
                                          "--help", "-?"]]
-    with open(argv[1]) if argv[1:] else stdout as f:
+    with open(argv[1]) if argv[1:] else sys.stdout as f:
         clades = [line.strip() for line in f]
     doth, dotc = generate_code(clades)
     if standalone:
