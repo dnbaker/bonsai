@@ -355,7 +355,7 @@ std::unordered_map<tax_t, strlist> tax2desc_genome_map(
              return lvl_map.at(a) < lvl_map.at(b);
     });
     for(auto it1(sorted_taxes.begin()), it2(it1 + 1); it2 != sorted_taxes.end(); ++it1, ++it2) {
-        assert(lvl_map.at(*it1) < lvl_map.at(*it2));
+        assert(lvl_map.at(*it1) <= lvl_map.at(*it2));
     }
 //// AND SUDDENLY
 
