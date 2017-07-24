@@ -341,30 +341,49 @@ namespace {
 template<typename T> class TD;
 }
 
+
+std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(const khash_t(p) *taxmap, const std::vector<tax_t> &taxes, const std::unordered_map<tax_t, ClassLevel> &lvl_map) {
+    std::unordered_map<tax_t, std::set<tax_t>> ret;
+    ret.reserve(kh_size(taxmap));
+    std::vector<tax_t> sorted_taxes = taxes;
+    SORT(sorted_taxes.begin(), sorted_taxes.end(), [&lvl_map](const tax_t a, const tax_t b) {
+             return lvl_map.at(a) < lvl_map.at(b);
+    });
+#if !NDEBUG
+    for(auto it1(sorted_taxes.begin()), it2(it1 + 1); it2 != sorted_taxes.end(); ++it1, ++it2) {
+        assert(lvl_map.at(*it1) <= lvl_map.at(*it2));
+    }
+#endif
+    typename std::unordered_map<tax_t, std::set<tax_t>>::iterator it;
+    khiter_t ki;
+    tax_t tmptax;
+    for(const auto tax: sorted_taxes) {
+        if((it = ret.find(tax)) == ret.end()) ret.emplace(tax, std::set<tax_t>{});
+        tmptax = tax;
+        while((ki = kh_get(p, taxmap, tmptax)) != 0u) {
+            if(ki == kh_end(taxmap)) {
+                throw std::runtime_error(std::string("Taxid ") + std::to_string(tax));
+            }
+            tmptax = kh_val(taxmap, ki);
+            if((it = ret.find(tmptax)) == ret.end()) ret.emplace(tmptax, std::set<tax_t>{tax});
+            else                                     it->second.insert(tax);
+        }
+    }
+    return ret;
+}
+
 std::unordered_map<tax_t, strlist> tax2desc_genome_map(
         const std::unordered_map<tax_t, strlist> &tx2g,
         const khash_t(p) *taxmap, const std::vector<tax_t> &taxes,
         const std::unordered_map<tax_t, ClassLevel> &lvl_map) {
-    std::unordered_map<tax_t, std::set<tax_t>> ptc_map;
-    typename std::unordered_map<tax_t, std::set<tax_t>>::iterator it;
-    typename std::unordered_map<tax_t, strlist>::const_iterator pit;
-    ptc_map.reserve(kh_size(taxmap));
-    std::vector<tax_t> sorted_taxes = taxes;
-    SORT(sorted_taxes.begin(), sorted_taxes.end(),
-         [&lvl_map](const tax_t a, const tax_t b) {
-             return lvl_map.at(a) < lvl_map.at(b);
-    });
-    for(auto it1(sorted_taxes.begin()), it2(it1 + 1); it2 != sorted_taxes.end(); ++it1, ++it2) {
-        assert(lvl_map.at(*it1) <= lvl_map.at(*it2));
-    }
-//// AND SUDDENLY
-
-
-//// A MIRACLE OCCURS
-
     std::unordered_map<tax_t, strlist> ret;
-    for(const auto &pair: ptc_map) {
+    for(const auto &pair: make_ptc_map(taxmap, taxes, lvl_map)) {
+        typename std::unordered_map<tax_t, strlist>::const_iterator pit;
         strlist list;
+        if((pit = tx2g.find(pair.first)) != tx2g.end()) list.insert_after(list.begin(), pit->second.begin(), pit->second.end());
+        else {
+            throw std::runtime_error(std::string("Taxid ") + std::to_string(pair.first));
+        }
         for(const auto child: pair.second)
             if((pit = tx2g.find(child)) != tx2g.end())
                 list.insert_after(list.begin(), pit->second.begin(), pit->second.end());
