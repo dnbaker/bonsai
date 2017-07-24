@@ -342,7 +342,9 @@ template<typename T> class TD;
 }
 
 
-std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(const khash_t(p) *taxmap, const std::vector<tax_t> &taxes, const std::unordered_map<tax_t, ClassLevel> &lvl_map) {
+std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(
+        const khash_t(p) *taxmap, const std::vector<tax_t> &taxes,
+        const std::unordered_map<tax_t, ClassLevel> &lvl_map) {
     std::unordered_map<tax_t, std::set<tax_t>> ret;
     ret.reserve(kh_size(taxmap));
     std::vector<tax_t> sorted_taxes = taxes;
@@ -363,10 +365,8 @@ std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(const khash_t(p) *taxmap
 #endif
         if((it = ret.find(tax)) == ret.end()) ret.emplace(tax, std::set<tax_t>{});
         tmptax = tax;
-        while((ki = kh_get(p, taxmap, tmptax)) != 0u) {
-            if(ki == kh_end(taxmap)) {
-                throw std::runtime_error(std::string("Missing parent for taxid ") + std::to_string(tax));
-            }
+        while((ki = kh_get(p, taxmap, tmptax)) != kh_end(taxmap)) {
+            if(kh_val(taxmap, ki) == 0) goto loop_end;
             tmptax = kh_val(taxmap, ki);
 #if !NDEBUG
             std::cerr << "Parent: " << tmptax << '\n';
@@ -374,6 +374,14 @@ std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(const khash_t(p) *taxmap
             if((it = ret.find(tmptax)) == ret.end()) ret.emplace(tmptax, std::set<tax_t>{tax});
             else                                     it->second.insert(tax);
         }
+        // Only reach if taxid is missing from taxonomy file.
+        throw std::runtime_error(std::string("Missing parent for taxid ") + std::to_string(tax));
+        loop_end:
+#if !NDEBUG
+        std::cerr << "Now finishing up for tax " << tax << '\n';
+#else
+        continue; // Syntactic boilerplate.
+#endif
     }
     return ret;
 }

@@ -1,6 +1,7 @@
 #ifndef __FLEX_TREE_H
 #define __FLEX_TREE_H
 
+#include "lib/util.h"
 #include "lib/bits.h"
 #include "lib/counter.h"
 
@@ -145,7 +146,9 @@ public:
         std::unordered_set<NodeType *> to_reinsert;
         ks::KString ks;
         while(added_.size() < nelem) {
-            assert_sorted<decltype(heap_), node_lt>(heap_);
+#if !NDEBUG
+            ::emp::assert_sorted_impl<decltype(heap_), node_lt>(heap_);
+#endif
             const auto bptr(*heap_.begin());
             const auto addn_score(get_score(*bptr));
             if(bptr->second.added()) {
