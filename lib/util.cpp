@@ -358,13 +358,19 @@ std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(const khash_t(p) *taxmap
     khiter_t ki;
     tax_t tmptax;
     for(const auto tax: sorted_taxes) {
+#if !NDEBUG
+        std::cerr << "Processing tax " << tax << '\n';
+#endif
         if((it = ret.find(tax)) == ret.end()) ret.emplace(tax, std::set<tax_t>{});
         tmptax = tax;
         while((ki = kh_get(p, taxmap, tmptax)) != 0u) {
             if(ki == kh_end(taxmap)) {
-                throw std::runtime_error(std::string("Taxid ") + std::to_string(tax));
+                throw std::runtime_error(std::string("Missing parent for taxid ") + std::to_string(tax));
             }
             tmptax = kh_val(taxmap, ki);
+#if !NDEBUG
+            std::cerr << "Parent: " << tmptax << '\n';
+#endif
             if((it = ret.find(tmptax)) == ret.end()) ret.emplace(tmptax, std::set<tax_t>{tax});
             else                                     it->second.insert(tax);
         }
@@ -382,7 +388,16 @@ std::unordered_map<tax_t, strlist> tax2desc_genome_map(
         strlist list;
         if((pit = tx2g.find(pair.first)) != tx2g.end()) list.insert_after(list.begin(), pit->second.begin(), pit->second.end());
         else {
-            throw std::runtime_error(std::string("Taxid ") + std::to_string(pair.first));
+            if(kh_get(p, taxmap, pair.first) == kh_end(taxmap)) {
+                std::cerr << "No parent for node " << (int)pair.first << '\n';
+                throw std::runtime_error(std::string("Invalid taxid ") + std::to_string(pair.first));
+            } else {
+#if !NDEBUG
+                std::cerr << "Valid tax id " << kh_key(taxmap, kh_get(p, taxmap, pair.first))
+                          << " with parent " << kh_val(taxmap, kh_get(p, taxmap, pair.first))
+                          << ". Do nothing.\n";
+#endif
+            }
         }
         for(const auto child: pair.second)
             if((pit = tx2g.find(child)) != tx2g.end())
