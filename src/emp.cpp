@@ -338,6 +338,7 @@ int metatree_main(int argc, char *argv[]) {
     }
     kh_destroy(p, full_taxmap);
     {
+#if 0
         ks::KString ks;
         for(const auto &path: inpaths) {
             const char *s(path.data());
@@ -364,6 +365,14 @@ int metatree_main(int argc, char *argv[]) {
             if(ks.size() & (1 << 18)) ks.write(ofp), ks.clear();
         }
         ks.write(ofp), ks.clear();
+#else
+        std::set<std::string> to_rm;
+        for(const auto &path: inpaths) if(get_taxid(path.data(), name_hash) == UINT32_C(-1)) to_rm.insert(path);
+        for(const auto &str: to_rm)    to_rm.erase(str);
+#endif
+    }
+    if(inpaths.size() == 0) {
+        throw std::runtime_error("No input paths. Everything is awful!!!!");
     }
 
 // Core

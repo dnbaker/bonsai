@@ -401,7 +401,6 @@ ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unorder
     while(*q != '\t' && *q) ++q;
     if(!*q) throw std::runtime_error("Improperly formatted line");
     buffer = std::string(p, q);
-    std::cerr << "Buffer: " << buffer << ". line: " << line << '\n';
     auto m(map.find(buffer));
     if(m == map.end()) {
         for(const auto &pair: map) {
