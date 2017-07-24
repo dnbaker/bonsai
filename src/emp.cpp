@@ -375,7 +375,7 @@ int metatree_main(int argc, char *argv[]) {
         // Copying just because I don't trust the lifetime management of iter::groupby.
         for(const auto tax: pair.second) tmptaxes.push_back(tax);
         std::cerr << "Going through taxes with parent = " << static_cast<tax_t>(pair.first) << '\n';
-        fme.process_subtree(begin(tmptaxes), end(tmptaxes), sp, num_threads, nullptr);
+        fme.process_subtree(pair.first, begin(tmptaxes), end(tmptaxes), sp, num_threads, nullptr);
         tmptaxes.clear();
     }
     fme.run_collapse(mx + 1, ofp, nelem);

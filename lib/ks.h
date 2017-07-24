@@ -1,6 +1,8 @@
 #ifndef _KS_WRAPPER_H__
 #define _KS_WRAPPER_H__
 #include <cstdint>
+#include <iostream>
+#include <vector>
 #include <cstring>
 #include <cstdarg>
 #include <cstdio>
@@ -34,8 +36,7 @@ public:
         if(str == nullptr) {
             std::memset(this, 0, sizeof *this);
         } else {
-            l = std::strlen(str);
-            m = roundup64(l);
+            m = l = std::strlen(str), roundup64(m);
             s = static_cast<char *>(std::malloc(m * sizeof(char)));
             std::memcpy(s, str, (l + 1) * sizeof(char));
         }
@@ -294,8 +295,59 @@ public:
     char       &operator[](size_t index)       {return s[index];}
 
     int write(FILE *fp) const {return std::fwrite(s, sizeof(char), l, fp);}
+    auto write(const char *path) const {
+        std::FILE *fp(std::fopen(path, "r"));
+        if(!fp) throw 1;
+        const auto ret(write(fp));
+        std::fclose(fp);
+        return ret;
+    }
     int write(int fd)   const {return     ::write(fd, s, l * sizeof(char));}
 };
+
+// s MUST BE a null terminated string; [l = strlen(s)]
+static inline void split(char *s, int delimiter, size_t l, std::vector<size_t> &offsets)
+{
+    unsigned i, last_char, last_start;
+    offsets.clear();
+
+#define _split_aux_ do {s[i] = 0, offsets.push_back(last_start);} while(0)
+
+    for (i = 0, last_char = last_start = 0; i <= l; ++i) {
+        if (delimiter == 0) {
+            if (std::isspace(s[i]) || s[i] == 0) {
+                if (std::isgraph(last_char))                  _split_aux_; // the end of a field
+            } else {
+                if (std::isspace(last_char) || last_char == 0) last_start = i;
+            }
+        } else {
+            if (s[i] == delimiter || s[i] == 0) {
+                if (last_char != 0 && last_char != static_cast<unsigned>(delimiter)) _split_aux_; // the end of a field
+            } else {
+                if (last_char == static_cast<unsigned>(delimiter) || last_char == 0) last_start = i;
+            }
+        }
+        last_char = s[i];
+    }
+
+#undef _split_aux_
+
+}
+
+static inline void split(char *s, int delimiter, std::vector<size_t> &offsets) {
+    split(s, delimiter, std::strlen(s), offsets);
+}
+
+
+static inline std::vector<size_t> split(char *s, size_t l, int delimiter)
+{
+    std::vector<size_t> ret;
+    ks::split(s, delimiter, l, ret);
+    return ret;
+}
+
+static inline std::vector<size_t> split(KString &s, int delimiter) {return split(s.data(), s.size(), delimiter);}
+static inline std::vector<size_t> split(std::string &s, int delimiter) {return split(&s[0], s.size(), delimiter);}
 
 } // namespace ks
 
