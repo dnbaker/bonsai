@@ -147,7 +147,7 @@ public:
         while(added_.size() < nelem) {
             assert_sorted<decltype(heap_), node_lt>(heap_);
             const auto bptr(*heap_.begin());
-            const auto addn_score(get_score(bptr->second));
+            const auto addn_score(get_score(*bptr));
             if(bptr->second.added()) {
                 LOG_WARNING("Cannot add more nodes. [Best candidate is impossible.] Breaking from loop.\n");
                 break;
@@ -190,7 +190,7 @@ public:
         ks.putc_('\t');
         ks.putuw_(fm.parent());
         ks.putc_('\t');
-        typename node->first::value_type val;
+        std::uint64_t val;
         const auto &taxes(fm.get_taxes());
         for(size_t i = 0, e = node->first.size(); i < e; ++i) {
             if((val = node->first[i]) == 0) continue;
