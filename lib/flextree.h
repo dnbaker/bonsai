@@ -11,6 +11,7 @@ struct fnode_t;
 using popcnt::vec_bitdiff;
 using popcnt::vec_popcnt;
 using NodeType = std::pair<const bitvec_t, fnode_t>;
+using namespace std::literals;
 
 struct fnode_t {
     std::uint64_t                 n_;  // Number of kmers at this point in tree.
@@ -25,7 +26,12 @@ struct fnode_t {
         n_{n}, laa_{nullptr}, pc_{static_cast<std::uint32_t>(popcnt::vec_popcnt(bits))},
         bc_{bc}, si_{subtree_index} {}
 
-    bool added() const {return laa_ && &laa_->second == this;}
+    bool added()      const {return laa_ && &laa_->second == this;}
+    std::string str() const {
+        return "[fnode]{n:"s + std::to_string(n_) + (added() ? ", added:true, ": ", added:false, bc:")
+                             + std::to_string(bc_) + ", pc:" + std::to_string(pc_)
+                             + ", + " + std::to_string(si_) + '}';
+    }
 };
 
 INLINE std::uint64_t get_score(const NodeType &node) {
@@ -148,8 +154,14 @@ public:
         while(added_.size() < nelem) {
 #if !NDEBUG
             ::emp::assert_sorted_impl<decltype(heap_), node_lt>(heap_);
+            ::std::cerr << "Size of heap: " << heap_.size() << '\n';
+            for(const auto node: heap_) {
+                ::std::cerr << node->second.str() << '\n';
+            }
 #endif
-            const auto bptr(*heap_.begin());
+            auto hb(heap_.begin());
+            if(hb == heap_.end()) throw std::runtime_error("Heap is empty as collapse begins.");
+            const auto bptr(*hb);
             const auto addn_score(get_score(*bptr));
             if(bptr->second.added()) {
                 LOG_WARNING("Cannot add more nodes. [Best candidate is impossible.] Breaking from loop.\n");
