@@ -334,9 +334,13 @@ int metatree_main(int argc, char *argv[]) {
 #endif
     tax_t mx(std::numeric_limits<tax_t>::min());
     for(khiter_t ki(0); ki < kh_end(full_taxmap); ++ki) {
-        if(kh_exist(full_taxmap, ki)) if(kh_key(full_taxmap, ki) > mx) mx = kh_key(full_taxmap, ki);
+        if(kh_exist(full_taxmap, ki)) {
+            if(kh_key(full_taxmap, ki) > mx) mx = kh_key(full_taxmap, ki);
+            if(kh_val(full_taxmap, ki) > mx) mx = kh_val(full_taxmap, ki);
+        }
     }
     kh_destroy(p, full_taxmap);
+    LOG_DEBUG("max: %u\b", mx);
     {
 #if 0
         ks::KString ks;
@@ -382,6 +386,9 @@ int metatree_main(int argc, char *argv[]) {
 
 // Core
     std::vector<tax_t> taxes(get_sorted_taxes(taxmap, argv[optind + 1]));
+#if !NDEBUG
+    for(const auto tax: taxes) assert(kh_get(p, taxmap, tax) != kh_end(taxmap));
+#endif
     auto tx2desc_map(tax2desc_genome_map(tax2genome_map(name_hash, inpaths), taxmap, taxes, tax_depths));
     FMEmitter fme(taxmap, tx2desc_map);
     std::vector<tax_t> tmptaxes;

@@ -14,10 +14,14 @@
 #ifdef USE_PDQSORT
 #pragma message("Using pdqsort")
 #include "pdqsort/pdqsort.h"
+#ifndef SORT
 #define SORT ::pdq::sort
+#endif
 #define SORT_BRANCHLESS ::pdq::sort_branchless
 #else
+#ifndef SORT
 #define SORT ::std::sort
+#endif
 #define SORT_BRANCHLESS ::std::sort
 #endif
 

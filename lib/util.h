@@ -60,10 +60,14 @@ using tax_t = std::uint32_t;
 #ifdef USE_PDQSORT
 #pragma message("Using pdqsort")
 #include "pdqsort/pdqsort.h"
-#define SORT ::pdq::sort
+# ifndef SORT
+#  define SORT ::pdq::sort
+# endif
 #define SORT_BRANCHLESS ::pdq::sort_branchless
 #else
-#define SORT ::std::sort
+# ifndef SORT
+#  define SORT ::std::sort
+# endif
 #define SORT_BRANCHLESS ::std::sort
 #endif
 
