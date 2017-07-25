@@ -302,10 +302,12 @@ tax_t get_taxid(const char *fn, khash_t(name) *name_hash) {
         *p = 0;
     }
     const tax_t ret(unlikely((ki = kh_get(name, name_hash, line)) == kh_end(name_hash)) ? UINT32_C(-1) : kh_val(name_hash, ki));
+#if 0
     if(ret == UINT32_C(-1))
         LOG_WARNING("Missing taxid for %s, '%s'.\n", buf, line);
     else
         LOG_DEBUG("Successfully got taxid %u for path %s\n", kh_val(name_hash, ki), fn);
+#endif
     gzclose(fp);
     return ret;
 }
@@ -329,7 +331,9 @@ std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map, const
     for(const auto &path: paths) {
         taxid = get_taxid(path.data(), name_map);
         if(taxid == UINT32_C(-1)) continue;
+#if 0
         LOG_INFO("Found taxid %u\n", taxid);
+#endif
         if((m = ret.find(taxid)) == ret.end()) ret.emplace(taxid, strlist{path});
         else                                   m->second.emplace_front(path);
     }
@@ -374,7 +378,7 @@ std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(
     tax_t tmptax;
     for(auto sit(sorted_taxes.begin()), eit(sorted_taxes.end()); sit != eit; ++sit) {
         const tax_t tax(*sit);
-#if !NDEBUG
+#if 0
         std::cerr << "Processing tax " << tax << '#' << static_cast<size_t>(sit - sorted_taxes.begin()) << " of " << sorted_taxes.size() << '\n';
 #endif
         if((it = ret.find(tax)) == ret.end()) ret.emplace(tax, std::set<tax_t>{});
@@ -388,7 +392,7 @@ std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(
         // Only reach if taxid is missing from taxonomy file.
         throw std::runtime_error(std::string("Missing parent for taxid ") + std::to_string(tax));
         loop_end:
-#if !NDEBUG
+#if 0
         std::cerr << "Now finishing up for tax " << tax << '\n';
 #else
         continue; // Syntactic boilerplate.
@@ -411,7 +415,7 @@ std::unordered_map<tax_t, strlist> tax2desc_genome_map(
                 std::cerr << "No parent for node " << (int)pair.first << '\n';
                 throw std::runtime_error(std::string("Invalid taxid ") + std::to_string(pair.first));
             } else {
-#if !NDEBUG
+#if 0
                 std::cerr << "Valid tax id " << kh_key(taxmap, kh_get(p, taxmap, pair.first))
                           << " with parent " << kh_val(taxmap, kh_get(p, taxmap, pair.first))
                           << ". Do nothing.\n";

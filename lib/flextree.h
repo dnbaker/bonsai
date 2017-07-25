@@ -210,9 +210,15 @@ public:
         const auto &taxes(fm.get_taxes());
         for(size_t i = 0, e = node->first.size(); i < e; ++i) {
             if((val = node->first[i]) == 0) continue;
-            for(unsigned char j = 0; j < 64u; ++j) {
+            for(unsigned char j = 0; j < '@'; ++j) { // @ is 64
 #if !NDEBUG
-                if(node->first[i] & (1ul << j)) ks.putuw_(taxes.at((i << 6) + j));
+                const size_t index((i << 6) + j);
+                try {
+                    if(node->first[i] & (1ul << j)) ks.putuw_(taxes.at(index));
+                } catch (std::out_of_range &ex) {
+                    LOG_EXIT("length of taxes: %zu. index: %zu.\n", taxes.size(), index);
+                    throw;
+                }
 #else
                 if(node->first[i] & (1ul << j)) ks.putuw_(taxes[(i << 6) + j]);
 #endif

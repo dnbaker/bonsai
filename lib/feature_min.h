@@ -269,7 +269,7 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
     // Submit the first set of jobs
     for(int i(0), e(std::min(num_threads, (int)todo)); i < e; ++i) {
         futures.emplace_back(std::async(
-          std::launch::async, fill_set_genome<score>, fns.at(i).data(), sp, counters[i], i, (void *)full_map));
+          std::launch::async, fill_set_genome<score>, fns[i].data(), sp, counters[i], i, (void *)full_map));
         ++submitted;
     }
 

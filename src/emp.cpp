@@ -297,30 +297,34 @@ int metatree_main(int argc, char *argv[]) {
     // TODO: Consider adding all entries whose taxids are not found to 
     // a heuristic nearest neighbor somehow.
     {
-       auto kraken_tax(build_kraken_tax(argv[optind + 1]));
-       {
-           decltype(kraken_tax) pruned_kraken_tax;
-           for(khiter_t ki(0); ki != kh_end(taxmap); ++ki) {
-               if(kh_exist(taxmap, ki)) {
-                   pruned_kraken_tax[kh_key(taxmap, ki)] = kraken_tax.at(kh_key(taxmap, ki));
-               }
-           }
-           kraken_tax = std::move(pruned_kraken_tax);
-       }
-       std::vector<tax_t> nsv;
-       {
-           std::set<tax_t> nodeset;
-           for(const auto &pair: kraken_tax)
-               nodeset.insert(pair.first), nodeset.insert(pair.second);
-           if(nodeset.find(0) != nodeset.end()) nodeset.erase(0);
-           nsv.assign(std::vector<tax_t>(nodeset.begin(), nodeset.end()));
-       }
-       for(auto i(nsv.cbegin()), e(nsv.cend()); i != e; ++i) {
-           for(auto j(i + 1); j != e; ++j) {
-               assert(lca(kraken_tax, *i, *j) == lca(taxmap, *i, *j));
-           }
-           if(((i - nsv.cbegin()) & 0xF) == 0) LOG_INFO("Processed %zd of %zu\n", i - nsv.cbegin(), nsv.size());
-       }
+        auto kraken_tax(build_kraken_tax(argv[optind + 1]));
+        {
+            decltype(kraken_tax) pruned_kraken_tax;
+            for(khiter_t ki(0); ki != kh_end(taxmap); ++ki) {
+                if(kh_exist(taxmap, ki)) {
+                    try {
+                        pruned_kraken_tax.at(kh_key(taxmap, ki)) = kraken_tax.at(kh_key(taxmap, ki));
+                    } catch(std::out_of_range &ex) {
+                        LOG_ERROR("Taxid %s is missing from pruned kraken tax.\n", kh_key(taxmap, ki));
+                    }
+                }
+            }
+            kraken_tax = std::move(pruned_kraken_tax);
+        }
+        std::vector<tax_t> nsv;
+        {
+             std::set<tax_t> nodeset;
+             for(const auto &pair: kraken_tax)
+                 nodeset.insert(pair.first), nodeset.insert(pair.second);
+             if(nodeset.find(0) != nodeset.end()) nodeset.erase(0);
+             nsv.assign(std::vector<tax_t>(nodeset.begin(), nodeset.end()));
+         }
+         for(auto i(nsv.cbegin()), e(nsv.cend()); i != e; ++i) {
+             for(auto j(i + 1); j != e; ++j) {
+                 assert(lca(kraken_tax, *i, *j) == lca(taxmap, *i, *j));
+             }
+             if(((i - nsv.cbegin()) & 0xF) == 0) LOG_INFO("Processed %zd of %zu\n", i - nsv.cbegin(), nsv.size());
+         }
     }
 #elif PRUNE
     khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
@@ -345,7 +349,7 @@ int metatree_main(int argc, char *argv[]) {
         }
     }
 #endif
-    LOG_DEBUG("max: %u\b", mx);
+    LOG_DEBUG("max: %u\n", mx);
     {
 #if 0
         ks::KString ks;
@@ -409,7 +413,7 @@ int metatree_main(int argc, char *argv[]) {
         fme.process_subtree(pair.first, begin(tmptaxes), end(tmptaxes), sp, num_threads, nullptr);
         tmptaxes.clear();
     }
-    fme.run_collapse(mx + 1, ofp, nelem);
+    fme.run_collapse(++mx, ofp, nelem);
     if(ofp != stdout) fclose(ofp);
     return EXIT_SUCCESS;
 }
