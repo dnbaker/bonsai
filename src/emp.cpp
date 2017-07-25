@@ -367,8 +367,10 @@ int metatree_main(int argc, char *argv[]) {
         ks.write(ofp), ks.clear();
 #else
         std::set<std::string> to_rm;
-        for(const auto &path: inpaths) if(get_taxid(path.data(), name_hash) == UINT32_C(-1)) to_rm.insert(path);
-        for(const auto &str: to_rm)    to_rm.erase(str);
+        for(const auto &path: inpaths) if(get_taxid(path.data(), name_hash) == UINT32_C(-1)) {
+            to_rm.insert(path);
+        }
+        for(const auto &str: to_rm)    inpaths.erase(str);
 #endif
     }
     if(inpaths.size() == 0) {
