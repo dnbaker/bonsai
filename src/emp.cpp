@@ -370,7 +370,10 @@ int metatree_main(int argc, char *argv[]) {
         for(const auto &path: inpaths) if(get_taxid(path.data(), name_hash) == UINT32_C(-1)) {
             to_rm.insert(path);
         }
-        for(const auto &str: to_rm)    inpaths.erase(str);
+        typename std::vector<std::string>::iterator it;
+        for(const auto &str: to_rm)
+            if((it = std::find(inpaths.begin(), inpaths.end(), str)) != inpaths.end())
+                inpaths.erase(it);
 #endif
     }
     if(inpaths.size() == 0) {

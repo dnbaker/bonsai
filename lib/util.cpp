@@ -301,19 +301,18 @@ tax_t get_taxid(const char *fn, khash_t(name) *name_hash) {
         while(!std::isspace(*p)) ++p;
         *p = 0;
     }
-    if(unlikely((ki = kh_get(name, name_hash, line)) == kh_end(name_hash))) {
+    const tax_t ret(unlikely((ki = kh_get(name, name_hash, line)) == kh_end(name_hash)) ? UINT32_C(-1) : kh_val(name_hash, ki));
+    if(ret == UINT32_C(-1))
         LOG_WARNING("Missing taxid for %s, '%s'.\n", buf, line);
-        gzclose(fp);
-        return UINT32_C(-1);
-    }
-    LOG_DEBUG("Successfully got taxid %u for path %s\n", kh_val(name_hash, ki), fn);
+    else
+        LOG_DEBUG("Successfully got taxid %u for path %s\n", kh_val(name_hash, ki), fn);
     gzclose(fp);
-    return kh_val(name_hash, ki);
+    return ret;
 }
 
 std::map<uint32_t, uint32_t> kh2kr(khash_t(p) *map) {
     std::map<uint32_t, uint32_t> ret;
-    if(map) 
+    if(map)
         for(khiter_t ki(0); ki != kh_end(map); ++ki)
             if(kh_exist(map, ki))
                 ret[kh_key(map, ki)] = kh_val(map, ki);
@@ -349,7 +348,14 @@ std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(
     ret.reserve(kh_size(taxmap));
     std::vector<tax_t> sorted_taxes = taxes;
     SORT(sorted_taxes.begin(), sorted_taxes.end(), [&lvl_map](const tax_t a, const tax_t b) {
-             return lvl_map.at(a) < lvl_map.at(b);
+             try {
+                return lvl_map.at(a) < lvl_map.at(b);
+             } catch(std::out_of_range &ex) {
+                std::cerr << "Out of range: " << ex.what() << '\n';
+                if(lvl_map.find(a) == lvl_map.end()) {std::cerr << "Missing tax " << a << '\n'; throw;}
+                if(lvl_map.find(b) == lvl_map.end()) {std::cerr << "Missing tax " << b << '\n'; throw;}
+                throw std::runtime_error("ZOMG");
+             }
     });
 #if !NDEBUG
     for(auto it1(sorted_taxes.begin()), it2(it1 + 1); it2 != sorted_taxes.end(); ++it1, ++it2) {
