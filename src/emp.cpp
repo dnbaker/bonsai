@@ -289,11 +289,6 @@ int metatree_main(int argc, char *argv[]) {
     LOG_DEBUG("Parsed name hash.\n");
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 5, argv + argc));
-#if !NDEBUG
-    cerr << "Processing " << inpaths.size() << " inpaths:\n";
-    for(const auto &str: inpaths) cerr << str << '\n';
-#endif
-
 
 #ifdef TAX_CHECK
     khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
@@ -327,11 +322,10 @@ int metatree_main(int argc, char *argv[]) {
            if(((i - nsv.cbegin()) & 0xF) == 0) LOG_INFO("Processed %zd of %zu\n", i - nsv.cbegin(), nsv.size());
        }
     }
-#else
+#elif PRUNE
     khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
     auto tax_depths(get_tax_depths(full_taxmap, argv[optind + 1]));
     khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, full_taxmap, name_hash));
-#endif
     tax_t mx(std::numeric_limits<tax_t>::min());
     for(khiter_t ki(0); ki < kh_end(full_taxmap); ++ki) {
         if(kh_exist(full_taxmap, ki)) {
@@ -340,6 +334,17 @@ int metatree_main(int argc, char *argv[]) {
         }
     }
     kh_destroy(p, full_taxmap);
+#else
+    khash_t(p) *taxmap(build_parent_map(argv[optind + 1]));
+    auto tax_depths(get_tax_depths(taxmap, argv[optind + 1]));
+    tax_t mx(std::numeric_limits<tax_t>::min());
+    for(khiter_t ki(0); ki < kh_end(taxmap); ++ki) {
+        if(kh_exist(taxmap, ki)) {
+            if(kh_key(taxmap, ki) > mx) mx = kh_key(taxmap, ki);
+            if(kh_val(taxmap, ki) > mx) mx = kh_val(taxmap, ki);
+        }
+    }
+#endif
     LOG_DEBUG("max: %u\b", mx);
     {
 #if 0
@@ -386,6 +391,11 @@ int metatree_main(int argc, char *argv[]) {
 
 // Core
     std::vector<tax_t> taxes(get_sorted_taxes(taxmap, argv[optind + 1]));
+#if !NDEBUG
+    for(const auto tax: taxes) {
+        assert(tax_depths.find(tax) != tax_depths.end());
+    }
+#endif
 #if !NDEBUG
     for(const auto tax: taxes) assert(kh_get(p, taxmap, tax) != kh_end(taxmap));
 #endif

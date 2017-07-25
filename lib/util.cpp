@@ -372,18 +372,16 @@ std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(
     typename std::unordered_map<tax_t, std::set<tax_t>>::iterator it;
     khiter_t ki;
     tax_t tmptax;
-    for(const auto tax: sorted_taxes) {
+    for(auto sit(sorted_taxes.begin()), eit(sorted_taxes.end()); sit != eit; ++sit) {
+        const tax_t tax(*sit);
 #if !NDEBUG
-        std::cerr << "Processing tax " << tax << '\n';
+        std::cerr << "Processing tax " << tax << '#' << static_cast<size_t>(sit - sorted_taxes.begin()) << " of " << sorted_taxes.size() << '\n';
 #endif
         if((it = ret.find(tax)) == ret.end()) ret.emplace(tax, std::set<tax_t>{});
         tmptax = tax;
         while((ki = kh_get(p, taxmap, tmptax)) != kh_end(taxmap)) {
             if(kh_val(taxmap, ki) == 0) goto loop_end;
             tmptax = kh_val(taxmap, ki);
-#if !NDEBUG
-            std::cerr << "Parent: " << tmptax << '\n';
-#endif
             if((it = ret.find(tmptax)) == ret.end()) ret.emplace(tmptax, std::set<tax_t>{tax});
             else                                     it->second.insert(tax);
         }

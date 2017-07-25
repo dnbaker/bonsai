@@ -197,6 +197,7 @@ public:
         return subtrees_.emplace_back(parent, paths, subtrees_.size()), subtrees_.back();
 #else
         auto &ret(subtrees_.emplace_back(parent, paths, subtrees_.size()));
+        return ret;
 #endif
     }
     void format_emitted_node(ks::KString &ks, const NodeType *node, const std::uint64_t score, const tax_t taxid) const {
