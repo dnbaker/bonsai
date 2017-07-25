@@ -400,10 +400,28 @@ int metatree_main(int argc, char *argv[]) {
         assert(tax_depths.find(tax) != tax_depths.end());
     }
 #endif
+    auto tx2desc_map(tax2desc_genome_map(tax2genome_map(name_hash, inpaths), taxmap, taxes, tax_depths));
 #if !NDEBUG
     for(const auto tax: taxes) assert(kh_get(p, taxmap, tax) != kh_end(taxmap));
+    ks::KString ks;
+    for(const auto tax: taxes) {
+        ks.printf("Tax %u has for descendent genomes: ");
+        auto it(tx2desc_map.find(tax));
+        if(it == tx2desc_map.end()) {
+            std::cerr << "N/A\n";
+        } else {
+            for(auto &el: it->second) {
+                std::cerr << el << ", ";
+            }
+            std::cerr << '\n';
+        }
+    }
+    ks.write(stderr);
+    ks.clear();
 #endif
-    auto tx2desc_map(tax2desc_genome_map(tax2genome_map(name_hash, inpaths), taxmap, taxes, tax_depths));
+#if 0
+    std::cerr << "Made tx2desc map.\n";
+#endif
     FMEmitter fme(taxmap, tx2desc_map);
     std::vector<tax_t> tmptaxes;
     for(auto &&pair: iter::groupby(taxes, [tm=taxmap](const tax_t a){return get_parent(tm, a);})) {

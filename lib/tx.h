@@ -99,9 +99,17 @@ public:
         auto &pm(*path_map);
         if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
         std::vector<const std::forward_list<std::string>*> tmpfl;
-        taxes_.reserve(pm.size());
+        taxes_.clear(), taxes_.reserve(std::max(pm.size(), (size_t)4));
         LOG_DEBUG("Tax reserved size %zu\n", taxes_.capacity());
-        for(auto &pair: pm) {
+#if !NDEBUG
+        for(const auto &pair: pm) {
+            std::cerr << "Tax: " << pair.first;
+            std::cerr << "Paths: [";
+            for(const auto &el: pair.second) std::cerr << el << ", ";
+            std::cerr << "].\n";
+        }
+#endif
+        for(const auto &pair: pm) {
             taxes_.push_back(pair.first);
             assert(emp::size(pair.second) > 0);
             tmpfl.push_back(&pair.second);

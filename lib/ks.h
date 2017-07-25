@@ -213,7 +213,7 @@ public:
         s[l] = 0;
         return l;
     }
-    int sprintf(const char *fmt, ...) {
+    int printf(const char *fmt, ...) {
         size_t len;
         std::va_list ap;
         va_start(ap, fmt);

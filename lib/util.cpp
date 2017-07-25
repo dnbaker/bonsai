@@ -336,6 +336,9 @@ std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map, const
 #endif
         if((m = ret.find(taxid)) == ret.end()) ret.emplace(taxid, strlist{path});
         else                                   m->second.emplace_front(path);
+#if !NDEBUG
+        if((ret.size() & (ret.size() - 1)) == 0) std::cerr << "Size of tax2genome_map is now " << ret.size() << '\n';
+#endif
     }
     return ret;
 }
@@ -409,7 +412,9 @@ std::unordered_map<tax_t, strlist> tax2desc_genome_map(
     for(const auto &pair: make_ptc_map(taxmap, taxes, lvl_map)) {
         typename std::unordered_map<tax_t, strlist>::const_iterator pit;
         strlist list;
-        if((pit = tx2g.find(pair.first)) != tx2g.end()) list.insert_after(list.begin(), pit->second.begin(), pit->second.end());
+        if((pit = tx2g.find(pair.first)) != tx2g.end()) {
+            for(const auto &str: pit->second) list.push_front(str);
+        }
         else {
             if(kh_get(p, taxmap, pair.first) == kh_end(taxmap)) {
                 std::cerr << "No parent for node " << (int)pair.first << '\n';
@@ -422,9 +427,10 @@ std::unordered_map<tax_t, strlist> tax2desc_genome_map(
 #endif
             }
         }
-        for(const auto child: pair.second)
+        for(const auto child: pair.second) 
             if((pit = tx2g.find(child)) != tx2g.end())
-                list.insert_after(list.begin(), pit->second.begin(), pit->second.end());
+                for(const auto &el: pit->second)
+                    list.push_front(el);
         ret.emplace(pair.first, std::move(list));
     }
     return ret;
