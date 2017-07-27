@@ -1,12 +1,13 @@
 #ifndef _KS_WRAPPER_H__
 #define _KS_WRAPPER_H__
 #include <cstdint>
-#include <iostream>
-#include <vector>
-#include <cstring>
+#include <cassert>
 #include <cstdarg>
 #include <cstdio>
+#include <cstring>
 #include <iostream>
+#include <iostream>
+#include <vector>
 #include <unistd.h>
 
 #ifndef roundup64
@@ -197,6 +198,10 @@ public:
     }
     char       &back()       {return s[l - 1];}
     const char &back() const {return s[l - 1];}
+
+    char       &terminus()       {return s[l];}
+    const char &terminus() const {return s[l];}
+    void       terminate()       {terminus() = '\0';}
     int putw(int c)  {
         c = putw_(c), s[l] = 0;
         return c;
@@ -213,7 +218,8 @@ public:
         s[l] = 0;
         return l;
     }
-    int printf(const char *fmt, ...) {
+    int sprintf(const char *fmt, ...) {
+        if(l < 4) resize(4u);
         size_t len;
         std::va_list ap;
         va_start(ap, fmt);
@@ -224,6 +230,28 @@ public:
         }
         va_end(ap);
         l += len;
+#if !NDEBUG
+        std::cerr << "l: " << l << "dist: " << size_t(std::strchr(s, 0) - s) << '\n';
+        assert(s[l] == 0);
+#endif
+        return len;
+    }
+    int printf(const char *fmt, ...) {
+        if(l < 4) resize(4u);
+        size_t len;
+        std::va_list ap;
+        va_start(ap, fmt);
+        len = vsnprintf(s + l, m - l, fmt, ap); // This line does not work with glibc 2.0. See `man snprintf'.
+        if (len + 1 > m - l) {
+            resize(len + 1);
+            len = vsnprintf(s + l, m - l, fmt, ap);
+        }
+        va_end(ap);
+        l += len;
+#if !NDEBUG
+        std::cerr << "l: " << l << "dist: " << size_t(std::strchr(s, 0) - s) << '\n';
+        assert(s[l] == 0);
+#endif
         return len;
     }
 
@@ -231,11 +259,12 @@ public:
     char  *release() {auto ret(s); l = m = 0; s = nullptr; return ret;}
 
     // STL imitation
-    size_t size() const {return l;}
-    auto  begin() const {return s;}
-    auto    end() const {return s + l;}
-    auto cbegin() const {return const_cast<const char *>(s);}
-    auto   cend() const {return const_cast<const char *>(s + l);}
+    size_t size()     const {return l;}
+    size_t capacity() const {return m;}
+    auto  begin()     const {return s;}
+    auto    end()     const {return s + l;}
+    auto cbegin()     const {return const_cast<const char *>(s);}
+    auto   cend()     const {return const_cast<const char *>(s + l);}
     char pop() {const char ret(s[--l]); s[l] = 0; return ret;}
     void pop(size_t n) {
         l = l > n ? l - n: 0;
