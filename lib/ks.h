@@ -210,9 +210,7 @@ public:
         c = putl_(c), s[l] = 0;
         return c;
     }
-    template<typename FMT=char, typename=std::enable_if_t<std::is_same<char, FMT>::value>>
     int puts(const char *s) {return putsn_(s, std::strlen(s) + 1);}
-    template<typename FMT=char, typename=std::enable_if_t<std::is_same<char, FMT>::value>>
     long putsn(const char *str, long len)  {
         len = putsn_(str, len);
         s[l] = 0;
@@ -226,8 +224,8 @@ public:
         len = vsnprintf(s + l, m - l, fmt, ap); // This line does not work with glibc 2.0. See `man snprintf'.
         if (len + 1 > m - l) {
             resize(len + 1);
-            len = vsnprintf(s + l, m - l, fmt, ap);
         }
+        len = vsnprintf(s + l, m - l, fmt, ap);
         va_end(ap);
         l += len;
 #if !NDEBUG
@@ -241,11 +239,9 @@ public:
         size_t len;
         std::va_list ap;
         va_start(ap, fmt);
-        len = vsnprintf(s + l, m - l, fmt, ap); // This line does not work with glibc 2.0. See `man snprintf'.
-        if (len + 1 > m - l) {
+        if((len = std::vsnprintf(nullptr, m - l, fmt, ap)) + 1 >= m - l) // This line does not work with glibc 2.0. See `man snprintf'.
             resize(len + 1);
-            len = vsnprintf(s + l, m - l, fmt, ap);
-        }
+        len = std::vsnprintf(s + l, m - l, fmt, ap);
         va_end(ap);
         l += len;
 #if !NDEBUG
@@ -299,24 +295,19 @@ public:
 
     // Append string forms
 #ifdef KSTRING_H
-    template<typename FMT=char, typename=std::enable_if_t<std::is_same<char, FMT>::value>>
     auto &operator+=(const kstring_t *ks) {
         putsn(ks->s, ks->l);
         return *this;
     }
-    template<typename FMT=char, typename=std::enable_if_t<std::is_same<char, FMT>::value>>
     auto &operator+=(const kstring_t &ks) {
         return operator+=(&ks);
     }
 #endif
-    template<typename FMT=char, typename=std::enable_if_t<std::is_same<char, FMT>::value>>
     auto &operator+=(const std::string &s) {
         putsn(s.data(), s.size());
         return *this;
     }
-    template<typename FMT=char, typename=std::enable_if_t<std::is_same<char, FMT>::value>>
     auto &operator+=(const KString &other) {putsn(other.s, other.l); return *this;}
-    template<typename FMT=char, typename=std::enable_if_t<std::is_same<char, FMT>::value>>
     auto &operator+=(const char *s)        {puts(s); return *this;}
 
     // Access
