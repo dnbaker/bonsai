@@ -405,7 +405,7 @@ int metatree_main(int argc, char *argv[]) {
 #if !NDEBUG
     for(const auto tax: taxes) assert(kh_get(p, taxmap, tax) != kh_end(taxmap));
     ks::KString ks;
-    ks.reserve(1 << 6);
+    ks.resize(1 << 6);
     typename decltype(tx2desc_map)::iterator it;
     for(const auto tax: taxes) {
         ks.putsn_("Tax ", 4);
@@ -415,9 +415,9 @@ int metatree_main(int argc, char *argv[]) {
             ks.putsn_("N/A\n", 4);
         } else {
             for(const auto el: it->second) {
-                ks.putuw_(el); ks.putc_(','); ks.putc_(' ');
+                ks.putsn_(el.data(), el.size()); ks.putc_(',');
             }
-            ks.putc_('\n');
+            ks.back() = '\n';
         }
         if(ks.size() & (1 << 16)) ks.write(stderr), ks.clear();
     }
