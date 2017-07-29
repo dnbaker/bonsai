@@ -10,6 +10,7 @@ namespace emp {
 
 std::size_t count_lines(const char *fn) noexcept {
     std::FILE *fp(std::fopen(fn, "r"));
+    if(fp == nullptr) LOG_EXIT("Could not open file at %s\n", fn);
     std::size_t bufsz = 4096;
     char *buf((char *)std::malloc(bufsz));
     ssize_t len;
@@ -19,6 +20,7 @@ std::size_t count_lines(const char *fn) noexcept {
     std::fclose(fp);
     return n;
 }
+
 std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(khash_t(p) *tax) noexcept {
     std::unordered_map<tax_t, std::vector<tax_t>> ret;
     typename std::unordered_map<tax_t, std::vector<tax_t>>::iterator m;
@@ -320,7 +322,20 @@ std::map<uint32_t, uint32_t> kh2kr(khash_t(p) *map) {
                 ret[kh_key(map, ki)] = kh_val(map, ki);
     return ret;
 }
+#if !NDEBUG
+#define PRINT_LISTMAP(ret) do \
+    {\
+        for(const auto &pair: ret) {\
+            std::cerr << "key: " << pair.first << ',' << "children: ";\
+            for(const auto el: pair.second)\
+                std::cerr << pair.first << ',';\
+            std::cerr << '\n';\
+        }\
+    } while(0)
 
+#else
+#define PRINT_LISTMAP
+#endif
 
 
 std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths) {
@@ -338,8 +353,10 @@ std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map, const
         else                                   m->second.emplace_front(path);
 #if !NDEBUG
         if((ret.size() & (ret.size() - 1)) == 0) std::cerr << "Size of tax2genome_map is now " << ret.size() << '\n';
+        PRINT_LISTMAP(ret);
 #endif
     }
+    PRINT_LISTMAP(ret);
     return ret;
 }
 
