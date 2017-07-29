@@ -5,6 +5,7 @@
 #include <zlib.h>
 #include <sstream>
 #include <fstream>
+#include "lib/ks.h"
 
 namespace emp {
 
@@ -70,7 +71,7 @@ tax_t lca(const khash_t(p) *map, tax_t a, tax_t b) noexcept {
     while(a) {
         nodes.insert(a);
         if((ki = kh_get(p, map, a)) == kh_end(map)) {
-            fprintf(stderr, "Missing taxid %u. Returning -1!\n", a);
+            std::fprintf(stderr, "Missing taxid %u. Returning -1!\n", a);
             return (tax_t)-1;
         }
         a = kh_val(map, ki);
@@ -78,7 +79,7 @@ tax_t lca(const khash_t(p) *map, tax_t a, tax_t b) noexcept {
     while(b) {
         if(nodes.find(b) != nodes.end()) return b;
         if((ki = kh_get(p, map, b)) == kh_end(map)) {
-            fprintf(stderr, "Missing taxid %u. Returning -1!\n", b);
+            std::fprintf(stderr, "Missing taxid %u. Returning -1!\n", b);
             return (tax_t)-1;
         }
         b = kh_val(map, ki);
@@ -86,12 +87,12 @@ tax_t lca(const khash_t(p) *map, tax_t a, tax_t b) noexcept {
     return 1;
 }
 
-unsigned node_dist(khash_t(p) *map, tax_t leaf, tax_t root) noexcept {
+unsigned node_dist(const khash_t(p) *map, tax_t leaf, tax_t root) noexcept {
     unsigned ret(0);
     khint_t ki;
     while(leaf) {
         if((ki = kh_get(p, map, leaf)) == kh_end(map)) {
-            fprintf(stderr, "Tax ID %u missing. Abort!\n", leaf);
+            std::fprintf(stderr, "Tax ID %u missing. Abort!\n", leaf);
             std::exit(1);
         }
         ++ret;
@@ -100,12 +101,12 @@ unsigned node_dist(khash_t(p) *map, tax_t leaf, tax_t root) noexcept {
     LOG_EXIT("leaf %u is not a child of root %u\n", leaf, root);
     return ret;
 }
-unsigned node_depth(khash_t(p) *map, tax_t a) noexcept {
+unsigned node_depth(const khash_t(p) *map, tax_t a) noexcept {
     unsigned ret(0);
     khint_t ki;
     while(a) {
         if((ki = kh_get(p, map, a)) == kh_end(map)) {
-            fprintf(stderr, "Tax ID %u missing. Abort!\n", a);
+            std::fprintf(stderr, "Tax ID %u missing. Abort!\n", a);
             std::exit(1);
         }
         a = kh_val(map, ki);
@@ -171,20 +172,20 @@ std::map<tax_t, tax_t> build_kraken_tax(const std::string &fname) {
     std::free(buf);
     return ret;
 }
-uint32_t lca(std::map<uint32_t, uint32_t> &parent_map, uint32_t a, uint32_t b)
+
+tax_t lca(const std::map<tax_t, tax_t> &parent_map, tax_t a, tax_t b)
 {
-  if (a == 0 || b == 0)
-    return a ? a : b;
+  std::map<tax_t, tax_t>::const_iterator m;
+  if (a == 0 || b == 0) return a ? a : b;
 
   std::set<uint32_t> a_path;
   while (a) {
-    a_path.insert(a);
-    a = parent_map[a];
+    a_path.insert(a), a = parent_map.find(a)->second;
   }
   while (b) {
-    if (a_path.count(b) > 0)
+    if (a_path.find(b) != a_path.end())
       return b;
-    b = parent_map[b];
+    b = parent_map.find(b)->second;
   }
   return 1;
 }
@@ -328,6 +329,7 @@ std::map<uint32_t, uint32_t> kh2kr(khash_t(p) *map) {
         for(const auto &pair: ret) {\
             std::cerr << "key: " << pair.first << ',' << "children: ";\
             for(const auto el: pair.second)\
+                std::string tmp = el;\
                 std::cerr << pair.first << ',';\
             std::cerr << '\n';\
         }\
@@ -343,15 +345,21 @@ std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map, const
     std::unordered_map<tax_t, std::forward_list<std::string>> ret;
     typename std::unordered_map<tax_t, std::forward_list<std::string>>::iterator m;
     ret.reserve(paths.size());
-    for(const auto &path: paths) {
-        taxid = get_taxid(path.data(), name_map);
-        if(taxid == UINT32_C(-1)) continue;
-#if 0
-        LOG_INFO("Found taxid %u\n", taxid);
-#endif
-        if((m = ret.find(taxid)) == ret.end()) ret.emplace(taxid, strlist{path});
-        else                                   m->second.emplace_front(path);
 #if !NDEBUG
+    ks::KString ks;
+#endif
+    for(const auto &path: paths) {
+        if((taxid = get_taxid(path.data(), name_map)) == UINT32_C(-1)) continue;
+        if((m = ret.find(taxid)) == ret.end()) m = ret.emplace(taxid, strlist{path}).first;
+        else if(std::find(m->second.begin(), m->second.end(), path) == m->second.end()) m->second.push_front(path);
+#if !NDEBUG
+        ks.clear();
+        ks.sprintf("Path %s has taxid %u.\n", path.data(), taxid);
+        for(const std::string &p: m->second) {
+            ks.sprintf("Element: \"%s\",", p.data());
+        }
+        ks.back() = '\n';
+        std::cerr << ks.data();
         if((ret.size() & (ret.size() - 1)) == 0) std::cerr << "Size of tax2genome_map is now " << ret.size() << '\n';
         PRINT_LISTMAP(ret);
 #endif

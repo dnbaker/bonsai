@@ -273,7 +273,7 @@ public:
         s[l] = 0;
     }
 
-    void clear() {l = 0; s[0] = '\0';}
+    void clear() {l = 0; if(s) *s = '\0';}
 
     INLINE const char     *data() const {return s;}
     INLINE char           *data()       {return s;}

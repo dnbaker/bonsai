@@ -209,7 +209,7 @@ T *khash_load(const char *path) noexcept {
 void kset_union(khash_t(all) *a, khash_t(all) *b) noexcept;
 
 tax_t lca(const khash_t(p) *map, tax_t a, tax_t b) noexcept;
-unsigned node_depth(khash_t(p) *map, tax_t a) noexcept;
+unsigned node_depth(const khash_t(p) *map, tax_t a) noexcept;
 unsigned node_dist(khash_t(p) *map, tax_t leaf, tax_t root) noexcept;
 std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths);
 INLINE tax_t get_parent(const khash_t(p) *taxmap, tax_t key) noexcept {
