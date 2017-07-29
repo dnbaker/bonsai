@@ -228,7 +228,7 @@ public:
         if(l < 4) {
             LOG_DEBUG("Resizing from %zu to %zu\n", l, size_t(4u));
             resize(4u);
-            assert(l == 4u);
+            assert(m == 4u);
         }
         size_t len;
         std::va_list ap;
