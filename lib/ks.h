@@ -225,12 +225,17 @@ public:
         return l;
     }
     int sprintf(const char *fmt, ...) {
-        if(l < 4) resize(4u);
+        if(l < 4) {
+            LOG_DEBUG("Resizing from %zu to %zu\n", l, size_t(4u));
+            resize(4u);
+            assert(l == 4u);
+        }
         size_t len;
         std::va_list ap;
         va_start(ap, fmt);
         if((len = std::vsnprintf(nullptr, m - l, fmt, ap)) + 1 >= m - l) // This line does not work with glibc 2.0. See `man snprintf'.
-            resize(len + 1);
+            resize(len + 1 + l);
+        LOG_DEBUG("Length of string to write: %i. New size: %i\n", len, len + 1 + l);
         len = std::vsnprintf(s + l, m - l, fmt, ap);
         va_end(ap);
         l += len;
