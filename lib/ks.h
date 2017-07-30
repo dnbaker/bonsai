@@ -7,6 +7,7 @@
 #include <cstring>
 #include <iostream>
 #include <iostream>
+#include <stdexcept>
 #include <vector>
 #include <unistd.h>
 
@@ -25,6 +26,7 @@
 namespace ks {
 
 using std::size_t;
+using namespace std::literals;
 
 class KString {
     size_t l, m;
@@ -225,37 +227,28 @@ public:
         return l;
     }
     int sprintf(const char *fmt, ...) {
-        if(l < 4) {
+        if(m < 4) {
             LOG_DEBUG("Resizing from %zu to %zu\n", l, size_t(4u));
             resize(4u);
-            assert(m == 4u);
+            assert(m >= 4u);
+            LOG_DEBUG("Resized from %zu to %zu\n", l, size_t(4u));
         }
         size_t len;
         std::va_list ap;
         va_start(ap, fmt);
-        if((len = std::vsnprintf(nullptr, m - l, fmt, ap)) + 1 >= m - l) // This line does not work with glibc 2.0. See `man snprintf'.
+        if((len = std::vsnprintf(nullptr, 0, fmt, ap)) + 1 >= m - l) { // This line does not work with glibc 2.0. See `man snprintf'.
+            LOG_DEBUG("Len: %i. New size: %i\n", len, len + 1 + l);
             resize(len + 1 + l);
-        LOG_DEBUG("Length of string to write: %i. New size: %i\n", len, len + 1 + l);
-        len = std::vsnprintf(s + l, m - l, fmt, ap);
-        va_end(ap);
-        l += len;
+        }
 #if !NDEBUG
-        std::cerr << "l: " << l << "dist: " << size_t(std::strchr(s, 0) - s) << '\n';
-        assert(s[l] == 0);
+        std::cerr << "Trying to vsnprintf\n";
+        std::cerr << "m: " << m << ". l: " << l << ". s[0] (int):" << static_cast<int>(s[0]) << '\n';
 #endif
-        return len;
-    }
-    int printf(const char *fmt, ...) {
-        if(l < 4) resize(4u);
-        size_t len;
-        std::va_list ap;
-        va_start(ap, fmt);
-        if((len = std::vsnprintf(nullptr, m - l, fmt, ap)) + 1 >= m - l) // This line does not work with glibc 2.0. See `man snprintf'.
-            resize(len + 1);
-        len = std::vsnprintf(s + l, m - l, fmt, ap);
+        assert(m >= len + 1 + l);
+        l += std::vsnprintf(s + l, m - l, fmt, ap);
         va_end(ap);
-        l += len;
 #if !NDEBUG
+        std::cerr << "Did vsnprintf\n";
         std::cerr << "l: " << l << "dist: " << size_t(std::strchr(s, 0) - s) << '\n';
         assert(s[l] == 0);
 #endif
@@ -285,13 +278,27 @@ public:
     INLINE int resize(size_t size) {
         if (m < size) {
             char *tmp;
+#if !NDEBUG
+            std::cerr << "Resizing from " << m << " to " << size << '\n';
+#endif
             m = size;
             roundup64(m);
-            if ((tmp = static_cast<char*>(std::realloc(s, m * sizeof(char)))))
-                s = tmp;
-            else
-                return -1;
+#if !NDEBUG
+            std::cerr << "s: " << reinterpret_cast<std::uint64_t>(s) << '\n';
+#endif
+            if ((tmp = static_cast<char*>(std::realloc(s, m * sizeof(char)))) == nullptr) {
+                std::cerr << ("Could not allocate sufficient memory for "s + std::to_string(m) + " bytes.\n");
+                throw std::bad_alloc();
+            }
+            s = tmp;
+#if !NDEBUG
+            std::cerr << "s: " << reinterpret_cast<std::uint64_t>(s) << '\n';
+            std::cerr << "s: " << s << '\n';
+#endif
         }
+#if !NDEBUG
+        std::cerr << "Successfully resized to " << m << '\n';
+#endif
         return 0;
     }
 
