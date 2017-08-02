@@ -7,12 +7,15 @@ DEFAULT_CLADES = ["superkingdom", "kingdom", "subkingdom", "superphylum",
                   "infraorder", "parvorder", "superfamily", "family",
                   "subfamily", "tribe", "subtribe", "genus", "subgenus",
                   "species group", "species subgroup", "species",
-                   "subspecies", "varietas", "forma"]
+                  "subspecies", "varietas", "forma"]
 
 
-lmangle = lambda s: s.lower().replace(" ", "_").replace("\t", " ")
-umangle = lambda s: s.upper().replace(" ", "_").replace("\t", " ")
-manglers = set(lmangle, umangle)
+def lmangle(s):
+    return s.lower().replace(" ", "_").replace("\t", " ")
+
+
+def umangle(s):
+    return s.upper().replace(" ", "_").replace("\t", " ")
 
 
 def get_level(line):
@@ -35,7 +38,7 @@ def generate_enum(clades, maxl):
                           for id, clade in enumerate(clades, start=2))
     enum_str += ("\n    ROOT %s= 1,"
                  "\n    NO_RANK %s= 0\n};\n\n" % ((maxl - 4) * ' ',
-                                                   (maxl - 7) * ' '))
+                                                  (maxl - 7) * ' '))
     return enum_str
 
 
@@ -133,7 +136,7 @@ def main():
                       "\n}\n")
             standalone = True
         if i.split("=")[0] in ["-p", "--python"]:
-           python_outpath = i.split("=")[1] if "=" in i else "a.out.py"
+            python_outpath = i.split("=")[1] if "=" in i else "a.out.py"
 
     argv = [i for i in argv if i not in ["-h", "-c", "--standalone",
                                          "--help", "-?"] and
@@ -144,7 +147,8 @@ def main():
         except:
             clades = DEFAULT_CLADES
     if python_outpath:
-        print(generate_python_class_map(clades), file=open(python_outpath, "w"))
+        print(generate_python_class_map(clades),
+              file=open(python_outpath, "w"))
     doth, dotc = generate_code(clades)
     if standalone:
         addstr = "//.h:\n" + addstr
