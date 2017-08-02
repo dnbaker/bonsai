@@ -1,6 +1,15 @@
 import sys
 
 
+DEFAULT_CLADES = ["superkingdom", "kingdom", "subkingdom", "superphylum",
+                  "phylum", "subphylum", "superclass", "class", "subclass",
+                  "infraclass", "cohort", "superorder", "order", "suborder",
+                  "infraorder", "parvorder", "superfamily", "family",
+                  "subfamily", "tribe", "subtribe", "genus", "subgenus",
+                  "species group", "species subgroup", "species",
+                   "subspecies", "varietas", "forma"]
+
+
 def lmangle(s):
     return s.lower().replace(" ", "_").replace("\t", " ")
 
@@ -60,6 +69,13 @@ def generate_class_map(clades, maxl):
     return reth, retc
 
 
+def generate_python_class_map(clades):
+    ret = {'no rank': 0, 'root': 1}
+    ret.update((el, ind) for el, ind in enumerate(
+               map(lmangle, clades), start=2))
+    return ret
+
+
 def generate_code(clades):
     if not isinstance(clades,  list):
         try:
@@ -102,6 +118,7 @@ def main():
     addstr = ""
     endstr = ""
     standalone = False
+    python_outpath = ""
     for i in argv:
         if i in ["-h", "--help", "-?"]:
             sys.stderr.write("Usage: python %s <namesfile.txt> "
@@ -120,10 +137,19 @@ def main():
                       "[(int)pair.second + 2]) == 0);}"
                       "\n}\n")
             standalone = True
+        if i.split("=")[0] in ["-p", "--python"]:
+           python_outpath = i.split("=")[1] if "=" in i else "a.out.py"
+
     argv = [i for i in argv if i not in ["-h", "-c", "--standalone",
-                                         "--help", "-?"]]
-    with open(argv[1]) if argv[1:] else sys.stdout as f:
-        clades = [line.strip() for line in f]
+                                         "--help", "-?"] and
+            "--python=" not in i and "-p=" not in i]
+    with open(argv[1]) if argv[1:] else sys.stdin as f:
+        try:
+            clades = [line.strip() for line in f]
+        except:
+            clades = DEFAULT_CLADES
+    if python_outpath:
+        print(generate_python_class_map(clades), file=open(python_outpath, "w"))
     doth, dotc = generate_code(clades)
     if standalone:
         addstr = "//.h:\n" + addstr
@@ -134,69 +160,6 @@ def main():
           file=open(argv[3], "w") if len(argv) >= 3 else sys.stdout)
     return 0
 
-
-'''
-Counter({'class': 309,
-         'cohort': 3,
-         'family': 8575,
-         'forma': 469,
-         'genus': 82531,
-         'infraclass': 15,
-         'infraorder': 104,
-         'kingdom': 3,
-         'no rank': 214552,
-         'order': 1421,
-         'parvorder': 10,
-         'phylum': 219,
-         'species': 1266136,
-         'species group': 438,
-         'species subgroup': 133,
-         'subclass': 132,
-         'subfamily': 2763,
-         'subgenus': 1320,
-         'subkingdom': 1,
-         'suborder': 331,
-         'subphylum': 28,
-         'subspecies': 20773,
-         'subtribe': 479,
-         'superclass': 4,
-         'superfamily': 805,
-         'superkingdom': 5,
-         'superorder': 49,
-         'superphylum': 2,
-         'tribe': 1996,
-         'varietas': 6781})
-Sorted:
-    superkingdom
-    kingdom
-    subkingdom
-    superphylum
-    phylum
-    subphylum
-    superclass
-    class
-    subclass
-    infraclass
-    cohort
-    superorder
-    order
-    suborder
-    infraorder
-    parvorder
-    superfamily
-    family
-    subfamily
-    tribe
-    subtribe
-    genus
-    subgenus
-    species group
-    species subgroup
-    species
-    subspecies
-    varietas
-    forma
-'''
 
 if __name__ == "__main__":
     sys.exit(main())
