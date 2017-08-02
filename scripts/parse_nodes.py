@@ -10,14 +10,9 @@ DEFAULT_CLADES = ["superkingdom", "kingdom", "subkingdom", "superphylum",
                    "subspecies", "varietas", "forma"]
 
 
-def lmangle(s):
-    return s.lower().replace(" ", "_").replace("\t", " ")
-
-
-def umangle(s):
-    umanglestr = s.upper().replace(" ", "_").replace("\t", " ")
-    print("umangled: {{'%s': \"%s\"}}" % (s, umanglestr))
-    return s.upper().replace(" ", "_").replace("\t", " ")
+lmangle = lambda s: s.lower().replace(" ", "_").replace("\t", " ")
+umangle = lambda s: s.upper().replace(" ", "_").replace("\t", " ")
+manglers = set(lmangle, umangle)
 
 
 def get_level(line):
@@ -48,8 +43,8 @@ def generate_class_names(clades):
     reth = "extern const char *classlvl_arr[%i];\n" % (len(clades) + 2)
     retc = "const char *classlvl_arr[%i] {\n" % (len(clades) + 2)
     retc += "    \"no rank\",\n    \"root\",\n"
-    retc += "\n".join("    \"%s\"," % lmangle(clade) for clade in clades)
-    retc += "\n};\n\n"
+    retc += "%s\n};\n\n" % "\n".join("    \"%s\"," % mangled_clade for
+                                     mangled_clade in map(lmangle, clades))
     return reth, retc
 
 
