@@ -395,6 +395,7 @@ int metatree_main(int argc, char *argv[]) {
 
 // Core
     std::vector<tax_t> taxes(get_sorted_taxes(taxmap, argv[optind + 1]));
+    std::cerr << "Got sorted taxes\n";
 #if !NDEBUG
     for(const auto tax: taxes) {
         assert(tax_depths.find(tax) != tax_depths.end());
@@ -404,23 +405,24 @@ int metatree_main(int argc, char *argv[]) {
 #if !NDEBUG
     for(const auto tax: taxes) assert(kh_get(p, taxmap, tax) != kh_end(taxmap));
     ks::KString ks;
+    ks.resize(1 << 6);
+    typename decltype(tx2desc_map)::iterator it;
     for(const auto tax: taxes) {
-        ks.printf("Tax %u has for descendent genomes: ");
-        auto it(tx2desc_map.find(tax));
-        if(it == tx2desc_map.end()) {
-            std::cerr << "N/A\n";
+        ks.putsn_("Tax ", 4);
+        ks.putuw_(tax);
+        ks.putsn_(" has for descendent genomes: ", 30);
+        if((it = tx2desc_map.find(tax)) == tx2desc_map.end()) {
+            ks.putsn_("N/A\n", 4);
         } else {
-            for(auto &el: it->second) {
-                std::cerr << el << ", ";
+            for(const auto el: it->second) {
+                ks.putsn_(el.data(), el.size()); ks.putc_(',');
             }
-            std::cerr << '\n';
+            ks.back() = '\n';
         }
+        if(ks.size() & (1 << 16)) ks.write(stderr), ks.clear();
     }
     ks.write(stderr);
     ks.clear();
-#endif
-#if 0
-    std::cerr << "Made tx2desc map.\n";
 #endif
     FMEmitter fme(taxmap, tx2desc_map);
     std::vector<tax_t> tmptaxes;
