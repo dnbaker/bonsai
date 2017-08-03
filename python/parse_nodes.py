@@ -160,5 +160,10 @@ def main():
     return 0
 
 
+__all__ = [main, lmangle, umangle, get_level, get_levels, generate_enum,
+           generate_class_names, generate_class_map, DEFAULT_CLADES,
+           generate_python_class_map, generate_code, print_levels]
+
+
 if __name__ == "__main__":
     sys.exit(main())

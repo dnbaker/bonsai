@@ -3,6 +3,7 @@ from six import iteritems
 import sys
 import unittest
 from array import array as pa  # Python array
+from . import kmer
 import numpy as np
 import itertools
 
@@ -60,6 +61,7 @@ class Taxonomy(object):
         except KeyError:
             print("Missing tax %i" % tax)
             raise
+
 
 
 if __name__ == "__main__":
