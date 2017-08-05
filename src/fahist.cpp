@@ -12,7 +12,6 @@
 #include "klib/kthread.h"
 
 #ifdef USE_PDQSORT
-#pragma message("Using pdqsort")
 #include "pdqsort/pdqsort.h"
 #ifndef SORT
 #define SORT ::pdq::sort

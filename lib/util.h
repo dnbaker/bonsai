@@ -58,7 +58,9 @@ using tax_t = std::uint32_t;
 #endif
 
 #ifdef USE_PDQSORT
-#pragma message("Using pdqsort")
+# if !NDEBUG
+#  pragma message("Using pdqsort")
+# endif
 #include "pdqsort/pdqsort.h"
 # ifndef SORT
 #  define SORT ::pdq::sort

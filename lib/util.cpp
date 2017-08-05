@@ -336,7 +336,7 @@ std::map<uint32_t, uint32_t> kh2kr(khash_t(p) *map) {
     } while(0)
 
 #else
-#define PRINT_LISTMAP
+#define PRINT_LISTMAP(ret)
 #endif
 
 
