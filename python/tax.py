@@ -37,6 +37,18 @@ class Taxonomy(object):
         for line in open(path):
             add_line(line)
 
+    def get_parents(self, el):
+        parent = self.__getitem__(el)
+        ret = {parent}
+        while parent:
+            parent = self.__getitem__(el)
+            ret.add(parent)
+        return ret
+
+    def build_child_ancestor_map():
+        # This would take some careful thinking.
+        raise NotImplementedError("Stuff")
+
     def __getitem__(self, el):
         return self.taxes[el]
 
