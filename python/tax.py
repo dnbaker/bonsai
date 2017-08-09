@@ -6,6 +6,7 @@ from array import array as pa  # Python array
 from . import kmer
 import numpy as np
 import itertools
+from download_genomes import xfirstline
 
 
 def load_nameidmap(path):
@@ -15,23 +16,47 @@ def load_nameidmap(path):
 
 
 class TaxEntry(object):
-    def __init__(self, id, parent, name=None, depth=-1):
-        self.name = name
-        self.id = id
-        self.depth = depth
-        self.parent = parent
+    def __init__(self, line, classlvl_map):
+        toks = [i.strip() for i in line.split('|')]
+        self.depth = classlvl_map[toks[2]]
+        self.name = None
+        self.id = int(toks[0])
+        self.parent = int(toks[1])
         self.genome_paths = []
+
+    def update(self, path):
+        self.genome_paths.append(path)
 
     def __hash__(self):
         '''Hash function for TaxEntry.
            Note: this assumes that the user does not re-use tax ids.'''
         return hash(self.id)
 
+    def __eq__(self, other):
+        if isinstance(self, type(other)):
+            return self.id == other.id
+        raise NotImplementedError("Cannot compare TaxEntry "
+                                  "objects with other objects.")
+
+    def __cmp__(self, other):
+        if isinstance(self, type(other)):
+            if self.depth < other.depth:
+                return 1
+            if self.depth > other.depth:
+                return -1
+            return 0
+        raise NotImplementedError("TaxEntry cannot be compared "
+                                  "to %s" % str(type(other)))
+
 
 class Taxonomy(object):
 
-    def __init__(self):
-        self.taxes = {}
+    def __init__(self, gi2taxpath, nodespath):
+        self.taxes = []
+        self.gi2taxmap = {line.split()[0]: int(line.split()[1]) for
+                          line in open(gi2taxpath)}
+        self.nodes_path = nodespath
+        add_file(self.nodes_path)
 
     def add_file(self, path):
         for line in open(path):
@@ -59,8 +84,7 @@ class Taxonomy(object):
         return key in self.taxes
 
     def add_line(self, line):
-        toks = [i.strip() for i in line.split('|')]
-        self.taxes[int(toks[0])] = TaxEntry(int(toks[0]), int(toks[1]))
+        taxes.append(TaxEntry(line, self.gi2taxmap))
 
     def add_genome_path(self, path, tax):
         try:
@@ -73,7 +97,6 @@ class Taxonomy(object):
         except KeyError:
             print("Missing tax %i" % tax)
             raise
-
 
 
 if __name__ == "__main__":
