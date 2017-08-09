@@ -26,6 +26,8 @@ class TaxEntry(object):
             self.genome_paths = (__val_only1 if isinstance(__val_only1, list)
                                  else None)
             self.name = __val_only2
+            if self.id == 1:
+                self.parent = 0
         elif isinstance(line, str) is False:
             print("Type of line is '%s'" % type(line))
             raise RuntimeError("ZOMGZ")
@@ -86,7 +88,7 @@ class Taxonomy(object):
                                                self.lvl_map.keys() if
                                                isinstance(i, int)))
             raise
-        self.taxes = []
+        self.taxes = [TaxEntry(0, 0, 0, [], None)]
         with open(gi2taxpath) as f:
             self.gi2taxmap = {line.split()[0]: int(line.split()[1]) for
                               line in f}
@@ -97,10 +99,12 @@ class Taxonomy(object):
         return self
 
     def __next__(self):
-        if self.index >= len(self.taxes):
-            raise StopIteration("End of tax nodes!")
-        ret = self.taxes[self.index]
-        self.index += 1
+        try:
+            ret = self.taxes[self.index]
+            self.index += 1
+        except IndexError:
+            self.index = 0
+            raise StopIteration()
         return ret
 
     def add_file(self, path):
@@ -185,8 +189,11 @@ if __name__ == "__main__":
             NODES_PATH = "ref/nodes.dmp"
             tax = Taxonomy(NAMEID_MAP_PATH, NODES_PATH)
             for el in tax:
+                print("Element %s in tax" % el)
                 el2 = eval("%s" % el)
                 assert el == el2
+            els = set(tax)
+            print("els: '%s'" % (", ".join(map(str, els))))
             if 0 not in tax:
                 print("Failed!")
                 print(", ".join(i for i in tax))
