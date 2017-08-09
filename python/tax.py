@@ -145,7 +145,8 @@ class Taxonomy(object):
             raise KeyError("Missing element or id %s" % str(el))
 
     def __contains__(self, key):
-        return key in self.taxes or any(tax.id == key for tax in self.taxes)
+        return (key in self.taxes if isinstance(key, TaxEntry) else
+                any(tax.id == key for tax in self.taxes))
 
     def add_line(self, line):
         self.taxes.append(TaxEntry(line, self.gi2taxmap, self.lvl_map))
