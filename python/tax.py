@@ -17,17 +17,36 @@ def load_nameidmap(path):
 
 
 class TaxEntry(object):
-    def __init__(self, line, gi2taxmap, classlvl_map):
-        toks = (i.strip() for i in line.split('|'))
-        self.id = int(next(toks))
-        self.parent = int(next(toks))
-        try:
-            self.depth = classlvl_map[next(toks)]
-        except KeyError:
-            print("'" + "', '".join(str(i) for i in classlvl_map.keys()) + "'")
-            raise
-        self.name = None
-        self.genome_paths = []
+    def __init__(self, line, gi2taxmap, classlvl_map,
+                 __val_only1=None, __val_only2=None):
+        if isinstance(line, int):
+            self.id = line
+            self.parent = gi2taxmap
+            self.depth = classlvl_map
+            self.genome_paths = (__val_only1 if isinstance(__val_only1, list)
+                                 else None)
+            self.name = __val_only2
+        elif isinstance(line, str) is False:
+            print("Type of line is '%s'" % type(line))
+            raise RuntimeError("ZOMGZ")
+        else:
+            toks = (i.strip() for i in line.split('|'))
+            self.id = int(next(toks))
+            self.parent = int(next(toks))
+            try:
+                self.depth = classlvl_map[next(toks)]
+            except KeyError:
+                print("'" + "', '".join(str(i) for
+                      i in classlvl_map.keys()) + "'")
+                raise
+            self.name = None
+            self.genome_paths = []
+
+    def __str__(self):
+        return "TaxEntry(%i, %i, %i, [%s], %s)" % (
+            self.id, self.parent, self.depth,
+            ", ".join("'%s'" % path for path in self.genome_paths),
+            '"%s"' % self.name if self.name else "None")
 
     def update(self, path):
         self.genome_paths.append(path)
@@ -38,7 +57,8 @@ class TaxEntry(object):
         return hash(self.id)
 
     def __eq__(self, other):
-        return isinstance(self, type(other)) and self.id == other.id
+        return (isinstance(self, type(other)) and self.id == other.id and
+                self.parent == other.parent)
 
     def __cmp__(self, other):
         if isinstance(self, type(other)):
@@ -54,12 +74,17 @@ class TaxEntry(object):
 class Taxonomy(object):
 
     def __init__(self, gi2taxpath, nodespath):
+        self.index = 0
         self.lvl_map = generate_python_class_map()
         try:
             assert "superkingdom" in self.lvl_map
         except AssertionError:
-            print("Map string keys: " + ", ".join(i for i in self.lvl_map.keys() if isinstance(i, str)))
-            print("Map int keys: " + ", ".join(str(i) for i in self.lvl_map.keys() if isinstance(i, int)))
+            print("Map string keys: " + ", ".join(i for i in
+                                                  self.lvl_map.keys() if
+                                                  isinstance(i, str)))
+            print("Map int keys: " + ", ".join(str(i) for i in
+                                               self.lvl_map.keys() if
+                                               isinstance(i, int)))
             raise
         self.taxes = []
         with open(gi2taxpath) as f:
@@ -72,8 +97,11 @@ class Taxonomy(object):
         return self
 
     def __next__(self):
-        for i in self.taxes:
-            yield i
+        if self.index >= len(self.taxes):
+            raise StopIteration("End of tax nodes!")
+        ret = self.taxes[self.index]
+        self.index += 1
+        return ret
 
     def add_file(self, path):
         with open(path) as f:
@@ -89,8 +117,15 @@ class Taxonomy(object):
         return ret
 
     def build_child_ancestor_map():
-        # This would take some careful thinking.
-        raise NotImplementedError("Stuff")
+        ret = {key: [] for key in self.taxes}
+        self.taxes.sort()
+        print("Sorted taxes! Now:\n\n\n")
+        print(", ".join(map(str, self.taxes)) + "\n\n\n")
+        # This will take some careful thinking.
+        raise NotImplementedError("Stuff. But save sorted taxes in this "
+                                  "exception trace: %s" %
+                                  ", ".join(map(str, self.taxes)) + "\n\n\n")
+        return ret
 
     def __getitem__(self, el):
         try:
@@ -100,7 +135,8 @@ class Taxonomy(object):
 
     def __setitem__(self, key, val):
         try:
-            next(x for x in self.taxes if x == el or x.id == el).genome_paths.append(val)
+            next(x for x in self.taxes if x == el or
+                 x.id == el).genome_paths.append(val)
         except StopIteration:
             raise KeyError("Missing element or id %s" % str(el))
 
@@ -148,8 +184,13 @@ if __name__ == "__main__":
         def test_taxonomy_build(self):
             NODES_PATH = "ref/nodes.dmp"
             tax = Taxonomy(NAMEID_MAP_PATH, NODES_PATH)
+            for el in tax:
+                el2 = eval("%s" % el)
+                assert el == el2
             if 0 not in tax:
+                print("Failed!")
                 print(", ".join(i for i in tax))
             self.assertTrue(0 in tax)
+            tax.build_child_ancestor_map()
 
     unittest.main()

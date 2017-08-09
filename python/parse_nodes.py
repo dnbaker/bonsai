@@ -32,7 +32,7 @@ def get_levels(path):
 
 def generate_enum(clades=DEFAULT_CLADES, maxl=-1):
     if maxl < 0:
-        maxl=max(len(i) for i in clades)
+        maxl = max(len(i) for i in clades)
     enum_str = "enum class ClassLevel:int {\n"
     enum_str += "\n".join("    %s%s= %i," % (umangle(clade),
                                              (maxl - len(clade) + 1) * ' ',
@@ -69,7 +69,9 @@ def generate_class_map(clades, maxl):
 
 def generate_python_class_map(clades=DEFAULT_CLADES):
     ret = {'no rank': 0, 'root': 1}
-    halfmangle = lambda x: x.lower().replace("\t", " ")
+
+    def halfmangle(x):
+        return x.lower().replace("\t", " ")
     for ind, el in enumerate(map(halfmangle, clades), start=2):
         ret[el] = ind
         ret[ind] = el
