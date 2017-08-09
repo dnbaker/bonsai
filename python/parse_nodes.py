@@ -30,7 +30,9 @@ def get_levels(path):
     return Counter(get_level(line) for line in open(path))
 
 
-def generate_enum(clades, maxl):
+def generate_enum(clades=DEFAULT_CLADES, maxl=-1):
+    if maxl < 0:
+        maxl=max(len(i) for i in clades)
     enum_str = "enum class ClassLevel:int {\n"
     enum_str += "\n".join("    %s%s= %i," % (umangle(clade),
                                              (maxl - len(clade) + 1) * ' ',
@@ -57,8 +59,6 @@ def generate_class_map(clades, maxl):
     retc = "const std::unordered_map<std::string, ClassLevel> classlvl_map {\n"
     retc += "    {\"no rank\", %sClassLevel::NO_RANK},\n" % ((maxl - 7) * ' ')
     retc += "    {\"root\", %sClassLevel::ROOT},\n" % ((maxl - 4) * ' ')
-    for clade in clades:
-        print("Adding clade level %s" % lmangle(clade))
     retc += "\n".join("    {\"%s\", %sClassLevel::%s}," %
                       (clade.lower(), (maxl - len(clade)) * ' ',
                        umangle(clade))
@@ -67,14 +67,20 @@ def generate_class_map(clades, maxl):
     return reth, retc
 
 
-def generate_python_class_map(clades):
+def generate_python_class_map(clades=DEFAULT_CLADES):
     ret = {'no rank': 0, 'root': 1}
-    ret.update((el, ind) for el, ind in enumerate(
-               map(lmangle, clades), start=2))
+    halfmangle = lambda x: x.lower().replace("\t", " ")
+    for ind, el in enumerate(map(halfmangle, clades), start=2):
+        ret[el] = ind
+        ret[ind] = el
+    for el, ind in enumerate(map(halfmangle, clades), start=2):
+        assert el in ret
+        assert ind in ret
+        assert ret[ind] == el
     return ret
 
 
-def generate_code(clades):
+def generate_code(clades=DEFAULT_CLADES):
     if not isinstance(clades,  list):
         try:
             clades = list(clades)

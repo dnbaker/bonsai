@@ -55,7 +55,8 @@ if __name__ == "__main__":
             print(k180)
             k1024 = genome2kmerset("test/phix.fa", 1024)
             print(k1024)
-            for name, item in zip(("k31", "k180", "k1024"), (k31, k180, k1024)):
+            for name, item in zip(("k31", "k180", "k1024"),
+                                  (k31, k180, k1024)):
                 print("Length of %s is %i\n" % (name, len(item)))
 
     unittest.main()
