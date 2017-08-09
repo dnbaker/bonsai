@@ -38,10 +38,7 @@ class TaxEntry(object):
         return hash(self.id)
 
     def __eq__(self, other):
-        if isinstance(self, type(other)):
-            return self.id == other.id
-        raise NotImplementedError("Cannot compare TaxEntry "
-                                  "objects with other objects.")
+        return isinstance(self, type(other)) and self.id == other.id
 
     def __cmp__(self, other):
         if isinstance(self, type(other)):
@@ -70,6 +67,13 @@ class Taxonomy(object):
                               line in f}
         self.nodes_path = nodespath
         self.add_file(self.nodes_path)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        for i in self.taxes:
+            yield i
 
     def add_file(self, path):
         with open(path) as f:
@@ -144,6 +148,8 @@ if __name__ == "__main__":
         def test_taxonomy_build(self):
             NODES_PATH = "ref/nodes.dmp"
             tax = Taxonomy(NAMEID_MAP_PATH, NODES_PATH)
+            if 0 not in tax:
+                print(", ".join(i for i in tax))
             self.assertTrue(0 in tax)
 
     unittest.main()
