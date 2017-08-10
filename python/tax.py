@@ -26,8 +26,6 @@ class TaxEntry(object):
             self.genome_paths = (__val_only1 if isinstance(__val_only1, list)
                                  else None)
             self.name = __val_only2
-            if self.id == 1:
-                self.parent = 0
         elif isinstance(line, str) is False:
             print("Type of line is '%s'" % type(line))
             raise RuntimeError("ZOMGZ")
@@ -43,6 +41,8 @@ class TaxEntry(object):
                 raise
             self.name = None
             self.genome_paths = []
+        if self.id == 1:
+            self.parent = 0
 
     def __str__(self):
         return "TaxEntry(%i, %i, %i, [%s], %s)" % (
@@ -96,9 +96,13 @@ class Taxonomy(object):
         self.add_file(self.nodes_path)
 
     def __iter__(self):
-        return self
+        for i in self.taxes:
+            yield i
 
     def __next__(self):
+        for i in self.taxes:
+            yield i
+    '''
         try:
             ret = self.taxes[self.index]
             self.index += 1
@@ -106,6 +110,7 @@ class Taxonomy(object):
             self.index = 0
             raise StopIteration()
         return ret
+    '''
 
     def add_file(self, path):
         with open(path) as f:
@@ -120,7 +125,7 @@ class Taxonomy(object):
             ret.add(parent)
         return ret
 
-    def build_child_ancestor_map():
+    def build_child_ancestor_map(self):
         ret = {key: [] for key in self.taxes}
         self.taxes.sort()
         print("Sorted taxes! Now:\n\n\n")
@@ -190,7 +195,6 @@ if __name__ == "__main__":
             NODES_PATH = "ref/nodes.dmp"
             tax = Taxonomy(NAMEID_MAP_PATH, NODES_PATH)
             for el in tax:
-                print("Element %s in tax" % el)
                 el2 = eval("%s" % el)
                 assert el == el2
             els = set(tax)
