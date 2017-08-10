@@ -95,6 +95,9 @@ class Taxonomy(object):
         self.nodes_path = nodespath
         self.add_file(self.nodes_path)
 
+    def __len__(self):
+        return len(self.taxes)
+
     def __iter__(self):
         for i in self.taxes:
             yield i
@@ -204,5 +207,12 @@ if __name__ == "__main__":
                 print(", ".join(i for i in tax))
             self.assertTrue(0 in tax)
             tax.build_child_ancestor_map()
+            for i in range(len(tax) - 1):
+                assert tax.taxes[i].depth <= tax.taxes[i + 1]
+                try:
+                    assert tax.taxes[i].parent in tax
+                except AssertionError:
+                    print("Parent %i for %s not in tax." % (tax.taxes[i].parent, tax.taxes[i]))
+                    raise
 
     unittest.main()
