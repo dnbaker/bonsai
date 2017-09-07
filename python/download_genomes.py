@@ -209,7 +209,6 @@ def main():
         spoool.map(check_path_lazy if args.lazy else check_path,
                    ("/".join([ref, clade, s.split("/")[-1]]) for
                     s in to_dl[clade]))
-        print(to_dl[clade])
         cstrs = [("curl %s -o %s/%s/%s" %
                  (s, ref, clade, s.split("/")[-1])) for
                  s in to_dl[clade] if not os.path.isfile(

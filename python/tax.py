@@ -6,8 +6,11 @@ from array import array as pa  # Python array
 import kmer
 import numpy as np
 import itertools
+import bitarray
 from download_genomes import xfirstline
 from parse_nodes import generate_python_class_map
+from kmer import genome2kmergen
+cfi = itertools.chain.from_iterable
 
 
 def load_nameidmap(path):
@@ -54,8 +57,11 @@ class TaxEntry(object):
         self.genome_paths.append(path)
 
     def __hash__(self):
-        '''Hash function for TaxEntry.
-           Note: this assumes that the user does not re-use tax ids.'''
+        '''
+        Hash function for TaxEntry.
+        Multiple genomes for one taxid should be in the list "genome_paths".
+        There should not be multiple TaxEntry objects for one taxid
+        '''
         return hash(self.id)
 
     def __eq__(self, other):
@@ -173,6 +179,39 @@ class Taxonomy(object):
             raise
 
 
+class TaxBitMap(object):
+
+    def __init__(self, ntaxids, k=31):
+        self.map = {}
+        self.taxentries = []
+        self._ntaxids = ntaxids
+        self.k = k
+
+    def add_genome(self, taxentry, path):
+        assert isinstance(taxentry, TaxEntry)
+        assert len(TaxEntry.genome_paths) >= 1
+        self.taxentries.append(taxentries)
+        assert len(self.taxentries) <= self._ntaxids
+        for kmer in set(cfi(genome2kmergen(path, k) for
+                            path in taxentry.genome_paths)):
+            try:
+                self.map[kmer] |= (1 << (len(self.taxentries) - 1))
+            except KeyError:
+                self.map[kmer] = (1 << (len(self.taxentries) - 1))
+        sys.stderr.write(
+            "Number of taxentries: %i. Bitcount of kmer %i: %i\n" % (
+                len(self.taxentries), self.map[kmer],
+                bin(self.map[kmer]).count("1")
+            )
+        )
+
+    def __str__(self):
+        return ", ".join(map(str, [
+            self.map, "|".join(map(str, self.taxentries)),
+            self._ntaxids, self.k
+        ]))
+
+
 if __name__ == "__main__":
     NAMEID_MAP_PATH = "save/combined_nip.txt"
     NODES_PATH = "ref/nodes.dmp"
@@ -212,7 +251,11 @@ if __name__ == "__main__":
                 try:
                     assert tax.taxes[i].parent in tax
                 except AssertionError:
-                    print("Parent %i for %s not in tax." % (tax.taxes[i].parent, tax.taxes[i]))
+                    print("Parent %i for %s not in tax." %
+                          (tax.taxes[i].parent, tax.taxes[i]))
                     raise
 
     unittest.main()
+
+
+__all__ = [TaxEntry, Taxonomy, load_nameidmap]

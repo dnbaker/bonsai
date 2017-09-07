@@ -25,14 +25,18 @@ def str2kmerint(s):
     return ret
 
 
-def genome2kmerset(path, k=31):
+def genome2kmergenerator(path, k=31):
     def __gen_seqs(name):
         for record in pysam.FastxFile(name):
             seq = record.sequence
             for i in range(len(seq) - k + 1):
-                yield seq[i:i + k]
+                yield str2kmerint(seq[i:i + k])
+    return __gen_seqs(path)
+
+
+def genome2kmerset(path, k=31):
     # Will this get more expensive on Python 2 bc map?
-    ret = set(map(str2kmerint, __gen_seqs(path)))
+    ret = set(genome2kmergenerator(path, k))
     if AMBIGUOUS in ret:
         ret.remove(AMBIGUOUS)
     return ret
