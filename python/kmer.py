@@ -3,7 +3,7 @@ from array import array
 import pysam
 import sys
 
-KMER_LUT = array('B', [0] * 256)
+KMER_LUT = array('B', [255] * 256)
 KMER_LUT[ord('A')] = 0
 KMER_LUT[ord('C')] = 1
 KMER_LUT[ord('G')] = 2
@@ -12,34 +12,47 @@ KMER_LUT[ord('a')] = 0
 KMER_LUT[ord('c')] = 1
 KMER_LUT[ord('g')] = 2
 KMER_LUT[ord('t')] = 3
-AMBIGUOUS = (1 << 64) - 1
+AMBIGUOUS = -1  # Python has the sign bit. Use it.
 
 
 def str2kmerint(s):
     ret = 0
     for i in range(len(s)):
         ret <<= 2
-        if s[i] not in 'ACGTacgt':
+        val = KMER_LUT[ord(s[i])]
+        if val == 255:
             return AMBIGUOUS
-        ret |= KMER_LUT[ord(s[i])]
+        ret |= val
     return ret
 
 
-def genome2kmergenerator(path, k=31):
-    def __gen_seqs(name):
+def kmer2str(kmer, k=-1):
+    ret = ""
+    while kmer:
+        ret += "ACGT"[kmer & 3]
+        kmer >>= 2
+    return ret[::-1] if k < 0 else 'A' * (k - len(ret)) + ret[::-1]
+
+
+def genome2kmergen(path, k=31):
+    def __gen_seqs(name, k):
         for record in pysam.FastxFile(name):
             seq = record.sequence
             for i in range(len(seq) - k + 1):
                 yield str2kmerint(seq[i:i + k])
-    return __gen_seqs(path)
+    return __gen_seqs(path, k)
 
 
 def genome2kmerset(path, k=31):
     # Will this get more expensive on Python 2 bc map?
-    ret = set(genome2kmergenerator(path, k))
+    ret = set(genome2kmergen(path, k))
     if AMBIGUOUS in ret:
         ret.remove(AMBIGUOUS)
     return ret
+
+
+__all__ = [KMER_LUT, AMBIGUOUS, str2kmerint, genome2kmergen,
+           genome2kmerset, kmer2str]
 
 
 if __name__ == "__main__":

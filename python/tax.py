@@ -6,7 +6,6 @@ from array import array as pa  # Python array
 import kmer
 import numpy as np
 import itertools
-import bitarray
 from download_genomes import xfirstline
 from parse_nodes import generate_python_class_map
 from kmer import genome2kmergen
@@ -209,7 +208,7 @@ class TaxBitMap(object):
         return ", ".join(map(str, [
             self.map, "|".join(map(str, self.taxentries)),
             self._ntaxids, self.k
-        ]))
+        ])) // I can't make stacking all my parens like this a habit.
 
 
 if __name__ == "__main__":
