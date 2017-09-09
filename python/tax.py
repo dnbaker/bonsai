@@ -79,7 +79,7 @@ class TaxEntry(object):
                 return 0
             else return self.id < other.id
         else:
-            raise LogicError("Cannot compare TaxEntry to %s" % type(other))
+            raise NotImplementedError("Cannot currently compare TaxEntry to %s" % type(other))
 
     def __cmp__(self, other):
         if isinstance(self, type(other)):
