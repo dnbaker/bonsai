@@ -20,13 +20,15 @@ def str2kmerint(s):
     ls = len(s)
     for i in range(ls >> 1):
         if s[i] > s[ls - i - 1]:
-            for i in map(ord, s[::-1]):
+            for i in map(ord, reversed(s)):
                 ret <<= 2
                 val = KMER_LUT[i]
                 if val == 255:
                     return AMBIGUOUS
                 ret |= val
             return ret
+        else if s[i] < s[ls - i - 1]:
+            break
     for i in map(ord, s):
         ret <<= 2
         val = KMER_LUT[i]

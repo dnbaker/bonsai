@@ -67,6 +67,20 @@ class TaxEntry(object):
         return (isinstance(self, type(other)) and self.id == other.id and
                 self.parent == other.parent)
 
+    def __lt__(self, other):
+        if isinstance(self, type(other)):
+            if self.depth < other.depth:
+                return 1
+            elif self.depth > other.depth:
+                return 0
+            if self.parent < other.parent:
+                return 1
+            elif self.parent > other.parent:
+                return 0
+            else return self.id < other.id
+        else:
+            raise LogicError("Cannot compare TaxEntry to %s" % type(other))
+
     def __cmp__(self, other):
         if isinstance(self, type(other)):
             if self.depth < other.depth:
