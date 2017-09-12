@@ -27,7 +27,7 @@ def str2kmerint(s):
                     return AMBIGUOUS
                 ret |= val
             return ret
-        else if s[i] < s[ls - i - 1]:
+        elif s[i] < s[ls - i - 1]:
             break
     for i in map(ord, s):
         ret <<= 2
