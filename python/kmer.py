@@ -63,6 +63,16 @@ def genome2kmerset(path, k=31):
     return ret
 
 
+def cmp(kmer1, kmer2):
+    k1g, k2g = kmer1 & ~kmer2, kmer2 & ~kmer1
+    # Does kmer1 have any bits set that kmer2 does not? Vice versa?
+    if k1g and not k2g:
+        return -1
+    if k2g and not k1g:
+        return 1
+    return 0  # Neither is a strict parent of the other.
+
+
 __all__ = [KMER_LUT, AMBIGUOUS, str2kmerint, genome2kmergen,
            genome2kmerset, kmer2str]
 
