@@ -6,7 +6,7 @@ namespace emp {
 namespace popcnt {
 
 
-std::uint64_t vec_popcnt(const char *p, const std::size_t l) {
+unsigned vec_popcnt(const char *p, const std::size_t l) {
     const std::uint64_t *arr(reinterpret_cast<const std::uint64_t *>(p));
     std::uint64_t ret(0);
     const std::uint64_t nloops(l >> 3);
@@ -16,18 +16,18 @@ std::uint64_t vec_popcnt(const char *p, const std::size_t l) {
     return ret;
 }
 
-std::uint64_t vec_popcnt(std::uint64_t *p, std::size_t l) {
+unsigned vec_popcnt(std::uint64_t *p, std::size_t l) {
     if(unlikely(l == 0)) return 0;
     std::uint64_t ret(popcount(*p));
     while(--l) ret += popcount(*++p);
     return ret;
 }
 
-std::uint64_t vec_popcnt(const std::string &vec) {
+unsigned vec_popcnt(const std::string &vec) {
     return vec_popcnt(vec.data(), vec.size());
 }
 template<>
-std::uint64_t vec_bitdiff(const bitvec_t &a, const bitvec_t &b);
+auto vec_bitdiff(const bitvec_t &a, const bitvec_t &b);
 
 } // namespace popcnt
 

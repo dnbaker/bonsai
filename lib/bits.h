@@ -1,6 +1,6 @@
 #ifndef _BITS_H__
 #define _BITS_H__
-
+#include <type_traits>
 #include "lib/util.h"
 
 namespace emp {
@@ -8,7 +8,7 @@ namespace emp {
 namespace popcnt {
 
 
-std::uint64_t vec_popcnt(const std::string &vec);
+unsigned vec_popcnt(const std::string &vec);
 
 template<typename T>
 INLINE unsigned popcount(T val) noexcept {
@@ -36,25 +36,26 @@ INLINE unsigned popcount(unsigned long val) noexcept {
 }
 
 template<typename T>
-std::uint64_t vec_popcnt(T &container) {
+INLINE auto vec_popcnt(T &container) {
     auto i(container.cbegin());
-    std::uint64_t ret(popcount(*i));
-    while(++i != container.cend()) ret += popcount(*i);
+    auto ret(popcount(*i));
+    while(i != container.cend()) ret += popcount(*i++);
     return ret;
 }
 
-std::uint64_t vec_popcnt(std::uint64_t *p, std::size_t l);
+unsigned vec_popcnt(std::uint64_t *p, std::size_t l);
     
-    
-INLINE unsigned bitdiff(std::uint64_t a, std::uint64_t b) {
+template<typename T, typename std::enable_if_t<std::is_arithmetic<T>::value>>
+INLINE unsigned bitdiff(T a, T b) {
     return popcount(a ^ b);
 }
     
 template<typename T>
-std::uint64_t vec_bitdiff(const T &a, const T &b) {
+INLINE auto vec_bitdiff(const T &a, const T &b) {
+    assert(a.size() == b.size());
     auto ai(a.cbegin()), bi(b.cbegin());
-    std::uint64_t ret(bitdiff(*ai, *bi));
-    while(++ai != a.cend() && ++bi != b.cend()) ret += bitdiff(*ai, *bi);
+    auto ret(bitdiff(*ai, *bi));
+    while(ai != a.cend()) ret += bitdiff(*ai++, *bi++);
     return ret;
 }
 
