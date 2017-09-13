@@ -21,6 +21,7 @@ def load_nameidmap(path):
 class TaxEntry(object):
     def __init__(self, line, gi2taxmap, classlvl_map,
                  __val_only1=None, __val_only2=None):
+
         if isinstance(line, int):
             self.id = line
             self.parent = gi2taxmap
@@ -37,9 +38,8 @@ class TaxEntry(object):
             self.parent = int(next(toks))
             try:
                 self.depth = classlvl_map[next(toks)]
-            except KeyError:
-                print("'" + "', '".join(str(i) for
-                      i in classlvl_map.keys()) + "'")
+            except KeyError
+                print("key ('%s') missing from dictionary. Abort!", file=sys.stderr)
                 raise
             self.name = None
             self.genome_paths = []
@@ -77,7 +77,8 @@ class TaxEntry(object):
                 return 1
             elif self.parent > other.parent:
                 return 0
-            else return self.id < other.id
+            else:
+                return self.id < other.id
         else:
             raise NotImplementedError("Cannot currently compare TaxEntry to %s" % type(other))
 
@@ -221,8 +222,7 @@ class TaxBitMap(object):
     def __str__(self):
         return ", ".join(map(str, [
             self.map, "|".join(map(str, self.taxentries)),
-            self._ntaxids, self.k
-        ])) // I can't make stacking all my parens like this a habit.
+            self._ntaxids, self.k]))
 
 
 if __name__ == "__main__":
@@ -253,10 +253,8 @@ if __name__ == "__main__":
                 el2 = eval("%s" % el)
                 assert el == el2
             els = set(tax)
-            print("els: '%s'" % (", ".join(map(str, els))))
             if 0 not in tax:
-                print("Failed!")
-                print(", ".join(i for i in tax))
+                print("Failed by not having 0 in tax!")
             self.assertTrue(0 in tax)
             tax.build_child_ancestor_map()
             for i in range(len(tax) - 1):
