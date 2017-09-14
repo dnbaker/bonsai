@@ -1,17 +1,13 @@
 #!/usr/bin/env python
-from six import iteritems
 import sys
 import unittest
-from array import array as pa  # Python array
-import kmer
 import numpy as np
 import itertools
-from download_genomes import xfirstline
-from parse_nodes import generate_python_class_map
-from kmer import genome2kmergen
-from collections import defaultdict
-cfi = itertools.chain.from_iterable
+import operator
+from six import iteritems
 
+import parse_nodes
+import kmer
 
 def load_nameidmap(path):
     with open(path) as f:
@@ -101,7 +97,7 @@ class Taxonomy(object):
 
     def __init__(self, gi2taxpath, nodespath):
         self.index = 0
-        self.lvl_map = generate_python_class_map()
+        self.lvl_map = parse_nodes.generate_python_class_map()
         try:
             assert "superkingdom" in self.lvl_map
         except AssertionError:
@@ -114,7 +110,8 @@ class Taxonomy(object):
             raise
         sys.stderr.write("I successfully asserted that lvl_map belongs in existence.\n")
         self.taxes = [TaxEntry(0, 0, 0, [], "root")]
-        self.gi2taxmap = dict(tuple(line.split()[:2]) for line in open(gi2taxpath))
+        with open(gi2taxpath) as f:
+            self.gi2taxmap = dict(tuple(line.split()[:2]) for line in f)
         self.nodes_path = nodespath
         self.add_file(self.nodes_path)
 
@@ -152,7 +149,7 @@ class Taxonomy(object):
         return ret
 
     def build_child_ancestor_map(self):
-        ret = {tax.id: [] for key in self.taxes}
+        ret = {tax.id: [] for tax in self.taxes}
         self.taxes.sort()
         return {tax.id: tuple(map(operator.get_attr('id'), get_parents(tax)))
                 for tax in self.taxes}
@@ -194,7 +191,7 @@ class Taxonomy(object):
 class TaxBitMap(object):
 
     def __init__(self, ntaxids, k=31):
-        self.map = defaultdict(int)
+        self.map = collections.defaultdict(int)
         self.taxentries = []
         self._ntaxids = ntaxids
         self.k = k
@@ -205,7 +202,8 @@ class TaxBitMap(object):
         self.taxentries.append(taxentries)
         assert len(self.taxentries) <= self._ntaxids
         shifted_bit = (1 << (len(self.taxentries) - 1))
-        for kmer in set(cfi(genome2kmergen(path, k) for
+        cfi = itertools.chain.from_iterable
+        for kmer in set(cfi(kmer.genome2kmergen(path, k) for
                             path in taxentry.genome_paths)):
             if kmer in self.map:
                 self.map[kmer] |= shifted_bit
