@@ -24,6 +24,8 @@ class TaxEntry(object):
                  __val_only1=None, __val_only2=None):
 
         if isinstance(line, int):
+            #  Only for creating the ROOT node. This is horrible.
+            assert isinstance(classlvl_map, int)  # This should provide the taxonomic depth
             self.id = line
             self.parent = gi2taxmap
             self.depth = classlvl_map
@@ -70,9 +72,9 @@ class TaxEntry(object):
 
     def __lt__(self, other):
         if isinstance(self, type(other)):
-            if self.depth < other.depth:
+            if self.depth > other.depth:
                 return 1
-            elif self.depth > other.depth:
+            elif self.depth < other.depth:
                 return 0
             if self.parent < other.parent:
                 return 1
@@ -81,7 +83,8 @@ class TaxEntry(object):
             else:
                 return self.id < other.id
         else:
-            raise NotImplementedError("Cannot currently compare TaxEntry to %s" % type(other))
+            raise NotImplementedError("Cannot currently compare TaxEntry "
+                                      "to %s" % type(other))
 
     def __cmp__(self, other):
         if isinstance(self, type(other)):
@@ -111,9 +114,7 @@ class Taxonomy(object):
             raise
         sys.stderr.write("I successfully asserted that lvl_map belongs in existence.\n")
         self.taxes = [TaxEntry(0, 0, 0, [], "root")]
-        with open(gi2taxpath) as f:
-            self.gi2taxmap = {line.split()[0]: int(line.split()[1]) for
-                              line in f}
+        self.gi2taxmap = dict(tuple(line.split()[:2]) for line in open(gi2taxpath))
         self.nodes_path = nodespath
         self.add_file(self.nodes_path)
 
@@ -147,17 +148,14 @@ class Taxonomy(object):
         ret = {parent}
         while parent:
             parent = self.__getitem__(el)
-            ret.add(parent)
+            ret.add(parent.id)
         return ret
 
     def build_child_ancestor_map(self):
-        ret = {key: [] for key in self.taxes}
+        ret = {tax.id: [] for key in self.taxes}
         self.taxes.sort()
-        # This will take some careful thinking.
-        raise NotImplementedError("Stuff. But save sorted taxes in this "
-                                  "exception trace: %s" %
-                                  ", ".join(map(str, self.taxes)) + "\n\n\n")
-        return ret
+        return {tax.id: tuple(map(operator.get_attr('id'), get_parents(tax)))
+                for tax in self.taxes}
 
     def __getitem__(self, el):
         try:
@@ -206,12 +204,13 @@ class TaxBitMap(object):
         assert len(TaxEntry.genome_paths) >= 1
         self.taxentries.append(taxentries)
         assert len(self.taxentries) <= self._ntaxids
+        shifted_bit = (1 << (len(self.taxentries) - 1))
         for kmer in set(cfi(genome2kmergen(path, k) for
                             path in taxentry.genome_paths)):
             if kmer in self.map:
-                self.map[kmer] |= (1 << (len(self.taxentries) - 1))
+                self.map[kmer] |= shifted_bit
             else:
-                self.map[kmer] = (1 << (len(self.taxentries) - 1))
+                self.map[kmer] = shifted_bit
         sys.stderr.write(
             "Number of taxentries: %i. Bitcount of kmer %i: %i\n" % (
                 len(self.taxentries), self.map[kmer],
