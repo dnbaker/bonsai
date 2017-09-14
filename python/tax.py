@@ -9,6 +9,7 @@ import itertools
 from download_genomes import xfirstline
 from parse_nodes import generate_python_class_map
 from kmer import genome2kmergen
+from collections import defaultdict
 cfi = itertools.chain.from_iterable
 
 
@@ -38,7 +39,7 @@ class TaxEntry(object):
             self.parent = int(next(toks))
             try:
                 self.depth = classlvl_map[next(toks)]
-            except KeyError
+            except KeyError:
                 print("key ('%s') missing from dictionary. Abort!", file=sys.stderr)
                 raise
             self.name = None
@@ -108,7 +109,8 @@ class Taxonomy(object):
                                                self.lvl_map.keys() if
                                                isinstance(i, int)))
             raise
-        self.taxes = [TaxEntry(0, 0, 0, [], None)]
+        sys.stderr.write("I successfully asserted that lvl_map belongs in existence.\n")
+        self.taxes = [TaxEntry(0, 0, 0, [], "root")]
         with open(gi2taxpath) as f:
             self.gi2taxmap = {line.split()[0]: int(line.split()[1]) for
                               line in f}
@@ -151,8 +153,6 @@ class Taxonomy(object):
     def build_child_ancestor_map(self):
         ret = {key: [] for key in self.taxes}
         self.taxes.sort()
-        print("Sorted taxes! Now:\n\n\n")
-        print(", ".join(map(str, self.taxes)) + "\n\n\n")
         # This will take some careful thinking.
         raise NotImplementedError("Stuff. But save sorted taxes in this "
                                   "exception trace: %s" %
@@ -196,7 +196,7 @@ class Taxonomy(object):
 class TaxBitMap(object):
 
     def __init__(self, ntaxids, k=31):
-        self.map = {}
+        self.map = defaultdict(int)
         self.taxentries = []
         self._ntaxids = ntaxids
         self.k = k
@@ -208,16 +208,14 @@ class TaxBitMap(object):
         assert len(self.taxentries) <= self._ntaxids
         for kmer in set(cfi(genome2kmergen(path, k) for
                             path in taxentry.genome_paths)):
-            try:
+            if kmer in self.map:
                 self.map[kmer] |= (1 << (len(self.taxentries) - 1))
-            except KeyError:
+            else:
                 self.map[kmer] = (1 << (len(self.taxentries) - 1))
         sys.stderr.write(
             "Number of taxentries: %i. Bitcount of kmer %i: %i\n" % (
                 len(self.taxentries), self.map[kmer],
-                bin(self.map[kmer]).count("1")
-            )
-        )
+                bin(self.map[kmer]).count("1")))
 
     def __str__(self):
         return ", ".join(map(str, [

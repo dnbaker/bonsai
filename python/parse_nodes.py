@@ -25,15 +25,13 @@ def get_level(line):
     next(gen)
     return next(gen)
 
-
 def get_levels(path):
     from collections import Counter
     return Counter(get_level(line) for line in open(path))
 
 
-def generate_enum(clades=DEFAULT_CLADES, maxl=-1):
-    if maxl < 0:
-        maxl = max(len(i) for i in clades)
+def generate_enum(clades=DEFAULT_CLADES):
+    maxl = max(len(i) for i in clades)
     enum_str = "enum class ClassLevel:int {\n"
     enum_str += "\n".join("    %s%s= %i," % (umangle(clade),
                                              (maxl - len(clade) + 1) * ' ',
@@ -69,7 +67,7 @@ def generate_class_map(clades, maxl):
 
 
 def generate_python_class_map(clades=DEFAULT_CLADES):
-    ret = {'no rank': 0, 'root': 1}
+    ret = {'no rank': 0, 'root': 1, 0: 'no rank', 1: 'root'}
 
     def halfmangle(x):
         return x.lower().replace("\t", " ")
