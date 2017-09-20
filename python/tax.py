@@ -3,11 +3,11 @@ import sys
 import unittest
 import numpy as np
 import itertools
-import operator
 from six import iteritems
 
 import parse_nodes
 import kmer
+
 
 def load_nameidmap(path):
     with open(path) as f:
@@ -110,6 +110,7 @@ class Taxonomy(object):
             raise
         sys.stderr.write("I successfully asserted that lvl_map belongs in existence.\n")
         self.taxes = [TaxEntry(0, 0, 0, [], "root")]
+        self.map = {0: self.taxes[0]}
         with open(gi2taxpath) as f:
             self.gi2taxmap = dict(tuple(line.split()[:2]) for line in f)
         self.nodes_path = nodespath
@@ -119,21 +120,11 @@ class Taxonomy(object):
         return len(self.taxes)
 
     def __iter__(self):
-        for i in self.taxes:
-            yield i
+        return iter(self.taxes)
 
     def __next__(self):
         for i in self.taxes:
             yield i
-    '''
-        try:
-            ret = self.taxes[self.index]
-            self.index += 1
-        except IndexError:
-            self.index = 0
-            raise StopIteration()
-        return ret
-    '''
 
     def add_file(self, path):
         with open(path) as f:
@@ -151,40 +142,38 @@ class Taxonomy(object):
     def build_child_ancestor_map(self):
         ret = {tax.id: [] for tax in self.taxes}
         self.taxes.sort()
-        return {tax.id: tuple(map(operator.get_attr('id'), get_parents(tax)))
+        return {tax.id: tuple(parent.id for parent in self.get_parents(tax))
                 for tax in self.taxes}
 
     def __getitem__(self, el):
-        try:
-            return next(x for x in self.taxes if x == el or x.id == el)
-        except StopIteration:
+        if isinstance(el, int):
+            return self.map[el]
+        elif isinstance(el, TaxEntry):
+            return self.map[el.id]
+        else:
             raise KeyError("Missing element or id %s" % str(el))
 
     def __setitem__(self, key, val):
-        try:
-            next(x for x in self.taxes if x == el or
-                 x.id == el).genome_paths.append(val)
-        except StopIteration:
-            raise KeyError("Missing element or id %s" % str(el))
+        if isinstance(key, int):
+            self.map[key] = val
+        elif isinstance(el, TaxEntry):
+            self.map[key.id] = val
+        else:
+            raise RuntimeError("Invalid type for key: %s" % type(key))
 
     def __contains__(self, key):
-        return (key in self.taxes if isinstance(key, TaxEntry) else
-                any(tax.id == key for tax in self.taxes))
+        return key in self.map or (hasattr(key, "id") and key.id in self.map)
 
     def add_line(self, line):
         self.taxes.append(TaxEntry(line, self.gi2taxmap, self.lvl_map))
+        self.map[self.taxes[len(self.taxes) - 1].id] = self.taxes[len(self.taxes) - 1]
 
     def add_genome_path(self, path, tax):
         try:
-            assert isinstance(tax, int)
-            next(x for x in self.taxes if
-                 x.id == tax).genome_paths.append(path)
-        except AssertionError:
-            print("Assertion failed. Tax is not an int. Tax: %s, %s" %
-                  (str(tax), repr(tax)))
-            raise
-        except StopIteration:
-            print("Missing tax %i" % tax)
+            self.__getitem__(tax).genome_paths.append(path)
+        except KeyError:
+            print("Missing tax %i being provided with path %s" %
+                  (tax, path))
             raise
 
 
