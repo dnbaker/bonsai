@@ -304,6 +304,14 @@ std::unordered_map<tax_t, strlist> tax2desc_genome_map(
         const khash_t(p) *taxmap, const std::vector<tax_t> &taxes,
         const std::unordered_map<tax_t, ClassLevel> &lvl_map);
 
+template<typename Container, typename=std::enable_if_t<std::is_same<typename Container::value_type, tax_t>::value>>
+tax_t lca(khash_t(p) *taxmap, const Container& v) {
+    auto it(v.begin());
+    auto ret(*it);
+    while(++it != v.end()) ret = lca(taxmap, ret, *it);
+    return ret;
+}
+
 } // namespace emp
 
 #endif // #ifdef _EMP_UTIL_H__

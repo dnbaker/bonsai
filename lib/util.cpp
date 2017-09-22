@@ -147,6 +147,7 @@ khash_t(name) *build_name_hash(const char *fn) noexcept {
 }
 
 void destroy_name_hash(khash_t(name) *hash) noexcept {
+    if(hash == nullptr) return;
     for(khint_t ki(kh_begin(hash)); ki != kh_end(hash); ++ki)
         if(kh_exist(hash, ki))
             std::free((void *)kh_key(hash, ki));
@@ -191,7 +192,15 @@ tax_t lca(const std::map<tax_t, tax_t> &parent_map, tax_t a, tax_t b)
 }
 
 khash_t(p) *build_parent_map(const char *fn) noexcept {
+    if(fn == nullptr) {
+        LOG_WARNING("no filename provided. returning null.\n");
+        return nullptr;
+    }
     std::FILE *fp(std::fopen(fn, "r"));
+    if(fp == nullptr) {
+        LOG_WARNING("Could not open file at %s. returning null.\n", fn);
+        return nullptr;
+    }
     khash_t(p) *ret(kh_init(p));
     std::size_t bufsz = 4096;
     char *buf((char *)std::malloc(bufsz));

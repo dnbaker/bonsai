@@ -80,9 +80,9 @@ int main(int argc, char **argv) {
             data[pair.first] += pair.second;
     std::vector<std::size_t> lens;
     lens.reserve(data.size());
-    for(auto &pair: data) lens.emplace_back(pair.first);
+    for(const auto &pair: data) lens.emplace_back(pair.first);
     SORT(lens.begin(), lens.end());
-    for(auto len: lens)
+    for(const auto len: lens)
         gzprintf(ofp, "#Len: %zu\tCount: %zu\n", len, data[len]);
     gzclose(ofp);
 }
