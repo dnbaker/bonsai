@@ -102,6 +102,7 @@ std::string rand_string(std::size_t n);
 std::size_t count_lines(const char *fn) noexcept;
 khash_t(name) *build_name_hash(const char *fn) noexcept;
 void destroy_name_hash(khash_t(name) *hash) noexcept;
+void print_name_hash(khash_t(name) *hash) noexcept;
 khash_t(p) *build_parent_map(const char *fn) noexcept;
 std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(khash_t(p) *) noexcept;
 tax_t get_taxid(const char *fn, khash_t(name) *name_hash);
@@ -306,6 +307,10 @@ std::unordered_map<tax_t, strlist> tax2desc_genome_map(
 
 template<typename Container, typename=std::enable_if_t<std::is_same<typename Container::value_type, tax_t>::value>>
 tax_t lca(khash_t(p) *taxmap, const Container& v) {
+    if(v.size() == 0) {
+        std::fprintf(stderr, "Warning: no elements provided. Returning 0 for lca.\n");
+        return 0;
+    }
     auto it(v.begin());
     auto ret(*it);
     while(++it != v.end()) ret = lca(taxmap, ret, *it);

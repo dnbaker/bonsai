@@ -63,6 +63,10 @@ std::vector<tax_t> get_all_descendents(const std::unordered_map<tax_t, std::vect
 // I don't think we'd gain anything practical with that.
 tax_t lca(const khash_t(p) *map, tax_t a, tax_t b) noexcept {
     // Use std::set to use RB trees for small set rather than hash table.
+    if(unlikely(map == nullptr)) {
+        std::fprintf(stderr, "null taxonomy.\n");
+        std::exit(EXIT_FAILURE);
+    }
     std::set<tax_t> nodes;
     if(a == b) return a;
     if(b == 0) return a;
@@ -544,6 +548,13 @@ std::vector<tax_t> get_sorted_taxes(const khash_t(p) *taxmap, const char *path) 
 
 std::vector<tax_t> get_desc_lca(tax_t a, tax_t b, const std::unordered_map<tax_t, std::vector<tax_t>> &parent_map, const khash_t(p) *taxmap) {
     return get_all_descendents(parent_map, lca(taxmap, a, b));
+}
+void print_name_hash(khash_t(name) *hash) noexcept {
+    for(khiter_t ki(0); ki < kh_size(hash); ++ki) {
+        if(kh_exist(hash, ki)) {
+            std::fprintf(stderr, "Key: %s. value: %u\n", kh_key(hash, ki), kh_val(hash, ki));
+        }
+    }
 }
 
 } //namespace emp

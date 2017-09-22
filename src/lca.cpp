@@ -3,14 +3,19 @@
 
 using namespace emp;
 
+void print_vec(const std::vector<std::string> &vec) {
+    for(const auto &el: vec) std::cerr << el << ", ";
+    std::cerr << '\n';
+}
+
 int main(int argc, char *argv[]) {
     int c;
     std::vector<std::string>  names;
     std::vector<tax_t>       taxids;
     while((c = getopt(argc, argv, "n:t:h?")) >= 0) {
         switch(c) {
-            case 'n': names.emplace_back(argv[optind]); break;
-            case 't': taxids.push_back(std::atoi(argv[optind])); break;
+            case 'n': names.emplace_back(optarg); break;
+            case 't': taxids.push_back(std::atoi(optarg)); break;
             case 'h': case '?': goto usage;
         }
             
@@ -22,21 +27,36 @@ int main(int argc, char *argv[]) {
                                  "Add a taxid <int>.\n", argv[0]);
             std::exit(EXIT_FAILURE);
     }
-    const bool has_nameidmap(optind < argc);
-    if(names.size() && !has_nameidmap) {
-        LOG_EXIT("Error: nameidmap not provided but names <-n options> provided.\n");
-    }
+    print_vec(names);
     khash_t(p) *tax(build_parent_map(argv[optind]));
     if(tax == nullptr) LOG_EXIT("Could not open taxmap. (See warning logs.)\n");
-    khash_t(name) *name_hash(argv[optind + 1] ? build_name_hash(argv[optind + 1]): nullptr);
+    khash_t(name) *name_hash(argv[optind + 1] ? build_name_hash(argv[optind + 1]) : nullptr);
+    // std::cerr << "Name hash size: " << kh_size(name_hash) << '\n';
     if(name_hash) {
         khiter_t ki;
-        destroy_name_hash(name_hash);
         for(const auto &name: names) {
-            if((ki = kh_get(name, name_hash, name.data())) == kh_end(name_hash)) taxids.push_back(kh_val(name_hash, ki));
-            else std::fprintf(stderr, "Warning: name '%s' not found. Ignoring.\n", name.data());
+            std::cerr << "Name: " << name << '\n';
+            if((ki = kh_get(name, name_hash, name.data())) != kh_end(name_hash)) {
+                assert(ki != kh_end(name_hash));
+                taxids.push_back(kh_val(name_hash, ki));
+            }
+            else {
+                if(std::strchr(name.data(), '.')) {
+                    std::string trname(name.data(), std::strchr(name.data(), '.'));
+                    if((ki = kh_get(name, name_hash, trname.data())) != kh_end(name_hash)) {
+                        assert(ki < kh_size(name_hash));
+                        taxids.push_back(kh_val(name_hash, ki));
+                    }
+                    continue;
+                }
+                std::fprintf(stderr, "Warning: name '%s' not found. Ignoring.\n", name.data());
+            }
         }
+    } else {
+        std::fprintf(stderr, "No name hash provided. (path: %s)\n", argv[optind + 1]);
     }
+    //print_name_hash(name_hash);
     std::fprintf(stderr, "lca: %u\n", lca(tax, taxids));
     khash_destroy(tax);
+    destroy_name_hash(name_hash);
 }
