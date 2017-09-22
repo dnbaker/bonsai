@@ -533,4 +533,8 @@ std::vector<tax_t> get_sorted_taxes(const khash_t(p) *taxmap, const char *path) 
     return taxes;
 }
 
+std::vector<tax_t> get_desc_lca(tax_t a, tax_t b, const std::unordered_map<tax_t, std::vector<tax_t>> &parent_map, const khash_t(p) *taxmap) {
+    return get_all_descendents(parent_map, lca(taxmap, a, b));
+}
+
 } //namespace emp

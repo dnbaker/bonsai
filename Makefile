@@ -33,7 +33,7 @@ OPT:= -O3 -funroll-loops \
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS)
 CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
-LIB=-lz -pthread -lhll -lcrypto
+LIB=-lz -pthread -lhll # -lcrypto
 LD=-L.
 
 OBJS=$(patsubst %.c,%.o,$(wildcard lib/*.c) klib/kthread.o) $(patsubst %.cpp,%.o,$(wildcard lib/*.cpp)) klib/kstring.o clhash.o
@@ -71,6 +71,8 @@ test/%.o: test/%.cpp
 %: src/%.o $(OBJS) libhll.a
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
+fahist: src/fahist.o $(OBJS) libhll.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) klib/kthread.o $< -o $@ -lz
 
 tests: clean unit
 

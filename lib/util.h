@@ -107,6 +107,7 @@ std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(khash_t(p) *) no
 tax_t get_taxid(const char *fn, khash_t(name) *name_hash);
 std::string get_firstline(const char *fn);
 std::vector<tax_t> get_all_descendents(const std::unordered_map<tax_t, std::vector<tax_t>> &map, tax_t tax);
+std::vector<tax_t> get_desc_lca(tax_t a, tax_t, const std::unordered_map<tax_t, std::vector<tax_t>> &parent_map);
 // Resolve_tree is modified from Kraken 1 source code, which
 // is MIT-licensed. https://github.com/derrickwood/kraken
 tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
