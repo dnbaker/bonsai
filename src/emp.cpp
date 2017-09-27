@@ -290,8 +290,6 @@ int metatree_main(int argc, char *argv[]) {
     Spacer sp(k, k, nullptr);
     khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));
     LOG_DEBUG("Parsed name hash.\n");
-    std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
-                                                       : std::vector<std::string>(argv + optind + 5, argv + argc));
     LOG_DEBUG("Got inpaths. Now building parent map\n");
     khash_t(p) *taxmap(build_parent_map(argv[optind + 1]));
     LOG_DEBUG("Got taxmap. Now getting maxtax\n");
@@ -300,37 +298,23 @@ int metatree_main(int argc, char *argv[]) {
     auto tax_depths(get_tax_depths(taxmap, argv[optind + 1]));
     LOG_DEBUG("Got tax depths\n");
     std::unordered_set<tax_t> used_taxes;
+    std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
+                                                       : std::vector<std::string>(argv + optind + 5, argv + argc));
+    std::vector<std::string> save;
+    for(uint32_t i(0), id; i < inpaths.size(); ++i) {
+        const auto &path(inpaths[i]);
+        if((id = get_taxid(path.data(), name_hash)) || (accept_lca && (lca(taxmap, accept_lca, id) != accept_lca)))
+            save.emplace_back(path), used_taxes.insert(id);
+    }
+    std::swap(save, inpaths);
+    std::vector<tax_t> raw_taxes(used_taxes.begin(), used_taxes.end());
+    for(auto tax: raw_taxes)
+        while((id = get_parent(taxmap, tax)))
+            used_taxes.insert(id), tax = id;
 #if PRUNE
     throw std::runtime_error("NotImplemented (again).");
 #endif
-    {
-        // Filter failing genomes
-        LOG_DEBUG("Now filtering genomes\n");
-        std::set<std::string> to_rm;
-        tax_t id;
-        #pragma omp parallel
-        for(size_t i = 0; i < inpaths.size(); ++i) {
-            const auto &path(inpaths[i]);
-            if((id = get_taxid(path.data(), name_hash)) == UINT32_C(-1) ||
-                (accept_lca && (lca(taxmap, accept_lca, id) != accept_lca))) {
-                #pragma omp critical
-                to_rm.insert(path);
-                used_taxes.insert(id);
-                std::cerr << "to_rm size: " << to_rm.size() << '\n';
-            }
-        }
-        LOG_DEBUG("Identified to remove. Now removing\n");
-        typename std::vector<std::string>::iterator it;
-        for(const auto &str: to_rm)
-            if((it = std::find(inpaths.begin(), inpaths.end(), str)) != inpaths.end())
-                inpaths.erase(it);
-        LOG_DEBUG("Calculating raw taxes before finishing filtering\n");
-        std::vector<tax_t> raw_taxes(used_taxes.begin(), used_taxes.end());
-        for(auto tax: raw_taxes)
-            while((id = get_parent(taxmap, tax)))
-                used_taxes.insert(id), tax = id;
-        LOG_DEBUG("Finished filtering genomes\n");
-    }
+    LOG_DEBUG("Finished filtering genomes\n");
 
     if(inpaths.size() == 0) {
         throw std::runtime_error("No input paths. I need to process genomes to tell you about them.");
