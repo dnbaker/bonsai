@@ -220,6 +220,7 @@ khash_t(p) *build_parent_map(const char *fn) noexcept {
     kh_val(ret, ki) = 0; // Root of the tree.
     std::fclose(fp);
     std::free(buf);
+    LOG_DEBUG("Built parent map of size %zu from path %s\n", kh_size(ret), fn);
     return ret;
 }
 
@@ -555,6 +556,14 @@ void print_name_hash(khash_t(name) *hash) noexcept {
             std::fprintf(stderr, "Key: %s. value: %u\n", kh_key(hash, ki), kh_val(hash, ki));
         }
     }
+}
+
+tax_t get_max_val(const khash_t(p) *hash) noexcept {
+    tax_t mx(std::numeric_limits<tax_t>::min());
+    for(khiter_t ki(0); ki < kh_size(hash); ++ki)
+        if(kh_exist(hash, ki))
+            mx = std::max(std::max(kh_key(hash, ki), kh_val(hash, ki)), mx);
+    return mx;
 }
 
 } //namespace emp

@@ -275,7 +275,7 @@ int metatree_main(int argc, char *argv[]) {
     tax_t accept_lca(0); // Root (all)
     FILE *ofp(stdout);
     std::string paths_file, folder, spacing;
-    while((c = getopt(argc, argv, "p:w:k:s:f:F:n:h?")) >= 0) {
+    while((c = getopt(argc, argv, "L:p:w:k:s:f:F:n:h?")) >= 0) {
         switch(c) {
             case '?': case 'h':     return metatree_usage(*argv);
             case 'f': folder      = optarg;       break;
@@ -292,33 +292,44 @@ int metatree_main(int argc, char *argv[]) {
     LOG_DEBUG("Parsed name hash.\n");
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 5, argv + argc));
-
+    LOG_DEBUG("Got inpaths. Now building parent map\n");
     khash_t(p) *taxmap(build_parent_map(argv[optind + 1]));
+    LOG_DEBUG("Got taxmap. Now getting maxtax\n");
     tax_t max_tax(get_max_val(taxmap));
+    LOG_DEBUG("Now getting tax depths\n");
     auto tax_depths(get_tax_depths(taxmap, argv[optind + 1]));
+    LOG_DEBUG("Got tax depths\n");
     std::unordered_set<tax_t> used_taxes;
 #if PRUNE
     throw std::runtime_error("NotImplemented (again).");
 #endif
     {
         // Filter failing genomes
+        LOG_DEBUG("Now filtering genomes\n");
         std::set<std::string> to_rm;
         tax_t id;
-        for(const auto &path: inpaths) {
+        #pragma omp parallel
+        for(size_t i = 0; i < inpaths.size(); ++i) {
+            const auto &path(inpaths[i]);
             if((id = get_taxid(path.data(), name_hash)) == UINT32_C(-1) ||
                 (accept_lca && (lca(taxmap, accept_lca, id) != accept_lca))) {
+                #pragma omp critical
                 to_rm.insert(path);
                 used_taxes.insert(id);
+                std::cerr << "to_rm size: " << to_rm.size() << '\n';
             }
         }
+        LOG_DEBUG("Identified to remove. Now removing\n");
         typename std::vector<std::string>::iterator it;
         for(const auto &str: to_rm)
             if((it = std::find(inpaths.begin(), inpaths.end(), str)) != inpaths.end())
                 inpaths.erase(it);
+        LOG_DEBUG("Calculating raw taxes before finishing filtering\n");
         std::vector<tax_t> raw_taxes(used_taxes.begin(), used_taxes.end());
         for(auto tax: raw_taxes)
             while((id = get_parent(taxmap, tax)))
                 used_taxes.insert(id), tax = id;
+        LOG_DEBUG("Finished filtering genomes\n");
     }
 
     if(inpaths.size() == 0) {

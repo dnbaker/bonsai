@@ -12,7 +12,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 ifndef EXTRA
 	EXTRA:= 
 endif
-DBG:= -fno-inline # -DNDEBUG # -fno-inline
+DBG:= # -fno-inline
 OS:=$(shell uname)
 FLAGS=
 

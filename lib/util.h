@@ -104,13 +104,8 @@ khash_t(name) *build_name_hash(const char *fn) noexcept;
 void destroy_name_hash(khash_t(name) *hash) noexcept;
 void print_name_hash(khash_t(name) *hash) noexcept;
 khash_t(p) *build_parent_map(const char *fn) noexcept;
-auto get_max_val(const khash_t(p) *hash) noexcept {
-    tax_t mx(std::numeric_limits<tax_t>::min());
-    for(khiter_t ki(0); ki < kh_size(hash); ++ki)
-        if(kh_exist(hash, ki))
-            mx = std::max(std::max(kh_key(hash, ki), kh_val(hash, ki)), mx);
-    return mx;
-}
+
+tax_t get_max_val(const khash_t(p) *hash) noexcept;
 std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(khash_t(p) *) noexcept;
 tax_t get_taxid(const char *fn, khash_t(name) *name_hash);
 std::string get_firstline(const char *fn);
