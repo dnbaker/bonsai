@@ -281,7 +281,7 @@ int metatree_main(int argc, char *argv[]) {
             case 'f': folder      = optarg;       break;
             case 'k': k           = std::atoi(optarg); break;
             case 'F': paths_file  = optarg;       break;
-            case 'o': ofp         = fopen(optarg, "w"); break;
+            case 'o': ofp         = std::fopen(optarg, "w"); break;
             case 'p': num_threads = std::atoi(optarg); break;
             case 'n': nelem       = std::strtoull(optarg, 0, 10); break;
             case 'L': accept_lca  = std::atoi(optarg); break;
