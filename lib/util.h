@@ -104,6 +104,13 @@ khash_t(name) *build_name_hash(const char *fn) noexcept;
 void destroy_name_hash(khash_t(name) *hash) noexcept;
 void print_name_hash(khash_t(name) *hash) noexcept;
 khash_t(p) *build_parent_map(const char *fn) noexcept;
+auto get_max_val(const khash_t(p) *hash) noexcept {
+    tax_t mx(std::numeric_limits<tax_t>::min());
+    for(khiter_t ki(0); ki < kh_size(hash); ++ki)
+        if(kh_exist(hash, ki))
+            mx = std::max(std::max(kh_key(hash, ki), kh_val(hash, ki)), mx);
+    return mx;
+}
 std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(khash_t(p) *) noexcept;
 tax_t get_taxid(const char *fn, khash_t(name) *name_hash);
 std::string get_firstline(const char *fn);
@@ -130,7 +137,7 @@ static INLINE auto roundup64(T x) noexcept {
 INLINE std::uint64_t rand64() noexcept {
     return (((std::uint64_t)std::rand()) << 32) | std::rand();
 }
-template <typename T> 
+template <typename T>
 void khash_destroy(T *map) noexcept {
     LOG_EXIT("NotImplementedError");
 }
@@ -314,6 +321,14 @@ tax_t lca(khash_t(p) *taxmap, const Container& v) {
     auto it(v.begin());
     auto ret(*it);
     while(++it != v.end()) ret = lca(taxmap, ret, *it);
+    return ret;
+}
+
+template<typename ValType, typename SetType>
+std::vector<ValType> vector_set_filter(const std::vector<ValType> &vec, const SetType &set) {
+    std::vector<ValType> ret;
+    typename SetType::const_iterator it;
+    for(const auto el: vec) if((it = set.find(el)) != set.end()) ret.emplace_back(el);
     return ret;
 }
 

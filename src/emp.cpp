@@ -43,14 +43,14 @@ int classify_main(int argc, char *argv[]) {
         switch(co) {
             case 'h': case '?': goto usage;
             case 'a': emit_all = 1; break;
-            case 'c': chunk_size = atoi(optarg); break;
+            case 'c': chunk_size = std::atoi(optarg); break;
             case 'F': emit_fastq  = 0; break;
             case 'f': emit_fastq  = 1; break;
             case 'K': emit_kraken = 0; break;
             case 'k': emit_kraken = 1; break;
-            case 'p': num_threads = atoi(optarg); break;
+            case 'p': num_threads = std::atoi(optarg); break;
             case 'o': ofp = std::fopen(optarg, "w"); break;
-            case 'S': per_set = atoi(optarg); break;
+            case 'S': per_set = std::atoi(optarg); break;
         }
     }
     LOG_ASSERT(ofp);
@@ -105,13 +105,13 @@ int phase2_main(int argc, char *argv[]) {
     while((c = getopt(argc, argv, "w:M:S:p:k:T:F:tfHh?")) >= 0) {
         switch(c) {
             case 'h': case '?': goto usage;
-            case 'k': k = atoi(optarg); break;
-            case 'p': num_threads = atoi(optarg); break;
+            case 'k': k = std::atoi(optarg); break;
+            case 'p': num_threads = std::atoi(optarg); break;
             case 'S': spacing = optarg; break;
             case 's': start_size = strtoull(optarg, nullptr, 10); break;
             case 't': mode = score_scheme::TAX_DEPTH; break;
             case 'f': mode = score_scheme::FEATURE_COUNT; break;
-            case 'w': wsz = atoi(optarg); break;
+            case 'w': wsz = std::atoi(optarg); break;
             case 'T': tax_path = optarg; break;
             case 'M': seq2taxpath = optarg; break;
             case 'F': paths_file = optarg; break;
@@ -170,11 +170,11 @@ int hll_main(int argc, char *argv[]) {
     while((c = getopt(argc, argv, "w:s:S:p:k:tfh?")) >= 0) {
         switch(c) {
             case 'h': case '?': goto usage;
-            case 'k': k = atoi(optarg); break;
-            case 'p': num_threads = atoi(optarg); break;
+            case 'k': k = std::atoi(optarg); break;
+            case 'p': num_threads = std::atoi(optarg); break;
             case 's': spacing = optarg; break;
-            case 'S': sketch_size = atoi(optarg); break;
-            case 'w': wsz = atoi(optarg); break;
+            case 'S': sketch_size = std::atoi(optarg); break;
+            case 'w': wsz = std::atoi(optarg); break;
             case 'F': paths_file = optarg; break;
         }
     }
@@ -216,15 +216,15 @@ int phase1_main(int argc, char *argv[]) {
     while((c = getopt(argc, argv, "s:S:p:k:tfTHh?")) >= 0) {
         switch(c) {
             case 'h': case '?': goto usage;
-            case 'k': k = atoi(optarg); break;
-            case 'p': num_threads = atoi(optarg); break;
+            case 'k': k = std::atoi(optarg); break;
+            case 'p': num_threads = std::atoi(optarg); break;
             case 's': spacing = optarg; break;
-            case 'S': sketch_size = atoi(optarg); break;
+            case 'S': sketch_size = std::atoi(optarg); break;
             case 'T': taxmap_preparsed = 1; break;
             case 'H': use_hll = 1; break;
             case 't': mode = score_scheme::TAX_DEPTH; break;
             case 'f': mode = score_scheme::FEATURE_COUNT; break;
-            //case 'w': wsz = atoi(optarg); break;
+            //case 'w': wsz = std::atoi(optarg); break;
         }
     }
     if(wsz < 0) wsz = k;
@@ -258,6 +258,7 @@ int metatree_usage(char *arg) {
                          "-F: Parse file paths from file instead of further arguments at command-line.\n"
                          "-d: Do not perform inversion (assume it's already been done.)\n"
                          "-f: Store binary dumps in folder <arg>.\n"
+                         "-L: Set an lca to restrict analysis to one portion of the subtree.\n"
                  , arg);
     std::exit(EXIT_FAILURE);
     return EXIT_FAILURE;
@@ -271,17 +272,19 @@ using pkh_t = kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_h
 int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
     int c, num_threads(-1), k(31), nelem(0);
+    tax_t accept_lca(0); // Root (all)
     FILE *ofp(stdout);
     std::string paths_file, folder, spacing;
     while((c = getopt(argc, argv, "p:w:k:s:f:F:n:h?")) >= 0) {
         switch(c) {
             case '?': case 'h':     return metatree_usage(*argv);
             case 'f': folder      = optarg;       break;
-            case 'k': k           = atoi(optarg); break;
+            case 'k': k           = std::atoi(optarg); break;
             case 'F': paths_file  = optarg;       break;
             case 'o': ofp         = fopen(optarg, "w"); break;
-            case 'p': num_threads = atoi(optarg); break;
-            case 'n': nelem       = strtoull(optarg, 0, 10); break;
+            case 'p': num_threads = std::atoi(optarg); break;
+            case 'n': nelem       = std::strtoull(optarg, 0, 10); break;
+            case 'L': accept_lca  = std::atoi(optarg); break;
         }
     }
     Spacer sp(k, k, nullptr);
@@ -290,111 +293,41 @@ int metatree_main(int argc, char *argv[]) {
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 5, argv + argc));
 
-#ifdef TAX_CHECK
-    khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
-    auto tax_depths(get_tax_depths(full_taxmap, argv[optind + 1]));
-    khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, full_taxmap, name_hash));
-    // TODO: Consider adding all entries whose taxids are not found to 
-    // a heuristic nearest neighbor somehow.
-    {
-        auto kraken_tax(build_kraken_tax(argv[optind + 1]));
-        {
-            decltype(kraken_tax) pruned_kraken_tax;
-            for(khiter_t ki(0); ki != kh_end(taxmap); ++ki) {
-                if(kh_exist(taxmap, ki)) {
-                    try {
-                        pruned_kraken_tax.at(kh_key(taxmap, ki)) = kraken_tax.at(kh_key(taxmap, ki));
-                    } catch(std::out_of_range &ex) {
-                        LOG_ERROR("Taxid %s is missing from pruned kraken tax.\n", kh_key(taxmap, ki));
-                    }
-                }
-            }
-            kraken_tax = std::move(pruned_kraken_tax);
-        }
-        std::vector<tax_t> nsv;
-        {
-             std::set<tax_t> nodeset;
-             for(const auto &pair: kraken_tax)
-                 nodeset.insert(pair.first), nodeset.insert(pair.second);
-             if(nodeset.find(0) != nodeset.end()) nodeset.erase(0);
-             nsv.assign(std::vector<tax_t>(nodeset.begin(), nodeset.end()));
-         }
-         for(auto i(nsv.cbegin()), e(nsv.cend()); i != e; ++i) {
-             for(auto j(i + 1); j != e; ++j) {
-                 assert(lca(kraken_tax, *i, *j) == lca(taxmap, *i, *j));
-             }
-             if(((i - nsv.cbegin()) & 0xF) == 0) LOG_INFO("Processed %zd of %zu\n", i - nsv.cbegin(), nsv.size());
-         }
-    }
-#elif PRUNE
-    khash_t(p) *full_taxmap(build_parent_map(argv[optind + 1]));
-    auto tax_depths(get_tax_depths(full_taxmap, argv[optind + 1]));
-    khash_t(p) *taxmap(tree::pruned_taxmap(inpaths, full_taxmap, name_hash));
-    tax_t mx(std::numeric_limits<tax_t>::min());
-    for(khiter_t ki(0); ki < kh_end(full_taxmap); ++ki) {
-        if(kh_exist(full_taxmap, ki)) {
-            if(kh_key(full_taxmap, ki) > mx) mx = kh_key(full_taxmap, ki);
-            if(kh_val(full_taxmap, ki) > mx) mx = kh_val(full_taxmap, ki);
-        }
-    }
-    kh_destroy(p, full_taxmap);
-#else
     khash_t(p) *taxmap(build_parent_map(argv[optind + 1]));
+    tax_t max_tax(get_max_val(taxmap));
     auto tax_depths(get_tax_depths(taxmap, argv[optind + 1]));
-    tax_t mx(std::numeric_limits<tax_t>::min());
-    for(khiter_t ki(0); ki < kh_end(taxmap); ++ki) {
-        if(kh_exist(taxmap, ki)) {
-            if(kh_key(taxmap, ki) > mx) mx = kh_key(taxmap, ki);
-            if(kh_val(taxmap, ki) > mx) mx = kh_val(taxmap, ki);
-        }
-    }
+    std::unordered_set<tax_t> used_taxes;
+#if PRUNE
+    throw std::runtime_error("NotImplemented (again).");
 #endif
-    LOG_DEBUG("max: %u\n", mx);
     {
-#if 0
-        ks::KString ks;
-        for(const auto &path: inpaths) {
-            const char *s(path.data());
-            if(get_taxid(s, name_hash) == UINT32_C(-1)) {
-                int khr;
-                std::string line(get_firstline(s));
-                const char *p(line.data());
-                while(*p && *p != '\n') ++p;
-                if(*p) line.resize(p - line.data());
-                khiter_t ki(kh_put(p, taxmap, mx, &khr));
-                ++mx;
-                kh_val(taxmap, ki) = 1; // Set to root. Could be improved, most certainly.
-                ks.putsn_("|Missing Taxid: Designating child of root.|ID:",
-                          sizeof("|Missing Taxid: Designating child of root.|ID:") - 1);
-                ks.putw_(kh_key(taxmap, ki));
-                ks.putc_('\t');
-                ks.putsn_("Desc:", 5);
-                ks.putsn_(line.data(), line.size());
-                ks.putc_('\t');
-                ks.putsn_("Path:", 5);
-                ks.putsn_(path.data(), path.size());
-                ks.putc_('\n');
-            }
-            if(ks.size() & (1 << 18)) ks.write(ofp), ks.clear();
-        }
-        ks.write(ofp), ks.clear();
-#else
+        // Filter failing genomes
         std::set<std::string> to_rm;
-        for(const auto &path: inpaths) if(get_taxid(path.data(), name_hash) == UINT32_C(-1)) {
-            to_rm.insert(path);
+        tax_t id;
+        for(const auto &path: inpaths) {
+            if((id = get_taxid(path.data(), name_hash)) == UINT32_C(-1) ||
+                (accept_lca && (lca(taxmap, accept_lca, id) != accept_lca))) {
+                to_rm.insert(path);
+                used_taxes.insert(id);
+            }
         }
         typename std::vector<std::string>::iterator it;
         for(const auto &str: to_rm)
             if((it = std::find(inpaths.begin(), inpaths.end(), str)) != inpaths.end())
                 inpaths.erase(it);
-#endif
+        std::vector<tax_t> raw_taxes(used_taxes.begin(), used_taxes.end());
+        for(auto tax: raw_taxes)
+            while((id = get_parent(taxmap, tax)))
+                used_taxes.insert(id), tax = id;
     }
+
     if(inpaths.size() == 0) {
-        throw std::runtime_error("No input paths. Everything is awful!!!!");
+        throw std::runtime_error("No input paths. I need to process genomes to tell you about them.");
     }
 
 // Core
     std::vector<tax_t> taxes(get_sorted_taxes(taxmap, argv[optind + 1]));
+    taxes = vector_set_filter(taxes, used_taxes);
     std::cerr << "Got sorted taxes\n";
 #if !NDEBUG
     for(const auto tax: taxes) {
@@ -433,7 +366,7 @@ int metatree_main(int argc, char *argv[]) {
         fme.process_subtree(pair.first, begin(tmptaxes), end(tmptaxes), sp, num_threads, nullptr);
         tmptaxes.clear();
     }
-    fme.run_collapse(++mx, ofp, nelem);
+    fme.run_collapse(max_tax + 1, ofp, nelem);
     if(ofp != stdout) fclose(ofp);
     return EXIT_SUCCESS;
 }
