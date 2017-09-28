@@ -157,8 +157,7 @@ def main():
     concat, found = append_old_to_new(parse_gi2tax(gi2tax, acceptable_taxids),
                                       args.new_refseq_nameid_map,
                                       args.combined_nameid_map, args.folder)
-    cc("sort %(name)s | uniq > tmp.zomg && mv tmp.zomg %(name)s" %
-       {"name": concat})
+    cc("sort %s | uniq > tmp.zomg && mv tmp.zomg %s" % (concat, concat), shell=True)
     nl = int(co("wc -l %s" % concat, shell=True).decode().split()[0])
     sys.stderr.write("Concatenated file of total lines "
                      "%i is written to %s.\n" % (nl, concat))

@@ -184,9 +184,7 @@ tax_t lca(const std::map<tax_t, tax_t> &parent_map, tax_t a, tax_t b)
   if (a == 0 || b == 0) return a ? a : b;
 
   std::set<uint32_t> a_path;
-  while (a) {
-    a_path.insert(a), a = parent_map.find(a)->second;
-  }
+  while (a) a_path.insert(a), a = parent_map.find(a)->second;
   while (b) {
     if (a_path.find(b) != a_path.end())
       return b;
@@ -318,12 +316,18 @@ tax_t get_taxid(const char *fn, khash_t(name) *name_hash) {
         while(!std::isspace(*p)) ++p;
         *p = 0;
     }
-    const tax_t ret(unlikely((ki = kh_get(name, name_hash, line)) == kh_end(name_hash)) ? UINT32_C(-1) : kh_val(name_hash, ki));
-#if 0
-    if(ret == UINT32_C(-1))
-        LOG_WARNING("Missing taxid for %s, '%s'.\n", buf, line);
-    else
+#if !NDEBUG
+    tax_t ret;
+    if((ki = kh_get(name, name_hash, line)) == kh_end(name_hash)) {
+        LOG_DEBUG("Key %s is missing\n", line);
+        ret = -1;
+    } else {
+        LOG_DEBUG("Key %s has value %u\n", kh_key(name_hash, ki), kh_val(name_hash, ki));
         LOG_DEBUG("Successfully got taxid %u for path %s\n", kh_val(name_hash, ki), fn);
+        ret = kh_val(name_hash, ki);
+    }
+#else
+    const tax_t ret(unlikely((ki = kh_get(name, name_hash, line)) == kh_end(name_hash)) ? UINT32_C(-1) : kh_val(name_hash, ki));
 #endif
     gzclose(fp);
     return ret;

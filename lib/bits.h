@@ -47,6 +47,9 @@ unsigned vec_popcnt(std::uint64_t *p, std::size_t l);
     
 template<typename T, typename std::enable_if_t<std::is_arithmetic<T>::value>>
 INLINE unsigned bitdiff(T a, T b) {
+    // TODO: Modify to use SSE intrinsics to speed up calculation.
+    // See https://github.com/WojciechMula/sse-popcount for examples/code.
+    // Consider adding #ifndef wrappings based on architecture.
     return popcount(a ^ b);
 }
     

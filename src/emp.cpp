@@ -22,6 +22,7 @@ using std::end;
 
 int classify_main(int argc, char *argv[]) {
     int co, num_threads(16), emit_kraken(1), emit_fastq(0), emit_all(0), chunk_size(1 << 20), per_set(32);
+    std::ios_base::sync_with_stdio(false);
     std::FILE *ofp(stdout);
     if(argc < 4) {
         usage:
@@ -91,6 +92,7 @@ int phase2_main(int argc, char *argv[]) {
     int c, mode(score_scheme::LEX), wsz(-1), num_threads(-1), k(31);
     std::size_t start_size(1<<16);
     std::string spacing, tax_path, seq2taxpath, paths_file;
+    std::ios_base::sync_with_stdio(false);
     // TODO: update documentation for tax_path and seq2taxpath options.
     if(argc < 4) {
         usage:
@@ -156,6 +158,7 @@ int phase2_main(int argc, char *argv[]) {
 int hll_main(int argc, char *argv[]) {
     int c, wsz(-1), k(31), num_threads(-1), sketch_size(24);
     std::string spacing, paths_file;
+    std::ios_base::sync_with_stdio(false);
     if(argc < 2) {
         usage: LOG_EXIT("Usage: %s <opts> <paths>\nFlags:\n"
                         "-k:\tkmer length (Default: 31. Max: 31)\n"
@@ -189,6 +192,7 @@ int hll_main(int argc, char *argv[]) {
 
 int phase1_main(int argc, char *argv[]) {
     int c, taxmap_preparsed(0), use_hll(0), mode(score_scheme::LEX), wsz(-1), k(31), num_threads(-1), sketch_size(24);
+    std::ios_base::sync_with_stdio(false);
     std::string spacing;
 
     if(argc < 5) {
@@ -275,6 +279,7 @@ int metatree_main(int argc, char *argv[]) {
     tax_t accept_lca(0); // Root (all)
     FILE *ofp(stdout);
     std::string paths_file, folder, spacing;
+    std::ios_base::sync_with_stdio(false);
     while((c = getopt(argc, argv, "L:p:w:k:s:f:F:n:h?")) >= 0) {
         switch(c) {
             case '?': case 'h':     return metatree_usage(*argv);
@@ -301,16 +306,43 @@ int metatree_main(int argc, char *argv[]) {
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 5, argv + argc));
     std::vector<std::string> save;
+    #pragma omp parallel
     for(uint32_t i(0), id; i < inpaths.size(); ++i) {
         const auto &path(inpaths[i]);
-        if((id = get_taxid(path.data(), name_hash)) || (accept_lca && (lca(taxmap, accept_lca, id) != accept_lca)))
-            save.emplace_back(path), used_taxes.insert(id);
+        if((id = get_taxid(path.data(), name_hash)) != UINT32_C(-1)) {
+            LOG_DEBUG("id is %u\n", id);
+#ifndef FAST_WAY
+            if(accept_lca == 0) {
+                #pragma omp critical
+                save.emplace_back(path), used_taxes.insert(id);
+                std::cerr << "Size of save: " << save.size() << '\n';
+            } else {
+                LOG_DEBUG("Calculating lca of %u and %u\n", accept_lca, id);
+                const auto lcaval(lca(taxmap, accept_lca, id));
+                std::cerr << "lca of " << id << " and " << accept_lca << " is " << lcaval << '\n';
+                if(lcaval == accept_lca) {
+                    #pragma omp critical
+                    save.emplace_back(path), used_taxes.insert(id);
+                    std::cerr << "Size of save: " << save.size() << '\n';
+                }
+            }
+#else
+            if(accept_lca == 0 || lca(taxmap, accept_lca, id) == accept_lca) {
+                #pragma omp critical
+                save.emplace_back(path), used_taxes.insert(id);
+                std::cerr << "Size of save: " << save.size() << '\n';
+            }
+#endif
+        }
+
     }
     std::swap(save, inpaths);
     std::vector<tax_t> raw_taxes(used_taxes.begin(), used_taxes.end());
-    for(auto tax: raw_taxes)
+    for(auto tax: raw_taxes) {
+        tax_t id;
         while((id = get_parent(taxmap, tax)))
             used_taxes.insert(id), tax = id;
+    }
 #if PRUNE
     throw std::runtime_error("NotImplemented (again).");
 #endif
