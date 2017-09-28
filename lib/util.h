@@ -306,14 +306,17 @@ std::unordered_map<tax_t, strlist> tax2desc_genome_map(
         const std::unordered_map<tax_t, ClassLevel> &lvl_map);
 
 template<typename Container, typename=std::enable_if_t<std::is_same<typename Container::value_type, tax_t>::value>>
-tax_t lca(khash_t(p) *taxmap, const Container& v) {
+tax_t lca(khash_t(p) *taxmap, const Container& v) noexcept {
     if(v.size() == 0) {
         std::fprintf(stderr, "Warning: no elements provided. Returning 0 for lca.\n");
         return 0;
     }
     auto it(v.begin());
     auto ret(*it);
-    while(++it != v.end()) ret = lca(taxmap, ret, *it);
+    while(++it != v.end()) {
+        //LOG_DEBUG("lca before: %u. lca to put with: %u.\n", ret, *it);
+        ret = lca(taxmap, ret, *it);
+    }
     return ret;
 }
 

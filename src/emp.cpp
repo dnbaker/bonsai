@@ -1,5 +1,6 @@
 #include <functional>
 #include <fstream>
+#include <omp.h>
 #include "lib/feature_min.h"
 #include "lib/util.h"
 #include "lib/database.h"
@@ -256,13 +257,14 @@ int phase1_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
-int metatree_usage(char *arg) {
+int metatree_usage(const char *arg) {
     std::fprintf(stderr, "Usage: %s <db.path> <taxmap> <nameidmap> <out_taxmap> <out_taxkey>\n"
                          "\n"
                          "-F: Parse file paths from file instead of further arguments at command-line.\n"
                          "-d: Do not perform inversion (assume it's already been done.)\n"
                          "-f: Store binary dumps in folder <arg>.\n"
                          "-L: Set an lca to restrict analysis to one portion of the subtree.\n"
+                         "    Repeating this option multiple times accepts genomes which are descendents of any taxid provided by this option.\n"
                  , arg);
     std::exit(EXIT_FAILURE);
     return EXIT_FAILURE;
@@ -271,12 +273,17 @@ int metatree_usage(char *arg) {
 template struct kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
 using pkh_t = kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
 
+bool accepted_pass(const khash_t(p) *taxmap, const std::vector<tax_t> &accepted, tax_t id) {
+    if(accepted.empty()) return true;
+    for(const auto el: accepted) if(lca(taxmap, el, id) == el) return true;
+    return false;
+}
 
 
 int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
     int c, num_threads(-1), k(31), nelem(0);
-    tax_t accept_lca(0); // Root (all)
+    std::vector<tax_t> accept_lcas;
     FILE *ofp(stdout);
     std::string paths_file, folder, spacing;
     std::ios_base::sync_with_stdio(false);
@@ -289,10 +296,11 @@ int metatree_main(int argc, char *argv[]) {
             case 'o': ofp         = std::fopen(optarg, "w"); break;
             case 'p': num_threads = std::atoi(optarg); break;
             case 'n': nelem       = std::strtoull(optarg, 0, 10); break;
-            case 'L': accept_lca  = std::atoi(optarg); break;
+            case 'L': accept_lcas.push_back(std::atoi(optarg)); break;
         }
     }
     Spacer sp(k, k, nullptr);
+    omp_set_num_threads(num_threads);
     khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));
     LOG_DEBUG("Parsed name hash.\n");
     LOG_DEBUG("Got inpaths. Now building parent map\n");
@@ -305,35 +313,24 @@ int metatree_main(int argc, char *argv[]) {
     std::unordered_set<tax_t> used_taxes;
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 5, argv + argc));
-    std::vector<std::string> save;
-    #pragma omp parallel
-    for(uint32_t i(0), id; i < inpaths.size(); ++i) {
-        const auto &path(inpaths[i]);
+    std::unordered_set<std::string> save;
+    for(const auto &path: inpaths) {
+        tax_t id;
         if((id = get_taxid(path.data(), name_hash)) != UINT32_C(-1)) {
-#if 0
-            if(accept_lca == 0) {
-                #pragma omp critical
-                save.emplace_back(path), used_taxes.insert(id);
-                std::cerr << "Size of save (accept_lca is 0): " << save.size() << '\n';
-            } else {
-                //LOG_DEBUG("Calculating lca of %u and %u\n", accept_lca, id);
-                const auto lcaval(lca(taxmap, accept_lca, id));
-                if(lcaval == accept_lca) {
-                    #pragma omp critical
-                    save.emplace_back(path), used_taxes.insert(id);
-                    std::cerr << "Size of save: " << save.size() << '\n';
-                }
-            }
-#else
-            if(accept_lca == 0 || lca(taxmap, accept_lca, id) == accept_lca) {
-                #pragma omp critical
-                save.emplace_back(path), used_taxes.insert(id);
-                std::cerr << "Size of save: " << save.size() << '\n';
-            }
+            if(accepted_pass(taxmap, accept_lcas, id)) {
+                save.insert(path), used_taxes.insert(id);
+#if !NDEBUG
+                if(save.size() % 500 == 0) LOG_DEBUG("Size of save: %zu. Total number of genomes: %zu. Index: %i\n", save.size(), inpaths.size(),
+                                                     static_cast<size_t>((&path - inpaths.data()) / sizeof(std::string)));
 #endif
+            }
         }
     }
-    std::swap(save, inpaths);
+    {
+        inpaths = std::vector<std::string>(save.begin(), save.end());
+        std::unordered_set<std::string> tmp;
+        std::swap(tmp, save);
+    }
     std::vector<tax_t> raw_taxes(used_taxes.begin(), used_taxes.end());
     for(auto tax: raw_taxes) {
         tax_t id;
@@ -348,6 +345,7 @@ int metatree_main(int argc, char *argv[]) {
     if(inpaths.size() == 0) {
         throw std::runtime_error("No input paths. I need to process genomes to tell you about them.");
     }
+    LOG_INFO("Processing %zu genomes\n", inpaths.size());
 
 // Core
     std::vector<tax_t> taxes(get_sorted_taxes(taxmap, argv[optind + 1]));

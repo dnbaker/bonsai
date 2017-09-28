@@ -56,8 +56,18 @@ int main(int argc, char *argv[]) {
     } else {
         std::fprintf(stderr, "No name hash provided. (path: %s)\n", argv[optind + 1]);
     }
-    //print_name_hash(name_hash);
+#if 0
+    tax_t current_lca(taxids[0]);
+    for(const auto id: taxids) {
+        auto tmptax(lca(tax, id, current_lca));
+        LOG_INFO("lca of %u and new %u is %u\n", current_lca, id, tmptax);
+        current_lca = tmptax;
+    }
+    std::fprintf(stderr, "lca: %u\n", current_lca);
+#else
     std::fprintf(stderr, "lca: %u\n", lca(tax, taxids));
+#endif
+
     khash_destroy(tax);
     destroy_name_hash(name_hash);
 }

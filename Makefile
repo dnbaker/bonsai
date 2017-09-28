@@ -34,7 +34,7 @@ OPT:= -O3 -funroll-loops \
 	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) $(EXTRA) # -DUSE_PAR_HELPERS
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS)
-CCFLAGS=$(OPT) -std=c11 $(WARNINGS)
+CCFLAGS=$(OPT) $(CFLAGS) -std=c11 $(WARNINGS)
 LIB=-lz -lhll
 LD=-L.
 

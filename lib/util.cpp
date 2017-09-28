@@ -75,7 +75,7 @@ tax_t lca(const khash_t(p) *map, tax_t a, tax_t b) noexcept {
     while(a) {
         nodes.insert(a);
         if((ki = kh_get(p, map, a)) == kh_end(map)) {
-            std::fprintf(stderr, "Missing taxid %u. Returning -1!\n", a);
+            std::fprintf(stderr, "Missing taxid %u. Returning node b (%u)!\n", a, b);
             return (tax_t)-1;
         }
         a = kh_val(map, ki);
@@ -83,7 +83,7 @@ tax_t lca(const khash_t(p) *map, tax_t a, tax_t b) noexcept {
     while(b) {
         if(nodes.find(b) != nodes.end()) return b;
         if((ki = kh_get(p, map, b)) == kh_end(map)) {
-            std::fprintf(stderr, "Missing taxid %u. Returning -1!\n", b);
+            std::fprintf(stderr, "Missing taxid %u. Returning node b (%u)!\n", b, a);
             return (tax_t)-1;
         }
         b = kh_val(map, ki);

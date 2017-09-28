@@ -278,14 +278,8 @@ public:
     INLINE int resize(size_t size) {
         if (m < size) {
             char *tmp;
-#if !NDEBUG
-            std::cerr << "Resizing from " << m << " to " << size << '\n';
-#endif
             m = size;
             roundup64(m);
-#if !NDEBUG
-            std::cerr << "s: " << reinterpret_cast<std::uint64_t>(s) << '\n';
-#endif
             if ((tmp = static_cast<char*>(std::realloc(s, m * sizeof(char)))) == nullptr) {
                 std::cerr << ("Could not allocate sufficient memory for "s + std::to_string(m) + " bytes.\n");
                 throw std::bad_alloc();
@@ -293,7 +287,9 @@ public:
             s = tmp;
 #if !NDEBUG
             std::cerr << "s: " << reinterpret_cast<std::uint64_t>(s) << '\n';
-            std::cerr << "s: " << s << '\n';
+            std::cerr << "s: ";
+            for(size_t i(0); i < l; ++i) std::cerr << ',' << s[i];
+            std::cerr << '\n';
 #endif
         }
 #if !NDEBUG

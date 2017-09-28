@@ -33,3 +33,8 @@ Prior Work
 We modified [khash](https://github.com/attractivechaos/klib) for our primary database,
 borrowed and modified code from [Kraken](https://github.com/DerrickWood/kraken) for
 kmer encoding, taxonomy tree building and querying, and classification.
+
+Future Work
+================
+0. Compressed colored deBruijn graph extension.
+1. Exact match sampling over including all kmers.
