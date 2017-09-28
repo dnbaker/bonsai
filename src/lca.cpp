@@ -34,6 +34,7 @@ int main(int argc, char *argv[]) {
     // std::cerr << "Name hash size: " << kh_size(name_hash) << '\n';
     if(name_hash) {
         khiter_t ki;
+        const char *p;
         for(const auto &name: names) {
             std::cerr << "Name: " << name << '\n';
             if((ki = kh_get(name, name_hash, name.data())) != kh_end(name_hash)) {
@@ -41,8 +42,8 @@ int main(int argc, char *argv[]) {
                 taxids.push_back(kh_val(name_hash, ki));
             }
             else {
-                if(std::strchr(name.data(), '.')) {
-                    std::string trname(name.data(), std::strchr(name.data(), '.'));
+                if((p = std::strchr(name.data(), '.'))) {
+                    std::string trname(name.data(), p);
                     if((ki = kh_get(name, name_hash, trname.data())) != kh_end(name_hash)) {
                         assert(ki < kh_size(name_hash));
                         taxids.push_back(kh_val(name_hash, ki));

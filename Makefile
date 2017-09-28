@@ -16,6 +16,8 @@ DBG:= # -fno-inline
 OS:=$(shell uname)
 FLAGS=
 
+
+# If on OSX/Darwin, pass assembly to clang's assembler because of error in gcc.
 ifneq (,$(findstring g++,$(CXX)))
 	ifeq ($(shell uname),Darwin)
 		ifeq (,$(findstring clang,$(CXX)))

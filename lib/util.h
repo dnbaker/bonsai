@@ -16,9 +16,8 @@
 #include "klib/kstring.h"
 #include "khash64.h"
 #include "lib/logutil.h"
-#include "lib/dsv.h"
-#include "lib/ufa.h"
 #include "lib/sample_gen.h"
+#include "lib/rand.h"
 
 #ifdef __GNUC__
 #  ifndef likely
@@ -58,20 +57,18 @@ using tax_t = std::uint32_t;
 #endif
 
 #ifdef USE_PDQSORT
-# if !NDEBUG
-#  pragma message("Using pdqsort")
-# endif
-#include "pdqsort/pdqsort.h"
+# include "pdqsort/pdqsort.h"
 # ifndef SORT
 #  define SORT ::pdq::sort
 # endif
-#define SORT_BRANCHLESS ::pdq::sort_branchless
+# define SORT_BRANCHLESS ::pdq::sort_branchless
 #else
 # ifndef SORT
 #  define SORT ::std::sort
 # endif
-#define SORT_BRANCHLESS ::std::sort
+# define SORT_BRANCHLESS ::std::sort
 #endif
+// SORT_BRANCHLESS is a lie for std::sort.
 
 #ifndef HAS_KPUTUW__
 #define kputuw_ kputuw
@@ -130,8 +127,9 @@ static INLINE auto roundup64(T x) noexcept {
 }
 
 INLINE std::uint64_t rand64() noexcept {
-    return (((std::uint64_t)std::rand()) << 32) | std::rand();
+    return rng::random_twist();
 }
+
 template <typename T>
 void khash_destroy(T *map) noexcept {
     LOG_EXIT("NotImplementedError");
