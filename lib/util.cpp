@@ -316,7 +316,7 @@ tax_t get_taxid(const char *fn, khash_t(name) *name_hash) {
         while(!std::isspace(*p)) ++p;
         *p = 0;
     }
-#if !NDEBUG
+#if 0
     tax_t ret;
     if((ki = kh_get(name, name_hash, line)) == kh_end(name_hash)) {
         LOG_DEBUG("Key %s is missing\n", line);

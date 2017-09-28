@@ -310,16 +310,14 @@ int metatree_main(int argc, char *argv[]) {
     for(uint32_t i(0), id; i < inpaths.size(); ++i) {
         const auto &path(inpaths[i]);
         if((id = get_taxid(path.data(), name_hash)) != UINT32_C(-1)) {
-            LOG_DEBUG("id is %u\n", id);
-#ifndef FAST_WAY
+#if 0
             if(accept_lca == 0) {
                 #pragma omp critical
                 save.emplace_back(path), used_taxes.insert(id);
-                std::cerr << "Size of save: " << save.size() << '\n';
+                std::cerr << "Size of save (accept_lca is 0): " << save.size() << '\n';
             } else {
-                LOG_DEBUG("Calculating lca of %u and %u\n", accept_lca, id);
+                //LOG_DEBUG("Calculating lca of %u and %u\n", accept_lca, id);
                 const auto lcaval(lca(taxmap, accept_lca, id));
-                std::cerr << "lca of " << id << " and " << accept_lca << " is " << lcaval << '\n';
                 if(lcaval == accept_lca) {
                     #pragma omp critical
                     save.emplace_back(path), used_taxes.insert(id);
@@ -334,7 +332,6 @@ int metatree_main(int argc, char *argv[]) {
             }
 #endif
         }
-
     }
     std::swap(save, inpaths);
     std::vector<tax_t> raw_taxes(used_taxes.begin(), used_taxes.end());
