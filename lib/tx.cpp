@@ -29,7 +29,7 @@ void kg_list_helper(void *data_, long index, int tid) {
     khash_t(all) *h(data->core_[index]);
     Encoder<lex_score> enc(data->sp_);
     LOG_DEBUG("Size of list: %zu. Performing for index %ld of %zu\n", size(list), index, data->core_.size());
-    LOG_DEBUG("Is acceptable null? %s\n", !data->acceptable_ ? "true": "false");
+    LOG_DEBUG(!data->acceptable_ ? "hash set of acceptable values is true": "hash set of acceptable values is false");
     for(auto &path: list) {
         gzFile fp(gzopen(path.data(), "rb"));
         if(!fp) LOG_EXIT("Could not open file at %s\n", path.data());

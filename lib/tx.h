@@ -118,9 +118,9 @@ public:
         kg_list_data data{core_, tmpfl, sp, acceptable_};
         kt_for(num_threads, &kg_list_helper, (void *)&data, core_.size());
     }
-    auto &get_taxes() {return taxes_;} // Who'd want that?
-    const std::vector<khash_t(all) *> &get_core() const {return core_;}
-    std::vector<std::string>    &get_paths() {return paths_;}
+    const auto &get_taxes()                        const {return taxes_;} // Who'd want that?
+    const std::vector<khash_t(all) *> &get_core()  const {return core_;}
+    const std::vector<std::string>    &get_paths() const {return paths_;}
     // Encoding constructor
     kgset_t(typename std::vector<std::string>::const_iterator begin, typename std::vector<std::string>::const_iterator end,
             const Spacer &sp, int num_threads=-1, const khash_t(all) *acc=nullptr): paths_(begin, end), acceptable_(acc), fl_(nullptr) {
