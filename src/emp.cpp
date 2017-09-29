@@ -314,15 +314,13 @@ int metatree_main(int argc, char *argv[]) {
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 5, argv + argc));
     std::unordered_set<std::string> save;
-    for(const auto &path: inpaths) {
+    for(size_t i(0); i < inpaths.size(); ++i) {
+        const auto &path(inpaths[i]);
+        if(i % 500 == 0) LOG_DEBUG("At index %zu/%zu, save size is %zu\n", i, inpaths.size(), save.size());
         tax_t id;
         if((id = get_taxid(path.data(), name_hash)) != UINT32_C(-1)) {
             if(accepted_pass(taxmap, accept_lcas, id)) {
                 save.insert(path), used_taxes.insert(id);
-#if !NDEBUG
-                if(save.size() % 500 == 0) LOG_DEBUG("Size of save: %zu. Total number of genomes: %zu. Index: %i\n", save.size(), inpaths.size(),
-                                                     static_cast<size_t>((&path - inpaths.data()) / sizeof(std::string)));
-#endif
             }
         }
     }

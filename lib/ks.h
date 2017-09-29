@@ -226,33 +226,30 @@ public:
         s[l] = 0;
         return l;
     }
+    int vsprintf(const char *fmt, va_list ap)
+    {
+        va_list args;
+        va_copy(args, ap);
+        int len(vsnprintf(s + l, m - l, fmt, args)); // This line does not work with glibc 2.0. See `man snprintf'.
+        va_end(args);
+        if ((unsigned)len + 1 > m - l) {
+            m = l + len + 2;
+            kroundup32(m);
+            s = (char*)realloc(s, m);
+            va_copy(args, ap);
+            len = vsnprintf(s + l, m - l, fmt, args);
+            va_end(args);
+        }
+        l += len;
+        return l;
+    }
+
     int sprintf(const char *fmt, ...) {
-        if(m < 4) {
-            LOG_DEBUG("Resizing from %zu to %zu\n", l, size_t(4u));
-            resize(4u);
-            assert(m >= 4u);
-            LOG_DEBUG("Resized from %zu to %zu\n", l, size_t(4u));
-        }
-        size_t len;
-        std::va_list ap;
+        va_list ap;
         va_start(ap, fmt);
-        if((len = std::vsnprintf(nullptr, 0, fmt, ap)) + 1 >= m - l) { // This line does not work with glibc 2.0. See `man snprintf'.
-            LOG_DEBUG("Len: %i. New size: %i\n", len, len + 1 + l);
-            resize(len + 1 + l);
-        }
-#if !NDEBUG
-        std::cerr << "Trying to vsnprintf\n";
-        std::cerr << "m: " << m << ". l: " << l << ". s[0] (int):" << static_cast<int>(s[0]) << '\n';
-#endif
-        assert(m >= len + 1 + l);
-        l += std::vsnprintf(s + l, m - l, fmt, ap);
+        const int l(this->vsprintf(fmt, ap));
         va_end(ap);
-#if !NDEBUG
-        std::cerr << "Did vsnprintf\n";
-        std::cerr << "l: " << l << "dist: " << size_t(std::strchr(s, 0) - s) << '\n';
-        assert(s[l] == 0);
-#endif
-        return len;
+        return l;
     }
 
     // Transfer ownership
