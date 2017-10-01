@@ -340,7 +340,7 @@ std::map<uint32_t, uint32_t> kh2kr(khash_t(p) *map) {
                 ret[kh_key(map, ki)] = kh_val(map, ki);
     return ret;
 }
-#if !NDEBUG
+#if 0
 #define PRINT_LISTMAP(ret) do \
     {\
         for(const auto &pair: ret) {\

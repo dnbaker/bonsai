@@ -62,12 +62,24 @@ class FlexMap {
     const tax_t                        parent_;
 
 public:
-    auto parent() const {return parent_;}
+    std::string str() const {
+        ks::KString ks;
+        ks.sprintf("FlexMap:{id:%u;parent:%u;bitcount:%zu;n: %" PRIu64 ";map_(%zu);taxes(%zu): [", id_, parent_, bitcount_, n_, map_.size(), tax_.size());
+        for(const auto tax: tax_) ks.putuw_(tax), ks.putc_(',');
+        ks.back() = ']';
+        ks.putc('}');
+        std::string ret(ks.data());
+        LOG_DEBUG("emp::FlexMap::str string is '%s'\n", ks.data());
+        return ks.data();
+    }
+    auto parent()           const {return parent_;}
     const auto &get_taxes() const {return tax_;}
+    auto num_descendents()  const {return bitcount_;}
     void prepare_data() {
         build_adjlist();
     }
     void build_adjlist() {
+        LOG_DEBUG("Building adjacency list with map size %zu\n", map_.size());
         for(auto i(map_.begin()), ie(map_.end()); i != ie; ++i) {
             auto j(i);
             while(++j != map_.end()) {
@@ -100,16 +112,20 @@ public:
             heap.insert(&*it);
         }
 #endif
-        for(auto &pair: map_) {
-            std::pair<const std::vector<std::uint64_t>, fnode_t> &ref((std::pair<const std::vector<std::uint64_t>, fnode_t> &)pair);
-            //heap.insert(const_cast<std::pair<const std::vector<long long unsigned int>, emp::fnode_t>*>(&pair));
-            heap.insert(&ref);
+        if(map_.size() == 0) {
+            LOG_WARNING("Heap of string '%s' is empty....\n", this->str());
+        } else { // Redundant but explains intention.
+            for(auto &pair: map_) {
+                std::pair<const std::vector<std::uint64_t>, fnode_t> &ref((std::pair<const std::vector<std::uint64_t>, fnode_t> &)pair);
+                LOG_DEBUG("Adding pair where key's first entry is is %" PRIu64 " and the node is %s\n", ref.first[0], ref.second.str().data());
+                //heap.insert(const_cast<std::pair<const std::vector<long long unsigned int>, emp::fnode_t>*>(&pair));
+                heap.insert(&ref);
+            }
         }
     }
 public:
-    FlexMap(const tax_t parent, const std::unordered_map<tax_t, strlist> &map, std::uint32_t id):
-        n_{0}, bitcount_{static_cast<std::uint32_t>(map.size())}, id_{id}, parent_{parent} {
-    }
+    FlexMap(const tax_t parent, const std::uint32_t ntaxes, std::uint32_t id):
+        n_{0}, bitcount_{ntaxes}, id_{id}, parent_{parent} {}
 
     INLINE void add(bitvec_t &&elem) {
 #if __GNUC__ >= 7
@@ -126,8 +142,18 @@ public:
     void fill(const std::unordered_map<tax_t, strlist> &list, const Spacer &sp, int num_threads=-1,
               khash_t(all) *acc=nullptr) {
         if(tax_.size()) tax_.clear();
-        for(const auto &pair: list) tax_.push_back(pair.first);
+        for(const auto &pair: list) {
+            LOG_DEBUG("Filling from flexmap #%u with tax %u and is %s\n", id_, pair.first, pair.second.empty() ? "empty": "not empty");
+            tax_.push_back(pair.first);
+        }
+#if !NDEBUG
+        bitmap_t tmp_bitmap(kgset_t(list, sp, num_threads, acc));
+        auto &map(tmp_bitmap.get_map());
+        LOG_DEBUG("Map size: %zu\n", map.size());
+        for(auto &&pair: map) add(std::move(pair.second));
+#else
         for(auto &&pair: bitmap_t(kgset_t(list, sp, num_threads, acc)).get_map()) add(std::move(pair.second));
+#endif
     }
 };
 
@@ -192,13 +218,14 @@ public:
         }
         ks.write(fp), ks.clear();
     }
-    FlexMap &emplace_subtree(const tax_t parent, const std::unordered_map<tax_t, strlist> &paths) {
-#if __cplusplus < 201700LL
-        return subtrees_.emplace_back(parent, paths, subtrees_.size()), subtrees_.back();
-#else
-        auto &ret(subtrees_.emplace_back(parent, paths, subtrees_.size()));
-        return ret;
-#endif
+    bool emplace_subtree(const tax_t parent, const std::uint32_t ntaxes) {
+        FlexMap subtree(parent, ntaxes, subtrees_.size());
+        if(subtree.num_descendents() > 1) {
+            subtrees_.emplace_back(std::move(subtree));
+            return true;
+        }
+        LOG_DEBUG("Skipping subtree of one element. (%s)\n", subtree.str().data());
+        return false;
     }
     void format_emitted_node(ks::KString &ks, const NodeType *node, const std::uint64_t score, const tax_t taxid) const {
         const auto &fm(subtrees_[node->second.si_]);
@@ -229,22 +256,21 @@ public:
         // Maybe summary stats?
     }
     template<typename T>
-    FlexMap &process_subtree(const tax_t parent, T bit, T eit, const Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr) {
+    void process_subtree(const tax_t parent, T bit, T eit, const Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr) {
         std::unordered_map<tax_t, strlist> tmpmap;
-        for(;bit != eit; ++bit) {
-            const tax_t tax(*bit);
-            auto m(tpm_.find(tax));
-            if(m == tpm_.end()) {
-                LOG_DEBUG("No paths found for tax %u. Continuing.\n", tax);
-                continue;
-            }
-            tmpmap.emplace(m->first, m->second);
+        while(bit != eit) {
+            const auto m(tpm_.find(*bit++));
+            if(m == tpm_.end())
+                LOG_DEBUG("No paths found for tax %u. Continuing.\n", *(bit - 1));
+            else
+                tmpmap.emplace(m->first, m->second);
         }
-        auto ret(emplace_subtree(parent, tmpmap));
-        ret.fill(tmpmap, sp, num_threads, acc);
-        ret.build_adjlist();
-        ret.add_to_heap(heap_);
-        return subtrees_.back();
+        if(emplace_subtree(parent, tmpmap.size())) {
+            auto &ref(subtrees_.back());
+            ref.fill(tmpmap, sp, num_threads, acc);
+            ref.build_adjlist();
+            ref.add_to_heap(heap_);
+        }
     }
     // Also need a map of taxid to tax level.
     FMEmitter(khash_t(p) *tax, const std::unordered_map<tax_t, strlist> &taxpathmap): tax_{tax}, tpm_{taxpathmap} {}
