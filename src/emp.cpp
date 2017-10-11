@@ -363,7 +363,7 @@ int metatree_main(int argc, char *argv[]) {
     for(const auto tax: taxes) {
         ks.putsn_("Tax ", 4);
         ks.putuw_(tax);
-        ks.putsn_(" has for descendent genomes: ", 30);
+        ks.puts(" has for descendent genomes: ");
         if((it = tx2desc_map.find(tax)) == tx2desc_map.end()) {
             ks.putsn_("N/A\n", 4);
         } else {

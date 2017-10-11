@@ -28,9 +28,9 @@ struct fnode_t {
 
     bool added()      const {return laa_ && &laa_->second == this;}
     std::string str() const {
-        return "[fnode]{n:"s + std::to_string(n_) + (added() ? ", added:true, ": ", added:false, bc:")
-                             + std::to_string(bc_) + ", pc:" + std::to_string(pc_)
-                             + ", + " + std::to_string(si_) + '}';
+        return "[fnode]{n:"s + std::to_string(n_) + (added() ? ",added:true,": ",added:false,bc:")
+                             + std::to_string(bc_) + ",pc:" + std::to_string(pc_)
+                             + ",subtree id:" + std::to_string(si_) + '}';
     }
 };
 
@@ -69,8 +69,7 @@ public:
         ks.back() = ']';
         ks.putc('}');
         std::string ret(ks.data());
-        LOG_DEBUG("emp::FlexMap::str string is '%s'\n", ks.data());
-        return ks.data();
+        return ret;
     }
     auto parent()           const {return parent_;}
     const auto &get_taxes() const {return tax_;}
@@ -219,13 +218,12 @@ public:
         ks.write(fp), ks.clear();
     }
     bool emplace_subtree(const tax_t parent, const std::uint32_t ntaxes) {
-        FlexMap subtree(parent, ntaxes, subtrees_.size());
-        if(subtree.num_descendents() > 1) {
-            subtrees_.emplace_back(std::move(subtree));
-            return true;
+        if(ntaxes < 2) {
+            LOG_DEBUG("Skipping subtree of one element. (parent: %u)\n", parent);
+            return false;
         }
-        LOG_DEBUG("Skipping subtree of one element. (%s)\n", subtree.str().data());
-        return false;
+        subtrees_.emplace_back(parent, ntaxes, subtrees_.size());
+        return true;
     }
     void format_emitted_node(ks::KString &ks, const NodeType *node, const std::uint64_t score, const tax_t taxid) const {
         const auto &fm(subtrees_[node->second.si_]);

@@ -24,13 +24,13 @@ void kg_helper(void *data_, long index, int tid) {
 
 
 void kg_list_helper(void *data_, long index, int tid) {
-    kg_list_data *data((kg_list_data *)data_);
-    auto &list(*data->fl_[index]);
-    khash_t(all) *h(data->core_[index]);
-    Encoder<lex_score> enc(data->sp_);
-    LOG_DEBUG("Size of list: %zu. Performing for index %ld of %zu\n", size(list), index, data->core_.size());
-    LOG_DEBUG(!data->acceptable_ ? "hash set of acceptable values is true": "hash set of acceptable values is false");
-    for(auto &path: list) {
+    kg_list_data &data(*(kg_list_data *)data_);
+    auto &list(*data.fl_[index]);
+    khash_t(all) *h(data.core_[index]);
+    Encoder<lex_score> enc(data.sp_);
+    LOG_DEBUG("Size of list: %zu. Performing for index %ld of %zu\n", size(list), index, data.core_.size());
+    LOG_DEBUG(data.acceptable_ == nullptr ? "hash set of acceptable values not provided\n": "hash set of acceptable values provided\n");
+    for(const auto &path: list) {
         gzFile fp(gzopen(path.data(), "rb"));
         if(!fp) LOG_EXIT("Could not open file at %s\n", path.data());
         kseq_t *ks(kseq_init(fp));
@@ -41,12 +41,12 @@ void kg_list_helper(void *data_, long index, int tid) {
             while(enc.has_next_kmer()) {
                 if((min = enc.next_minimizer()) != BF) {
 #if !NDEBUG
-                    if(!data->acceptable_ ||
-                       (kh_get(all, data->acceptable_, min) != kh_end(data->acceptable_) &&
-                        LOG_DEBUG("Found %s in acceptable hash. New size of hash: %zu\n", data->sp_.to_string(min).data(), kh_size(h))))
+                    if(!data.acceptable_ ||
+                       (kh_get(all, data.acceptable_, min) != kh_end(data.acceptable_) &&
+                        LOG_DEBUG("Found %s in acceptable hash. New size of hash: %zu\n", data.sp_.to_string(min).data(), kh_size(h))))
 #else
-                    if(!data->acceptable_ ||
-                       (kh_get(all, data->acceptable_, min) != kh_end(data->acceptable_)))
+                    if(!data.acceptable_ ||
+                       (kh_get(all, data.acceptable_, min) != kh_end(data.acceptable_)))
 #endif
                         kh_put(all, h, min, &khr);
                 }

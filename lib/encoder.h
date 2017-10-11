@@ -104,7 +104,7 @@ public:
         assert(l_ >= sp_.c_ || !has_next_kmer());
     }
     INLINE void assign(kstring_t *ks) {assign(ks->s, ks->l);}
-    INLINE void assign(kseq_t    *ks) {assign(ks->seq.s, ks->seq.l);}
+    INLINE void assign(kseq_t    *ks) {assign(&ks->seq);}
 
     // Encodes a kmer starting at `start` within string `s_`.
     INLINE std::uint64_t kmer(unsigned start) {

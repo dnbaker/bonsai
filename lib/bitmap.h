@@ -118,13 +118,15 @@ int veccmp(const std::vector<T> &a, const std::vector<T> &b) {
         // Second term/first bit: b does not have any bits set a does not.
         // If both are 1, then they are equal on this word, so we do nothing.
         // If both are 0, then neither is a strict parent, return 3.
-        switch(((!(a[i] & (~b[i]))) << 1) | !(b[i] & (~a[i]))) {
-            case 2: avalid = false; break;
-            case 1: bvalid = false; break;
-            case 0: return 3;
-        }
+        if(a[i] & (~b[i])) {
+            if(b[i] & (~a[i])) return 3;
+            else {
+                bvalid = false;
+                continue;
+            }
+        } else if(b[i] & (~a[i])) avalid = false;
     }
-    static const uint8_t ret[4]{3, 2, 1, 0};
+    static const int ret[4]{3, 2, 1, 0};
     return ret[(avalid << 1) | bvalid];
 }
 
