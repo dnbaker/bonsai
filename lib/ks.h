@@ -234,7 +234,7 @@ public:
         va_end(args);
         if ((unsigned)len + 1 > m - l) {
             m = l + len + 2;
-            kroundup32(m);
+            roundup64(m);
             s = (char*)realloc(s, m);
             va_copy(args, ap);
             len = vsnprintf(s + l, m - l, fmt, args);

@@ -82,24 +82,18 @@ public:
         for(auto i(map_.begin()), ie(map_.end()); i != ie; ++i) {
             auto j(i);
             while(++j != map_.end()) {
+                assert(j->first.size() == i->first.size());
                 switch(veccmp(i->first, j->first)) {
-                    case 1:
+                    case BitCmp::FIRST_PARENT:
                         i->second.subsets_.emplace_back(&*j);
                         j->second.parents_.emplace_back(&*i);
-#if !NDEBUG
-                    {
-                        for(auto ii(i->first.cbegin()), ji(j->first.cbegin()), ei(i->first.cend()); ii != ei; ++ii, ++ji) {
-                            assert((*ii & (~*ji)));  // Assert that ii has bits set ji does not.
-                            assert(!(*ji & (~*ii))); // Assert that ji has no bits set which are not set in i.
-                                                     // If both tests pass, then we did this correctly.
-                        }
-                    }
-#endif
                         break;
-                    case 2:
+                    case BitCmp::SECOND_PARENT:
                         j->second.subsets_.emplace_back(&*i);
                         i->second.parents_.emplace_back(&*j);
                         break;
+                    case BitCmp::EQUAL: LOG_EXIT("We should never have two identical bitmaps in the same hashmap.\n"); // Do nothing
+                    case BitCmp::INCOMPARABLE: break;
                 }
             }
         }

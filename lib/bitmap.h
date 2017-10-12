@@ -1,8 +1,7 @@
 #ifndef _BITMAP_H__
 #define _BITMAP_H__
 
-#include "lib/tx.h"
-
+#include "lib/bitcmp.h"
 
 namespace emp {
 
@@ -28,9 +27,6 @@ inline constexpr int log2_64(uint64_t value)
     return tab64[((uint64_t)((value - (value >> 1))*0x07EDD5E59A4E28C2)) >> 58];
 }
 
-// Vector comparison function
-template<typename T>
-int veccmp(const std::vector<T> &a, const std::vector<T> &b);
 template<typename T, typename size_type=std::size_t>
 struct ptr_hash {
     static constexpr size_t SHIFT = log2_64(alignof(T));
@@ -101,34 +97,6 @@ public:
 };
 
 using adjmap_t = AdjacencyList<bitvec_t>;
-
-
-/*
- * We need to somehow build a tree of bitstrings:
- * I want to try two data structures.
- * First, I want to make a map from each bitstring to all of its descendents.
- */
-template<typename T>
-int veccmp(const std::vector<T> &a, const std::vector<T> &b) {
-    // Return 0 if they are the same
-    // Return positive if a has only 1s that b doesn't and isn't missing any from b.
-    bool avalid(true), bvalid(true);
-    for(std::size_t i(0), e(a.size()); i != e; ++i) {
-        // First term/second bit: a does not have any bits set b does not.
-        // Second term/first bit: b does not have any bits set a does not.
-        // If both are 1, then they are equal on this word, so we do nothing.
-        // If both are 0, then neither is a strict parent, return 3.
-        if(a[i] & (~b[i])) {
-            if(b[i] & (~a[i])) return 3;
-            else {
-                bvalid = false;
-                continue;
-            }
-        } else if(b[i] & (~a[i])) avalid = false;
-    }
-    static const int ret[4]{3, 2, 1, 0};
-    return ret[(avalid << 1) | bvalid];
-}
 
 class bitmap_t {
     std::unordered_map<std::uint64_t, bitvec_t> core_;
