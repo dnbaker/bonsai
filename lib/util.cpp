@@ -569,4 +569,12 @@ tax_t get_max_val(const khash_t(p) *hash) noexcept {
     return mx;
 }
 
+std::string bitvec2str(const std::vector<std::uint64_t> &a) {
+    std::string ret;
+    for(auto it(a.cbegin()), eit(a.cend()); it != eit; ++it)
+        for(int j(63); j >= 0; j--)
+            ret += ((*it & (1ull << j)) + '0');
+    return ret;
+}
+
 } //namespace emp
