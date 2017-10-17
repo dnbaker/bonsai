@@ -413,6 +413,11 @@ int hist_main(int argc, char *argv[]) {
      return EXIT_SUCCESS;
  }
 
+int err_main(int argc, char *argv[]) {
+    std::fputs("No valid subcommand provided. Options: phase1, phase2, classify, hll, metatree\n", stderr);
+    return EXIT_FAILURE;
+}
+
 
 const static std::unordered_map<std::string, int (*) (int, char **)> mains {
     {"phase1",   phase1_main},
@@ -427,10 +432,6 @@ const static std::unordered_map<std::string, int (*) (int, char **)> mains {
 };
 
 int main(int argc, char *argv[]) {
-    if(argc > 1) {
-        auto m(mains.find(argv[1]));
-        if(m != mains.end()) return m->second(argc - 1, argv + 1);
-    }
-    std::fputs("No valid subcommand provided. Options: phase1, phase2, classify, hll, metatree\n", stderr);
-    return EXIT_FAILURE;
+    return (argc > 1 && mains.find(argv[1]) != mains.end() ? mains.find(argv[1])->second
+                                                           : err_main)(argc - 1, argv + 1);
 }
