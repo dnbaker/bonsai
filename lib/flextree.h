@@ -219,30 +219,34 @@ public:
         subtrees_.emplace_back(parent, ntaxes, subtrees_.size());
         return true;
     }
+    /*
+     * Emits an additional node to the tree where its paren
+    */
     void format_emitted_node(ks::KString &ks, const NodeType *node, const std::uint64_t score, const tax_t taxid) const {
         const auto &fm(subtrees_[node->second.si_]);
         ks.putuw_(taxid);
         ks.putc_('\t');
         ks.putuw_(fm.parent());
         ks.putc_('\t');
-        std::uint64_t val;
         const auto &taxes(fm.get_taxes());
         for(size_t i = 0, e = node->first.size(); i < e; ++i) {
+            std::uint64_t val;
             if((val = node->first[i]) == 0) continue;
             for(unsigned char j = 0; j < '@'; ++j) { // @ is 64
 #if !NDEBUG
                 const size_t index((i << 6) + j);
                 try {
-                    if(node->first[i] & (1ul << j)) ks.putuw_(taxes.at(index));
+                    if(node->first[i] & (1ul << j)) ks.putuw_(taxes.at(index)), ks.putc_(',');
                 } catch (std::out_of_range &ex) {
                     LOG_EXIT("length of taxes: %zu. index: %zu.\n", taxes.size(), index);
                     throw;
                 }
 #else
-                if(node->first[i] & (1ul << j)) ks.putuw_(taxes[(i << 6) + j]);
+                if(node->first[i] & (1ul << j)) ks.putuw_(taxes[(i << 6) + j]), ks.putc_(',');
 #endif
             }
         }
+        ks.putc_('\t');
         ks.putl_(score);
         ks.putc('\n');
         // Maybe summary stats?

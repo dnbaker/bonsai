@@ -132,18 +132,27 @@ public:
         unsigned bitsum;
 #if !NDEBUG
         std::size_t n_passed(0), total(tmp.size());
+        std::unordered_map<unsigned, std::size_t> counts;
 #endif
-        for(auto &i: tmp)
-            if((bitsum = popcnt::vec_popcnt(i.second)) != 1 &&
-                bitsum != set.size())
+        // Only keeps kmers from kgset if they don't have 1 or set.size() bits set.
+        for(auto &i: tmp) {
+            if(((bitsum = popcnt::vec_popcnt(i.second)) != 1) &
+                (bitsum != set.size()))
 #if !NDEBUG
                     core_.emplace(i.first, i.second), ++n_passed;
             else if(bitsum > 1 && bitsum != set.size()) LOG_DEBUG("bitsum is %u while the set size is %zu\n", bitsum, set.size());
+            ++counts[bitsum];
 #else
                     core_.emplace(i.first, i.second);
 #endif
-        LOG_DEBUG("Keeping %zu of %zu kmers for bit patterns which are not exactly compressed by the taxonomy heuristic.\n",
+        }
+        LOG_DEBUG("Keeping %zu of %zu kmers whose bit patterns are not exactly compressed by the taxonomy heuristic.\n",
                   n_passed, total);
+#if !NDEBUG
+        for(const auto &pair: bitsum counts)
+            LOG_DEBUG("Count %u appeared &u times\n", pair.first, pair.second);
+#endif
+        
     }
     bitmap_t(bitmap_t &&other)            = default;
     bitmap_t &operator=(bitmap_t &&other) = default;
