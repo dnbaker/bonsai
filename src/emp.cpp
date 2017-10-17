@@ -265,6 +265,8 @@ int metatree_usage(const char *arg) {
                          "-f: Store binary dumps in folder <arg>.\n"
                          "-L: Set an lca to restrict analysis to one portion of the subtree.\n"
                          "    Repeating this option multiple times accepts genomes which are descendents of any taxid provided by this option.\n"
+                         "-p: nthreads [1]\n"
+                         "-n: nthreads [1]\n"
                  , arg);
     std::exit(EXIT_FAILURE);
     return EXIT_FAILURE;
@@ -282,7 +284,7 @@ bool accepted_pass(const khash_t(p) *taxmap, const std::vector<tax_t> &accepted,
 
 int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
-    int c, num_threads(-1), k(31), nelem(0);
+    int c, num_threads(1), k(31), nelem(0);
     std::vector<tax_t> accept_lcas;
     FILE *ofp(stdout);
     std::string paths_file, folder, spacing;
@@ -290,13 +292,13 @@ int metatree_main(int argc, char *argv[]) {
     while((c = getopt(argc, argv, "L:p:w:k:s:f:F:n:h?")) >= 0) {
         switch(c) {
             case '?': case 'h':     return metatree_usage(*argv);
-            case 'f': folder      = optarg;       break;
-            case 'k': k           = std::atoi(optarg); break;
-            case 'F': paths_file  = optarg;       break;
-            case 'o': ofp         = std::fopen(optarg, "w"); break;
-            case 'p': num_threads = std::atoi(optarg); break;
+            case 'f': folder      = optarg;                       break;
+            case 'k': k           = std::atoi(optarg);            break;
+            case 'F': paths_file  = optarg;                       break;
+            case 'o': ofp         = std::fopen(optarg, "w");      break;
+            case 'p': num_threads = std::atoi(optarg);            break;
             case 'n': nelem       = std::strtoull(optarg, 0, 10); break;
-            case 'L': accept_lcas.push_back(std::atoi(optarg)); break;
+            case 'L': accept_lcas.push_back(std::atoi(optarg));   break;
         }
     }
     Spacer sp(k, k, nullptr);

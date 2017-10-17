@@ -150,7 +150,7 @@ public:
                   n_passed, total);
 #if !NDEBUG
         for(const auto &pair: counts)
-            LOG_DEBUG("Count %u appeared &u times\n", pair.first, pair.second);
+            LOG_DEBUG("Count %u appeared %u times\n", pair.first, pair.second);
 #endif
         
     }
