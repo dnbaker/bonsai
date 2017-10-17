@@ -293,7 +293,7 @@ int metatree_main(int argc, char *argv[]) {
             case 'f': folder      = optarg;       break;
             case 'k': k           = std::atoi(optarg); break;
             case 'F': paths_file  = optarg;       break;
-            case 'o': ofp         = std::fopen(optarg, "w"); break;
+            case 'o': ofp         = std::fopen(optarg, "w"); if(ofp == nullptr) LOG_EXIT("Could not open file at %s\n", optarg); break;
             case 'p': num_threads = std::atoi(optarg); break;
             case 'n': nelem       = std::strtoull(optarg, 0, 10); break;
             case 'L': accept_lcas.push_back(std::atoi(optarg)); break;
@@ -364,17 +364,16 @@ int metatree_main(int argc, char *argv[]) {
         ks.putsn_("Tax ", 4);
         ks.putuw_(tax);
         ks.puts(" has for descendent genomes: ");
-        if((it = tx2desc_map.find(tax)) == tx2desc_map.end()) {
-            ks.putsn_("N/A\n", 4);
-        } else {
+        if((it = tx2desc_map.find(tax)) == tx2desc_map.end()) ks.putsn_("N/A\n", 4);
+        else {
             for(const auto el: it->second) {
                 ks.putsn_(el.data(), el.size()); ks.putc_(',');
             }
             ks.back() = '\n';
         }
-        if(ks.size() & (1 << 16)) ks.write(stderr), ks.clear();
+        if(ks.size() & (1 << 16)) ks.write(ofp), ks.clear();
     }
-    ks.write(stderr);
+    ks.write(ofp);
     ks.clear();
 #endif
     FMEmitter fme(taxmap, tx2desc_map);
