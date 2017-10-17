@@ -41,7 +41,6 @@ TEST_CASE("tax") {
     //counts.print_hist(stderr);
     std::vector<std::uint64_t> thing;
     for(size_t i(0); i < 1 << 16; ++i) thing.push_back(((uint64_t)rand() << 32) | rand());
-    REQUIRE(spop(thing) == popcnt::vec_popcnt(thing));
 }
 
 TEST_CASE("bitstrings") {

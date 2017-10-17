@@ -573,7 +573,7 @@ std::string bitvec2str(const std::vector<std::uint64_t> &a) {
     std::string ret;
     for(auto it(a.cbegin()), eit(a.cend()); it != eit; ++it)
         for(int j(63); j >= 0; j--)
-            ret += ((*it & (1ull << j)) + '0');
+            ret += ((*it & (1ull << j)) != 0) + '0';
     return ret;
 }
 
