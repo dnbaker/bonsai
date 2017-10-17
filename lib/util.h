@@ -327,6 +327,7 @@ std::vector<ValType> vector_set_filter(const std::vector<ValType> &vec, const Se
     for(const auto el: vec) if((it = set.find(el)) != set.end()) ret.emplace_back(el);
     return ret;
 }
+std::string bitvec2str(const std::vector<std::uint64_t> &a);
 
 } // namespace emp
 

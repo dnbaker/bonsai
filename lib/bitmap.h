@@ -133,13 +133,14 @@ public:
 #if !NDEBUG
         std::size_t n_passed(0), total(tmp.size());
         std::unordered_map<unsigned, std::size_t> counts;
+        std::unordered_set<std::string> stringset;
 #endif
         // Only keeps kmers from kgset if they don't have 1 or set.size() bits set.
         for(auto &i: tmp) {
             bitsum = popcnt::vec_popcnt(i.second);
             if(bitsum != 1u && bitsum != set.size())
 #if !NDEBUG
-                    core_.emplace(i.first, i.second), ++n_passed;
+                    core_.emplace(i.first, i.second), ++n_passed, stringset.insert(bitvec2str(i.second));
             else if(bitsum > 1 && bitsum != set.size()) LOG_DEBUG("bitsum is %u while the set size is %zu\n", bitsum, set.size());
             ++counts[bitsum];
 #else
@@ -151,6 +152,7 @@ public:
 #if !NDEBUG
         for(const auto &pair: counts)
             LOG_DEBUG("Count %u appeared %u times\n", pair.first, pair.second);
+        for(const auto &str: stringset) LOG_DEBUG("'%s' found\n", str.data());
 #endif
         
     }

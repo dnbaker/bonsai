@@ -171,6 +171,7 @@ public:
         std::unordered_set<NodeType *> to_reinsert;
         ks::KString ks;
         ks.puts("#Taxid (inserted)\tScore\tParent\tChildren [comma-separated]\n");
+        const int fd(fileno(fp));
         while(added_.size() < nelem) {
 #if !NDEBUG
             ::emp::assert_sorted_impl<decltype(heap_), node_lt>(heap_);
@@ -202,7 +203,7 @@ public:
             format_emitted_node(ks, bptr, addn_score, maxtax++);
 
             //  if(ks.size() >= (1 << 16))
-            if(ks.size() & (1u << 16)) ks.write(fp), ks.clear();
+            if(ks.size() & (1u << 16)) ks.write(fd), ks.clear();
 
             // Make a list of all pointers to remove and reinsert to the map.
             heap_.erase(heap_.begin());
@@ -210,7 +211,7 @@ public:
             heap_.insert(to_reinsert.begin(), to_reinsert.end()), to_reinsert.clear();
             heap_.insert(bptr);
         }
-        ks.write(fp), ks.clear();
+        ks.write(fd), ks.clear();
     }
     bool emplace_subtree(const tax_t parent, const std::uint32_t ntaxes) {
         if(ntaxes < 2) {
