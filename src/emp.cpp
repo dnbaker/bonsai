@@ -361,14 +361,12 @@ int metatree_main(int argc, char *argv[]) {
     ks.resize(1 << 6);
     typename decltype(tx2desc_map)::iterator it;
     for(const auto tax: taxes) {
-        ks.putsn_("Tax ", 4);
-        ks.putuw_(tax);
-        ks.puts(" has for descendent genomes: ");
+        ks.sprintf("Tax %u has for descendent genomes: ", tax);
         if((it = tx2desc_map.find(tax)) == tx2desc_map.end()) {
-            ks.putsn_("N/A\n", 4);
+            ks.putsn("N/A\n", 4);
         } else {
             for(const auto el: it->second) {
-                ks.putsn_(el.data(), el.size()); ks.putc_(',');
+                ks.putsn(el.data(), el.size()); ks.putc(',');
             }
             ks.back() = '\n';
         }
