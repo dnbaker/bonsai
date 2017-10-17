@@ -326,6 +326,9 @@ public:
     INLINE char       &operator[](size_t index)       {return s[index];}
 
     INLINE int write(FILE *fp) const {return std::fwrite(s, sizeof(char), l, fp);}
+    INLINE int write(int fd) const {
+        return ::write(fd, s, l);
+    }
     INLINE auto write(const char *path) const {
         std::FILE *fp(std::fopen(path, "r"));
         if(!fp) throw 1;

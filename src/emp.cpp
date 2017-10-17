@@ -371,9 +371,9 @@ int metatree_main(int argc, char *argv[]) {
             }
             ks.back() = '\n';
         }
-        if(ks.size() & (1 << 16)) ks.write(ofp), ks.clear();
+        if(ks.size() & (1 << 16)) ks.write(stderr), ks.clear();
     }
-    ks.write(ofp);
+    ks.write(stderr);
     ks.clear();
 #endif
     FMEmitter fme(taxmap, tx2desc_map);
