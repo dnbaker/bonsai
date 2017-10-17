@@ -170,6 +170,7 @@ public:
         }
         std::unordered_set<NodeType *> to_reinsert;
         ks::KString ks;
+        ks.puts("#Taxid (inserted)\tScore\tParent\tChildren [comma-separated]\n");
         while(added_.size() < nelem) {
 #if !NDEBUG
             ::emp::assert_sorted_impl<decltype(heap_), node_lt>(heap_);
@@ -183,7 +184,7 @@ public:
             const auto bptr(*hb);
             const auto addn_score(get_score(*bptr));
             if(bptr->second.added()) {
-                LOG_WARNING("Cannot add more nodes. [Best candidate is impossible.] Breaking from loop.\n");
+                LOG_WARNING("Cannot add more nodes. [Best candidate is already added, which means we've inserted all possible.] Breaking from loop.\n");
                 break;
             } else bptr->second.laa_ = bptr;
             to_reinsert.insert(std::begin(bptr->second.parents_),
@@ -201,7 +202,7 @@ public:
             format_emitted_node(ks, bptr, addn_score, maxtax++);
 
             //  if(ks.size() >= (1 << 16))
-            if(ks.size() & 65536ul) ks.write(fp), ks.clear();
+            if(ks.size() & (1u << 16)) ks.write(fp), ks.clear();
 
             // Make a list of all pointers to remove and reinsert to the map.
             heap_.erase(heap_.begin());
@@ -223,14 +224,15 @@ public:
      * Emits an additional node to the tree where its paren
     */
     void format_emitted_node(ks::KString &ks, const NodeType *node, const std::uint64_t score, const tax_t taxid) const {
+        std::uint64_t val;
         const auto &fm(subtrees_[node->second.si_]);
         ks.putuw_(taxid);
         ks.putc_('\t');
-        ks.putuw_(fm.parent());
+        ks.putl_(score);
         ks.putc_('\t');
+        ks.putuw_(fm.parent());
         const auto &taxes(fm.get_taxes());
         for(size_t i = 0, e = node->first.size(); i < e; ++i) {
-            std::uint64_t val;
             if((val = node->first[i]) == 0) continue;
             for(unsigned char j = 0; j < '@'; ++j) { // @ is 64
 #if !NDEBUG
@@ -246,9 +248,8 @@ public:
 #endif
             }
         }
-        ks.putc_('\t');
-        ks.putl_(score);
-        ks.putc('\n');
+        ks.back() = '\n';
+        ks.terminate();
         // Maybe summary stats?
     }
     template<typename T>

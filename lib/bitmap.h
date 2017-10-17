@@ -137,8 +137,8 @@ public:
 #endif
         // Only keeps kmers from kgset if they don't have 1 or set.size() bits set.
         for(auto &i: tmp) {
-            if(((bitsum = popcnt::vec_popcnt(i.second)) != 1) &
-                (bitsum != set.size()))
+            bitsum = popcnt::vec_popcnt(i.second);
+            if(bitsum != 1u && bitsum != set.size())
 #if !NDEBUG
                     core_.emplace(i.first, i.second), ++n_passed, stringset.insert(bitvec2str(i.second));
             else if(bitsum > 1 && bitsum != set.size()) LOG_DEBUG("bitsum is %u while the set size is %zu\n", bitsum, set.size());
@@ -150,7 +150,7 @@ public:
         LOG_DEBUG("Keeping %zu of %zu kmers whose bit patterns are not exactly compressed by the taxonomy heuristic.\n",
                   n_passed, total);
 #if !NDEBUG
-        for(const auto &pair: bitsum counts)
+        for(const auto &pair: counts)
             LOG_DEBUG("Count %u appeared &u times\n", pair.first, pair.second);
         for(const auto &str: stringset) LOG_DEBUG("'%s' found\n", str.data());
 #endif

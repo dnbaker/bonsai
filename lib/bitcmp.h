@@ -29,7 +29,6 @@ inline int veccmp(const void *a, const void *b, size_t nbytes) {
     }
     std::uint8_t *eba((std::uint8_t *)va), *ebb((std::uint8_t *)vb);
 #elif __SSE2__
-#pragma message("Building veccmp with sse2")
     __m128i aentry, bentry;
     const __m128i *va = reinterpret_cast<const __m128i*>(a),
                   *vb = reinterpret_cast<const __m128i*>(b);
