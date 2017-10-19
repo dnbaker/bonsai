@@ -151,76 +151,13 @@ public:
 };
 
 class FMEmitter {
-    std::vector<FlexMap>       subtrees_;
-    std::set<NodeType *, node_lt>  heap_;
-    std::unordered_set<tax_t>     added_;
-    khash_t(p)               *const tax_;
+    std::vector<FlexMap>                 subtrees_;
+    std::set<NodeType *, node_lt>            heap_;
+    std::unordered_set<tax_t>               added_;
+    khash_t(p)                         *const tax_;
     const std::unordered_map<tax_t, strlist> &tpm_;
-public:
-    // Need taxid to paths map
-    void run_collapse(tax_t maxtax, std::FILE* fp=stdout, std::size_t nelem=0) {
-        assert(heap_.size());
-        if(nelem == 0) {
-            auto bccpy(kh_size(tax_));
-            kroundup32(bccpy);
-            ++bccpy;
-            kroundup32(bccpy); //
-            nelem = bccpy - kh_size(tax_);
-            LOG_DEBUG("elements to add defaulting to %zu more [nodes addable before reaching 2 * nearest power of two (%zu).]\n", nelem, static_cast<std::size_t>(bccpy));
-        }
-        std::unordered_set<NodeType *> to_reinsert;
-        ks::KString ks;
-        ks.puts("#Taxid (inserted)\tScore\tParent\tChildren [comma-separated]\n");
-        const int fd(fileno(fp));
-        while(added_.size() < nelem) {
-#if !NDEBUG
-            ::emp::assert_sorted_impl<decltype(heap_), node_lt>(heap_);
-            ::std::cerr << "Size of heap: " << heap_.size() << '\n';
-            for(const auto node: heap_) {
-                ::std::cerr << node->second.str() << '\n';
-            }
-#endif
-            auto hb(heap_.begin());
-            if(hb == heap_.end()) throw std::runtime_error("Heap is empty as collapse begins.");
-            const auto bptr(*hb);
-            const auto addn_score(get_score(*bptr));
-            if(bptr->second.added()) {
-                LOG_WARNING("Cannot add more nodes. [Best candidate is already added, which means we've inserted all possible.] Breaking from loop.\n");
-                break;
-            } else bptr->second.laa_ = bptr;
-            to_reinsert.insert(std::begin(bptr->second.parents_),
-                               std::end(bptr->second.parents_));
-            for(auto other: bptr->second.subsets_) {
-                to_reinsert.insert(other);
-                if(!!other->second.added() &&
-                   (other->second.laa_ == nullptr ||
-                    other->second.laa_->second.pc_ > bptr->second.pc_))
-                    other->second.laa_ = bptr;
-                for(const auto parent: other->second.parents_)
-                    if(!parent->second.added())
-                        to_reinsert.insert(parent);
-            }
-            format_emitted_node(ks, bptr, addn_score, maxtax++);
 
-            //  if(ks.size() >= (1 << 16))
-            if(ks.size() & (1u << 16)) ks.write(fd), ks.clear();
 
-            // Make a list of all pointers to remove and reinsert to the map.
-            heap_.erase(heap_.begin());
-            for(const auto el: to_reinsert) heap_.erase(el);
-            heap_.insert(to_reinsert.begin(), to_reinsert.end()), to_reinsert.clear();
-            heap_.insert(bptr);
-        }
-        ks.write(fd), ks.clear();
-    }
-    bool emplace_subtree(const tax_t parent, const std::uint32_t ntaxes) {
-        if(ntaxes < 2) {
-            LOG_DEBUG("Skipping subtree of one element. (parent: %u)\n", parent);
-            return false;
-        }
-        subtrees_.emplace_back(parent, ntaxes, subtrees_.size());
-        return true;
-    }
     /*
      * Emits an additional node to the tree where its paren
     */
@@ -253,15 +190,84 @@ public:
         ks.terminate();
         // Maybe summary stats?
     }
+
+    bool emplace_subtree(const tax_t parent, const std::uint32_t ntaxes) {
+        if(ntaxes < 2) {
+            LOG_DEBUG("Skipping subtree of one element. (parent: %u)\n", parent);
+            return false;
+        }
+        subtrees_.emplace_back(parent, ntaxes, subtrees_.size());
+        return true;
+    }
+public:
+    // Also need a map of taxid to tax level.
+    FMEmitter(khash_t(p) *tax, const std::unordered_map<tax_t, strlist> &taxpathmap): tax_{tax}, tpm_{taxpathmap} {}
+    void run_collapse(tax_t maxtax, std::FILE* fp=stdout, std::size_t nelem=0) {
+        ks::KString ks;
+        run_collapse(maxtax, ks, fp, nelem);
+    }
+    void run_collapse(tax_t maxtax, ks::KString &ks, std::FILE* fp, std::size_t nelem) {
+        assert(heap_.size());
+        if(nelem == 0) {
+            auto bccpy(kh_size(tax_));
+            roundup64(bccpy);
+            bccpy <<= 1;
+            nelem = bccpy - kh_size(tax_);
+            LOG_DEBUG("elements to add defaulting to %zu more [nodes addable before reaching 2 * nearest power of two (%zu).]\n", nelem, static_cast<std::size_t>(bccpy));
+        }
+        std::unordered_set<NodeType *> to_reinsert;
+        ks.clear();
+        ks.puts("#Taxid (inserted)\tScore\tParent\tChildren [comma-separated]\n");
+        const int fd(fileno(fp));
+        while(added_.size() < nelem) {
+#if !NDEBUG
+            ::emp::assert_sorted_impl<decltype(heap_), node_lt>(heap_);
+            ::std::cerr << "Size of heap: " << heap_.size() << '\n';
+            for(const auto node: heap_)
+                ::std::cerr << node->second.str() << '\n';
+#endif
+            if(heap_.size() == 0) throw std::runtime_error("Heap is empty as collapse begins.");
+            const auto bptr(*heap_.begin());
+            const auto addn_score(get_score(*bptr));
+            if(bptr->second.added()) {
+                LOG_WARNING("Cannot add more nodes. [Best candidate is already added, which means we've inserted all possible.] Breaking from loop.\n");
+                break;
+            }
+            bptr->second.laa_ = bptr;
+            to_reinsert.insert(std::begin(bptr->second.parents_),
+                               std::end(bptr->second.parents_));
+            for(auto other: bptr->second.subsets_) {
+                to_reinsert.insert(other);
+                auto &desc(other->second);
+                if((desc.laa_ == nullptr ||
+                    desc.laa_->second.pc_ > bptr->second.pc_) && !desc.added())
+                    desc.laa_ = bptr;
+                // descendent's lca is set to bptr if its lca has fewer bits set and it has not been itself added to the map.
+                // This check might be possible to remove later, as a descendent should always have fewer bits set.
+                for(const auto parent: other->second.parents_)
+                    if(!parent->second.added())
+                        to_reinsert.insert(parent);
+            }
+            format_emitted_node(ks, bptr, addn_score, maxtax++);
+
+            //  if(ks.size() >= (1 << 16))
+            if(ks.size() & (1u << 16)) ks.write(fd), ks.clear();
+
+            // Make a list of all pointers to remove and reinsert to the map.
+            heap_.erase(heap_.begin());
+            for(const auto el: to_reinsert) heap_.erase(el);
+            heap_.insert(to_reinsert.begin(), to_reinsert.end()), to_reinsert.clear();
+            heap_.insert(bptr);
+        }
+        ks.write(fd), ks.clear();
+    }
     template<typename T>
     void process_subtree(const tax_t parent, T bit, T eit, const Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr) {
         std::unordered_map<tax_t, strlist> tmpmap;
+        typename std::unordered_map<tax_t, strlist>::const_iterator m;
         while(bit != eit) {
-            const auto m(tpm_.find(*bit++));
-            if(m == tpm_.end())
-                LOG_DEBUG("No paths found for tax %u. Continuing.\n", *(bit - 1));
-            else
-                tmpmap.emplace(m->first, m->second);
+            if((m = tpm_.find(*bit++)) == tpm_.end()) LOG_DEBUG("No paths found for tax %u. Continuing.\n", *(bit - 1));
+            else tmpmap.emplace(m->first, m->second);
         }
         if(emplace_subtree(parent, tmpmap.size())) {
             auto &ref(subtrees_.back());
@@ -270,8 +276,6 @@ public:
             ref.add_to_heap(heap_);
         }
     }
-    // Also need a map of taxid to tax level.
-    FMEmitter(khash_t(p) *tax, const std::unordered_map<tax_t, strlist> &taxpathmap): tax_{tax}, tpm_{taxpathmap} {}
 };
 
 } // namespace emp

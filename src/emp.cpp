@@ -318,7 +318,9 @@ int metatree_main(int argc, char *argv[]) {
     std::unordered_set<std::string> save;
     for(size_t i(0); i < inpaths.size(); ++i) {
         const auto &path(inpaths[i]);
-        if(i % 500 == 0) LOG_DEBUG("At index %zu/%zu, save size is %zu\n", i, inpaths.size(), save.size());
+#if !NDEBUG
+        if((i % 500) == 0) LOG_DEBUG("At index %zu/%zu, save size is %zu\n", i, inpaths.size(), save.size());
+#endif
         tax_t id;
         if((id = get_taxid(path.data(), name_hash)) != UINT32_C(-1)) {
             if(accepted_pass(taxmap, accept_lcas, id)) {
@@ -342,9 +344,8 @@ int metatree_main(int argc, char *argv[]) {
 #endif
     LOG_DEBUG("Finished filtering genomes\n");
 
-    if(inpaths.size() == 0) {
+    if(inpaths.size() == 0)
         throw std::runtime_error("No input paths. I need to process genomes to tell you about them.");
-    }
     LOG_INFO("Processing %zu genomes\n", inpaths.size());
 
 // Core
@@ -387,8 +388,12 @@ int metatree_main(int argc, char *argv[]) {
         fme.process_subtree(pair.first, begin(tmptaxes), end(tmptaxes), sp, num_threads, nullptr);
         tmptaxes.clear();
     }
+#if !NDEBUG
+    fme.run_collapse(max_tax + 1, ks, ofp, nelem);
+#else
     fme.run_collapse(max_tax + 1, ofp, nelem);
-    if(ofp != stdout) fclose(ofp);
+#endif
+    if(ofp != stdout) std::fclose(ofp);
     return EXIT_SUCCESS;
 }
 
