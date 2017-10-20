@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include "kspp/ks.h"
 #include "klib/kstring.h"
 #include "khash64.h"
 #include "lib/logutil.h"
@@ -328,6 +329,15 @@ std::vector<ValType> vector_set_filter(const std::vector<ValType> &vec, const Se
     return ret;
 }
 std::string bitvec2str(const std::vector<std::uint64_t> &a);
+
+static inline kstring_t *kspp2ks(ks::KString &ks) {
+    static_assert(sizeof(kstring_t) == sizeof(ks::KString), "ks::KString must have the same size.");
+    return reinterpret_cast<kstring_t *>(std::addressof(ks));
+}
+static inline const kstring_t *kspp2ks(const ks::KString &ks) {
+    static_assert(sizeof(kstring_t) == sizeof(ks::KString), "ks::KString must have the same size.");
+    return reinterpret_cast<const kstring_t *>(std::addressof(ks));
+}
 
 } // namespace emp
 

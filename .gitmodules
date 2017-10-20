@@ -22,3 +22,6 @@
 [submodule "tinythreadpp"]
 	path = tinythreadpp
 	url = https://github.com/aseprite/tinythreadpp
+[submodule "kspp"]
+	path = kspp
+	url = https://github.com/dnbaker/kspp

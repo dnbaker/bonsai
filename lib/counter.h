@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <vector>
 #include "lib/util.h"
-#include "lib/ks.h"
+#include "kspp/ks.h"
 #include "clhash/include/clhash.h"
 
 namespace emp {

@@ -5,7 +5,7 @@
 #include <zlib.h>
 #include <sstream>
 #include <fstream>
-#include "lib/ks.h"
+#include "kspp/ks.h"
 
 namespace emp {
 
