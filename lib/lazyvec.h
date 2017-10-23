@@ -7,7 +7,12 @@
 
 namespace lazy {
 
-template<typename T, typename size_type=std::size_t, bool init=!std::is_pod<T>::value>
+enum initialization: bool {
+    LAZY_VEC_NOINIT = false,
+    LAZY_VEC_INIT = true
+};
+
+template<typename T, typename size_type=std::size_t>
 class vector {
     T *data_;
     size_type n_, m_;
@@ -16,10 +21,10 @@ class vector {
 public:
     using value_type = T;
     template<typename... FactoryArgs>
-    vector(size_t n=0, FactoryArgs &&...args): n_{n}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
-        if constexpr(init) {
-            for(size_type i(0); i < n_; ++i) new(data_ + i) T(std::forward<FactoryArgs>(args)...);
-        }
+    vector(size_t n=0, bool init=!std::is_pod<T>::value, FactoryArgs &&...args): n_{n}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
+        if (init)
+            for(size_type i(0); i < n_; ++i)
+                new(data_ + i) T(std::forward<FactoryArgs>(args)...);
     }
     const T *cbegin() const {return data_;}
     const T *cend()   const {return data_ + n_;}
@@ -35,11 +40,12 @@ public:
     const auto &front() const {return data_[0];}
     auto size() const {return n_;}
     auto capacity() const {return m_;}
-    template<typename osize_type, bool oinit>
-    bool operator==(const ::lazy::vector<T, osize_type, oinit> &other) const {
+    template<typename osize_type>
+    bool operator==(const ::lazy::vector<T, osize_type> &other) const {
         if(size() != other.size()) return false;
-        using IterType = std::common_type_t<osize_type, size_type>;
-        for(IterType i(0); i < n_; ++i) if(data_[i] != other[i]) return false;
+        for(typename std::common_type_t<osize_type, size_type>i(0);i < n_; ++i)
+            if(data_[i] != other[i])
+                return false;
         return true;
     }
     // Note: push_back and emplace_back are the same *except* that push_back changes size multiplicatively.
@@ -70,9 +76,9 @@ public:
         }
     }
     template<typename... Args>
-    void resize(std::size_t newsize, bool initialize=true, Args &&...args) {
+    void resize(std::size_t newsize, bool init=true, Args &&...args) {
         reserve(newsize);
-        if(initialize) {
+        if(init) {
             for(;n_ < m_;) new(data_ + n_++) T(std::forward<Args>(args)...);
         }
     }

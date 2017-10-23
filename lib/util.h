@@ -93,7 +93,7 @@ KHASH_MAP_INIT_INT(p, tax_t)
 KHASH_MAP_INIT_STR(name, tax_t)
 using strlist = std::forward_list<std::string>;
 using cpslist = std::forward_list<std::string*>;
-using bitvec_t = lazy::vector<std::uint64_t, std::uint32_t, true>;
+using bitvec_t = lazy::vector<std::uint64_t, std::uint32_t>;
 
 std::string rand_string(std::size_t n);
 std::size_t count_lines(const char *fn) noexcept;

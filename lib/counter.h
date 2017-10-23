@@ -44,10 +44,10 @@ const static rand_holder RAND;
 
 namespace std {
 
-  template <typename T, typename size_type, bool init>
-  struct hash<lazy::vector<T, size_type, init>>
+  template <typename T, typename size_type>
+  struct hash<lazy::vector<T, size_type>>
   {
-    uint64_t operator()(const lazy::vector<T, size_type, init>& vec) const
+    uint64_t operator()(const lazy::vector<T, size_type>& vec) const
     {
         return clhash(emp::RAND, reinterpret_cast<const char *>(vec.data()), vec.size() * sizeof(T));
     }
@@ -62,10 +62,10 @@ namespace std {
   };
 
 
-  template <typename T, typename size_type, bool init>
-  struct hash<pair<int, lazy::vector<T, size_type, init>>>
+  template <typename T, typename size_type>
+  struct hash<pair<int, lazy::vector<T, size_type>>>
   {
-    uint64_t operator()(const pair<int, lazy::vector<T, size_type, init>>& p) const
+    uint64_t operator()(const pair<int, lazy::vector<T, size_type>>& p) const
     {
         return clhash(emp::RAND, reinterpret_cast<const char *>(p.second.data()), p.second.size() * sizeof(T)) ^ ((std::uint64_t(p.first) << 32) | p.first);
     }
