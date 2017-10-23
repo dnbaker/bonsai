@@ -25,6 +25,7 @@ tree_glob_t::tree_glob_t(khash_t(p) *tax, tax_t parent, const std::string &fld, 
     LOG_DEBUG("About to get tax ids for children.\n");
     if(acceptable_) LOG_DEBUG("About to make tax counter. Size of acceptable hash: %zu\n", kh_size(acceptable_));
 #endif
+    LOG_WARNING("Reloading kmers from genome at each stage. Binary dump is not being performed.\n");
     get_taxes(invert);
     LOG_DEBUG("Got taxes: %zu\n", taxes_.size());
     tax_path_map_t tmp;

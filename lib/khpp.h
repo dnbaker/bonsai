@@ -379,11 +379,11 @@ struct khpp_t {
     khpp_t &operator=(const khpp_t &other) {
         if(this == &other) return *this;
         std::memcpy(this, &other, sizeof(*this));
-        flags = static_cast<khint32_t *>(malloc(__ac_fsize(n_buckets) * sizeof(khint32_t)));
+        flags = static_cast<khint32_t *>(std::malloc(__ac_fsize(n_buckets) * sizeof(khint32_t)));
         std::memcpy(flags, other.flags, __ac_fsize(n_buckets) * sizeof(khint32_t));
-        vals  = static_cast<khval_t *>(malloc(n_buckets * sizeof(khval_t)));
+        vals  = static_cast<khval_t *>(std::malloc(n_buckets * sizeof(khval_t)));
         std::memcpy(vals, other.vals, n_buckets * sizeof(khval_t));
-        keys  = static_cast<khkey_t *>(malloc(n_buckets * sizeof(khkey_t)));
+        keys  = static_cast<khkey_t *>(std::malloc(n_buckets * sizeof(khkey_t)));
         std::memcpy(keys, other.keys, n_buckets * sizeof(khkey_t));
         return *this;
     }

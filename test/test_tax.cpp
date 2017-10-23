@@ -27,7 +27,7 @@ TEST_CASE("tax") {
             buf[len - 1] = '\0';
             paths.emplace_back(prefix + buf);
         }
-        free(buf);
+        std::free(buf);
         std::fclose(fp);
     }
     Spacer sp(13, 13, v);

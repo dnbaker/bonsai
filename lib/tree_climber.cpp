@@ -115,7 +115,7 @@ khash_t(p) *pruned_taxmap(std::vector<std::string> &paths, khash_t(p) *taxmap, k
 }
 
 khash_t(all) *load_binary_kmerset(const char *path) {
-    std::FILE *fp(fopen(path, "rb"));
+    std::FILE *fp(std::fopen(path, "rb"));
     if(fp == nullptr) throw std::system_error(std::error_code(2, std::system_category()), std::string("Cannot open path at ") + path + ".\n");
     khash_t(all) *ret(kh_init(all));
     std::uint64_t n;
@@ -125,10 +125,11 @@ khash_t(all) *load_binary_kmerset(const char *path) {
     for(int khr; std::fread(&n, 1, sizeof(std::uint64_t), fp) == sizeof(std::uint64_t); kh_put(all, ret, n, &khr));
     std::fclose(fp);
 #if !NDEBUG
+    // Just make sure it all worked.
     for(khiter_t ki(0); ki < kh_end(ret); ++ki) {
         if(kh_exist(ret, ki)) assert(kh_get(all, ret, kh_key(ret, ki)) != kh_end(ret));
     }
-    fp = fopen(path, "rb");
+    fp = std::fopen(path, "rb");
     std::fread(&n, 1, sizeof(std::uint64_t), fp); // Skip first number.
     while(std::fread(&n, 1, sizeof(std::uint64_t), fp) == sizeof(std::uint64_t)) assert(kh_get(all, ret, n) != kh_end(ret));
     std::fclose(fp);
@@ -137,13 +138,18 @@ khash_t(all) *load_binary_kmerset(const char *path) {
 }
 
 
-bitvec_t load_binary_kmers(const char *path) {
-    std::FILE *fp(fopen(path, "rb"));
-    bitvec_t ret;
+lazy::vector<std::uint64_t, std::size_t> load_binary_kmers(const char *path) {
+    std::FILE *fp(std::fopen(path, "rb"));
+    if(fp == nullptr) throw std::system_error(std::error_code(2, std::system_category()), std::string("Cannot open path at ") + path + ".\n");
+    lazy::vector<std::uint64_t, std::size_t> ret;
     std::uint64_t n, ind(0);
     std::fread(&n, sizeof(n), 1, fp);
-    ret.resize(n, false); // Initializes to 0 unnecessarily. Better than passing it to a temporary variable every time, I think.
-    while(std::fread(ret.data() + ind++, sizeof(std::uint64_t), 1, fp) == sizeof(std::uint64_t));
+    ret.resize(n, lazy::LAZY_VEC_NOINIT);
+    auto it(ret.begin());
+    auto eit(ret.end());
+    while(std::fread(it++, sizeof(std::uint64_t), 1, fp) == sizeof(std::uint64_t))
+        if(unlikely(it == eit))
+            throw std::runtime_error("Read too many integers from file. Number provided (" + std::to_string(n) + ") is wrong.");
     std::fclose(fp);
     return ret;
 }
