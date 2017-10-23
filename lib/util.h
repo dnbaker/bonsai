@@ -19,6 +19,7 @@
 #include "lib/logutil.h"
 #include "lib/sample_gen.h"
 #include "lib/rand.h"
+#include "lib/lazyvec.h"
 
 #ifdef __GNUC__
 #  ifndef likely
@@ -83,8 +84,6 @@ using tax_t = std::uint32_t;
     fprintf(stderr, "Task %s took %lfs\n", name, std::chrono::duration<double>(j_##_name - i_##_name).count());\
 } while(0)
 
-template<typename T> class TD; // For debugging
-
 namespace emp {
 
 KHASH_SET_INIT_INT64(all)
@@ -94,7 +93,7 @@ KHASH_MAP_INIT_INT(p, tax_t)
 KHASH_MAP_INIT_STR(name, tax_t)
 using strlist = std::forward_list<std::string>;
 using cpslist = std::forward_list<std::string*>;
-using bitvec_t = std::vector<std::uint64_t>;
+using bitvec_t = lazy::vector<std::uint64_t, std::uint32_t, true>;
 
 std::string rand_string(std::size_t n);
 std::size_t count_lines(const char *fn) noexcept;
@@ -328,7 +327,15 @@ std::vector<ValType> vector_set_filter(const std::vector<ValType> &vec, const Se
     for(const auto el: vec) if((it = set.find(el)) != set.end()) ret.emplace_back(el);
     return ret;
 }
-std::string bitvec2str(const std::vector<std::uint64_t> &a);
+
+template<typename T>
+std::string bitvec2str(const T &a) {
+    std::string ret;
+    for(auto it(a.cbegin()), eit(a.cend()); it != eit; ++it)
+        for(int j(63); j >= 0; j--)
+            ret += ((*it & (1ull << j)) != 0) + '0';
+    return ret;
+}
 
 static inline kstring_t *kspp2ks(ks::KString &ks) {
     static_assert(sizeof(kstring_t) == sizeof(ks::KString), "ks::KString must have the same size.");

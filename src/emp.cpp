@@ -272,8 +272,8 @@ int metatree_usage(const char *arg) {
     return EXIT_FAILURE;
 }
 
-template struct kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
-using pkh_t = kh::khpp_t<std::vector<std::uint64_t> *, std::uint64_t, ptr_wang_hash_struct<std::vector<std::uint64_t> *>>;
+template struct kh::khpp_t<bitvec_t *, std::uint64_t, ptr_wang_hash_struct<bitvec_t *>>;
+using pkh_t = kh::khpp_t<bitvec_t *, std::uint64_t, ptr_wang_hash_struct<bitvec_t *>>;
 
 bool accepted_pass(const khash_t(p) *taxmap, const std::vector<tax_t> &accepted, tax_t id) {
     if(accepted.empty()) return true;

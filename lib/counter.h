@@ -44,6 +44,14 @@ const static rand_holder RAND;
 
 namespace std {
 
+  template <typename T, typename size_type, bool init>
+  struct hash<lazy::vector<T, size_type, init>>
+  {
+    uint64_t operator()(const lazy::vector<T, size_type, init>& vec) const
+    {
+        return clhash(emp::RAND, reinterpret_cast<const char *>(vec.data()), vec.size() * sizeof(T));
+    }
+  };
   template <typename T>
   struct hash<vector<T>>
   {
@@ -53,6 +61,15 @@ namespace std {
     }
   };
 
+
+  template <typename T, typename size_type, bool init>
+  struct hash<pair<int, lazy::vector<T, size_type, init>>>
+  {
+    uint64_t operator()(const pair<int, lazy::vector<T, size_type, init>>& p) const
+    {
+        return clhash(emp::RAND, reinterpret_cast<const char *>(p.second.data()), p.second.size() * sizeof(T)) ^ ((std::uint64_t(p.first) << 32) | p.first);
+    }
+  };
 
   template <typename T>
   struct hash<pair<int, vector<T>>>
@@ -69,10 +86,10 @@ namespace emp {
 
 namespace count {
 
-template<typename T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type* dummy=nullptr>
-auto vec2str(const std::vector<T> &vec) -> std::string {
+template<typename Container, typename=std::enable_if_t<std::is_arithmetic<typename Container::value_type>::value>>
+std::string vec2str(const Container &vec)  {
     std::string ret;
-    for(const auto &i: vec) ret += std::to_string(i) + ", ";
+    for(const auto i: vec) ret += std::to_string(i) + ", ";
     ret.pop_back(), ret.pop_back();
     return ret;
 }

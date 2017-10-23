@@ -38,7 +38,7 @@ struct ptr_hash {
 
 template<typename T>
 class AdjacencyList {
-    std::unordered_map<const T*, std::vector<const T*>, ptr_hash<T>> map_;
+    std::unordered_map<const T*, lazy::vector<const T*>, ptr_hash<T>> map_;
     std::size_t m_, nelem_;
     bool is_reverse_;
 

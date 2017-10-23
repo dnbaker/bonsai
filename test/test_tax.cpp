@@ -33,20 +33,22 @@ TEST_CASE("tax") {
     Spacer sp(13, 13, v);
     kgset_t set(paths, sp);
     REQUIRE(set.size() == paths.size());
-    count::Counter<std::vector<std::uint64_t>> counts(bitmap_t(set).to_counter());
+    count::Counter<bitvec_t> counts(bitmap_t(set).to_counter());
     adjmap_t adj(counts);
     //LOG_DEBUG("Weight: %zu. Number of bit patterns: %zu. Total weight of all bit patterns: %zu\n", set.weight(), counts.size(), counts.total());
 
     //counts.print_counts(stderr);
     //counts.print_hist(stderr);
-    std::vector<std::uint64_t> thing;
-    for(size_t i(0); i < 1 << 16; ++i) thing.push_back(((uint64_t)rand() << 32) | rand());
+    bitvec_t thing;
+    thing.reserve(1 << 16);
+    for(size_t i(0); i < 1 << 16; ++i)
+        thing.emplace_back(((uint64_t)rand() << 32) | rand());
 }
 
 TEST_CASE("bitstrings") {
-    std::vector<std::uint64_t> v1, v2;
+    bitvec_t v1, v2;
     for(auto i: {1,177,123232,1222, 3344411, 11232}) v1.emplace_back(i), v2.emplace_back(i);
-    count::Counter<std::vector<std::uint64_t>> counter;
+    count::Counter<bitvec_t> counter;
     counter.add(v1);
     counter.add(v2);
     counter.print_vec();

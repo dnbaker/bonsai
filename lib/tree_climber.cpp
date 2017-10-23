@@ -137,12 +137,12 @@ khash_t(all) *load_binary_kmerset(const char *path) {
 }
 
 
-std::vector<std::uint64_t> load_binary_kmers(const char *path) {
+bitvec_t load_binary_kmers(const char *path) {
     std::FILE *fp(fopen(path, "rb"));
-    std::vector<std::uint64_t> ret;
+    bitvec_t ret;
     std::uint64_t n, ind(0);
     std::fread(&n, sizeof(n), 1, fp);
-    ret.resize(n); // Initializes to 0 unnecessarily. Better than passing it to a temporary variable every time, I think.
+    ret.resize(n, false); // Initializes to 0 unnecessarily. Better than passing it to a temporary variable every time, I think.
     while(std::fread(ret.data() + ind++, sizeof(std::uint64_t), 1, fp) == sizeof(std::uint64_t));
     std::fclose(fp);
     return ret;
