@@ -142,7 +142,7 @@ lazy::vector<std::uint64_t, std::size_t> load_binary_kmers(const char *path) {
     std::FILE *fp(std::fopen(path, "rb"));
     if(fp == nullptr) throw std::system_error(std::error_code(2, std::system_category()), std::string("Cannot open path at ") + path + ".\n");
     lazy::vector<std::uint64_t, std::size_t> ret;
-    std::uint64_t n, ind(0);
+    std::uint64_t n;
     std::fread(&n, sizeof(n), 1, fp);
     ret.resize(n, lazy::LAZY_VEC_NOINIT);
     auto it(ret.begin());

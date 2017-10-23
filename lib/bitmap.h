@@ -69,10 +69,10 @@ public:
                 while(++j != map.end()) {
                     switch(veccmp(i->first, j->first)) {
                         case 1:
-                            map_[&i->first].push_back(&j->first); // i is a strict parent of j.
+                            map_[&i->first].emplace_back(&j->first); // i is a strict parent of j.
                             break;
                         case 2:
-                            map_[&j->first].push_back(&i->first); // j is a strict parent of i.
+                            map_[&j->first].emplace_back(&i->first); // j is a strict parent of i.
                             break;
                     }
                 }
@@ -84,10 +84,10 @@ public:
                 while(++j != map.end()) {
                     switch(veccmp(i->first, j->first)) {
                         case 1:
-                            map_[&j->first].push_back(&i->first); // j is a strict parent of i.
+                            map_[&j->first].emplace_back(&i->first); // j is a strict parent of i.
                             break;
                         case 2:
-                            map_[&i->first].push_back(&j->first); // i is a strict parent of j.
+                            map_[&i->first].emplace_back(&j->first); // i is a strict parent of j.
                             break;
                     }
                 }
