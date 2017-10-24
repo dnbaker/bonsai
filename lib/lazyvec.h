@@ -19,14 +19,14 @@ enum initialization: bool {
 
 template<typename T, typename size_type=std::size_t>
 class vector {
-    T *data_;
     size_type n_, m_;
+    T *data_;
     static constexpr double PUSH_BACK_RESIZING_FACTOR = LAZY_PUSH_BACK_RESIZING_FACTOR;
 
 public:
     using value_type = T;
     template<typename... FactoryArgs>
-    vector(size_t n=0, bool init=!std::is_pod<T>::value, FactoryArgs &&...args): n_{n}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
+    vector(size_type n=0, bool init=!std::is_pod<T>::value, FactoryArgs &&...args): n_{n}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
         if (init)
             for(size_type i(0); i < n_; ++i)
                 new(data_ + i) T(std::forward<FactoryArgs>(args)...);

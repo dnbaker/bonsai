@@ -7,7 +7,7 @@ GMATCH=$(findstring g++,$(CXX))
 CLHASH_CHECKOUT = "&& git checkout master"
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
-		 -Wformat -Wcast-align -Wunused-function -Wno-unused-parameter \
+		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
 		 -pedantic -DUSE_PDQSORT -Wunused-variable
 ifndef EXTRA
 	EXTRA:= 
