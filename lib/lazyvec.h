@@ -99,6 +99,13 @@ public:
             for(;n_ < m_;) new(data_ + n_++) T(std::forward<Args>(args)...);
         }
     }
+    void shrink_to_fit() {
+        if(m_ > n_) {
+            auto tmp(static_cast<T*>(std::realloc(data_, sizeof(T) * n_)));
+            if(tmp == nullptr) throw std::bad_alloc();
+            data_ = tmp;
+        }
+    }
     T &operator[](size_type idx) {return data_[idx];}
     const T &operator[](size_type idx) const {return data_[idx];}
     ~vector(){
