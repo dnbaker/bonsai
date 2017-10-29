@@ -6,16 +6,16 @@
 #include <cstdlib>
 #include "kspp/ks.h"
 
+#ifndef LAZY_PUSH_BACK_RESIZING_FACTOR
+#define LAZY_PUSH_BACK_RESIZING_FACTOR 1.25
+#endif
+
 namespace lazy {
 
 enum initialization: bool {
     LAZY_VEC_NOINIT = false,
     LAZY_VEC_INIT = true
 };
-
-#ifndef LAZY_PUSH_BACK_RESIZING_FACTOR
-#define LAZY_PUSH_BACK_RESIZING_FACTOR 1.25
-#endif
 
 template<typename T, typename size_type=std::size_t>
 class vector {
@@ -104,6 +104,7 @@ public:
             auto tmp(static_cast<T*>(std::realloc(data_, sizeof(T) * n_)));
             if(tmp == nullptr) throw std::bad_alloc();
             data_ = tmp;
+            m_ = n_;
         }
     }
     T &operator[](size_type idx) {return data_[idx];}
