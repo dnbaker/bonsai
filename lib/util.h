@@ -105,6 +105,9 @@ void destroy_name_hash(khash_t(name) *hash) noexcept;
 void print_name_hash(khash_t(name) *hash) noexcept;
 khash_t(p) *build_parent_map(const char *fn) noexcept;
 
+lazy::vector<std::uint64_t, std::size_t> load_binary_kmers(const char *path);
+khash_t(all) *load_binary_kmerset(const char *path);
+
 tax_t get_max_val(const khash_t(p) *hash) noexcept;
 std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(khash_t(p) *) noexcept;
 tax_t get_taxid(const char *fn, khash_t(name) *name_hash);

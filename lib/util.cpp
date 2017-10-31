@@ -569,5 +569,46 @@ tax_t get_max_val(const khash_t(p) *hash) noexcept {
     return mx;
 }
 
+khash_t(all) *load_binary_kmerset(const char *path) {
+    std::FILE *fp(std::fopen(path, "rb"));
+    if(fp == nullptr) throw std::system_error(std::error_code(2, std::system_category()), std::string("Cannot open path at ") + path + ".\n");
+    khash_t(all) *ret(kh_init(all));
+    std::uint64_t n;
+    std::fread(&n, 1, sizeof(n), fp);
+    if(kh_resize(all, ret, n) < 0) LOG_EXIT("Could not resize hash table to next power of 2 above %zu. New size: %zu\n", n, kh_n_buckets(ret));
+    LOG_DEBUG("About to place %zu elements into a hash table of max size %zu\n", n, kh_n_buckets(ret));
+    for(int khr; std::fread(&n, 1, sizeof(std::uint64_t), fp) == sizeof(std::uint64_t); kh_put(all, ret, n, &khr));
+    std::fclose(fp);
+#if !NDEBUG
+    // Just make sure it all worked.
+    for(khiter_t ki(0); ki < kh_end(ret); ++ki) {
+        if(kh_exist(ret, ki)) assert(kh_get(all, ret, kh_key(ret, ki)) != kh_end(ret));
+    }
+    fp = std::fopen(path, "rb");
+    std::fread(&n, 1, sizeof(std::uint64_t), fp); // Skip first number.
+    while(std::fread(&n, 1, sizeof(std::uint64_t), fp) == sizeof(std::uint64_t)) assert(kh_get(all, ret, n) != kh_end(ret));
+    std::fclose(fp);
+#endif
+    return ret;
+}
+
+
+lazy::vector<std::uint64_t, std::size_t> load_binary_kmers(const char *path) {
+    std::FILE *fp(std::fopen(path, "rb"));
+    if(fp == nullptr) throw std::system_error(std::error_code(2, std::system_category()), std::string("Cannot open path at ") + path + ".\n");
+    lazy::vector<std::uint64_t, std::size_t> ret;
+    std::uint64_t n;
+    std::fread(&n, sizeof(n), 1, fp);
+    ret.resize(n, lazy::LAZY_VEC_NOINIT);
+    auto it(ret.begin());
+    auto eit(ret.end());
+    while(std::fread(it++, sizeof(std::uint64_t), 1, fp) == sizeof(std::uint64_t))
+        if(unlikely(it == eit))
+            throw std::runtime_error("Read too many integers from file. Number provided (" + std::to_string(n) + ") is wrong.");
+    std::fclose(fp);
+    return ret;
+}
+
+
 
 } //namespace emp
