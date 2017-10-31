@@ -86,6 +86,9 @@ using tax_t = std::uint32_t;
 
 namespace emp {
 
+using u32 = std::uint32_t;
+using u64 = std::uint64_t;
+
 KHASH_SET_INIT_INT64(all)
 KHASH_MAP_INIT_INT64(c, tax_t)
 KHASH_MAP_INIT_INT64(64, std::uint64_t)

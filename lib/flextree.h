@@ -14,36 +14,20 @@ using NodeType = std::pair<const bitvec_t, fnode_t>;
 using namespace std::literals;
 
 struct fnode_t {
-    std::uint64_t                 n_;  // Number of kmers at this point in tree.
-    const NodeType             *laa_;  // lowest added ancestor
-    std::vector<NodeType *> subsets_;
-    std::vector<NodeType *> parents_;
-    const std::uint32_t          pc_;  // cached popcount of bitvector
-    const std::uint32_t          bc_;  // bitcount in family
-    const std::uint32_t          si_;
-
-    fnode_t(const bitvec_t &bits, std::uint32_t bc, std::uint32_t subtree_index, const std::uint64_t n=0):
-        n_{n}, laa_{nullptr}, pc_{static_cast<std::uint32_t>(popcnt::vec_popcnt(bits))},
+    const u64         n_;  // Number of kmers at this point in tree.
+    const u32         pc_;  // popcount
+    const u32         bc_;  // bitcount for family (number of clades in subtree)
+    const u32         si_;  // subtree index
+    fnode_t(const bitvec_t &bits, u32 bc, u32 subtree_index, const u64 n=0):
+        n_{n}, pc_{static_cast<u32>(popcnt::vec_popcnt(bits))},
         bc_{bc}, si_{subtree_index} {}
-
-    bool added()      const {return laa_ && &laa_->second == this;}
-    std::string str() const {
-        return "[fnode]{n:"s + std::to_string(n_) + (added() ? ",added:true,": ",added:false,bc:")
-                             + std::to_string(bc_) + ",pc:" + std::to_string(pc_)
-                             + ",subtree id:" + std::to_string(si_) + '}';
+    ks::KString str() const {
+        return ks::sprintf("fnode_t[n:%zu,popcount:%u,familysize:%u", n_, pc_, bc_);
     }
 };
 
-INLINE std::uint64_t get_score(const NodeType &node) {
-    if(node.second.added()) return 0;
-    std::uint64_t ret(node.second.n_);
-    for(auto s: node.second.subsets_)
-        if(s->second.added() == false)
-            if(s->second.laa_ == nullptr ||
-               (s->second.laa_ != s && s->second.laa_->second.pc_ > node.second.pc_))
-                ret += s->second.n_;
-    return ((node.second.laa_ ? node.second.laa_->second.pc_
-                              : node.second.bc_) - node.second.pc_) * ret;
+INLINE u64 get_score(const NodeType &node) {
+    return (bc_ - pc_) * n_;
 }
 
 struct node_lt {
@@ -56,9 +40,9 @@ class FlexMap {
 
     std::unordered_map<bitvec_t, fnode_t> map_;
     std::vector<tax_t>                    tax_;
-    std::uint64_t                           n_;
-    std::uint32_t                    bitcount_;
-    const std::uint32_t                    id_;
+    u64                                     n_;
+    u32                              bitcount_;
+    const u32                              id_;
     const tax_t                        parent_;
 
 public:
@@ -117,7 +101,7 @@ public:
         }
     }
 public:
-    FlexMap(const tax_t parent, const std::uint32_t ntaxes, std::uint32_t id):
+    FlexMap(const tax_t parent, const u32 ntaxes, u32 id):
         n_{0}, bitcount_{ntaxes}, id_{id}, parent_{parent} {}
 
     INLINE void add(bitvec_t &&elem) {
@@ -161,8 +145,8 @@ class FMEmitter {
     /*
      * Emits an additional node to the tree where its paren
     */
-    void format_emitted_node(ks::KString &ks, const NodeType *node, const std::uint64_t score, const tax_t taxid) const {
-        std::uint64_t val;
+    void format_emitted_node(ks::KString &ks, const NodeType *node, const u64 score, const tax_t taxid) const {
+        u64 val;
         const auto &fm(subtrees_[node->second.si_]);
         ks.putuw_(taxid);
         ks.putc_('\t');
@@ -191,7 +175,7 @@ class FMEmitter {
         // Maybe summary stats?
     }
 
-    bool emplace_subtree(const tax_t parent, const std::uint32_t ntaxes) {
+    bool emplace_subtree(const tax_t parent, const u32 ntaxes) {
         if(ntaxes < 2) {
             LOG_DEBUG("Skipping subtree of one element. (parent: %u)\n", parent);
             return false;
