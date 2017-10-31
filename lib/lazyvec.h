@@ -6,6 +6,10 @@
 #include <cstdlib>
 #include "kspp/ks.h"
 
+#ifndef LAZY_PUSH_BACK_RESIZING_FACTOR
+#define LAZY_PUSH_BACK_RESIZING_FACTOR 1.25
+#endif
+
 namespace lazy {
 
 enum initialization: bool {
@@ -13,20 +17,16 @@ enum initialization: bool {
     LAZY_VEC_INIT = true
 };
 
-#ifndef LAZY_PUSH_BACK_RESIZING_FACTOR
-#define LAZY_PUSH_BACK_RESIZING_FACTOR 1.25
-#endif
-
 template<typename T, typename size_type=std::size_t>
 class vector {
-    T *data_;
     size_type n_, m_;
+    T *data_;
     static constexpr double PUSH_BACK_RESIZING_FACTOR = LAZY_PUSH_BACK_RESIZING_FACTOR;
 
 public:
     using value_type = T;
     template<typename... FactoryArgs>
-    vector(size_t n=0, bool init=!std::is_pod<T>::value, FactoryArgs &&...args): n_{n}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
+    vector(size_type n=0, bool init=!std::is_pod<T>::value, FactoryArgs &&...args): n_{n}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
         if (init)
             for(size_type i(0); i < n_; ++i)
                 new(data_ + i) T(std::forward<FactoryArgs>(args)...);
@@ -97,6 +97,14 @@ public:
         reserve(newsize);
         if(init) {
             for(;n_ < m_;) new(data_ + n_++) T(std::forward<Args>(args)...);
+        }
+    }
+    void shrink_to_fit() {
+        if(m_ > n_) {
+            auto tmp(static_cast<T*>(std::realloc(data_, sizeof(T) * n_)));
+            if(tmp == nullptr) throw std::bad_alloc();
+            data_ = tmp;
+            m_ = n_;
         }
     }
     T &operator[](size_type idx) {return data_[idx];}
