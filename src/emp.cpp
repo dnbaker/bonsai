@@ -5,11 +5,10 @@
 #include "lib/util.h"
 #include "lib/database.h"
 #include "lib/classifier.h"
-#include "lib/tree_climber.h"
+//#include "lib/tree_climber.h"
 #include "lib/bitmap.h"
 #include "lib/tx.h"
 #include "lib/khpp.h"
-#include "lib/glob.h"
 #include "lib/flextree.h"
 #include "cppitertools/groupby.hpp"
 
@@ -339,9 +338,6 @@ int metatree_main(int argc, char *argv[]) {
         while((id = get_parent(taxmap, tax)))
             used_taxes.insert(id), tax = id;
     }
-#if PRUNE
-    throw std::runtime_error("NotImplemented (again).");
-#endif
     LOG_DEBUG("Finished filtering genomes\n");
 
     if(inpaths.size() == 0)
@@ -352,15 +348,11 @@ int metatree_main(int argc, char *argv[]) {
     std::vector<tax_t> taxes(get_sorted_taxes(taxmap, argv[optind + 1]));
     taxes = vector_set_filter(taxes, used_taxes);
     std::cerr << "Got sorted taxes\n";
-#if !NDEBUG
-    for(const auto tax: taxes) {
-        assert(tax_depths.find(tax) != tax_depths.end());
-    }
-#endif
     auto tx2desc_map(tax2desc_genome_map(tax2genome_map(name_hash, inpaths), taxmap, taxes, tax_depths));
 #if !NDEBUG
     for(const auto tax: taxes) assert(kh_get(p, taxmap, tax) != kh_end(taxmap));
     ks::KString ks;
+    const int stderrfn(fileno(stderr));
     ks.resize(1 << 6);
     typename decltype(tx2desc_map)::iterator it;
     for(const auto tax: taxes) {
@@ -374,12 +366,14 @@ int metatree_main(int argc, char *argv[]) {
             }
             ks.back() = '\n';
         }
-        if(ks.size() & (1 << 16)) ks.write(stderr), ks.clear();
+        if(ks.size() & (1 << 16)) ks.write(stderrfn), ks.clear();
     }
-    ks.write(stderr);
+    ks.write(stderrfn);
     ks.clear();
 #endif
+    // TODO: Add new taxonomy creation
     FMEmitter fme(taxmap, tx2desc_map);
+#if 0
     std::vector<tax_t> tmptaxes;
     for(auto &&pair: iter::groupby(taxes, [tm=taxmap](const tax_t a){return get_parent(tm, a);})) {
         // Copying just because I don't trust the lifetime management of iter::groupby.
@@ -388,9 +382,6 @@ int metatree_main(int argc, char *argv[]) {
         fme.process_subtree(pair.first, begin(tmptaxes), end(tmptaxes), sp, num_threads, nullptr);
         tmptaxes.clear();
     }
-#if !NDEBUG
-    fme.run_collapse(max_tax + 1, ks, ofp, nelem);
-#else
     fme.run_collapse(max_tax + 1, ofp, nelem);
 #endif
     if(ofp != stdout) std::fclose(ofp);
