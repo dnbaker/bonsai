@@ -5,7 +5,7 @@
 #include "lib/util.h"
 #include "lib/database.h"
 #include "lib/classifier.h"
-#include "lib/tree_climber.h"
+//#include "lib/tree_climber.h"
 #include "lib/bitmap.h"
 #include "lib/tx.h"
 #include "lib/khpp.h"

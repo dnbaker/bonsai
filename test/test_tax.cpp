@@ -2,14 +2,9 @@
 
 #include "lib/tx.h"
 #include "lib/bitmap.h"
-#include "lib/tree_climber.h"
 using namespace emp;
 
 TEST_CASE("tax") {
-    Taxonomy tax("ref/nodes.dmp", "ref/nameidmap.txt");
-    tax.write("test_tax.tx");
-    Taxonomy tax2("test_tax.tx");
-    REQUIRE(tax == tax2);
     spvec_t v{3, 7, 1, 0, 4};
     while(v.size() < 12) v.push_back(0);
     std::vector<std::string> paths;

@@ -57,6 +57,7 @@ void kg_list_helper(void *data_, long index, int tid) {
     
 }
 
+#if 0
 void Taxonomy::add_node_impl(const char *node_name, const unsigned node_id, const unsigned parent) {
     khint_t ki;
     int khr;
@@ -151,5 +152,6 @@ bool Taxonomy::operator==(Taxonomy &other) const {
 
     return true;
 }
+#endif
 
 } // namespace emp
