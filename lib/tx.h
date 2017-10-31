@@ -25,6 +25,7 @@ namespace emp {
 
 using namespace std::literals;
 
+#if 0
 class Taxonomy {
     khash_t(p)    *tax_map_;
     khash_t(name) *name_map_;
@@ -62,6 +63,7 @@ public:
         return name_map_;
     }
 };
+#endif
 
 
 struct kg_data {

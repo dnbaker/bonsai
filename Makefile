@@ -47,7 +47,7 @@ EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/*.cpp))
 EX=$(patsubst src/%.o,%,$(EXEC_OBJS))
 
 HEADERS=lib/encoder.h lib/kmerutil.h lib/spacer.h lib/misc.h \
-		lib/cms.h lib/kseq_declare.h lib/feature_min.h hll/hll.h lib/hash.h lib/db.h
+		lib/kseq_declare.h lib/feature_min.h hll/hll.h lib/hash.h lib/db.h
 
 INCLUDE=-I. -Ilib
 
