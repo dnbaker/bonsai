@@ -55,7 +55,7 @@
 
 #ifndef TAXID_TYPEDEF
 #define TAXID_TYPEDEF
-using tax_t = std::uint32_t;
+using tax_t = u32;
 #endif
 
 #ifdef USE_PDQSORT
@@ -86,19 +86,19 @@ using tax_t = std::uint32_t;
 
 namespace emp {
 
-using u32 = std::uint32_t;
-using u64 = std::uint64_t;
+using u32 = u32;
+using u64 = u64;
 using i32 = std::int32_t;
 using i64 = std::int64_t;
 
 KHASH_SET_INIT_INT64(all)
 KHASH_MAP_INIT_INT64(c, tax_t)
-KHASH_MAP_INIT_INT64(64, std::uint64_t)
+KHASH_MAP_INIT_INT64(64, u64)
 KHASH_MAP_INIT_INT(p, tax_t)
 KHASH_MAP_INIT_STR(name, tax_t)
 using strlist = std::forward_list<std::string>;
 using cpslist = std::forward_list<std::string*>;
-using bitvec_t = lazy::vector<std::uint64_t, std::uint32_t>;
+using bitvec_t = lazy::vector<u64, u32>;
 
 std::string rand_string(std::size_t n);
 std::size_t count_lines(const char *fn) noexcept;
@@ -107,7 +107,7 @@ void destroy_name_hash(khash_t(name) *hash) noexcept;
 void print_name_hash(khash_t(name) *hash) noexcept;
 khash_t(p) *build_parent_map(const char *fn) noexcept;
 
-lazy::vector<std::uint64_t, std::size_t> load_binary_kmers(const char *path);
+lazy::vector<u64, std::size_t> load_binary_kmers(const char *path);
 khash_t(all) *load_binary_kmerset(const char *path);
 
 tax_t get_max_val(const khash_t(p) *hash) noexcept;
@@ -134,7 +134,7 @@ static INLINE auto roundup64(T x) noexcept {
     return x;
 }
 
-INLINE std::uint64_t rand64() noexcept {
+INLINE u64 rand64() noexcept {
     return rng::random_twist();
 }
 
@@ -196,7 +196,7 @@ T *khash_load_impl(std::FILE *fp) noexcept {
     std::fread(&rex->size, 1, sizeof(rex->size), fp);
     std::fread(&rex->upper_bound, 1, sizeof(rex->upper_bound), fp);
     LOG_DEBUG("buckets: %zu. nocc: %zu. size: %zu. ub: %zu\n", (size_t)rex->n_buckets, size_t(rex->n_occupied), size_t(rex->size), size_t(rex->upper_bound));
-    rex->flags = (std::uint32_t *)std::malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
+    rex->flags = (u32 *)std::malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
     rex->keys = (keytype_t *)std::malloc(sizeof(*rex->keys) * rex->n_buckets);
     if(!rex->keys) std::fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->keys) * rex->n_buckets, sizeof(*rex->keys) * rex->n_buckets >> 30), exit(1);
     rex->vals = (valtype_t *)std::malloc(sizeof(*rex->vals) * rex->n_buckets);

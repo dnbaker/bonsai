@@ -10,13 +10,13 @@
 #include "lib/util.h"
 
 namespace emp {
-void append_kraken_classification(const std::map<tax_t, std::uint32_t> &hit_counts,
+void append_kraken_classification(const std::map<tax_t, u32> &hit_counts,
                                   const std::vector<tax_t> &taxa,
-                                  const tax_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
+                                  const tax_t taxon, const u32 ambig_count, const u32 missing_count,
                                   bseq1_t *bs, kstring_t *bks);
-void append_fastq_classification(const std::map<tax_t, std::uint32_t> &hit_counts,
-                                 const std::vector<std::uint32_t> &taxa,
-                                 const tax_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
+void append_fastq_classification(const std::map<tax_t, u32> &hit_counts,
+                                 const std::vector<u32> &taxa,
+                                 const tax_t taxon, const u32 ambig_count, const u32 missing_count,
                                  bseq1_t *bs, kstring_t *bks, const int verbose, const int is_paired);
 void append_taxa_runs(tax_t taxon, const std::vector<tax_t> &taxa, kstring_t *bks);
 
@@ -26,15 +26,15 @@ enum output_format {
     EMIT_ALL = 4
 };
 
-template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
+template<u64 (*score)(u64, void *)=lex_score>
 struct ClassifierGeneric {
     khash_t(c) *db_;
     Spacer sp_;
     Encoder<score> enc_;
     int nt_;
     int output_flag_;
-    std::atomic<std::uint64_t> n_classified_;
-    std::atomic<std::uint64_t> n_unclassified_;
+    std::atomic<u64> n_classified_;
+    std::atomic<u64> n_unclassified_;
     public:
     void set_emit_all(bool setting);
     void set_emit_kraken(bool setting);
@@ -63,26 +63,26 @@ struct ClassifierGeneric {
     }
 };
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 void ClassifierGeneric<score>::set_emit_all(bool setting) {
     if(setting) output_flag_ |= output_format::EMIT_ALL;
     else        output_flag_ &= (~output_format::EMIT_ALL);
 }
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 void ClassifierGeneric<score>::set_emit_kraken(bool setting) {
     if(setting) output_flag_ |= output_format::KRAKEN;
     else        output_flag_ &= (~output_format::KRAKEN);
 }
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 void ClassifierGeneric<score>::set_emit_fastq(bool setting) {
     if(setting) output_flag_ |= output_format::FASTQ;
     else        output_flag_ &= (~output_format::FASTQ);
 }
 
 INLINE void append_taxa_run(const tax_t last_taxa,
-                            const std::uint32_t taxa_run,
+                            const u32 taxa_run,
                             kstring_t *bks) {
     // U for unclassified (unambiguous but not in database)
     // A for ambiguous: ambiguous nucleotides
@@ -97,7 +97,7 @@ INLINE void append_taxa_run(const tax_t last_taxa,
 }
 
 
-INLINE void append_counts(std::uint32_t count, const char character, kstring_t *ks) {
+INLINE void append_counts(u32 count, const char character, kstring_t *ks) {
     if(count) {
         kputc_(character, ks);
         kputc_(':', ks);
@@ -107,13 +107,13 @@ INLINE void append_counts(std::uint32_t count, const char character, kstring_t *
 }
 
 using Classifier = ClassifierGeneric<lex_score>;
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 unsigned classify_seq(ClassifierGeneric<score> &c, Encoder<score> &enc, khash_t(p) *taxmap, bseq1_t *bs, const int is_paired) {
-    std::uint64_t kmer;
+    u64 kmer;
     khiter_t ki;
-    std::map<tax_t, std::uint32_t> hit_counts;
-    std::map<tax_t, std::uint32_t>::iterator it;
-    std::uint32_t ambig_count(0), missing_count(0);
+    std::map<tax_t, u32> hit_counts;
+    std::map<tax_t, u32>::iterator it;
+    u32 ambig_count(0), missing_count(0);
     tax_t taxon(0);
     ks::KString bks(bs->sam);
     const std::size_t reslen(bs->l_seq - c.sp_.c_ + 1);
@@ -183,7 +183,7 @@ struct kt_data {
     bseq1_t *bs_;
     const unsigned per_set_;
     const unsigned total_;
-    std::atomic<std::uint64_t> &retstr_size_;
+    std::atomic<u64> &retstr_size_;
     const int is_paired_;
 };
 }
@@ -193,7 +193,7 @@ inline void classify_seqs(Classifier &c, khash_t(p) *taxmap, bseq1_t *bs,
                           kstring_t *cks, const unsigned chunk_size, const unsigned per_set, const int is_paired) {
     assert(per_set && ((per_set & (per_set - 1)) == 0));
 
-    std::atomic<std::uint64_t> retstr_size(0);
+    std::atomic<u64> retstr_size(0);
     kt_data data{c, taxmap, bs, per_set, chunk_size, retstr_size, is_paired};
     kt_for(c.nt_, &kt_for_helper, (void *)&data, chunk_size / per_set + 1);
     ks_resize(cks, retstr_size.load());

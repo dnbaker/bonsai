@@ -11,25 +11,25 @@
 // Decode 64-bit hash (contains both tax id and taxonomy depth for id)
 #define TDtax(key) ((tax_t)key)
 #define TDdepth(key) ((tax_t)~0 - (key >> 32))
-#define TDencode(depth, taxid) (((std::uint64_t)((tax_t)~0 - depth) << 32) | taxid)
+#define TDencode(depth, taxid) (((u64)((tax_t)~0 - depth) << 32) | taxid)
 
 // Decode 64-bit hash for feature counting.
 // TODO: add building of FeatureMin hash
 #define FMtax(key) ((tax_t)key)
 #define FMcount(key) (key >> 32)
 
-#define FMencode(count, taxid) (((std::uint64_t)count << 32) | taxid)
+#define FMencode(count, taxid) (((u64)count << 32) | taxid)
 
 
 namespace emp {
 
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 khash_t(64) *feature_count_map(std::vector<std::string> fns, const Spacer &sp, int num_threads=8);
 
 khash_t(c) *make_depth_hash(khash_t(c) *lca_map, khash_t(p) *tax_map);
 void lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map);
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret);
 
 void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid, std::shared_mutex &m);
@@ -41,12 +41,12 @@ void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *
 #define next_minimizer next_kmer
 
 // Return value: whether or not additional sequences were present and added.
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret) {
     assert(ret);
     Encoder<score> enc(0, 0, sp, nullptr);
     int khr; // khash return value. Unused, really.
-    std::uint64_t kmer;
+    u64 kmer;
     if(kseq_read(ks) >= 0) {
         enc.assign(ks);
         while(enc.has_next_kmer())
@@ -56,7 +56,7 @@ int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret) {
     } else return 0;
 }
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, std::size_t index, void *data) {
     LOG_ASSERT(ret);
     LOG_INFO("Filling from genome at path %s\n", path);
@@ -68,7 +68,7 @@ std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *re
     Encoder<score> enc(0, 0, sp, data);
     kseq_t *ks(kseq_init(ifp));
     int khr; // khash return value. Unused, really.
-    std::uint64_t kmer;
+    u64 kmer;
     if(sp.w_ > sp.k_) {
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
@@ -93,7 +93,7 @@ std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *re
 
 #undef next_minimizer
 
-template<std::uint64_t (*score)(std::uint64_t, void *), class Container>
+template<u64 (*score)(u64, void *), class Container>
 std::size_t fill_set_genome_container(Container &container, const Spacer &sp, khash_t(all) *ret, void *data) {
     std::size_t sz(0);
     for(std::string &str: container)
@@ -101,7 +101,7 @@ std::size_t fill_set_genome_container(Container &container, const Spacer &sp, kh
     return sz;
 }
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 khash_t(64) *ftct_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
                       const char *seq2tax_path,
                       const Spacer &sp, int num_threads, std::size_t start_size) {
@@ -122,7 +122,7 @@ struct helper {
 };
 using lca_helper = helper<khash_t(c)>;
 using td_helper  = helper<khash_t(64)>;
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 void fct_for_helper(void *data_, long index, int tid) {
     LOG_DEBUG("Helper with index %ld and tid %i starting\n", index, tid);
     td_helper &tdh(*(td_helper *)data_);
@@ -136,7 +136,7 @@ void fct_for_helper(void *data_, long index, int tid) {
     } else update_feature_counter(ret, h, tdh.tax_map_, taxid);
 }
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 void td_for_helper(void *data_, long index, int tid) {
     LOG_DEBUG("Helper with index %ld and tid %i starting\n", index, tid);
     td_helper &tdh(*(td_helper *)data_);
@@ -150,7 +150,7 @@ void td_for_helper(void *data_, long index, int tid) {
     } else update_td_map(ret, h, tdh.tax_map_, taxid);
 }
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 void lca_for_helper(void *data_, long index, int tid) {
     LOG_DEBUG("Helper with index %ld and tid %i starting\n", index, tid);
     lca_helper &lh(*(lca_helper *)data_);
@@ -164,7 +164,7 @@ void lca_for_helper(void *data_, long index, int tid) {
     } else update_lca_map(ret, h, lh.tax_map_, taxid, *lh.m_);
 }
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 void min_for_helper(void *data_, long index, int tid) {
     LOG_DEBUG("Helper with index %ld and tid %i starting\n", index, tid);
     lca_helper &lh(*(lca_helper *)data_);
@@ -175,7 +175,7 @@ void min_for_helper(void *data_, long index, int tid) {
     update_minimized_map(h, (khash_t(64) *)lh.data_, ret);
 }
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 khash_t(c) *minimized_map(std::vector<std::string> fns,
                           khash_t(64) *full_map,
                           const Spacer &sp, int num_threads, std::size_t start_size) {
@@ -192,7 +192,7 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
 }
 
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
                           const char *seq2tax_path, const Spacer &sp,
                           int num_threads, std::size_t start_size) {
@@ -211,7 +211,7 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
 }
 
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
                     const char *seq2tax_path,
                     const Spacer &sp, int num_threads, std::size_t start_size) {
@@ -231,7 +231,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
 }
 
 
-template <std::uint64_t (*score)(std::uint64_t, void *)>
+template <u64 (*score)(u64, void *)>
 khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map,
                                const char *seq2tax_path,
                                const Spacer &sp, int num_threads, std::size_t start_size) {
@@ -249,7 +249,7 @@ khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map
     return ret;
 }
 #else
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 khash_t(c) *minimized_map(std::vector<std::string> fns,
                           khash_t(64) *full_map,
                           const Spacer &sp, int num_threads, std::size_t start_size) {
@@ -308,7 +308,7 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
     return ret;
 }
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
                           const char *seq2tax_path, const Spacer &sp,
                           int num_threads, std::size_t start_size=1<<10) {
@@ -379,7 +379,7 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
     return ret;
 }
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
                     const char *seq2tax_path,
                     const Spacer &sp, int num_threads, std::size_t start_size=1<<10) {
@@ -453,7 +453,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
     return ret;
 }
 
-template <std::uint64_t (*score)(std::uint64_t, void *)>
+template <u64 (*score)(u64, void *)>
 khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, std::size_t start_size) {
     // Update this to include tax ids in the hash map.
     std::size_t submitted(0), completed(0), todo(fns.size());

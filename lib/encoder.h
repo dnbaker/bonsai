@@ -32,11 +32,11 @@ static INLINE int is_lt(T i, T j, UNUSED(void *data)) {
     return i < j;
 }
 
-static INLINE std::uint64_t lex_score(std::uint64_t i, UNUSED(void *data)) {
+static INLINE u64 lex_score(u64 i, UNUSED(void *data)) {
     return i;
 }
 
-static INLINE std::uint64_t hash_score(std::uint64_t i, void *data) {
+static INLINE u64 hash_score(u64 i, void *data) {
     khash_t(64) *hash((khash_t(64) *)data);
     khint_t k1;
     if(unlikely((k1 = kh_get(64, hash, i)) == kh_end(hash))) goto fail;
@@ -60,7 +60,7 @@ static INLINE std::uint64_t hash_score(std::uint64_t i, void *data) {
  *
  * BF signals overflow.
  */
-template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
+template<u64 (*score)(u64, void *)=lex_score>
 class Encoder {
     const char *s_; // String from which we are encoding our kmers.
     std::int64_t l_; // Length of the string
@@ -107,10 +107,10 @@ public:
     INLINE void assign(kseq_t    *ks) {assign(&ks->seq);}
 
     // Encodes a kmer starting at `start` within string `s_`.
-    INLINE std::uint64_t kmer(unsigned start) {
+    INLINE u64 kmer(unsigned start) {
         assert(start <= l_ - sp_.c_ + 1);
         if(l_ < sp_.c_) return BF;
-        std::uint64_t new_kmer(cstr_lut[s_[start]]);
+        u64 new_kmer(cstr_lut[s_[start]]);
         for(const auto s: sp_.s_) {
             new_kmer <<= 2;
             start += s;
@@ -121,7 +121,7 @@ public:
     }
     // When we encode kmers, we XOR it with this XOR_MASK for good key dispersion
     // in spite of potential redundacies in the sequence.
-    INLINE std::uint64_t decode(std::uint64_t kmer) {return kmer ^ XOR_MASK;}
+    INLINE u64 decode(u64 kmer) {return kmer ^ XOR_MASK;}
     // Whether or not an additional kmer is present in the sequence being encoded.
     INLINE int has_next_kmer() {
         return pos_ < l_ - sp_.c_ + 1;
@@ -130,22 +130,22 @@ public:
     // This fetches our next kmer for our window. It is immediately placed in the qmap_t,
     // which is a tree map containing kmers and scores so we can keep track of the best-scoring
     // kmer in the window.
-    INLINE std::uint64_t next_kmer() {
+    INLINE u64 next_kmer() {
         assert(has_next_kmer());
         return kmer(pos_++);
     }
     // This is the actual point of entry for fetching our minimizers.
     // It wraps encoding and scoring a kmer, updates qmap, and returns the minimizer
     // for the next window.
-    INLINE std::uint64_t next_minimizer() {
+    INLINE u64 next_minimizer() {
         assert(has_next_kmer());
-        const std::uint64_t k(kmer(pos_++)), kscore(score(k, data_));
+        const u64 k(kmer(pos_++)), kscore(score(k, data_));
         return qmap_.next_value(k, kscore);
     }
 };
 
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
                               void *data=nullptr) {
 
@@ -154,7 +154,7 @@ khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
     kseq_t *ks(kseq_init(fp));
     khash_t(all) *ret(kh_init(all));
     int khr;
-    std::uint64_t min;
+    u64 min;
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
         while(enc.has_next_kmer()) if((min = enc.next_minimizer()) != BF) kh_put(all, ret, min, &khr);
@@ -164,14 +164,14 @@ khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
     return ret;
 }
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &space,
                     void *data=nullptr) {
 
     Encoder<score> enc(nullptr, 0, space, data);
     gzFile fp(gzopen(path.data(), "rb"));
     kseq_t *ks(kseq_init(fp));
-    std::uint64_t min;
+    u64 min;
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
         while(enc.has_next_kmer()) if((min = enc.next_minimizer()) != BF) hll.add(wang_hash(min));
@@ -180,7 +180,7 @@ void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &spac
     gzclose(fp);
 }
 
-template<std::uint64_t (*score)(std::uint64_t, void *)>
+template<u64 (*score)(u64, void *)>
 hll::hll_t hllcount_lmers(const std::string &path, const Spacer &space,
                           std::size_t np=22, void *data=nullptr) {
 
@@ -188,7 +188,7 @@ hll::hll_t hllcount_lmers(const std::string &path, const Spacer &space,
     gzFile fp(gzopen(path.data(), "rb"));
     kseq_t *ks(kseq_init(fp));
     hll::hll_t ret(np);
-    std::uint64_t min;
+    u64 min;
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
         while(enc.has_next_kmer()) if((min = enc.next_minimizer()) != BF) ret.add(wang_hash(min));
@@ -198,7 +198,7 @@ hll::hll_t hllcount_lmers(const std::string &path, const Spacer &space,
     return ret;
 }
 
-template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
+template<u64 (*score)(u64, void *)=lex_score>
 std::size_t count_cardinality(const std::vector<std::string> paths,
                          unsigned k, uint16_t w, spvec_t spaces,
                          void *data=nullptr, int num_threads=-1) {
@@ -256,7 +256,7 @@ struct est_helper {
     hll::hll_t                     &master_;
 };
 
-template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
+template<u64 (*score)(u64, void *)=lex_score>
 void est_helper_fn(void *data_, long index, int tid) {
     est_helper &h(*(est_helper *)(data_));
     LOG_DEBUG("Counting kmers from file %s (index %ld) \n", h.paths_[index].data(), index);
@@ -264,7 +264,7 @@ void est_helper_fn(void *data_, long index, int tid) {
     hll_fill_lmers<score>(h.master_, h.paths_[index], h.sp_, h.data_);
 }
 
-template<std::uint64_t (*score)(std::uint64_t, void *)=lex_score>
+template<u64 (*score)(u64, void *)=lex_score>
 std::size_t estimate_cardinality(const std::vector<std::string> &paths,
                                  unsigned k, uint16_t w, spvec_t spaces,
                                  void *data=nullptr, int num_threads=-1, std::size_t np=23) {

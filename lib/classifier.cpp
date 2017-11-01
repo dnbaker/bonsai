@@ -15,9 +15,9 @@ void kt_for_helper(void *data_, long index, int tid) {
     data->retstr_size_ += retstr_size;
 }
 
-void append_fastq_classification(const std::map<tax_t, std::uint32_t> &hit_counts,
+void append_fastq_classification(const std::map<tax_t, u32> &hit_counts,
                                  const std::vector<tax_t> &taxa,
-                                 const tax_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
+                                 const tax_t taxon, const u32 ambig_count, const u32 missing_count,
                                  bseq1_t *bs, kstring_t *bks, const int verbose, const int is_paired) {
     char *cms, *cme; // comment start, comment end -- used for using comment in both output reads.
     kputs(bs->name, bks);
@@ -52,9 +52,9 @@ void append_fastq_classification(const std::map<tax_t, std::uint32_t> &hit_count
     bks->s[bks->l] = 0;
 }
 
-void append_kraken_classification(const std::map<tax_t, std::uint32_t> &hit_counts,
+void append_kraken_classification(const std::map<tax_t, u32> &hit_counts,
                                   const std::vector<tax_t> &taxa,
-                                  const tax_t taxon, const std::uint32_t ambig_count, const std::uint32_t missing_count,
+                                  const tax_t taxon, const u32 ambig_count, const u32 missing_count,
                                   bseq1_t *bs, kstring_t *bks) {
     kputc((taxon == 0) * ('U' - 'C') + 'C', bks);
     //kputc(taxon ? 'C': 'U', bks); Equivalent to above but without a branch.

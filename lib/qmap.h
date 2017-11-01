@@ -71,7 +71,7 @@ class QueueMap {
         return map_.cend();
     }
     // Do a std::enable_if that involves moving the element if it's by reference?
-    std::uint64_t next_value(const T el, const std::uint64_t score) {
+    u64 next_value(const T el, const u64 score) {
         list_.emplace_back(el, score);
         add(list_.back());
         if(list_.size() > wsz_) {
@@ -89,8 +89,8 @@ class QueueMap {
     }
 };
 
-using qmap_t = QueueMap<std::uint64_t, std::uint64_t>;
-using elscore_t = ElScore<std::uint64_t, std::uint64_t>;
+using qmap_t = QueueMap<u64, u64>;
+using elscore_t = ElScore<u64, u64>;
 
 } // namespace emp
 

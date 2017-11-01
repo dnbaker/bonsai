@@ -9,7 +9,7 @@ namespace emp {
 // This is our core 64-bit hash.
 // It has a 1-1 mapping from any one 64-bit integer to another
 // and can be inverted with irving_inv_hash.
-constexpr INLINE std::uint64_t wang_hash(std::uint64_t key) {
+constexpr INLINE u64 wang_hash(u64 key) {
   key = (~key) + (key << 21); // key = (key << 21) - key - 1;
   key = key ^ (key >> 24);
   key = (key + (key << 3)) + (key << 8); // key * 265
@@ -20,12 +20,12 @@ constexpr INLINE std::uint64_t wang_hash(std::uint64_t key) {
   return key;
 }
 struct wang_hash_struct {
-    constexpr std::uint64_t operator()(std::uint64_t key) const {return wang_hash(key);}
+    constexpr u64 operator()(u64 key) const {return wang_hash(key);}
 };
 template<typename T>
 struct ptr_wang_hash_struct {
     template<typename = typename std::enable_if<std::is_pointer<T>::value || sizeof(T) == 8>::type>
-    constexpr std::uint64_t operator()(T key) const {return wang_hash(reinterpret_cast<std::uint64_t>(key));}
+    constexpr u64 operator()(T key) const {return wang_hash(reinterpret_cast<u64>(key));}
 };
 
 template<typename T>
@@ -35,8 +35,8 @@ struct idt_struct {
 
 // Geoffrey Irving
 // https://naml.us/blog/tag/thomas-wang
-INLINE std::uint64_t irving_inv_hash(std::uint64_t key) {
-  std::uint64_t tmp;
+INLINE u64 irving_inv_hash(u64 key) {
+  u64 tmp;
 
   // Invert key = key + (key << 31)
   tmp = key-(key<<31);
