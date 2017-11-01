@@ -284,6 +284,7 @@ bool accepted_pass(const khash_t(p) *taxmap, const std::vector<tax_t> &accepted,
 int metatree_main(int argc, char *argv[]) {
     if(argc < 5) metatree_usage(*argv);
     int c, num_threads(1), k(31), nelem(0);
+    size_t heap_size = 1 << 15;
     std::vector<tax_t> accept_lcas;
     FILE *ofp(stdout);
     std::string paths_file, folder, spacing;
@@ -372,8 +373,7 @@ int metatree_main(int argc, char *argv[]) {
     ks.clear();
 #endif
     // TODO: Add new taxonomy creation
-    FMEmitter fme(taxmap, tx2desc_map);
-#if 0
+    FMEmitter fme(taxmap, tx2desc_map, heap_size, nelem);
     std::vector<tax_t> tmptaxes;
     for(auto &&pair: iter::groupby(taxes, [tm=taxmap](const tax_t a){return get_parent(tm, a);})) {
         // Copying just because I don't trust the lifetime management of iter::groupby.
@@ -382,8 +382,7 @@ int metatree_main(int argc, char *argv[]) {
         fme.process_subtree(pair.first, begin(tmptaxes), end(tmptaxes), sp, num_threads, nullptr);
         tmptaxes.clear();
     }
-    fme.run_collapse(max_tax + 1, ofp, nelem);
-#endif
+    fme.run_collapse(max_tax, ofp);
     if(ofp != stdout) std::fclose(ofp);
     return EXIT_SUCCESS;
 }

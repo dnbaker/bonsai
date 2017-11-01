@@ -23,7 +23,7 @@ struct Database {
     Spacer  *sp_;
 
     Spacer *make_sp() {
-        Spacer *ret(new Spacer(k_, w_, s_));
+        Spacer *ret(new Spacer(k_, (uint16_t)w_, s_));
         for(auto &i: ret->s_) --i;
         return ret;
     }
