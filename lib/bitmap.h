@@ -102,11 +102,11 @@ public:
 using adjmap_t = AdjacencyList<bitvec_t>;
 
 class bitmap_t {
-    std::unordered_map<std::uint64_t, bitvec_t> core_;
+    std::unordered_map<u64, bitvec_t> core_;
 
 public:
-    std::unordered_map<std::uint64_t, bitvec_t> fill(const kgset_t &set) {
-        std::unordered_map<std::uint64_t, bitvec_t> tmp;
+    std::unordered_map<u64, bitvec_t> fill(const kgset_t &set) {
+        std::unordered_map<u64, bitvec_t> tmp;
         const unsigned len((set.size() + 63) >> 6);
         khash_t(all) *h;
         const auto &vec(set.get_core());
@@ -167,7 +167,7 @@ public:
 
 
 
-std::uint64_t score_node_addn(const bitvec_t &bitstring,
+u64 score_node_addn(const bitvec_t &bitstring,
                               const adjmap_t &am, const count::Counter<bitvec_t> &counts, std::size_t nelem);
 
 }

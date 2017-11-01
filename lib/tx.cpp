@@ -9,7 +9,7 @@ void kg_helper(void *data_, long index, int tid) {
     gzFile fp(gzopen(data->paths_[index].data(), "rb"));
     if(!fp) LOG_EXIT("Could not open file at %s\n", data->paths_[index].data());
     kseq_t *ks(kseq_init(fp));
-    std::uint64_t min;
+    u64 min;
     int khr;
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
@@ -33,7 +33,7 @@ void kg_list_helper(void *data_, long index, int tid) {
         gzFile fp(gzopen(path.data(), "rb"));
         if(!fp) LOG_EXIT("Could not open file at %s\n", path.data());
         kseq_t *ks(kseq_init(fp));
-        std::uint64_t min;
+        u64 min;
         int khr;
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
@@ -79,7 +79,7 @@ void Taxonomy::add_node(const char *node_name, const unsigned parent) {
 
 void Taxonomy::write(const char *fn) const {
     std::FILE *fp(std::fopen(fn, "wb"));
-    const std::uint64_t num_occ(name_map_->n_occupied);
+    const u64 num_occ(name_map_->n_occupied);
     std::fwrite(&num_occ, sizeof(num_occ), 1, fp);
     std::fwrite(&n_syn_,  sizeof(n_syn_), 1, fp);
     std::fwrite(&ceil_,   sizeof(ceil_), 1, fp);
@@ -103,7 +103,7 @@ Taxonomy::Taxonomy(const char *path, unsigned ceil): name_map_(kh_init(name)) {
     khiter_t ki;
     std::FILE *fp(std::fopen(path, "rb"));
     char ts[1 << 10], *p;
-    std::uint64_t n;
+    u64 n;
     std::fread(&n,       sizeof(n),      1, fp);
     std::fread(&n_syn_,  sizeof(n_syn_), 1, fp);
     std::fread(&ceil_,   sizeof(ceil_),  1, fp);
@@ -113,7 +113,7 @@ Taxonomy::Taxonomy(const char *path, unsigned ceil): name_map_(kh_init(name)) {
     name_ = ts;
     LOG_DEBUG("n: %zu. syn: %zu. ceil: %zu. name: %s\n", n, n_syn_, ceil_, name_.data());
 
-    for(std::uint64_t i(0); i < n; ++i) {
+    for(u64 i(0); i < n; ++i) {
         fgets(ts, sizeof(ts), fp);
         *(p = strchr(ts, '\t')) = '\0';
         ki = kh_put(name, name_map_, ts, &khr);

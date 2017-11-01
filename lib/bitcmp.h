@@ -44,7 +44,7 @@ inline int veccmp(const void *a, const void *b, size_t nbytes) {
     std::uint8_t *eba((std::uint8_t *)va), *ebb((std::uint8_t *)vb);
 #else
     size_t n64(nbytes >> 3), nlo(nbytes & 7u);
-    const std::uint64_t *pa((const std::uint64_t *)a), *pb((const std::uint64_t *)b);
+    const u64 *pa((const u64 *)a), *pb((const u64 *)b);
     while(n64--) {
         bparent &= !(*pa & (~*pb));
         aparent &= !(*pb & (~*pa));

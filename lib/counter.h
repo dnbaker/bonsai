@@ -27,11 +27,11 @@ public:
     const void *operator->() const {return random_;}
     operator const void *()  const {return random_;}
     template<typename T>
-    std::uint64_t hash(const T *p, std::size_t nbytes) {
+    u64 hash(const T *p, std::size_t nbytes) {
         return clhash(random_, p, nbytes);
     }
     template<typename T>
-    std::uint64_t hash(const std::vector<T>& vec) {
+    u64 hash(const std::vector<T>& vec) {
         return hash(vec.data(), vec.size() * sizeof(T));
     }
 
@@ -67,7 +67,7 @@ namespace std {
   {
     uint64_t operator()(const pair<int, lazy::vector<T, size_type>>& p) const
     {
-        return clhash(emp::RAND, reinterpret_cast<const char *>(p.second.data()), p.second.size() * sizeof(T)) ^ ((std::uint64_t(p.first) << 32) | p.first);
+        return clhash(emp::RAND, reinterpret_cast<const char *>(p.second.data()), p.second.size() * sizeof(T)) ^ ((u64(p.first) << 32) | p.first);
     }
   };
 
@@ -76,7 +76,7 @@ namespace std {
   {
     uint64_t operator()(const pair<int, vector<T>>& p) const
     {
-        return clhash(emp::RAND, reinterpret_cast<const char *>(p.second.data()), p.second.size() * sizeof(T)) ^ ((std::uint64_t(p.first) << 32) | p.first);
+        return clhash(emp::RAND, reinterpret_cast<const char *>(p.second.data()), p.second.size() * sizeof(T)) ^ ((u64(p.first) << 32) | p.first);
     }
   };
 
@@ -221,7 +221,7 @@ public:
                 sum += j;
                 auto k(j);
                 // WISHLIST: could data-parallelize with a lookup table.
-                for(std::uint64_t i(0); i < std::min(CHAR_BIT * sizeof(j), nelem_ - n); ++i) {
+                for(u64 i(0); i < std::min(CHAR_BIT * sizeof(j), nelem_ - n); ++i) {
                     kputc_('0' + (k&1), ks);
                     pc += k&1;
                     k >>= 1;

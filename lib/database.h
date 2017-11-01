@@ -85,20 +85,20 @@ struct Database {
         std::size_t ndiff(0);
         for(khiter_t ki(0); ki != kh_end(test.db_); ++ki) {
             if(kh_key(db_, ki) != kh_key(test.db_, ki))
-                std::fprintf(stderr, "key mismatch at %lu. key 1: %" PRIu64 ", key 2: %" PRIu64 ".\n", ki, (std::uint64_t)kh_key(db_, ki), (std::uint64_t)kh_key(test.db_, ki)), ++ndiff;
+                std::fprintf(stderr, "key mismatch at %lu. key 1: %" PRIu64 ", key 2: %" PRIu64 ".\n", ki, (u64)kh_key(db_, ki), (u64)kh_key(test.db_, ki)), ++ndiff;
             if(kh_val(db_, ki) != kh_val(test.db_, ki))
-                std::fprintf(stderr, "val mismatch at %lu. val 1: %" PRIu64 ", val 2: %" PRIu64 ".\n", ki, (std::uint64_t)kh_val(db_, ki), (std::uint64_t)kh_val(test.db_, ki)), ++ndiff;
+                std::fprintf(stderr, "val mismatch at %lu. val 1: %" PRIu64 ", val 2: %" PRIu64 ".\n", ki, (u64)kh_val(db_, ki), (u64)kh_val(test.db_, ki)), ++ndiff;
         }
-        for(std::uint64_t i(0); i < __ac_fsize(db_->n_buckets); ++i) {
+        for(u64 i(0); i < __ac_fsize(db_->n_buckets); ++i) {
             if(db_->flags[i] != test.db_->flags[i])
-                std::fprintf(stderr, "flags mismatch at %" PRIu64 ". flags 1: %" PRIu64 ", flags 2: %" PRIu64 ".\n", i, (std::uint64_t)db_->flags[i], (std::uint64_t)test.db_->flags[i]), ++ndiff;
+                std::fprintf(stderr, "flags mismatch at %" PRIu64 ". flags 1: %" PRIu64 ", flags 2: %" PRIu64 ".\n", i, (u64)db_->flags[i], (u64)test.db_->flags[i]), ++ndiff;
         }
 #endif
     }
 
     template<typename Q=T>
-    typename std::enable_if<std::is_same<khash_t(c), Q>::value, std::uint32_t>::type
-    get_lca(std::uint64_t kmer) {
+    typename std::enable_if<std::is_same<khash_t(c), Q>::value, u32>::type
+    get_lca(u64 kmer) {
         khiter_t ki;
         return ((ki = kh_get(c, db_, kmer)) == kh_end(db_)) ? kh_val(db_, ki)
                                                             : -1u;
@@ -123,15 +123,15 @@ void val_helper(void *data_, long index, int tid) {
         return;
     }
     LOG_DEBUG("Index %ld with tid %i starting\n", index, tid);
-    std::unordered_set<std::uint64_t> in;
-    std::unordered_set<std::uint64_t> failing_kmers;
+    std::unordered_set<u64> in;
+    std::unordered_set<u64> failing_kmers;
     Encoder<lex_score> enc(nullptr, 0, *data.db_.sp_, nullptr);
-    std::uint64_t passing_kmers(0);
+    u64 passing_kmers(0);
     for(const auto &path: data.tx_.find(tax)->second) {
         LOG_DEBUG("Validator opening path at %s\n", path.data());
         gzFile fp(gzopen(path.data(), "rb"));
         kseq_t *ks(kseq_init(fp));
-        std::uint64_t kmer;
+        u64 kmer;
         khiter_t ki;
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
@@ -146,7 +146,7 @@ void val_helper(void *data_, long index, int tid) {
         kseq_destroy(ks);
     }
     LOG_DEBUG("Validator loaded all kmers from end genome. Now scanning full database for items assigned to tax. (tax: %u. tid; %i)\n", tax, tid);
-    for(std::uint64_t i(0); i < kh_size(data.db_.db_); ++i) {
+    for(u64 i(0); i < kh_size(data.db_.db_); ++i) {
         if(!kh_exist(data.db_.db_, i)) continue;
         if(kh_val(data.db_.db_, i) == tax) {
             if((i & 0xFFFFF) == 0) LOG_DEBUG("Processed %" PRIu64 " of %" PRIu64"\n.", i, kh_size(data.db_.db_));
@@ -178,7 +178,7 @@ void val_helper(void *data_, long index, int tid) {
 template<typename T>
 void validate_db(const Database<T> &db, std::unordered_set<tax_t> &used_lcas, std::unordered_map<tax_t, std::forward_list<std::string>> &tx2g, int num_threads=-1) {
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
-    std::unordered_set<std::uint64_t> failing_kmers;
+    std::unordered_set<u64> failing_kmers;
     std::vector<tax_t> lcas(used_lcas.begin(), used_lcas.end());
     val_data_t<T> data{tx2g, lcas, db};
     LOG_DEBUG("lcas size: %zu\n", lcas.size());
