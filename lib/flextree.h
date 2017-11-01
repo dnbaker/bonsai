@@ -70,7 +70,10 @@ public:
             //heap.insert(const_cast<std::pair<const std::vector<long long unsigned int>, emp::fnode_t>*>(&pair));
             if(heap.size() < max_heap_size) {
                 heap.insert(&ref);
-            } else if(get_score(pair) < get_score(*heap.begin())) heap.insert(&ref);
+            } else if(get_score(pair) < get_score(*heap.begin())) {
+                heap.erase(heap.begin());
+                heap.insert(&ref);
+            }
         }
     }
 public:
