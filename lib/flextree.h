@@ -19,7 +19,7 @@ struct fnode_t {
     const u32         pc_;  // popcount
     const u32         bc_;  // bitcount for family (number of clades in subtree)
     const u32      si_:31;  // subtree index
-    u32          added_:1;
+    u32          added_:1;  // Whether node has been added or been subsumed
     fnode_t(const bitvec_t &bits, u32 bc, u32 subtree_index, const u64 n=0):
         n_{n}, desc_pts_{0}, pc_{static_cast<u32>(popcnt::vec_popcnt(bits))},
         bc_{bc}, si_{subtree_index}, added_(false) {}
@@ -175,7 +175,17 @@ public:
         run_collapse(maxtax, ks, fp);
     }
     void condense_subtree(HeapType &subtree) {
+        using std::begin;
+        using std::end;
         // Update scores
+        // Mark 
+        for(auto ait(begin(subtree), eait(end(subtree)); ait != eait; ++ait) {
+            for(auto bit(ait + 1); bit != eait; ++bit) {
+                // if is_subset(a, b)
+                // else if is_subset(b, a)
+                //
+            }
+        }
         throw std::runtime_error("NotImplemented.");
     }
     void run_collapse(tax_t maxtax, ks::KString &ks, std::FILE* fp) {
