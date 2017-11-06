@@ -18,7 +18,7 @@ struct RandTwister {
     auto operator()()                              {return twister_();}
     auto operator()(std::mt19937_64 &engine) const {return engine();}
     // Generate a large number of random integers.
-    void operator()(std::size_t n, RandTwister::ResultType *a) {
+    void operator()(size_t n, RandTwister::ResultType *a) {
         const auto leftover(n & 0x7ULL);
         n >>= 3;
         switch(leftover) {
@@ -46,7 +46,7 @@ struct ThreadsafeRandTwister: public RandTwister {
         return ret;
     }
     // Generate a large number of random integers.
-    auto operator()(std::size_t n, ResultType *a) {
+    auto operator()(size_t n, ResultType *a) {
         lock_.lock();
         RandTwister::operator ()(n, a);
         lock_.unlock();

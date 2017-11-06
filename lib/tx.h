@@ -13,8 +13,8 @@
 
 
 template<typename T>
-std::size_t get_n_occ(T *hash) {
-    std::size_t ret(0);
+size_t get_n_occ(T *hash) {
+    size_t ret(0);
     for(khiter_t ki(0); ki != kh_end(hash); ++ki) ret += !!kh_exist(hash, ki);
     return ret;
 }
@@ -29,8 +29,8 @@ using namespace std::literals;
 class Taxonomy {
     khash_t(p)    *tax_map_;
     khash_t(name) *name_map_;
-    std::uint64_t       n_syn_;
-    std::uint64_t       ceil_;
+    u64       n_syn_;
+    u64       ceil_;
     std::string    name_;
 public:
     // Textual constructor
@@ -52,8 +52,8 @@ public:
     void write(const char *fn) const;
     void add_node_impl(const char *node_name, const unsigned node_id, const unsigned parent);
     void add_node(const char *node_name, const unsigned parent);
-    std::uint64_t get_syn_count() const {return n_syn_;}
-    std::uint64_t get_syn_ceil() const {return ceil_;}
+    u64 get_syn_count() const {return n_syn_;}
+    u64 get_syn_ceil() const {return ceil_;}
     int has_capacity() const {return n_syn_ + 1 <= ceil_;}
     bool operator==(Taxonomy &other) const;
     operator khash_t(p) *() {
@@ -88,7 +88,7 @@ class kgset_t {
     std::vector<khash_t(all) *> core_;
     std::vector<std::string>    paths_;
     const khash_t(all)         *acceptable_;
-    const std::unordered_map<std::uint32_t, std::forward_list<std::string>> *fl_;
+    const std::unordered_map<u32, std::forward_list<std::string>> *fl_;
     std::vector<tax_t>         taxes_;
 
 public:
@@ -97,7 +97,7 @@ public:
         kg_data data{core_, paths, sp, acceptable_};
         kt_for(num_threads, &kg_helper, (void *)&data, core_.size());
     }
-    void fill(const std::unordered_map<std::uint32_t, std::forward_list<std::string>> *path_map, const Spacer &sp, int num_threads=-1) {
+    void fill(const std::unordered_map<u32, std::forward_list<std::string>> *path_map, const Spacer &sp, int num_threads=-1) {
         auto &pm(*path_map);
         if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
         std::vector<const std::forward_list<std::string>*> tmpfl;
@@ -127,14 +127,14 @@ public:
     kgset_t(typename std::vector<std::string>::const_iterator begin, typename std::vector<std::string>::const_iterator end,
             const Spacer &sp, int num_threads=-1, const khash_t(all) *acc=nullptr): paths_(begin, end), acceptable_(acc), fl_(nullptr) {
         core_.reserve(end - begin);
-        for(std::size_t i(0), end(paths_.size()); i != end; ++i) core_.emplace_back(kh_init(all));
+        for(size_t i(0), end(paths_.size()); i != end; ++i) core_.emplace_back(kh_init(all));
         fill(paths_, sp, num_threads);
     }
     // Encoding constructor
     kgset_t(const std::vector<std::string> &paths, const Spacer &sp, int num_threads=-1, const khash_t(all) *acc=nullptr):
         kgset_t(std::begin(paths), std::end(paths), sp, num_threads, acc) {
     }
-    kgset_t(const std::unordered_map<std::uint32_t, std::forward_list<std::string>> &list,
+    kgset_t(const std::unordered_map<u32, std::forward_list<std::string>> &list,
             const Spacer &sp, int num_threads=-1, const khash_t(all) *acc=nullptr): acceptable_(acc), fl_(&list) {
         LOG_DEBUG("Acc? %p\n", (void *)acc);
         if(list.size() == 0) LOG_EXIT("List size is 0\n");
@@ -146,22 +146,22 @@ public:
     ~kgset_t() {
         for(auto i: core_) khash_destroy(i);
     }
-    std::size_t size() const {return core_.size();}
+    size_t size() const {return core_.size();}
 
-    std::size_t weight() const {
+    size_t weight() const {
         if(!size()) return 0;
-        std::size_t ret(kh_size(core_[0]));
-        for(std::size_t i(1), e(core_.size()); i < e; ++i) ret += kh_size(core_[i]);
+        size_t ret(kh_size(core_[0]));
+        for(size_t i(1), e(core_.size()); i < e; ++i) ret += kh_size(core_[i]);
         return ret;
     }
 };
 
 
 template<typename T>
-constexpr std::size_t spop(T &container) {
+constexpr size_t spop(T &container) {
     assert(container.size());
     auto i(container.cbegin());
-    std::uint64_t ret(popcnt::popcount(*i));
+    u64 ret(popcnt::popcount(*i));
     while(++i != container.cend()) ret += popcnt::popcount(*i);
     return ret;
 }
