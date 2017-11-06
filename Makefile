@@ -8,7 +8,8 @@ CLHASH_CHECKOUT = "&& git checkout master"
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
 		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
-		 -pedantic -DUSE_PDQSORT -Wunused-variable # -Wconversion
+		 -pedantic -DUSE_PDQSORT -Wunused-variable \
+		-Wduplicated-branches -Wdangling-else  # -Wconversion
 ifndef EXTRA
 	EXTRA:= 
 endif
