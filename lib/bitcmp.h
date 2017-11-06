@@ -27,7 +27,7 @@ inline int veccmp(const void *a, const void *b, size_t nbytes) {
         aparent &= _mm256_testz_si256(bentry, ~aentry);
         if((aparent & bparent) == 0) return BitCmp::INCOMPARABLE;
     }
-    std::uint8_t *eba((std::uint8_t *)va), *ebb((std::uint8_t *)vb);
+    u8 *eba((u8 *)va), *ebb((u8 *)vb);
 #elif __SSE2__
     __m128i aentry, bentry;
     const __m128i *va = reinterpret_cast<const __m128i*>(a),
@@ -41,17 +41,17 @@ inline int veccmp(const void *a, const void *b, size_t nbytes) {
         aparent &= _mm_testz_si128(bentry, ~aentry);
         if((aparent & bparent) == 0) return BitCmp::INCOMPARABLE;
     }
-    std::uint8_t *eba((std::uint8_t *)va), *ebb((std::uint8_t *)vb);
+    u8 *eba((u8 *)va), *ebb((u8 *)vb);
 #else
     size_t n64(nbytes >> 3), nlo(nbytes & 7u);
-    const std::uint64_t *pa((const std::uint64_t *)a), *pb((const std::uint64_t *)b);
+    const u64 *pa((const u64 *)a), *pb((const u64 *)b);
     while(n64--) {
         bparent &= !(*pa & (~*pb));
         aparent &= !(*pb & (~*pa));
         if((aparent & bparent) == 0) return BitCmp::INCOMPARABLE;
         ++pa, ++pb;
     }
-    std::uint8_t *eba((std::uint8_t *)pa), std::uint8_t *ebb((std::uint8_t *)pb);
+    u8 *eba((u8 *)pa), u8 *ebb((u8 *)pb);
 #endif
     while(nlo--) {
         bparent &= !(*eba & (~*ebb));
@@ -68,7 +68,7 @@ inline int veccmp(const void *a, const void *b, size_t nbytes) {
         case 0: return BitCmp::INCOMPARABLE;
     }
 #else
-    static const std::uint8_t retcodes[] {BitCmp::INCOMPARABLE, BitCmp::SECOND_PARENT, BitCmp::FIRST_PARENT, BitCmp::EQUAL};
+    static const u8 retcodes[] {BitCmp::INCOMPARABLE, BitCmp::SECOND_PARENT, BitCmp::FIRST_PARENT, BitCmp::EQUAL};
     return retcodes[(aparent << 1) | bparent];
 #endif
 }

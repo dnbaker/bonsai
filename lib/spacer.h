@@ -9,17 +9,17 @@
 
 namespace emp {
 
-typedef std::vector<std::uint8_t> spvec_t;
+typedef std::vector<u8> spvec_t;
 
-std::uint32_t comb_size(const spvec_t &spaces);
+u32 comb_size(const spvec_t &spaces);
 spvec_t parse_spacing(const char *space_string, unsigned k);
 struct Spacer {
-    static const std::uint32_t max_k = 31;
+    static const u32 max_k = 31;
     // Instance variables
     spvec_t s_; // Spaces to skip
-    const std::uint32_t k_:8;  // Kmer size
-    const std::uint32_t c_:16; // comb size
-    const std::uint32_t w_:16; // window size
+    const u32 k_:8;  // Kmer size
+    const u32 c_:16; // comb size
+    const u32 w_:16; // window size
 
 public:
     Spacer(unsigned k, std::uint16_t w, spvec_t spaces=spvec_t{}):
@@ -41,7 +41,7 @@ public:
     }
     Spacer(const Spacer &other): s_(other.s_), k_(other.k_), c_(other.c_), w_(other.w_) {
     }
-    void write(std::uint64_t kmer, std::FILE *fp=stdout) const {
+    void write(u64 kmer, std::FILE *fp=stdout) const {
         kmer ^= XOR_MASK;
         int offset = ((k_ - 1) << 1);
         std::fputc(num2nuc((kmer >> offset) & 0x3u), fp);
@@ -53,7 +53,7 @@ public:
         }
         std::fputc('\n', fp);
     }
-    std::string to_string(std::uint64_t kmer) const {
+    std::string to_string(u64 kmer) const {
         kmer ^= XOR_MASK;
         std::string ret;
         ret.reserve(c_ - k_ + 1);

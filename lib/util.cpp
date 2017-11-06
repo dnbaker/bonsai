@@ -9,13 +9,13 @@
 
 namespace emp {
 
-std::size_t count_lines(const char *fn) noexcept {
+size_t count_lines(const char *fn) noexcept {
     std::FILE *fp(std::fopen(fn, "r"));
     if(fp == nullptr) LOG_EXIT("Could not open file at %s\n", fn);
-    std::size_t bufsz = 4096;
+    size_t bufsz = 4096;
     char *buf((char *)std::malloc(bufsz));
     ssize_t len;
-    std::size_t n(0);
+    size_t n(0);
     while((len = getline(&buf, &bufsz, fp)) >= 0) ++n;
     std::free(buf);
     std::fclose(fp);
@@ -120,7 +120,7 @@ unsigned node_depth(const khash_t(p) *map, tax_t a) noexcept {
 }
 
 khash_t(name) *build_name_hash(const char *fn) noexcept {
-    std::size_t bufsz(2048), namelen;
+    size_t bufsz(2048), namelen;
     char *buf((char *)std::malloc(bufsz));
     ssize_t len;
     std::FILE *fp(std::fopen(fn, "r"));
@@ -161,7 +161,7 @@ std::map<tax_t, tax_t> build_kraken_tax(const std::string &fname) {
     const char *fn(fname.data());
     std::FILE *fp(std::fopen(fn, "r"));
     std::map<tax_t, tax_t> ret;
-    std::size_t bufsz = 4096;
+    size_t bufsz = 4096;
     char *buf((char *)std::malloc(bufsz));
     ssize_t len;
     tax_t t1, t2;
@@ -203,7 +203,7 @@ khash_t(p) *build_parent_map(const char *fn) noexcept {
         return nullptr;
     }
     khash_t(p) *ret(kh_init(p));
-    std::size_t bufsz = 4096;
+    size_t bufsz = 4096;
     char *buf((char *)std::malloc(bufsz));
     ssize_t len;
     khint_t ki;
@@ -270,7 +270,7 @@ tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
   return max_taxon;
 }
 
-std::string rand_string(std::size_t n) {
+std::string rand_string(size_t n) {
     std::string ret;
     ret.reserve(n);
     static const char set[] = "abcdefghijklmnopqrstuvwxyz123456";
@@ -282,7 +282,7 @@ std::string rand_string(std::size_t n) {
 std::string get_firstline(const char *fn) {
     gzFile fp(gzopen(fn, "rb"));
     if(fp == nullptr) LOG_EXIT("Could not read from file %s\n", fn);
-    static const std::size_t bufsz(2048);
+    static const size_t bufsz(2048);
     char buf[bufsz];
     std::string ret(gzgets(fp, buf, bufsz));
     if(ret.back() != '\n')
@@ -299,7 +299,7 @@ std::string get_firstline(const char *fn) {
 tax_t get_taxid(const char *fn, khash_t(name) *name_hash) {
     gzFile fp(gzopen(fn, "rb"));
     if(fp == nullptr) LOG_EXIT("Could not read from file %s\n", fn);
-    static const std::size_t bufsz(2048);
+    static const size_t bufsz(2048);
     khint_t ki;
     char buf[bufsz];
     char *line(gzgets(fp, buf, bufsz));
@@ -573,11 +573,11 @@ khash_t(all) *load_binary_kmerset(const char *path) {
     std::FILE *fp(std::fopen(path, "rb"));
     if(fp == nullptr) throw std::system_error(std::error_code(2, std::system_category()), std::string("Cannot open path at ") + path + ".\n");
     khash_t(all) *ret(kh_init(all));
-    std::uint64_t n;
+    u64 n;
     std::fread(&n, 1, sizeof(n), fp);
     if(kh_resize(all, ret, n) < 0) LOG_EXIT("Could not resize hash table to next power of 2 above %zu. New size: %zu\n", n, kh_n_buckets(ret));
     LOG_DEBUG("About to place %zu elements into a hash table of max size %zu\n", n, kh_n_buckets(ret));
-    for(int khr; std::fread(&n, 1, sizeof(std::uint64_t), fp) == sizeof(std::uint64_t); kh_put(all, ret, n, &khr));
+    for(int khr; std::fread(&n, 1, sizeof(u64), fp) == sizeof(u64); kh_put(all, ret, n, &khr));
     std::fclose(fp);
 #if !NDEBUG
     // Just make sure it all worked.
@@ -585,24 +585,24 @@ khash_t(all) *load_binary_kmerset(const char *path) {
         if(kh_exist(ret, ki)) assert(kh_get(all, ret, kh_key(ret, ki)) != kh_end(ret));
     }
     fp = std::fopen(path, "rb");
-    std::fread(&n, 1, sizeof(std::uint64_t), fp); // Skip first number.
-    while(std::fread(&n, 1, sizeof(std::uint64_t), fp) == sizeof(std::uint64_t)) assert(kh_get(all, ret, n) != kh_end(ret));
+    std::fread(&n, 1, sizeof(u64), fp); // Skip first number.
+    while(std::fread(&n, 1, sizeof(u64), fp) == sizeof(u64)) assert(kh_get(all, ret, n) != kh_end(ret));
     std::fclose(fp);
 #endif
     return ret;
 }
 
 
-lazy::vector<std::uint64_t, std::size_t> load_binary_kmers(const char *path) {
+lazy::vector<u64, size_t> load_binary_kmers(const char *path) {
     std::FILE *fp(std::fopen(path, "rb"));
     if(fp == nullptr) throw std::system_error(std::error_code(2, std::system_category()), std::string("Cannot open path at ") + path + ".\n");
-    lazy::vector<std::uint64_t, std::size_t> ret;
-    std::uint64_t n;
+    lazy::vector<u64, size_t> ret;
+    u64 n;
     std::fread(&n, sizeof(n), 1, fp);
     ret.resize(n, lazy::LAZY_VEC_NOINIT);
     auto it(ret.begin());
     auto eit(ret.end());
-    while(std::fread(it++, sizeof(std::uint64_t), 1, fp) == sizeof(std::uint64_t))
+    while(std::fread(it++, sizeof(u64), 1, fp) == sizeof(u64))
         if(unlikely(it == eit))
             throw std::runtime_error("Read too many integers from file. Number provided (" + std::to_string(n) + ") is wrong.");
     std::fclose(fp);

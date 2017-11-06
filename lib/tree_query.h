@@ -10,7 +10,7 @@ namespace emp {
 
 class KmerLcaMap {
 public:
-    virtual std::uint32_t get_lca(std::uint64_t) = 0;
+    virtual u32 get_lca(u64) = 0;
     virtual ~KmerLcaMap() = 0;
 };
 
@@ -20,7 +20,7 @@ class KrakenLcaMap: KmerLcaMap {
     kraken::KrakenDBIndex dbi_;
     kraken::KmerScanner   ks_;
 public:
-    virtual std::uint32_t get_lca(std::uint64_t) override;
+    virtual u32 get_lca(u64) override;
     virtual ~KrakenLcaMap();
 };
 #endif
@@ -31,7 +31,7 @@ class EmpLcaMap: KmerLcaMap {
 public:
     EmpLcaMap(): db_("LoadFromThisNotRealFile") {
     }
-    virtual std::uint32_t get_lca(std::uint64_t) override;
+    virtual u32 get_lca(u64) override;
     virtual ~EmpLcaMap();
 };
 

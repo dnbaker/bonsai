@@ -20,7 +20,7 @@ template<typename khkey_t, typename khval_t,
          typename hash_func=std::hash<khkey_t>, class hash_equal=std::equal_to<khkey_t>,
          bool is_map=true, size_t BUCKET_OFFSET=8>
 struct khpp_t {
-    using index_type = std::uint64_t;
+    using index_type = u64;
     index_type n_buckets, size, n_occupied, upper_bound;
     khint32_t *flags;
     khkey_t   *keys;

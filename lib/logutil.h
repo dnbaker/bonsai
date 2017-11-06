@@ -15,7 +15,7 @@
 #else
 #    define LOG_DEBUG(...)
 #endif
-#define LOG_ASSERT(condition) log_assert(_FUNCTION_MACRO_, __LINE__, ((std::uint64_t)(condition)), (#condition))
+#define LOG_ASSERT(condition) log_assert(_FUNCTION_MACRO_, __LINE__, ((u64)(condition)), (#condition))
 
 static inline int log_debug(const char *func, int line, const char *fmt, ...) {
     std::va_list args;
