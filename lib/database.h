@@ -82,7 +82,7 @@ struct Database {
 #if !NDEBUG
         Database<T> test(fn);
         assert(kh_size(test.db_) == kh_size(db_));
-        std::size_t ndiff(0);
+        size_t ndiff(0);
         for(khiter_t ki(0); ki != kh_end(test.db_); ++ki) {
             if(kh_key(db_, ki) != kh_key(test.db_, ki))
                 std::fprintf(stderr, "key mismatch at %lu. key 1: %" PRIu64 ", key 2: %" PRIu64 ".\n", ki, (u64)kh_key(db_, ki), (u64)kh_key(test.db_, ki)), ++ndiff;

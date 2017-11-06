@@ -40,9 +40,9 @@ class QueueMap {
     using map_iterator = typename std::map<ElScore<T, ScoreType>, unsigned>::iterator;
     std::list<ElScore<T, ScoreType>>         list_;
     std::map<ElScore<T, ScoreType>, unsigned> map_;
-    const std::size_t                         wsz_;  // window size to keep
+    const size_t                         wsz_;  // window size to keep
     public:
-    QueueMap(std::size_t wsz): wsz_(wsz) {}
+    QueueMap(size_t wsz): wsz_(wsz) {}
     INLINE void add(const PairType &el) {
         auto it(map_.lower_bound(el));
         if(it != map_.end()) {

@@ -9,7 +9,7 @@
 
 namespace emp {
 
-typedef std::vector<std::uint8_t> spvec_t;
+typedef std::vector<u8> spvec_t;
 
 u32 comb_size(const spvec_t &spaces);
 spvec_t parse_spacing(const char *space_string, unsigned k);

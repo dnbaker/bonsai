@@ -57,7 +57,7 @@ int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret) {
 }
 
 template<u64 (*score)(u64, void *)>
-std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, std::size_t index, void *data) {
+size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data) {
     LOG_ASSERT(ret);
     LOG_INFO("Filling from genome at path %s\n", path);
     gzFile ifp(gzopen(path, "rb"));
@@ -94,8 +94,8 @@ std::size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *re
 #undef next_minimizer
 
 template<u64 (*score)(u64, void *), class Container>
-std::size_t fill_set_genome_container(Container &container, const Spacer &sp, khash_t(all) *ret, void *data) {
-    std::size_t sz(0);
+size_t fill_set_genome_container(Container &container, const Spacer &sp, khash_t(all) *ret, void *data) {
+    size_t sz(0);
     for(std::string &str: container)
         sz += fill_set_genome<score>(str.data(), sp, ret, 0, data);
     return sz;
@@ -104,7 +104,7 @@ std::size_t fill_set_genome_container(Container &container, const Spacer &sp, kh
 template<u64 (*score)(u64, void *)>
 khash_t(64) *ftct_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
                       const char *seq2tax_path,
-                      const Spacer &sp, int num_threads, std::size_t start_size) {
+                      const Spacer &sp, int num_threads, size_t start_size) {
     return feature_count_map<score>(fns, tax_map, seq2tax_path, sp, num_threads, start_size);
 }
 
@@ -178,12 +178,12 @@ void min_for_helper(void *data_, long index, int tid) {
 template<u64 (*score)(u64, void *)>
 khash_t(c) *minimized_map(std::vector<std::string> fns,
                           khash_t(64) *full_map,
-                          const Spacer &sp, int num_threads, std::size_t start_size) {
+                          const Spacer &sp, int num_threads, size_t start_size) {
     khash_t(c) *ret(kh_init(c));
     kh_resize(c, ret, start_size);
     std::vector<khash_t(all) *> counters;
     counters.reserve(num_threads);
-    for(std::size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
+    for(size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
     lca_helper lh{sp, fns, ret, nullptr, nullptr, counters, (void *)full_map};
     kt_for(num_threads, &min_for_helper<score>, (void *)&lh, fns.size());
     for(auto c: counters) khash_destroy(c);
@@ -195,13 +195,13 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
 template<u64 (*score)(u64, void *)>
 khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
                           const char *seq2tax_path, const Spacer &sp,
-                          int num_threads, std::size_t start_size) {
+                          int num_threads, size_t start_size) {
     khash_t(64) *ret(kh_init(64));
     kh_resize(64, ret, start_size);
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
     std::vector<khash_t(all) *> counters;
     counters.reserve(num_threads);
-    for(std::size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
+    for(size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
     td_helper th{sp, fns, ret, name_hash, tax_map, counters, nullptr};
     kt_for(num_threads, &td_for_helper<score>, (void *)&th, fns.size());
     destroy_name_hash(name_hash);
@@ -214,14 +214,14 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
 template<u64 (*score)(u64, void *)>
 khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
                     const char *seq2tax_path,
-                    const Spacer &sp, int num_threads, std::size_t start_size) {
+                    const Spacer &sp, int num_threads, size_t start_size) {
     khash_t(c) *ret(kh_init(c));
     kh_resize(c, ret, start_size);
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
     std::vector<khash_t(all) *> counters;
     std::shared_mutex m;
     counters.reserve(num_threads);
-    for(std::size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
+    for(size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
     lca_helper lh{sp, fns, ret, name_hash, tax_map, counters, nullptr, &m};
     kt_for(num_threads, &lca_for_helper<score>, (void *)&lh, fns.size());
     destroy_name_hash(name_hash);
@@ -234,14 +234,14 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
 template <u64 (*score)(u64, void *)>
 khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map,
                                const char *seq2tax_path,
-                               const Spacer &sp, int num_threads, std::size_t start_size) {
+                               const Spacer &sp, int num_threads, size_t start_size) {
     // TODO: make scale better.
     khash_t(64) *ret(kh_init(64));
     kh_resize(64, ret, start_size);
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
     std::vector<khash_t(all) *> counters;
     counters.reserve(num_threads);
-    for(std::size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
+    for(size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
     td_helper th{sp, fns, ret, name_hash, tax_map, counters, nullptr};
     kt_for(num_threads, &fct_for_helper<score>, (void *)&th, fns.size());
     for(auto c: counters) khash_destroy(c);
@@ -252,19 +252,19 @@ khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map
 template<u64 (*score)(u64, void *)>
 khash_t(c) *minimized_map(std::vector<std::string> fns,
                           khash_t(64) *full_map,
-                          const Spacer &sp, int num_threads, std::size_t start_size) {
-    std::size_t submitted(0), completed(0), todo(fns.size());
+                          const Spacer &sp, int num_threads, size_t start_size) {
+    size_t submitted(0), completed(0), todo(fns.size());
     std::vector<khash_t(all) *> counters(todo, nullptr);
     khash_t(c) *ret(kh_init(c));
     kh_resize(c, ret, start_size);
-    std::vector<std::future<std::size_t>> futures;
+    std::vector<std::future<size_t>> futures;
     //for(auto &i: fns) fprintf(stderr, "Filename: %s\n", i.data());
 
     if(num_threads < 0) num_threads = 16;
 
     LOG_DEBUG("Number of items to do: %zu\n", todo);
 
-    for(std::size_t i(0); i < todo; ++i) counters[i] = kh_init(all), kh_resize(all, counters[i], start_size);
+    for(size_t i(0); i < todo; ++i) counters[i] = kh_init(all), kh_resize(all, counters[i], start_size);
 
     // Submit the first set of jobs
     for(int i(0), e(std::min(num_threads, (int)todo)); i < e; ++i) {
@@ -278,7 +278,7 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
         //LOG_DEBUG("Submitted %zu, todo %zu\n", submitted, todo);
         for(auto f(futures.begin()), fend(futures.end()); f != fend; ++f) {
             if(is_ready(*f)) {
-                const std::size_t index(f->get());
+                const size_t index(f->get());
                 futures.erase(f);
                 futures.emplace_back(std::async(
                      std::launch::async, fill_set_genome<score>, fns[submitted].data(),
@@ -295,7 +295,7 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
 
     // Join
     for(auto &f: futures) if(f.valid()) {
-        const std::size_t index(f.get());
+        const size_t index(f.get());
         update_minimized_map(counters[index], full_map, ret);
         kh_destroy(all, counters[index]);
         ++completed;
@@ -311,18 +311,18 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
 template<u64 (*score)(u64, void *)>
 khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
                           const char *seq2tax_path, const Spacer &sp,
-                          int num_threads, std::size_t start_size=1<<10) {
-    std::size_t submitted(0), completed(0), todo(fns.size());
+                          int num_threads, size_t start_size=1<<10) {
+    size_t submitted(0), completed(0), todo(fns.size());
     std::vector<khash_t(all) *> counters(todo, nullptr);
     khash_t(64) *ret(kh_init(64));
     kh_resize(64, ret, start_size);
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
-    std::vector<std::future<std::size_t>> futures;
+    std::vector<std::future<size_t>> futures;
 
-    for(std::size_t i(0), end(fns.size()); i != end; ++i) counters[i] = kh_init(all);
+    for(size_t i(0), end(fns.size()); i != end; ++i) counters[i] = kh_init(all);
 
     // Submit the first set of jobs
-    std::set<std::size_t> subbed, used;
+    std::set<size_t> subbed, used;
     for(int i(0), e(std::min(num_threads, (int)todo)); i < e; ++i) {
         LOG_DEBUG("Launching thread to read from file %s.\n", fns[i].data());
         futures.emplace_back(std::async(
@@ -338,7 +338,7 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
         for(auto &f: futures) {
             if(is_ready(f)) {
                 if(submitted == todo) break;
-                const std::size_t index(f.get());
+                const size_t index(f.get());
                 if(used.find(index) != used.end()) continue;
                 used.insert(index);
                 if(subbed.find(submitted) != subbed.end()) throw "a party!";
@@ -360,7 +360,7 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
 
     // Join
     for(auto &f: futures) if(f.valid()) {
-        const std::size_t index(f.get());
+        const size_t index(f.get());
         if(used.find(index) != used.end()) continue;
         used.insert(index);
         update_td_map(ret, counters[index], tax_map, get_taxid(fns[index].data(), name_hash));
@@ -370,7 +370,7 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
     }
     LOG_DEBUG("Finished LCA map building! Subbed %zu, completed %zu, size of futures %zu.\n", submitted, completed, used.size());
 #if !NDEBUG
-    for(std::size_t i(0); i < todo; ++i) assert(used.find(i) != used.end());
+    for(size_t i(0); i < todo; ++i) assert(used.find(i) != used.end());
 #endif
 
     // Clean up
@@ -382,21 +382,21 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
 template<u64 (*score)(u64, void *)>
 khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
                     const char *seq2tax_path,
-                    const Spacer &sp, int num_threads, std::size_t start_size=1<<10) {
-    std::size_t submitted(0), completed(0), todo(fns.size());
+                    const Spacer &sp, int num_threads, size_t start_size=1<<10) {
+    size_t submitted(0), completed(0), todo(fns.size());
     std::vector<khash_t(all) *> counters;
     khash_t(c) *ret(kh_init(c));
     kh_resize(c, ret, start_size);
     counters.reserve(todo);
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
-    std::vector<std::future<std::size_t>> futures;
+    std::vector<std::future<size_t>> futures;
     std::shared_mutex m;
 
-    for(std::size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
+    for(size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
 
 
     // Submit the first set of jobs
-    std::set<std::size_t> subbed, used;
+    std::set<size_t> subbed, used;
     for(int i(0), e(std::min(num_threads, (int)todo)); i < e; ++i) {
         LOG_DEBUG("Launching thread to read from file %s.\n", fns[i].data());
         futures.emplace_back(std::async(
@@ -412,7 +412,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
         for(auto &f: futures) {
             if(is_ready(f)) {
                 if(submitted == todo) break;
-                const std::size_t index(f.get());
+                const size_t index(f.get());
                 if(used.find(index) != used.end()) continue;
                 used.insert(index);
                 if(subbed.find(submitted) != subbed.end()) throw "a party!";
@@ -434,7 +434,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
 
     // Join
     for(auto &f: futures) if(f.valid()) {
-        const std::size_t index(f.get());
+        const size_t index(f.get());
         if(used.find(index) != used.end()) continue;
         used.insert(index);
         tax_t taxid(get_taxid(fns[index].data(), name_hash));
@@ -454,21 +454,21 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
 }
 
 template <u64 (*score)(u64, void *)>
-khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, std::size_t start_size) {
+khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, size_t start_size) {
     // Update this to include tax ids in the hash map.
-    std::size_t submitted(0), completed(0), todo(fns.size());
+    size_t submitted(0), completed(0), todo(fns.size());
     std::vector<khash_t(all) *> counters(todo, nullptr);
     khash_t(64) *ret(kh_init(64));
     kh_resize(64, ret, start_size);
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
-    for(std::size_t i(0), end(fns.size()); i != end; ++i) counters[i] = kh_init(all);
-    std::vector<std::future<std::size_t>> futures;
+    for(size_t i(0), end(fns.size()); i != end; ++i) counters[i] = kh_init(all);
+    std::vector<std::future<size_t>> futures;
     fprintf(stderr, "Will use tax_map (%p) and seq2tax_map (%s) to assign "
                     "feature-minimized values to all kmers.\n", (void *)tax_map, seq2tax_path);
 
     // Submit the first set of jobs
-    std::set<std::size_t> used;
-    for(std::size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
+    std::set<size_t> used;
+    for(size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
         futures.emplace_back(std::async(
           std::launch::async, fill_set_genome<score>, fns[i].data(), sp, counters[i], i, nullptr));
         LOG_DEBUG("Submitted for %zu.\n", submitted);
@@ -479,7 +479,7 @@ khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map
     while(submitted < todo) {
         for(auto &f: futures) {
             if(is_ready(f)) {
-                const std::size_t index(f.get());
+                const size_t index(f.get());
                 if(submitted == todo) break;
                 if(used.find(index) != used.end()) continue;
                 used.insert(index);
@@ -497,7 +497,7 @@ khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map
 
     // Join
     for(auto &f: futures) if(f.valid()) {
-        const std::size_t index(f.get());
+        const size_t index(f.get());
         const tax_t taxid(get_taxid(fns[index].data(), name_hash));
         update_feature_counter(ret, counters[index], tax_map, taxid);
         kh_destroy(all, counters[index]);

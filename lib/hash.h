@@ -84,7 +84,7 @@ static INLINE int X31_hash_string(const char *s)
 // Slightly modified.
 // This is a 32-bit unsigned hash function for strings.
 static INLINE unsigned
-dbm_hash(const char *str, std::size_t len)
+dbm_hash(const char *str, size_t len)
 {
     unsigned n = 0;
 

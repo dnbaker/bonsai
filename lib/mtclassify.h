@@ -36,7 +36,7 @@ INLINE void classify_seqs(Classifier &c, khash_t(p) *taxmap, bseq1_t *bs,
 
 void kt_for_helper(void *data_, long index, int tid) {
     kt_data *data((kt_data *)data_);
-    std::size_t retstr_size(0);
+    size_t retstr_size(0);
     for(unsigned i(index * data->per_set_), end(std::min(i + data->per_set_, data->total_));
             i < end; ++i)
         retstr_size += classify_seq(data->c_, data->taxmap, data->bs_ + i);

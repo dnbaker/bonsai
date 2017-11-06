@@ -4,6 +4,7 @@
 #include "lib/util.h"
 #include "lib/bits.h"
 #include "lib/counter.h"
+#include "lib/bitcmp.h"
 
 namespace emp {
 
@@ -19,12 +20,17 @@ struct fnode_t {
     const u32         pc_;  // popcount
     const u32         bc_;  // bitcount for family (number of clades in subtree)
     const u32      si_:31;  // subtree index
-    u32          added_:1;
+    u32          added_:1;  // Whether node has been added or been subsumed
     fnode_t(const bitvec_t &bits, u32 bc, u32 subtree_index, const u64 n=0):
         n_{n}, desc_pts_{0}, pc_{static_cast<u32>(popcnt::vec_popcnt(bits))},
         bc_{bc}, si_{subtree_index}, added_(false) {}
     ks::KString str() const {
         return ks::sprintf("fnode_t[n:%zu,popcount:%u,familysize:%u", n_, pc_, bc_);
+    }
+    void subsume(NodeType &other) {
+        const auto tmp((bc_ - pc_) * other.second.n_);
+        desc_pts_ += tmp;
+        other.second.desc_pts_ -= tmp;
     }
 };
 
@@ -178,8 +184,46 @@ public:
         run_collapse(maxtax, ks, fp);
     }
     void condense_subtree(HeapType &subtree) {
+        using std::begin;
+        using std::end;
         // Update scores
-        throw std::runtime_error("NotImplemented.");
+        // Mark
+        using HeapIt = typename HeapType::iterator;
+        HeapIt ait, bit, eait;
+        using std::begin;
+        using std::end;
+        using std::find;
+        std::vector<bitvec_t *> to_remove;
+
+#if 0
+        auto in = []<class T>(std::vector<T *> &vec, T *el) {
+            return find(begin(vec), end(vec), el) != vec.end();
+        };
+        auto insert = [&]<class T>(std::vector<T *> &vec, bitvec_t *el) {
+            if(!in(vec, el)) vec.emplace_back(el);
+        };
+#endif
+        for(ait = begin(subtree), eait = end(subtree); ait != eait; ++ait) {
+            for(bit = ait, ++bit; bit != eait; ++bit) {
+                if((*ait)->second.added_|| (*bit)->second.added_) continue;
+                //if(&(*ait)->first) continue;
+                switch(veccmp((*ait)->first, (*bit)->first)) {
+                    case BitCmp::FIRST_PARENT:
+                        (*ait)->second.subsume(**bit);
+                        //insert(to_remove, &(*bit)->first);
+                        break;
+                    case BitCmp::SECOND_PARENT:
+                        (*bit)->second.subsume(**ait);
+                        //insert(to_remove, &(*ait)->first);
+                        break;
+                    case BitCmp::EQUAL: LOG_DEBUG("Warning: bit patterns a and b should be not equal....\n");
+                                        [[fallthrough]]
+                    case BitCmp::INCOMPARABLE: continue;
+                }
+            }
+        }
+        // I think I should instead think of some other way to organize them, but this works for a start.
+        //for(auto el: to_remove) subtree.erase(el);
     }
     void run_collapse(tax_t maxtax, ks::KString &ks, std::FILE* fp) {
         const int fd(fileno(fp));

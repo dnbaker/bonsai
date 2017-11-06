@@ -200,6 +200,8 @@ typedef khint_t khiter_t;
 #define kfree(P) free(P)
 #endif
 
+typedef uint64_t u64;
+
 static const double __ac_HASH_UPPER = 0.77;
 
 // Thomas Wang hash
@@ -662,7 +664,7 @@ static kh_inline khint_t __ac_Wang_hash(khint_t key)
 
 
 #ifdef __cplusplus
-template<std::size_t nbits>
+template<size_t nbits>
 struct khkey_t {
 	__attribute__((packed)) u64 key_:nbits;
 	static const u64 max = (1ull << nbits) - 1;

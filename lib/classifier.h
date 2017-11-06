@@ -42,7 +42,7 @@ struct ClassifierGeneric {
     INLINE int get_emit_all()    {return output_flag_ & output_format::EMIT_ALL;}
     INLINE int get_emit_kraken() {return output_flag_ & output_format::KRAKEN;}
     INLINE int get_emit_fastq()  {return output_flag_ & output_format::FASTQ;}
-    ClassifierGeneric(khash_t(c) *map, spvec_t &spaces, std::uint8_t k, std::uint16_t wsz, int num_threads=16,
+    ClassifierGeneric(khash_t(c) *map, spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
                       bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false):
         db_(map),
         sp_(k, wsz, spaces),
@@ -55,7 +55,7 @@ struct ClassifierGeneric {
         set_emit_fastq(emit_fastq);
         set_emit_kraken(emit_kraken);
     }
-    ClassifierGeneric(const char *dbpath, spvec_t &spaces, std::uint8_t k, std::uint16_t wsz, int num_threads=16,
+    ClassifierGeneric(const char *dbpath, spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
                       bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false):
         ClassifierGeneric(khash_load<khash_t(c)>(dbpath), spaces, k, wsz, num_threads, emit_all, emit_fastq, emit_kraken) {
     }
@@ -116,7 +116,7 @@ unsigned classify_seq(ClassifierGeneric<score> &c, Encoder<score> &enc, khash_t(
     u32 ambig_count(0), missing_count(0);
     tax_t taxon(0);
     ks::KString bks(bs->sam);
-    const std::size_t reslen(bs->l_seq - c.sp_.c_ + 1);
+    const size_t reslen(bs->l_seq - c.sp_.c_ + 1);
     std::vector<tax_t> taxa;
     taxa.reserve(reslen > 0 ? reslen: 0); // Reserve memory without initializing
 

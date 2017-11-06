@@ -27,7 +27,7 @@ inline constexpr int log2_64(uint64_t value)
     return tab64[((uint64_t)((value - (value >> 1))*0x07EDD5E59A4E28C2)) >> 58];
 }
 
-template<typename T, typename size_type=std::size_t>
+template<typename T, typename size_type=size_t>
 struct ptr_hash {
     static constexpr size_t SHIFT = log2_64(alignof(T));
     size_type operator()(const T *a) const {
@@ -39,7 +39,7 @@ struct ptr_hash {
 template<typename T>
 class AdjacencyList {
     std::unordered_map<const T*, lazy::vector<const T*>, ptr_hash<T>> map_;
-    std::size_t m_, nelem_;
+    size_t m_, nelem_;
     bool is_reverse_;
 
 public:
@@ -48,7 +48,7 @@ public:
     auto find(const T &elem) const {return find(&elem);}
     auto end()         const {return map_.end();}
     AdjacencyList(): m_(0), nelem_(0), is_reverse_(0) {}
-    enum orientation: std::size_t {
+    enum orientation: size_t {
         FORWARD = 0,
         REVERSE = 1
     };
@@ -112,7 +112,7 @@ public:
         const auto &vec(set.get_core());
         LOG_DEBUG("Size of set: %zu\n", set.size());
 
-        for(std::size_t i(0); i < set.size(); ++i) {
+        for(size_t i(0); i < set.size(); ++i) {
             h = vec[i];
             for(khiter_t ki(0); ki != kh_end(h); ++ki) {
                 if(kh_exist(h, ki)) {
@@ -134,8 +134,8 @@ public:
         const auto tmp(fill(set));
         unsigned bitsum;
 #if !NDEBUG
-        std::size_t n_passed(0), total(tmp.size());
-        std::unordered_map<unsigned, std::size_t> counts;
+        size_t n_passed(0), total(tmp.size());
+        std::unordered_map<unsigned, size_t> counts;
         std::unordered_set<std::string> stringset;
 #endif
         // Only keeps kmers from kgset if they don't have 1 or set.size() bits set.
@@ -168,8 +168,7 @@ public:
 
 
 u64 score_node_addn(const bitvec_t &bitstring,
-                              const adjmap_t &am, const count::Counter<bitvec_t> &counts, std::size_t nelem);
-
+                              const adjmap_t &am, const count::Counter<bitvec_t> &counts, size_t nelem);
 }
 
 #endif // #ifndef _BITMAP_H__

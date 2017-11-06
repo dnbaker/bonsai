@@ -4,7 +4,7 @@
 namespace emp {
 
 u64 score_node_addn(const bitvec_t &bitstring,
-                              const adjmap_t &am, const count::Counter<bitvec_t> &counts, std::size_t nelem) {
+                              const adjmap_t &am, const count::Counter<bitvec_t> &counts, size_t nelem) {
     assert(bitstring.size() << 6 >= nelem);
     const auto m(am.find(bitstring));
     const auto node(counts.find(bitstring));

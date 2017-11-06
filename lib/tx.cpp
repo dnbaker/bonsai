@@ -83,7 +83,7 @@ void Taxonomy::write(const char *fn) const {
     std::fwrite(&num_occ, sizeof(num_occ), 1, fp);
     std::fwrite(&n_syn_,  sizeof(n_syn_), 1, fp);
     std::fwrite(&ceil_,   sizeof(ceil_), 1, fp);
-    std::size_t nwritten(0);
+    size_t nwritten(0);
     fprintf(fp, "%s\n", name_.data());
     for(khiter_t ki(0); ki != kh_end(name_map_); ++ki) {
         if(kh_exist(name_map_, ki)) {
