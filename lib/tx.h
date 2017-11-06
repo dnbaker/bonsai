@@ -13,8 +13,8 @@
 
 
 template<typename T>
-std::size_t get_n_occ(T *hash) {
-    std::size_t ret(0);
+size_t get_n_occ(T *hash) {
+    size_t ret(0);
     for(khiter_t ki(0); ki != kh_end(hash); ++ki) ret += !!kh_exist(hash, ki);
     return ret;
 }
@@ -127,7 +127,7 @@ public:
     kgset_t(typename std::vector<std::string>::const_iterator begin, typename std::vector<std::string>::const_iterator end,
             const Spacer &sp, int num_threads=-1, const khash_t(all) *acc=nullptr): paths_(begin, end), acceptable_(acc), fl_(nullptr) {
         core_.reserve(end - begin);
-        for(std::size_t i(0), end(paths_.size()); i != end; ++i) core_.emplace_back(kh_init(all));
+        for(size_t i(0), end(paths_.size()); i != end; ++i) core_.emplace_back(kh_init(all));
         fill(paths_, sp, num_threads);
     }
     // Encoding constructor
@@ -146,19 +146,19 @@ public:
     ~kgset_t() {
         for(auto i: core_) khash_destroy(i);
     }
-    std::size_t size() const {return core_.size();}
+    size_t size() const {return core_.size();}
 
-    std::size_t weight() const {
+    size_t weight() const {
         if(!size()) return 0;
-        std::size_t ret(kh_size(core_[0]));
-        for(std::size_t i(1), e(core_.size()); i < e; ++i) ret += kh_size(core_[i]);
+        size_t ret(kh_size(core_[0]));
+        for(size_t i(1), e(core_.size()); i < e; ++i) ret += kh_size(core_[i]);
         return ret;
     }
 };
 
 
 template<typename T>
-constexpr std::size_t spop(T &container) {
+constexpr size_t spop(T &container) {
     assert(container.size());
     auto i(container.cbegin());
     u64 ret(popcnt::popcount(*i));

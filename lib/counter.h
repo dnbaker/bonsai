@@ -27,7 +27,7 @@ public:
     const void *operator->() const {return random_;}
     operator const void *()  const {return random_;}
     template<typename T>
-    u64 hash(const T *p, std::size_t nbytes) {
+    u64 hash(const T *p, size_t nbytes) {
         return clhash(random_, p, nbytes);
     }
     template<typename T>
@@ -102,9 +102,9 @@ struct is_specialization<Ref<Args...>, Ref>: std::true_type {};
 
 template<typename T, class Hash=std::hash<T>>
 class Counter {
-    std::size_t                                                n_;
-    std::size_t                                            nelem_;
-    std::unordered_map<T, std::size_t, Hash>                 map_;
+    size_t                                                n_;
+    size_t                                            nelem_;
+    std::unordered_map<T, size_t, Hash>                 map_;
     std::unordered_map<unsigned, unsigned>                 *hist_;
 
 public:
@@ -144,26 +144,26 @@ public:
         ++n_;
     }
 
-    void set_nelem(std::size_t nelem) {
+    void set_nelem(size_t nelem) {
         nelem_ = nelem;
     }
 
-    std::size_t get_nelem() const {return nelem_;}
+    size_t get_nelem() const {return nelem_;}
 
     template<class C>
     void fill(C container) {
         for(auto i: container) add(i);
     }
 
-    std::size_t size()        const {return map_.size();}
-    std::size_t total()       const {return n_;}
+    size_t size()        const {return map_.size();}
+    size_t total()       const {return n_;}
     auto begin()              const {return map_.begin();}
     auto end()                const {return map_.end();}
     auto cbegin()             const {return map_.cbegin();}
     auto cend()               const {return map_.cend();}
     auto find(const T &elem)  const {return map_.find(elem);}
 
-    const std::unordered_map<T, std::size_t, Hash> &get_map() { return map_;}
+    const std::unordered_map<T, size_t, Hash> &get_map() { return map_;}
 
     template<typename = std::enable_if<std::is_same<bitvec_t, T>::value>>
     std::unordered_map<unsigned, unsigned> *make_hist() {
@@ -199,14 +199,14 @@ public:
     void print_counts(std::FILE *fp) const {
         struct vecc_t {
             const T *vec_;
-            std::size_t count_;
-            vecc_t(const T *vec, const std::size_t count): vec_(vec), count_(count) {}
+            size_t count_;
+            vecc_t(const T *vec, const size_t count): vec_(vec), count_(count) {}
             inline bool operator<(const vecc_t &other) {
                 return count_ < other.count_;
             }
         };
         ks::KString ks;
-        std::size_t sum(0);
+        size_t sum(0);
         std::vector<vecc_t> vc;
         vc.reserve(map_.size());
         for(auto &i: map_) vc.emplace_back(&i.first, i.second);
@@ -214,9 +214,9 @@ public:
         ksprintf(static_cast<kstring_t*>(ks), "#Number of distinct patterns: %zu\n", vc.size());
         ksprintf(static_cast<kstring_t*>(ks), "#Pattern\tCount\tNumber of bits set in pattern\n");
         for(const auto &i: vc) {
-            std::size_t n(0);
+            size_t n(0);
             const T &vec(*i.vec_);
-            std::size_t pc(0);
+            size_t pc(0);
             for(const auto j: vec) {
                 sum += j;
                 auto k(j);

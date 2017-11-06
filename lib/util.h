@@ -53,11 +53,6 @@
 #  endif
 #endif
 
-#ifndef TAXID_TYPEDEF
-#define TAXID_TYPEDEF
-using tax_t = u32;
-#endif
-
 #ifdef USE_PDQSORT
 # include "pdqsort/pdqsort.h"
 # ifndef SORT
@@ -86,10 +81,18 @@ using tax_t = u32;
 
 namespace emp {
 
-using u32 = u32;
-using u64 = u64;
+using u32 = std::uint32_t;
+using tax_t = u32;
+using u64 = std::uint64_t;
 using i32 = std::int32_t;
 using i64 = std::int64_t;
+using std::size_t;
+using u8 = std::uint8_t;
+using std::forward_list;
+using std::unordered_map;
+using strlist = forward_list<std::string>;
+using cpslist = forward_list<std::string*>;
+using bitvec_t = lazy::vector<u64, u32>;
 
 KHASH_SET_INIT_INT64(all)
 KHASH_MAP_INIT_INT64(c, tax_t)
@@ -100,14 +103,14 @@ using strlist = std::forward_list<std::string>;
 using cpslist = std::forward_list<std::string*>;
 using bitvec_t = lazy::vector<u64, u32>;
 
-std::string rand_string(std::size_t n);
-std::size_t count_lines(const char *fn) noexcept;
+std::string rand_string(size_t n);
+size_t count_lines(const char *fn) noexcept;
 khash_t(name) *build_name_hash(const char *fn) noexcept;
 void destroy_name_hash(khash_t(name) *hash) noexcept;
 void print_name_hash(khash_t(name) *hash) noexcept;
 khash_t(p) *build_parent_map(const char *fn) noexcept;
 
-lazy::vector<u64, std::size_t> load_binary_kmers(const char *path);
+lazy::vector<u64, size_t> load_binary_kmers(const char *path);
 khash_t(all) *load_binary_kmerset(const char *path);
 
 tax_t get_max_val(const khash_t(p) *hash) noexcept;
@@ -154,12 +157,12 @@ void khash_destroy(khash_t(p) *map) noexcept;
 
 template <typename T>
 void print_khash(T *rex) noexcept {
-    std::fprintf(stderr, "n buckets %zu, nocc %zu, size %zu, upper bound %zu.\n",
+    fprintf(stderr, "n buckets %zu, nocc %zu, size %zu, upper bound %zu.\n",
                  rex->n_buckets, rex->n_occupied, rex->size, rex->upper_bound);
 }
 
 #define __fw(item, fp) \
-  std::fwrite(&(item), 1, sizeof(item), fp)
+  fwrite(&(item), 1, sizeof(item), fp)
 
 template<typename T>
 void khash_write_impl(T *map, std::FILE *fp) noexcept {
@@ -170,17 +173,17 @@ void khash_write_impl(T *map, std::FILE *fp) noexcept {
     __fw(map->n_occupied, fp);
     __fw(map->size, fp);
     __fw(map->upper_bound, fp);
-    std::fwrite(map->flags, __ac_fsize(map->n_buckets), sizeof(*map->flags), fp);
-    std::fwrite(map->keys, map->n_buckets, sizeof(*map->keys), fp);
-    std::fwrite(map->vals, map->n_buckets, sizeof(*map->vals), fp);
+    fwrite(map->flags, __ac_fsize(map->n_buckets), sizeof(*map->flags), fp);
+    fwrite(map->keys, map->n_buckets, sizeof(*map->keys), fp);
+    fwrite(map->vals, map->n_buckets, sizeof(*map->vals), fp);
 }
 
 template <typename T>
-std::size_t khash_write(T *map, const char *path) noexcept {
-    std::FILE *fp(std::fopen(path, "wb"));
+size_t khash_write(T *map, const char *path) noexcept {
+    std::FILE *fp(fopen(path, "wb"));
     khash_write_impl(map, fp);
-    std::size_t ret(ftell(fp));
-    std::fclose(fp);
+    size_t ret(ftell(fp));
+    fclose(fp);
     return ret;
 }
 
@@ -191,30 +194,30 @@ T *khash_load_impl(std::FILE *fp) noexcept {
     T *rex((T *)std::calloc(1, sizeof(T)));
     typedef typename std::remove_pointer<decltype(rex->keys)>::type keytype_t;
     typedef typename std::remove_pointer<decltype(rex->vals)>::type valtype_t;
-    std::fread(&rex->n_buckets, 1, sizeof(rex->n_buckets), fp);
-    std::fread(&rex->n_occupied, 1, sizeof(rex->n_occupied), fp);
-    std::fread(&rex->size, 1, sizeof(rex->size), fp);
-    std::fread(&rex->upper_bound, 1, sizeof(rex->upper_bound), fp);
+    fread(&rex->n_buckets, 1, sizeof(rex->n_buckets), fp);
+    fread(&rex->n_occupied, 1, sizeof(rex->n_occupied), fp);
+    fread(&rex->size, 1, sizeof(rex->size), fp);
+    fread(&rex->upper_bound, 1, sizeof(rex->upper_bound), fp);
     LOG_DEBUG("buckets: %zu. nocc: %zu. size: %zu. ub: %zu\n", (size_t)rex->n_buckets, size_t(rex->n_occupied), size_t(rex->size), size_t(rex->upper_bound));
     rex->flags = (u32 *)std::malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
     rex->keys = (keytype_t *)std::malloc(sizeof(*rex->keys) * rex->n_buckets);
-    if(!rex->keys) std::fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->keys) * rex->n_buckets, sizeof(*rex->keys) * rex->n_buckets >> 30), exit(1);
+    if(!rex->keys) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->keys) * rex->n_buckets, sizeof(*rex->keys) * rex->n_buckets >> 30), exit(1);
     rex->vals = (valtype_t *)std::malloc(sizeof(*rex->vals) * rex->n_buckets);
-    if(!rex->vals) std::fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->vals) * rex->n_buckets, sizeof(*rex->vals) * rex->n_buckets >> 30), exit(1);
+    if(!rex->vals) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->vals) * rex->n_buckets, sizeof(*rex->vals) * rex->n_buckets >> 30), exit(1);
     LOG_DEBUG("About to read into flags at %p\n", (void *)rex->flags);
-    std::fread(rex->flags, __ac_fsize(rex->n_buckets), sizeof(*rex->flags), fp);
+    fread(rex->flags, __ac_fsize(rex->n_buckets), sizeof(*rex->flags), fp);
     LOG_DEBUG("About to read into keys at %p\n", (void *)rex->keys);
-    std::fread(rex->keys, 1, rex->n_buckets * sizeof(*rex->keys), fp);
+    fread(rex->keys, 1, rex->n_buckets * sizeof(*rex->keys), fp);
     LOG_DEBUG("About to read into vals at %p\n", (void *)rex->vals);
-    std::fread(rex->vals, 1, rex->n_buckets * sizeof(*rex->vals), fp);
+    fread(rex->vals, 1, rex->n_buckets * sizeof(*rex->vals), fp);
     return rex;
 }
 
 template <typename T>
 T *khash_load(const char *path) noexcept {
-    std::FILE *fp(std::fopen(path, "rb"));
+    std::FILE *fp(fopen(path, "rb"));
     T *rex(khash_load_impl<T>(fp));
-    std::fclose(fp);
+    fclose(fp);
     return rex;
 }
 
@@ -238,11 +241,11 @@ std::map<uint32_t, uint32_t> kh2kr(khash_t(p) *map);
 bool isfile(const char *path) noexcept;
 
 template<typename T>
-std::size_t size(const T &container) {
+size_t size(const T &container) {
     return container.size();
 }
 template<typename T>
-std::size_t size(const std::forward_list<T> &list) {
+size_t size(const forward_list<T> &list) {
     size_t ret(0);
     for(auto i(list.begin()); i != list.end(); ++i) {
         ++ret;
@@ -316,7 +319,7 @@ std::unordered_map<tax_t, strlist> tax2desc_genome_map(
 template<typename Container, typename=std::enable_if_t<std::is_same<typename Container::value_type, tax_t>::value>>
 tax_t lca(khash_t(p) *taxmap, const Container& v) noexcept {
     if(v.size() == 0) {
-        std::fprintf(stderr, "Warning: no elements provided. Returning 0 for lca.\n");
+        fprintf(stderr, "Warning: no elements provided. Returning 0 for lca.\n");
         return 0;
     }
     auto it(v.begin());

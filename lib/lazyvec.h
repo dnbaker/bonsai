@@ -17,7 +17,7 @@ enum initialization: bool {
     LAZY_VEC_INIT = true
 };
 
-template<typename T, typename size_type=std::size_t>
+template<typename T, typename size_type=size_t>
 class vector {
     size_type n_, m_;
     T *data_;
@@ -85,7 +85,7 @@ public:
         return back();
     }
     void zero() {std::memset(data_, 0, sizeof(T) * n_);}
-    void reserve(std::size_t newsize) {
+    void reserve(size_t newsize) {
         if(newsize > m_) {
             auto tmp(static_cast<T*>(std::realloc(data_, sizeof(T) * newsize)));
             if(tmp == nullptr) throw std::bad_alloc();
@@ -93,7 +93,7 @@ public:
         }
     }
     template<typename... Args>
-    void resize(std::size_t newsize, bool init=true, Args &&...args) {
+    void resize(size_t newsize, bool init=true, Args &&...args) {
         reserve(newsize);
         if(init) {
             for(;n_ < m_;) new(data_ + n_++) T(std::forward<Args>(args)...);

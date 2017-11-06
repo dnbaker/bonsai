@@ -5,7 +5,7 @@ namespace emp {
 
 void kt_for_helper(void *data_, long index, int tid) {
     kt_data *data((kt_data *)data_);
-    std::size_t retstr_size(0);
+    size_t retstr_size(0);
     const int inc(!!data->is_paired_ + 1);
     Encoder<lex_score> enc(data->c_.enc_);
     for(unsigned i(index * data->per_set_),end(std::min(i + data->per_set_, data->total_));

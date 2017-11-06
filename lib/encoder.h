@@ -79,7 +79,7 @@ public:
         for(auto &i: qmap_) if(i.first < t1) t1 = i.first;
         return t1;
     }
-    Encoder(char *s, std::size_t l, const Spacer &sp, void *data=nullptr):
+    Encoder(char *s, size_t l, const Spacer &sp, void *data=nullptr):
       s_(s),
       l_(l),
       sp_(sp),
@@ -96,9 +96,9 @@ public:
     }
 
     // Assign functions: These tell the encoder to fetch kmers from this string.
-    // kstring and kseq are overloads which call assign(char *s, std::size_t l) on
+    // kstring and kseq are overloads which call assign(char *s, size_t l) on
     // the correct portions of the structs.
-    INLINE void assign(char *s, std::size_t l) {
+    INLINE void assign(char *s, size_t l) {
         s_ = s; l_ = l; pos_ = 0;
         qmap_.reset();
         assert(l_ >= sp_.c_ || !has_next_kmer());
@@ -182,7 +182,7 @@ void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &spac
 
 template<u64 (*score)(u64, void *)>
 hll::hll_t hllcount_lmers(const std::string &path, const Spacer &space,
-                          std::size_t np=22, void *data=nullptr) {
+                          size_t np=22, void *data=nullptr) {
 
     Encoder<score> enc(nullptr, 0, space, data);
     gzFile fp(gzopen(path.data(), "rb"));
@@ -199,17 +199,17 @@ hll::hll_t hllcount_lmers(const std::string &path, const Spacer &space,
 }
 
 template<u64 (*score)(u64, void *)=lex_score>
-std::size_t count_cardinality(const std::vector<std::string> paths,
+size_t count_cardinality(const std::vector<std::string> paths,
                          unsigned k, uint16_t w, spvec_t spaces,
                          void *data=nullptr, int num_threads=-1) {
     // Default to using all available threads.
     if(num_threads < 0) num_threads = sysconf(_SC_NPROCESSORS_ONLN);
     const Spacer space(k, w, spaces);
-    std::size_t submitted(0), completed(0), todo(paths.size());
+    size_t submitted(0), completed(0), todo(paths.size());
     std::vector<std::future<khash_t(all) *>> futures;
     std::vector<khash_t(all) *> hashes;
     // Submit the first set of jobs
-    for(std::size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
+    for(size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
         futures.emplace_back(std::async(
           std::launch::async, hashcount_lmers<score>, paths[i], space, data));
         ++submitted;
@@ -242,7 +242,7 @@ std::size_t count_cardinality(const std::vector<std::string> paths,
     for(auto &f: futures) if(f.valid()) hashes.push_back(f.get());
     // Combine them all for a final count
     for(auto i(hashes.begin() + 1), end = hashes.end(); i != end; ++i) kset_union(hashes[0], *i);
-    std::size_t ret(hashes[0]->n_occupied);
+    size_t ret(hashes[0]->n_occupied);
     for(auto i: hashes) khash_destroy(i);
     return ret;
 }
@@ -251,7 +251,7 @@ struct est_helper {
     const Spacer                   &sp_;
     const std::vector<std::string> &paths_;
     std::mutex                     &m_;
-    const std::size_t               np_;
+    const size_t               np_;
     void                           *data_;
     hll::hll_t                     &master_;
 };
@@ -265,9 +265,9 @@ void est_helper_fn(void *data_, long index, int tid) {
 }
 
 template<u64 (*score)(u64, void *)=lex_score>
-std::size_t estimate_cardinality(const std::vector<std::string> &paths,
+size_t estimate_cardinality(const std::vector<std::string> &paths,
                                  unsigned k, uint16_t w, spvec_t spaces,
-                                 void *data=nullptr, int num_threads=-1, std::size_t np=23) {
+                                 void *data=nullptr, int num_threads=-1, size_t np=23) {
     // Default to using all available threads.
     if(num_threads < 0) {
         num_threads = sysconf(_SC_NPROCESSORS_ONLN);
@@ -278,7 +278,7 @@ std::size_t estimate_cardinality(const std::vector<std::string> &paths,
     std::mutex m;
     est_helper helper{space, paths, m, np, data, master};
     kt_for(num_threads, &est_helper_fn<score>, &helper, paths.size());
-    return (std::size_t)master.report();
+    return (size_t)master.report();
 }
 
 } //namespace emp
