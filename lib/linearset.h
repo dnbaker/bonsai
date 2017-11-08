@@ -71,11 +71,8 @@ public:
         return find(val) != end();
     }
     T *insert(const T &val) {
-        auto it(find(val));
-        if(it == end()) {
-            it = &push_back(val);
-        }
-        return it;
+        T *it;
+        return (it = find(val)) == end() ? &push_back(val): it;
     }
     // Note: push_back and emplace_back are the same *except* that push_back changes size multiplicatively.
     template<typename... Args>

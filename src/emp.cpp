@@ -8,7 +8,6 @@
 //#include "lib/tree_climber.h"
 #include "lib/bitmap.h"
 #include "lib/tx.h"
-#include "lib/khpp.h"
 #include "lib/flextree.h"
 #include "cppitertools/groupby.hpp"
 
@@ -271,8 +270,6 @@ int metatree_usage(const char *arg) {
     return EXIT_FAILURE;
 }
 
-template struct kh::khpp_t<bitvec_t *, u64, ptr_wang_hash_struct<bitvec_t *>>;
-using pkh_t = kh::khpp_t<bitvec_t *, u64, ptr_wang_hash_struct<bitvec_t *>>;
 
 bool accepted_pass(const khash_t(p) *taxmap, const std::vector<tax_t> &accepted, tax_t id) {
     if(accepted.empty()) return true;
