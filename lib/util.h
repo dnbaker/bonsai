@@ -94,6 +94,19 @@ using strlist = forward_list<std::string>;
 using cpslist = forward_list<std::string*>;
 using bitvec_t = lazy::vector<u64, u32>;
 
+class Timer {
+    using TpType = std::chrono::system_clock::time_point;
+    std::string name_;
+    TpType start_, stop_;
+public:
+    Timer(std::string &&name=""): name_{name}, start_(std::chrono::system_clock::now()) {}
+    void stop() {stop_ = std::chrono::system_clock::now();}
+    void restart() {start_ = std::chrono::system_clock::now();}
+    void report() {std::cerr << "Took " << std::chrono::duration<double>(stop_ - start_).count() << "s for task '" << name_ << "'\n";}
+    ~Timer() {stop(); /* hammertime */ report();}
+    void rename(const char *name) {name_ = name;}
+};
+
 KHASH_SET_INIT_INT64(all)
 KHASH_MAP_INIT_INT64(c, tax_t)
 KHASH_MAP_INIT_INT64(64, u64)
@@ -349,6 +362,7 @@ static inline kstring_t *kspp2ks(ks::KString &ks) {
     static_assert(sizeof(kstring_t) == sizeof(ks::KString), "ks::KString must have the same size.");
     return reinterpret_cast<kstring_t *>(std::addressof(ks));
 }
+
 static inline const kstring_t *kspp2ks(const ks::KString &ks) {
     static_assert(sizeof(kstring_t) == sizeof(ks::KString), "ks::KString must have the same size.");
     return reinterpret_cast<const kstring_t *>(std::addressof(ks));
