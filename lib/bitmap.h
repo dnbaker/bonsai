@@ -169,7 +169,6 @@ public:
 
 u64 score_node_addn(const bitvec_t &bitstring,
                               const adjmap_t &am, const count::Counter<bitvec_t> &counts, size_t nelem);
-
 }
 
 #endif // #ifndef _BITMAP_H__

@@ -271,8 +271,8 @@ int metatree_usage(const char *arg) {
     return EXIT_FAILURE;
 }
 
-template struct kh::khpp_t<bitvec_t *, std::uint64_t, ptr_wang_hash_struct<bitvec_t *>>;
-using pkh_t = kh::khpp_t<bitvec_t *, std::uint64_t, ptr_wang_hash_struct<bitvec_t *>>;
+template struct kh::khpp_t<bitvec_t *, u64, ptr_wang_hash_struct<bitvec_t *>>;
+using pkh_t = kh::khpp_t<bitvec_t *, u64, ptr_wang_hash_struct<bitvec_t *>>;
 
 bool accepted_pass(const khash_t(p) *taxmap, const std::vector<tax_t> &accepted, tax_t id) {
     if(accepted.empty()) return true;
@@ -392,11 +392,11 @@ int hist_main(int argc, char *argv[]) {
     Database<khash_t(c)> db(argv[1]);
     khash_t(c) *map(db.db_);
     std::FILE *ofp(stdout);
-    count::Counter<std::uint32_t> counter;
+    count::Counter<u32> counter;
     if(argc > 2) ofp = std::fopen(argv[2], "w");
     for(khiter_t ki(0); ki != kh_end(map); ++ki) if(kh_exist(map, ki)) counter.add(kh_val(map, ki));
     auto &cmap(counter.get_map());
-    using elcount = std::pair<tax_t, std::uint32_t>;
+    using elcount = std::pair<tax_t, u32>;
     std::vector<elcount> structs;
     for(auto& i: cmap) structs.emplace_back(i.first, i.second);
     SORT(std::begin(structs), std::end(structs), [] (const elcount &a, const elcount &b) {

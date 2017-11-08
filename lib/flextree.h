@@ -5,6 +5,7 @@
 #include "lib/bits.h"
 #include "lib/counter.h"
 #include "lib/bitcmp.h"
+#include "lib/linearset.h"
 
 namespace emp {
 
@@ -76,7 +77,10 @@ public:
             //heap.insert(const_cast<std::pair<const std::vector<long long unsigned int>, emp::fnode_t>*>(&pair));
             if(heap.size() < max_heap_size) {
                 heap.insert(&ref);
-            } else if(get_score(pair) < get_score(*heap.begin())) heap.insert(&ref);
+            } else if(get_score(pair) < get_score(*heap.begin())) {
+                heap.erase(heap.begin());
+                heap.insert(&ref);
+            }
         }
     }
 public:
@@ -180,6 +184,12 @@ public:
         ks::KString ks;
         run_collapse(maxtax, ks, fp);
     }
+    struct stlt {
+        bool operator()(const NodeType *a, const NodeType *b) const {
+            return a->second.pc_ > b->second.pc_;
+        }
+        // Places the highest bitcount items at the beginning.
+    };
     void condense_subtree(HeapType &subtree) {
         using std::begin;
         using std::end;
@@ -190,8 +200,8 @@ public:
         using std::begin;
         using std::end;
         using std::find;
-        std::vector<bitvec_t *> to_remove;
-
+        //std::vector<linear::set<NodeType *>> subtree_subsets;
+        linear::set<NodeType *> to_remove;
 #if 0
         auto in = []<class T>(std::vector<T *> &vec, T *el) {
             return find(begin(vec), end(vec), el) != vec.end();
@@ -200,6 +210,8 @@ public:
             if(!in(vec, el)) vec.emplace_back(el);
         };
 #endif
+        // 1. Make linear vector of pointers to objects.
+        // 2. 
         for(ait = begin(subtree), eait = end(subtree); ait != eait; ++ait) {
             for(bit = ait, ++bit; bit != eait; ++bit) {
                 if((*ait)->second.added_|| (*bit)->second.added_) continue;
@@ -207,20 +219,23 @@ public:
                 switch(veccmp((*ait)->first, (*bit)->first)) {
                     case BitCmp::FIRST_PARENT:
                         (*ait)->second.subsume(**bit);
-                        //insert(to_remove, &(*bit)->first);
+                        to_remove.insert(*ait);
+                        to_remove.insert(*bit);
                         break;
                     case BitCmp::SECOND_PARENT:
                         (*bit)->second.subsume(**ait);
-                        //insert(to_remove, &(*ait)->first);
+                        to_remove.insert(*ait);
+                        to_remove.insert(*bit);
                         break;
-                    case BitCmp::EQUAL: LOG_DEBUG("Warning: bit patterns a and b should be not equal....\n");
-                                        [[fallthrough]]
-                    case BitCmp::INCOMPARABLE: continue;
+                    case BitCmp::EQUAL:
+                        LOG_DEBUG("Warning: bit patterns a and b should be not equal....\n");
+                        [[fallthrough]];
+                    case BitCmp::INCOMPARABLE: continue;//Do nothing
                 }
             }
         }
         // I think I should instead think of some other way to organize them, but this works for a start.
-        //for(auto el: to_remove) subtree.erase(el);
+        for(auto el: to_remove) subtree.erase(el);
     }
     void run_collapse(tax_t maxtax, ks::KString &ks, std::FILE* fp) {
         const int fd(fileno(fp));
