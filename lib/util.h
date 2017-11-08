@@ -112,6 +112,9 @@ KHASH_MAP_INIT_INT64(c, tax_t)
 KHASH_MAP_INIT_INT64(64, u64)
 KHASH_MAP_INIT_INT(p, tax_t)
 KHASH_MAP_INIT_STR(name, tax_t)
+using strlist = std::forward_list<std::string>;
+using cpslist = std::forward_list<std::string*>;
+using bitvec_t = lazy::vector<u64, u32>;
 
 std::string rand_string(size_t n);
 size_t count_lines(const char *fn) noexcept;
