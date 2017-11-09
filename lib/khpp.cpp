@@ -1,3 +1,4 @@
+#if 0
 #include "lib/khpp.h"
 namespace emp {
 namespace kh {
@@ -12,3 +13,4 @@ void f() {
 
 }
 }
+#endif

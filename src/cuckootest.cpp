@@ -4,6 +4,7 @@
 #include "kspp/ks.h"
 #include <fstream>
 #include "klib/kseq.h"
+#include <deque>
 
 #ifndef ITYPE
 #define ITYPE u64
@@ -53,10 +54,10 @@ int main(int argc, char *argv[]) {
     int nthreads(8);
     FILE *ofp = stdout;
     cuckoohash_map<ITYPE, u32> ccounter;
-    std::vector<std::thread> threads;
+    std::deque<std::thread> threads;
     std::string spacing, paths_file;
     int co, k(31), wsz(-1);
-    while((co = getopt(argc, argv, "w:k:s:c:p:o:h?")) >= 0) {
+    while((co = getopt(argc, argv, "F:w:k:s:c:p:o:h?")) >= 0) {
         switch(co) {
             case 'h': case '?': goto usage;
             case 'p': nthreads = std::atoi(optarg); break;
@@ -85,6 +86,10 @@ int main(int argc, char *argv[]) {
     Spacer sp(k, wsz, sv);
     for(const auto &path: inpaths) {
         threads.emplace_back(update_kmer_table, std::ref(ccounter), taxmap, path.data(), std::cref(sp), get_taxid(path.data(), name_hash));
+        if(threads.size() >= nthreads) {
+            threads.front().join();
+            threads.pop_front();
+        }
     }
     for(auto &thread: threads) thread.join();
     auto lt(ccounter.lock_table());

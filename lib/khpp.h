@@ -11,6 +11,8 @@ using std::shared_mutex;
 #else
 #  define CONSTEXPR_IF if
 #endif
+
+#error("Do not use this. It is currently entirely broken>")
  
 
 namespace emp {
@@ -212,6 +214,14 @@ struct khpp_t {
         CONSTEXPR_IF(is_map) std::free(vals);
         std::free(keys);
     }
+    khpp_t(khpp_t &&other) {
+        memset(this, 0, sizeof(*this));
+        *this = other;
+    }
+    khpp_t(const khpp_t &other) {
+        *this = other;
+    }
+    
     void clear() {
         if (flags) {
             m.lock();
@@ -241,7 +251,7 @@ struct khpp_t {
     template<typename... Args>
     index_type iput(const khkey_t &key, int *ret, Args &&... args)
     {
-        std::shared_lock<shared_mutex> lock(m);
+        //std::shared_lock<shared_mutex> lock(m);
         index_type x;
         if (n_occupied >= upper_bound) { /* update the hash table */
             if (n_buckets > (size<<1)) {
@@ -265,11 +275,12 @@ struct khpp_t {
                 if (x == n_buckets) x = (__ac_isempty(flags, i) && site != n_buckets) ? site: i;
             }
         }
-        tthread::fast_mutex &local_lock(locks[x >> BUCKET_OFFSET]);
-        std::cerr << "Triyng to obtain lock for index " << (x >> BUCKET_OFFSET) << '\n';
+        const auto lock_ind(x >> BUCKET_OFFSET);
+        tthread::fast_mutex &local_lock(locks[lock_ind]);
+        std::cerr << "Trying to obtain lock for index " << (lock_ind) << '\n';
         local_lock.lock();
         assert(locks.size());
-        std::cerr << "Obtained lock for index " << (x >> BUCKET_OFFSET) << '\n';
+        std::cerr << "Obtained lock for index " << lock_ind << '\n';
         switch((flags[x>>4]>>((x&0xfU)<<1))&3) {
             case 2:
                 keys[x] = key;
@@ -309,7 +320,8 @@ struct khpp_t {
             if (new_n_buckets < 4) new_n_buckets = 4;
             if (size >= (index_type)(new_n_buckets * HASH_UPPER + 0.5)) j = 0;    /* requested size is too small */
             else { /* hash table size to be changed (shrink or expand); rehash */
-                std::lock_guard<decltype(m)> lock(m);
+                std::cerr << "Getting lock_guard on resizing\n";
+                std::shared_lock<decltype(m)> lock(m);
                 new_flags = (khint32_t*)std::malloc(__ac_fsize(new_n_buckets) * sizeof(khint32_t));
                 if (!new_flags) return -1;
                 std::memset(new_flags, 0xaa, __ac_fsize(new_n_buckets) * sizeof(khint32_t));
@@ -326,7 +338,7 @@ struct khpp_t {
             }
         }
         if (j) { /* rehashing is needed */
-            std::lock_guard<decltype(m)> lock(m);
+            std::shared_lock<decltype(m)> lock(m);
             for (j = 0; j != n_buckets; ++j) {
                 if (__ac_iseither(flags, j) == 0) {
                     khkey_t key = keys[j];
