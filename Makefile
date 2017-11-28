@@ -45,7 +45,7 @@ TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 
 EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/*.cpp))
 
-EX=$(patsubst src/%.o,%,$(EXEC_OBJS))
+EX=$(patsubst src/%.cpp,%,$(wildcard src/*.cpp))
 
 HEADERS=lib/encoder.h lib/kmerutil.h lib/spacer.h lib/misc.h \
 		lib/kseq_declare.h lib/feature_min.h hll/hll.h lib/hash.h lib/db.h
@@ -57,7 +57,7 @@ all: $(OBJS) $(EX) unit
 libhll.a:
 	cd hll && make CXX=$(CXX) && cp libhll.a ..
 
-obj: $(OBJS) $(EXEC_OBJS) libhll.a
+obj: $(OBJS) libhll.a
 
 clhash.o: clhash/src/clhash.c
 	cp clhash/clhash.o . || (cd clhash $(CLHASH_CHECKOUT) && make && cd .. && mv clhash/clhash.o .)
@@ -71,10 +71,10 @@ test/%.o: test/%.cpp
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
-%: src/%.o $(OBJS) libhll.a
+%: src/%.cpp $(OBJS) libhll.a
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
-fahist: src/fahist.o $(OBJS) libhll.a
+fahist: src/fahist.cpp $(OBJS) libhll.a
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) klib/kthread.o $< -o $@ -lz
 
 tests: clean unit
@@ -85,8 +85,8 @@ unit: $(OBJS) $(TEST_OBJS) libhll.a
 
 
 clean:
-	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o src/*o libhll.a \
+	rm -f $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o src/*o libhll.a \
 	&& cd hll && make clean && cd ..
 
 mostlyclean:
-	rm -f $(EXEC_OBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o src/*o
+	rm -f $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o src/*o

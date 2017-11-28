@@ -22,12 +22,16 @@ INLINE unsigned popcount(char val) noexcept {
 
 template<>
 INLINE unsigned popcount(unsigned long long val) noexcept {
+#if USE_CQF_ASM
 // From cqf https://github.com/splatlab/cqf/
     asm("popcnt %[val], %[val]"
             : [val] "+r" (val)
             :
             : "cc");
     return val;
+#else
+    return __builtin_popcountll(val);
+#endif
 }
 
 template<>
@@ -36,10 +40,10 @@ INLINE unsigned popcount(unsigned long val) noexcept {
 }
 
 template<typename T>
-INLINE auto vec_popcnt(T &container) {
+INLINE auto vec_popcnt(const T &container) {
     auto i(container.cbegin());
     auto ret(popcount(*i));
-    while(i != container.cend()) ret += popcount(*i++);
+    while(++i != container.cend()) ret += popcount(*i);
     return ret;
 }
 

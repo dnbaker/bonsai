@@ -17,7 +17,7 @@ enum initialization: bool {
     LAZY_VEC_INIT = true
 };
 
-template<typename T, typename size_type=size_t>
+template<typename T, typename size_type=uint32_t>
 class vector {
     size_type n_, m_;
     T *data_;
@@ -26,10 +26,20 @@ class vector {
 public:
     using value_type = T;
     template<typename... FactoryArgs>
-    vector(size_type n=0, bool init=!std::is_pod<T>::value, FactoryArgs &&...args): n_{n}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
+    vector(size_type n=0, bool init=!std::is_pod<T>::value, FactoryArgs &&...args): n_{n}, m_{n}, data_{n ? static_cast<T *>(std::malloc(sizeof(T) * n)): nullptr} {
         if (init)
             for(size_type i(0); i < n_; ++i)
                 new(data_ + i) T(std::forward<FactoryArgs>(args)...);
+    }
+    vector(const vector &other): n_(other.n_), m_(other.n_), data_{static_cast<T *>(std::malloc(sizeof(T) * m_))} {
+        std::copy(std::cbegin(other), std::cend(other), begin());
+    }
+    vector(vector &&other): n_(other.n_), m_(other.m_), data_(other.data_) {
+        other.m_ = other.n_ = 0;
+        other.data_ = nullptr;
+    }
+    vector(std::initializer_list<T> il): n_(il.size()), m_(il.size()), data_{n_ ? static_cast<T *>(std::malloc(sizeof(T) * n_)): nullptr} {
+        std::move(il.begin(), il.end(), std::begin(*this));
     }
     const T *cbegin() const {return data_;}
     const T *cend()   const {return data_ + n_;}
@@ -71,16 +81,10 @@ public:
     }
     template<typename... Args>
     auto &push_back(Args&& ... args) {
-        if(n_ + 1 > m_) {
-#if !NDEBUG
-            const auto newm(std::max(static_cast<size_type>(m_ * PUSH_BACK_RESIZING_FACTOR), m_ + 1));
-
-            if(m_ > newm) throw std::runtime_error(ks::sprintf("Type of size %zu is not big enough. (%zu, %zu)\n", sizeof(m_), m_, newm).data());
-#else
-            m_ = std::max(static_cast<size_type>(m_ * PUSH_BACK_RESIZING_FACTOR), m_ + 1);
-#endif
-            data_ = static_cast<T *>(std::realloc(data_, sizeof(T) * (m_)));
-        }
+        std::fprintf(stderr, "m: %zu. n: %zu\n", m_, n_);
+        if(n_ + 1 > m_)
+            reserve(std::max(static_cast<size_type>(m_ * PUSH_BACK_RESIZING_FACTOR),
+                             m_ + 1));
         new(data_ + n_++) T(std::forward<Args>(args)...);
         return back();
     }
