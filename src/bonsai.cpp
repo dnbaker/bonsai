@@ -270,7 +270,6 @@ int metatree_usage(const char *arg) {
     return EXIT_FAILURE;
 }
 
-
 bool accepted_pass(const khash_t(p) *taxmap, const std::vector<tax_t> &accepted, tax_t id) {
     if(accepted.empty()) return true;
     for(const auto el: accepted) if(lca(taxmap, el, id) == el) return true;
