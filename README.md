@@ -34,4 +34,4 @@ We modified [khash](https://github.com/attractivechaos/klib) for our primary dat
 borrowed and modified code from [Kraken](https://github.com/DerrickWood/kraken) for
 kmer encoding, taxonomy tree building and querying, and classification.
 Extensions for spaced seeds and alternate minimization schemes, parallelized classification,
-bitmap implementation,
+bitmaps and tree extension facilities are our own.
