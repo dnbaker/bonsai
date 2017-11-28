@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <cstring>
 #include <cstdlib>
+#include <memory>
 #include "kspp/ks.h"
 
 #ifndef LAZY_PUSH_BACK_RESIZING_FACTOR
@@ -55,6 +56,24 @@ public:
     const auto &front() const {return data_[0];}
     auto size() const {return n_;}
     auto capacity() const {return m_;}
+    operator=(const vector &o) {
+        n_ = o.n_;
+        m_ = o.m_;
+        data_ = (T *)std::realloc(data_, sizeof(T) * m_);
+        std::copy(begin(), end(), (T *)o.begin());
+    }
+    vector(vector &&o): n_(o.n_), m_(o.m_), data_(o.data_) {
+        std::memset(&o, 0, sizeof(o));
+    }
+    vector(const vector &o): data_(nullptr) {
+        *this = o;
+    }
+    operator=(vector &&o) {
+        n_ = o.n_;
+        m_ = o.m_;
+        data_ = o.data_;
+        std::memset(&o, 0, sizeof(o));
+    }
     template<typename osize_type>
     bool operator==(const ::lazy::vector<T, osize_type> &other) const {
         if(size() != other.size()) return false;
