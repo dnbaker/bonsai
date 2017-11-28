@@ -521,7 +521,7 @@ std::unordered_map<tax_t, ClassLevel> get_tax_depths(const khash_t(p) *taxmap, c
     std::ifstream ifs(path);
     std::string buffer;
     tax_t t;
-    if(!ifs.good()) throw "a party";
+    if(!ifs.good()) throw std::runtime_error(std::string("could not open file at ") + path);
     for(std::string line; std::getline(ifs, line);) {
         t = atoi(line.data());
         if(kh_get(p, taxmap, t) == kh_end(taxmap)) continue;

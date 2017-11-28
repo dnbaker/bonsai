@@ -141,13 +141,14 @@ public:
         // Only keeps kmers from kgset if they don't have 1 or set.size() bits set.
         for(auto &i: tmp) {
             bitsum = popcnt::vec_popcnt(i.second);
-            if(bitsum != 1u && bitsum != set.size())
+            if(bitsum != 1u && bitsum != set.size()) {
+                core_.emplace(i.first, i.second);
 #if !NDEBUG
-                    core_.emplace(i.first, i.second), ++n_passed, stringset.insert(bitvec2str(i.second));
-            else if(bitsum > 1 && bitsum != set.size()) LOG_DEBUG("bitsum is %u while the set size is %zu\n", bitsum, set.size());
+                ++n_passed, stringset.insert(bitvec2str(i.second));
+#endif
+            }
+#if !NDEBUG
             ++counts[bitsum];
-#else
-                    core_.emplace(i.first, i.second);
 #endif
         }
         LOG_DEBUG("Keeping %zu of %zu kmers whose bit patterns are not exactly compressed by the taxonomy heuristic.\n",

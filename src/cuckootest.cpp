@@ -12,7 +12,7 @@
 
 template<typename IntType>
 struct identhash {
-    __attribute__((always_inline)) std::uint64_t operator()(IntType val) const {
+    __attribute__((always_inline)) std::size_t operator()(IntType val) const {
         return val / sizeof(IntType);
     }
 };
@@ -26,7 +26,8 @@ void do_work(cuckoohash_map<ITYPE, u64> &ccounter, u64 start, u64 nelem) {
 
 using namespace emp;
 
-void update_kmer_table(cuckoohash_map<ITYPE, u32> &ccounter, khash_t(p) *tax, const char *fname, const Spacer &sp, const tax_t taxid) {
+template<typename TableType>
+void update_kmer_table(TableType &ccounter, khash_t(p) *tax, const char *fname, const Spacer &sp, const tax_t taxid) {
     gzFile fp(gzopen(fname, "rb"));
     kseq_t *ks(kseq_init(fp));
     Encoder enc(sp);
@@ -40,6 +41,7 @@ void update_kmer_table(cuckoohash_map<ITYPE, u32> &ccounter, khash_t(p) *tax, co
             if((kmer = enc.next_minimizer()) != BF)
                 ccounter.upsert(kmer, func, 0);
         }
+        if(ccounter.bucket_count() % 256 == 0) std::cerr << "BUCKET COUNT " << ccounter.bucket_count();
     }
     gzclose(fp);
     kseq_destroy(ks);
@@ -53,7 +55,7 @@ int main(int argc, char *argv[]) {
     }
     int nthreads(8);
     FILE *ofp = stdout;
-    cuckoohash_map<ITYPE, u32> ccounter;
+    cuckoohash_map<ITYPE, u32, identhash<ITYPE>> ccounter;
     std::deque<std::thread> threads;
     std::string spacing, paths_file;
     int co, k(31), wsz(-1);
@@ -85,7 +87,7 @@ int main(int argc, char *argv[]) {
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Spacer sp(k, wsz, sv);
     for(const auto &path: inpaths) {
-        threads.emplace_back(update_kmer_table, std::ref(ccounter), taxmap, path.data(), std::cref(sp), get_taxid(path.data(), name_hash));
+        threads.emplace_back(update_kmer_table<decltype(ccounter)>, std::ref(ccounter), taxmap, path.data(), std::cref(sp), get_taxid(path.data(), name_hash));
         if(threads.size() >= nthreads) {
             threads.front().join();
             threads.pop_front();
@@ -96,7 +98,7 @@ int main(int argc, char *argv[]) {
     ks::string ks;
     const int fn(fileno(ofp));
     for(auto &[k, v]: lt) {
-        ks.sprintf("key: %s. val: %zu\n", sp.to_string(k), v);
+        ks.sprintf("key: %s. val: %zu\n", sp.to_string(k).data(), v);
         if(ks.size() & (1 << 16)) ks.write(fn), ks.clear();
     }
     ks.write(ofp), ks.clear();

@@ -341,7 +341,7 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
                 const size_t index(f.get());
                 if(used.find(index) != used.end()) continue;
                 used.insert(index);
-                if(subbed.find(submitted) != subbed.end()) throw "a party!";
+                if(subbed.find(submitted) != subbed.end()) throw std::runtime_error("Could not find what I was looking for....");
                 LOG_DEBUG("Launching thread to read from file %s.\n", fns[submitted].data());
                 f = std::async(
                   std::launch::async, fill_set_genome<score>, fns[submitted].data(),
@@ -415,7 +415,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
                 const size_t index(f.get());
                 if(used.find(index) != used.end()) continue;
                 used.insert(index);
-                if(subbed.find(submitted) != subbed.end()) throw "a party!";
+                if(subbed.find(submitted) != subbed.end()) throw std::runtime_error("Could not find what I was looking for....");
                 LOG_DEBUG("Launching thread to read from file %s.\n", fns[submitted].data());
                 f = std::async(
                   std::launch::async, fill_set_genome<score>, fns[submitted].data(),

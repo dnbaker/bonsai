@@ -73,7 +73,7 @@ public:
         for(auto &pair: map_) {
             std::pair<const bitvec_t, fnode_t> &ref((std::pair<const bitvec_t, fnode_t> &)pair);
             if(ref.second.added_) continue;
-            LOG_DEBUG("Adding pair where key's first entry is is %" PRIu64 " and the node is %s\n", ref.first[0], ref.second.str().data());
+            //LOG_DEBUG("Adding pair where key's first entry is is %" PRIu64 " and the node is %s\n", ref.first[0], ref.second.str().data());
             //heap.insert(const_cast<std::pair<const std::vector<long long unsigned int>, emp::fnode_t>*>(&pair));
             if(heap.size() < max_heap_size) {
                 heap.insert(&ref);
