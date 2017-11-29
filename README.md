@@ -1,4 +1,4 @@
-[Bonsai]: Flexible Taxonomic Analysis and Extension
+Bonsai: Flexible Taxonomic Analysis and Extension
 ===============
 
 Bonsai contains varied utilities for taxonomic analysis and classification using exact subsequence matches. These include:
