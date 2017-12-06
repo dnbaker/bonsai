@@ -265,9 +265,9 @@ void est_helper_fn(void *data_, long index, int tid) {
 }
 
 template<u64 (*score)(u64, void *)=lex_score>
-size_t estimate_cardinality(const std::vector<std::string> &paths,
-                                 unsigned k, uint16_t w, spvec_t spaces,
-                                 void *data=nullptr, int num_threads=-1, size_t np=23) {
+hll::hll_t make_hll(const std::vector<std::string> &paths,
+                unsigned k, uint16_t w, spvec_t spaces,
+                void *data=nullptr, int num_threads=-1, size_t np=23) {
     // Default to using all available threads.
     if(num_threads < 0) {
         num_threads = sysconf(_SC_NPROCESSORS_ONLN);
@@ -278,7 +278,15 @@ size_t estimate_cardinality(const std::vector<std::string> &paths,
     std::mutex m;
     est_helper helper{space, paths, m, np, data, master};
     kt_for(num_threads, &est_helper_fn<score>, &helper, paths.size());
-    return (size_t)master.report();
+    return master;
+}
+
+template<u64 (*score)(u64, void *)=lex_score>
+size_t estimate_cardinality(const std::vector<std::string> &paths,
+                                 unsigned k, uint16_t w, spvec_t spaces,
+                                 void *data=nullptr, int num_threads=-1, size_t np=23) {
+    auto tmp(make_hll(paths, k, w, spaces, data, num_threads, np));
+    return tmp.report();
 }
 
 } //namespace emp
