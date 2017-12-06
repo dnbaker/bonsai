@@ -409,16 +409,34 @@ int err_main(int argc, char *argv[]) {
     return EXIT_FAILURE;
 }
 
+void dist_usage(const char *arg) {
+    std::fprintf(stderr, "Usage: %s <opts> [genomes if not provided from a file with -F]\n"
+                         "Flags:\n"
+                         "-h/-?: Usage\n"
+                         "-k\tSet kmer size [31]\n"
+                         "-p\tSet number of threads [1]\n"
+                         "-s\tadd a spacer of the format <int>x<int>,<int>x<int>,"
+                         "..., where the first integer corresponds to the space "
+                         "between bases repeated the second integer number of times\n"
+                         "-w\tSet window size [max(size of spaced kmer, [parameter])]\n"
+                         "-S\tSet sketch size [20, for 2**20 bytes each]\n"
+                         "-o\tOutput for genome size estimates [stdout]\n"
+                         "-O\tOutput for genome distance matrix [stdout]\n"
+                         "-e\tEmit in scientific notation\n"
+                         "-F\tGet paths to genomes from file rather than positional arguments\n"
+                , arg);
+    std::exit(EXIT_FAILURE);
+}
+
 int dist_main(int argc, char *argv[]) {
-    int wsz(-1), k(31), num_threads(-1), sketch_size(24), use_scientific(false), co;
+    int wsz(-1), k(31), sketch_size(20), use_scientific(false), co;
     std::string spacing, paths_file;
-    FILE *ofp(stdout);
-    FILE *pairofp(stdout);
-    while((co = getopt(argc, argv, "e:c:p:o:O:S:afFkKh?")) >= 0) {
+    FILE *ofp(stdout), *pairofp(stdout);
+    omp_set_num_threads(1);
+    while((co = getopt(argc, argv, "c:p:o:O:S:eafFkKh?")) >= 0) {
         switch(co) {
-            case 'h': case '?': throw std::runtime_error("Need to write this usage.");
             case 'k': k = std::atoi(optarg); break;
-            case 'p': num_threads = std::atoi(optarg); break;
+            case 'p': omp_set_num_threads(std::atoi(optarg)); break;
             case 's': spacing = optarg; break;
             case 'S': sketch_size = std::atoi(optarg); break;
             case 'w': wsz = std::atoi(optarg); break;
@@ -426,15 +444,16 @@ int dist_main(int argc, char *argv[]) {
             case 'o': ofp = fopen(optarg, "w"); break;
             case 'O': pairofp = fopen(optarg, "w"); break;
             case 'e': use_scientific = true; break;
+            case 'h': case '?': dist_usage(*argv);
         }
     }
-    omp_set_num_threads(num_threads);
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Spacer sp(k, wsz, sv);
     std::vector<hll::hll_t> hlls;
     if(wsz < k) wsz = k;
     std::vector<std::string> inpaths(paths_file.empty() ? get_paths(paths_file.data())
                                                         : std::vector<std::string>(argv + optind, argv + argc));
+    if(inpaths.size() == 0) dist_usage(*argv);
     while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size);
     #pragma omp parallel for
     for(size_t i = 0; i < hlls.size(); ++i) {
