@@ -433,7 +433,7 @@ int dist_main(int argc, char *argv[]) {
     std::string spacing, paths_file;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "c:p:o:O:S:eafFkKh?")) >= 0) {
+    while((co = getopt(argc, argv, "c:p:o:O:S:k:eFh?")) >= 0) {
         switch(co) {
             case 'k': k = std::atoi(optarg); break;
             case 'p': omp_set_num_threads(std::atoi(optarg)); break;
@@ -451,9 +451,12 @@ int dist_main(int argc, char *argv[]) {
     Spacer sp(k, wsz, sv);
     std::vector<hll::hll_t> hlls;
     if(wsz < k) wsz = k;
-    std::vector<std::string> inpaths(paths_file.empty() ? get_paths(paths_file.data())
+    std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                         : std::vector<std::string>(argv + optind, argv + argc));
-    if(inpaths.size() == 0) dist_usage(*argv);
+    if(inpaths.size() == 0) {
+        std::fprintf(stderr, "No paths. See usage.\n");
+        dist_usage(*argv);
+    }
     while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size);
     #pragma omp parallel for
     for(size_t i = 0; i < hlls.size(); ++i) {
