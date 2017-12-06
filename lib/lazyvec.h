@@ -56,23 +56,19 @@ public:
     const auto &front() const {return data_[0];}
     auto size() const {return n_;}
     auto capacity() const {return m_;}
-    operator=(const vector &o) {
+    vector &operator=(const vector &o) {
+        if(m_ < o.m_) data_ = (T *)std::realloc(data_, sizeof(T) * o.m_);
         n_ = o.n_;
         m_ = o.m_;
-        data_ = (T *)std::realloc(data_, sizeof(T) * m_);
         std::copy(begin(), end(), (T *)o.begin());
+        return *this;
     }
-    vector(vector &&o): n_(o.n_), m_(o.m_), data_(o.data_) {
-        std::memset(&o, 0, sizeof(o));
-    }
-    vector(const vector &o): data_(nullptr) {
-        *this = o;
-    }
-    operator=(vector &&o) {
+    vector &operator=(vector &&o) {
         n_ = o.n_;
         m_ = o.m_;
         data_ = o.data_;
         std::memset(&o, 0, sizeof(o));
+        return *this;
     }
     template<typename osize_type>
     bool operator==(const ::lazy::vector<T, osize_type> &other) const {

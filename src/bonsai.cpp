@@ -405,8 +405,84 @@ int hist_main(int argc, char *argv[]) {
  }
 
 int err_main(int argc, char *argv[]) {
-    std::fputs("No valid subcommand provided. Options: phase1, phase2, classify, hll, metatree\n", stderr);
+    std::fputs("No valid subcommand provided. Options: phase1, phase2, classify, hll, metatree, dist\n", stderr);
     return EXIT_FAILURE;
+}
+
+int dist_main(int argc, char *argv[]) {
+    int wsz(-1), k(31), num_threads(-1), sketch_size(24), use_scientific(false), co;
+    std::string spacing, paths_file;
+    FILE *ofp(stdout);
+    FILE *pairofp(stdout);
+    while((co = getopt(argc, argv, "e:c:p:o:O:S:afFkKh?")) >= 0) {
+        switch(co) {
+            case 'h': case '?': throw std::runtime_error("Need to write this usage.");
+            case 'k': k = std::atoi(optarg); break;
+            case 'p': num_threads = std::atoi(optarg); break;
+            case 's': spacing = optarg; break;
+            case 'S': sketch_size = std::atoi(optarg); break;
+            case 'w': wsz = std::atoi(optarg); break;
+            case 'F': paths_file = optarg; break;
+            case 'o': ofp = fopen(optarg, "w"); break;
+            case 'O': pairofp = fopen(optarg, "w"); break;
+            case 'e': use_scientific = true; break;
+        }
+    }
+    omp_set_num_threads(num_threads);
+    spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
+    Spacer sp(k, wsz, sv);
+    std::vector<hll::hll_t> hlls;
+    if(wsz < k) wsz = k;
+    std::vector<std::string> inpaths(paths_file.empty() ? get_paths(paths_file.data())
+                                                        : std::vector<std::string>(argv + optind, argv + argc));
+    while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size);
+    #pragma omp parallel for
+    for(size_t i = 0; i < hlls.size(); ++i) {
+        hll_fill_lmers<lex_score>(hlls[i], inpaths[i], sp, nullptr);
+    }
+    ks::string str;
+    str.sprintf("#Path\tSize (est.)\n");
+    {
+        const int fn(fileno(ofp));
+        for(size_t i(0); i < hlls.size(); ++i) {
+            str.sprintf("%s\t%lf\n", inpaths[i], hlls[i].report());
+            if(str.size() > 1 << 18) str.write(fn), str.clear();
+        }
+        str.write(fn), str.clear();
+    }
+    str.back() = '\n';
+    str.write(ofp), str.clear();
+    // TODO: Emit overlaps and symmetric differences.
+    if(ofp != stdout) std::fclose(ofp);
+    std::vector<double> dists(hlls.size() * hlls.size());
+    str.sprintf("##Names \t");
+    for(auto &path: inpaths) str.sprintf("%s\t", path.data());
+    #pragma omp parallel for
+    for(size_t i = 0; i < hlls.size(); ++i) {
+        hll::hll_t &h1(hlls[i]);
+        hll::hll_t tmp(h1);
+        for(size_t j = i + 1; j < hlls.size();++j) {
+            tmp &= hlls[j];
+            dists[j * hlls.size() + i] = dists[i * hlls.size() + j] = tmp.report() / (h1.report() + hlls[j].report() - tmp.report());
+            h1 = tmp;
+        }
+    }
+    const int fn(fileno(pairofp));
+    std::vector<ks::string> lines(hlls.size());
+    const char *fmt(use_scientific ? "\t%e": "\t%f");
+    #pragma omp parallel for
+    for(size_t i = 0; i < hlls.size(); ++i) {
+        ks::string &linestr(lines[i]);
+        linestr += inpaths[i];
+        double *ptr(&dists[i * hlls.size()]);
+        for(size_t j(0); j < hlls.size(); linestr.sprintf(fmt, ptr[j++]));
+        linestr.putc_('\n');
+    }
+    for(auto &line: lines) {
+        line.write(fn); line.free();
+    }
+    if(pairofp != stdout) fclose(pairofp);
+    return EXIT_SUCCESS;
 }
 
 
@@ -417,6 +493,7 @@ const static std::unordered_map<std::string, int (*) (int, char **)> mains {
     {"p2",       phase2_main},
     {"lca",      phase1_main},
     {"hll",      hll_main},
+    {"dist",  dist_main},
     {"hist",     hist_main},
     {"metatree", metatree_main},
     {"classify", classify_main}
