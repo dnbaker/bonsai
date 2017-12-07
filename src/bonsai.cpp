@@ -8,6 +8,7 @@
 //#include "lib/tree_climber.h"
 #include "lib/bitmap.h"
 #include "lib/tx.h"
+#include "lib/setcmp.h"
 #include "lib/flextree.h"
 #include "cppitertools/groupby.hpp"
 
@@ -512,6 +513,87 @@ int dist_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
+int setdist_main(int argc, char *argv[]) {
+    int wsz(-1), k(31), use_scientific(false), co;
+    std::string spacing, paths_file;
+    FILE *ofp(stdout), *pairofp(stdout);
+    omp_set_num_threads(1);
+    while((co = getopt(argc, argv, "c:p:o:O:S:k:eFh?")) >= 0) {
+        switch(co) {
+            case 'k': k = std::atoi(optarg); break;
+            case 'p': omp_set_num_threads(std::atoi(optarg)); break;
+            case 's': spacing = optarg; break;
+            case 'w': wsz = std::atoi(optarg); break;
+            case 'F': paths_file = optarg; break;
+            case 'o': ofp = fopen(optarg, "w"); break;
+            case 'O': pairofp = fopen(optarg, "w"); break;
+            case 'e': use_scientific = true; break;
+            case 'h': case '?': dist_usage(*argv);
+        }
+    }
+    spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
+    Spacer sp(k, wsz, sv);
+    std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
+                                                        : std::vector<std::string>(argv + optind, argv + argc));
+    std::vector<khash_t(all) *> hashes;
+    while(hashes.size() < inpaths.size()) hashes.emplace_back((khash_t(all) *)calloc(sizeof(khash_t(all)), 1));
+    const size_t nhashes(hashes.size());
+    if(wsz < sp.c_) wsz = sp.c_;
+    if(inpaths.size() == 0) {
+        std::fprintf(stderr, "No paths. See usage.\n");
+        dist_usage(*argv);
+    }
+    #pragma omp parallel for
+    for(size_t i = 0; i < hashes.size(); ++i)
+        fill_set_genome<lex_score>(inpaths[i].data(), sp, hashes[i], i, nullptr);
+    ks::string str;
+    str.sprintf("#Path\tSize (est.)\n");
+    {
+        const int fn(fileno(ofp));
+        for(size_t i(0); i < hashes.size(); ++i) {
+            str.sprintf("%s\t%zu\n", inpaths[i].data(), kh_size(hashes[i]));
+            if(str.size() > 1 << 18) str.write(fn), str.clear();
+        }
+        str.write(fn), str.clear();
+    }
+    str.back() = '\n';
+    str.write(ofp);
+    // TODO: Emit overlaps and symmetric differences.
+    if(ofp != stdout) std::fclose(ofp);
+    std::vector<double> dists(nhashes * nhashes);
+    str.clear();
+    str.sprintf("##Names \t");
+    for(auto &path: inpaths) str.sprintf("%s\t", path.data());
+    str.back() = '\n';
+    str.write(fileno(pairofp)); str.free();
+    #pragma omp parallel for
+    for(size_t i = 0; i < hashes.size(); ++i) {
+        const auto &h1(hashes[i]);
+        for(size_t j = i + 1; j < hashes.size(); ++j) {
+            dists[i * hashes.size() + j] = jaccard_index(hashes[j], h1);
+        }
+        dists[i * hashes.size() + i] = 1.;
+        khash_destroy(h1); // This is where we delete the hash tables.
+    }
+    const int fn(fileno(pairofp));
+    std::vector<ks::string> lines(nhashes);
+    const char *fmt(use_scientific ? "\t%e": "\t%f");
+    //#pragma omp parallel for
+    for(size_t i = 0; i < hashes.size(); ++i) {
+        ks::string &linestr(lines[i]);
+        linestr += inpaths[i];
+        for(size_t j(0); j < hashes.size(); ++j) {
+            linestr.sprintf(fmt, dists[i < j ? (i * nhashes + j): (j * nhashes + i)]);
+        }
+        linestr.putc_('\n');
+    }
+    for(auto &line: lines) {
+        line.write(fn); line.free();
+    }
+    if(pairofp != stdout) fclose(pairofp);
+    return EXIT_SUCCESS;
+}
+
 
 const static std::unordered_map<std::string, int (*) (int, char **)> mains {
     {"phase1",   phase1_main},
@@ -521,6 +603,7 @@ const static std::unordered_map<std::string, int (*) (int, char **)> mains {
     {"lca",      phase1_main},
     {"hll",      hll_main},
     {"dist",  dist_main},
+    {"setdist",  setdist_main},
     {"hist",     hist_main},
     {"metatree", metatree_main},
     {"classify", classify_main}

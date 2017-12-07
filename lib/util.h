@@ -156,6 +156,23 @@ void khash_destroy(T *map) noexcept {
     LOG_EXIT("NotImplementedError");
 }
 
+template<typename T, typename KType>
+khint_t khash_put(T *map, KType key, int *ret);
+template<> khint_t khash_put(khash_t(64) *map, uint64_t key, int *ret) {
+    return kh_put(64, map, key, ret);
+}
+template<> khint_t khash_put(khash_t(all) *map, uint64_t key, int *ret) {
+    return kh_put(all, map, key, ret);
+}
+
+template<typename T> khint_t khash_get(T *map, uint64_t key) {
+    if constexpr(std::is_same<std::decay_t<decltype(map->keys[0])>, uint64_t>::value) {
+        return kh_get(64, (khash_t(64) *)map, key);
+    } else {
+        return kh_get(c, (khash_t(c) *)map, key);
+    }
+}
+
 template<>
 void khash_destroy(khash_t(64) *map) noexcept;
 template<>
