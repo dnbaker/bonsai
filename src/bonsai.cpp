@@ -184,8 +184,8 @@ int hll_main(int argc, char *argv[]) {
     std::vector<std::string> inpaths(paths_file.empty() ? get_paths(paths_file.data())
                                                         : std::vector<std::string>(argv + optind, argv + argc));
     spvec_t sv(spacing.empty() ? spvec_t(k - 1, 0): parse_spacing(spacing.data(), k));
-    const std::size_t est(estimate_cardinality<lex_score>(inpaths, k, wsz, sv, nullptr, num_threads, sketch_size));
-    std::fprintf(stderr, "Estimated number of unique exact matches: %zu\n", est);
+    const double est(estimate_cardinality<lex_score>(inpaths, k, wsz, sv, nullptr, num_threads, sketch_size));
+    std::fprintf(stderr, "Estimated number of unique exact matches: %lf\n", est);
     return EXIT_SUCCESS;
 }
 
@@ -449,55 +449,60 @@ int dist_main(int argc, char *argv[]) {
     }
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Spacer sp(k, wsz, sv);
-    std::vector<hll::hll_t> hlls;
-    if(wsz < k) wsz = k;
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                         : std::vector<std::string>(argv + optind, argv + argc));
+    std::vector<hll::hll_t> hlls;
+    while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size);
+    if(wsz < sp.c_) wsz = sp.c_;
     if(inpaths.size() == 0) {
         std::fprintf(stderr, "No paths. See usage.\n");
         dist_usage(*argv);
     }
-    while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size);
     #pragma omp parallel for
     for(size_t i = 0; i < hlls.size(); ++i) {
-        hll_fill_lmers<lex_score>(hlls[i], inpaths[i], sp, nullptr);
+        hlls[i] = make_hll(std::vector<std::string>{inpaths[i]}, k, wsz, sv, nullptr, 1, sketch_size);
     }
     ks::string str;
     str.sprintf("#Path\tSize (est.)\n");
     {
         const int fn(fileno(ofp));
         for(size_t i(0); i < hlls.size(); ++i) {
-            str.sprintf("%s\t%lf\n", inpaths[i], hlls[i].report());
+            str.sprintf("%s\t%lf\n", inpaths[i].data(), hlls[i].report());
             if(str.size() > 1 << 18) str.write(fn), str.clear();
         }
         str.write(fn), str.clear();
     }
     str.back() = '\n';
-    str.write(ofp), str.clear();
+    str.write(ofp);
     // TODO: Emit overlaps and symmetric differences.
     if(ofp != stdout) std::fclose(ofp);
     std::vector<double> dists(hlls.size() * hlls.size());
+    str.clear();
     str.sprintf("##Names \t");
     for(auto &path: inpaths) str.sprintf("%s\t", path.data());
+    str.back() = '\n';
+    str.write(fileno(pairofp)); str.free();
+    for(auto &el: hlls) el.sum();
     #pragma omp parallel for
     for(size_t i = 0; i < hlls.size(); ++i) {
-        hll::hll_t &h1(hlls[i]);
-        hll::hll_t tmp(h1);
-        for(size_t j = i + 1; j < hlls.size();++j) {
-            tmp &= hlls[j];
-            dists[j * hlls.size() + i] = dists[i * hlls.size() + j] = tmp.report() / (h1.report() + hlls[j].report() - tmp.report());
-            h1 = tmp;
+        const hll::hll_t &h1(hlls[i]);
+        for(size_t j = i + 1; j < hlls.size(); ++j) {
+            //tmp &= hlls[j];
+            dists[i * hlls.size() + j] = jaccard_index(hlls[j], h1);//tmp.report() / (h1.report() + hlls[j].report() - tmp.report());
+            //h1 = tmp;
         }
+        dists[i * hlls.size() + i] = 1.;
     }
     const int fn(fileno(pairofp));
     std::vector<ks::string> lines(hlls.size());
     const char *fmt(use_scientific ? "\t%e": "\t%f");
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for(size_t i = 0; i < hlls.size(); ++i) {
         ks::string &linestr(lines[i]);
         linestr += inpaths[i];
-        double *ptr(&dists[i * hlls.size()]);
-        for(size_t j(0); j < hlls.size(); linestr.sprintf(fmt, ptr[j++]));
+        for(size_t j(0); j < hlls.size(); ++j) {
+            linestr.sprintf(fmt, dists[i < j ? (i * hlls.size() + j): (j * hlls.size() + i)]);
+        }
         linestr.putc_('\n');
     }
     for(auto &line: lines) {
