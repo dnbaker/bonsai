@@ -172,12 +172,23 @@ void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &spac
     gzFile fp(gzopen(path.data(), "rb"));
     kseq_t *ks(kseq_init(fp));
     u64 min;
+#if 0
+    std::unordered_set<uint64_t> s;
+#endif
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
-        while(enc.has_next_kmer()) if((min = enc.next_minimizer()) != BF) hll.add(wang_hash(min));
+        while(enc.has_next_kmer()) {
+            if((min = enc.next_minimizer()) != BF) {
+                hll.addh(min);
+#if 0
+                s.insert(min);
+#endif
+            }
+        }
     }
     kseq_destroy(ks);
     gzclose(fp);
+    //LOG_DEBUG("Filled hll of exact size %zu and estimated size %lf from path %s\n", s.size(), hll.report(), path.data());
 }
 
 template<u64 (*score)(u64, void *)>
