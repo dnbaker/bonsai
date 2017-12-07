@@ -69,7 +69,7 @@ size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, si
     kseq_t *ks(kseq_init(ifp));
     int khr; // khash return value. Unused, really.
     u64 kmer;
-    if(sp.w_ > sp.k_) {
+    if(sp.w_ > sp.c_) {
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
             while(likely(enc.has_next_kmer())) {
