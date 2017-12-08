@@ -77,9 +77,11 @@ int classify_main(int argc, char *argv[]) {
 }
 
 std::vector<std::string> get_paths(const char *path) {
+    std::fprintf(stderr, "Reading from file %s\n", path);
     gzFile fp(gzopen(path, "rb"));
-    char buf[1024], *line;
+    if(fp == nullptr) LOG_EXIT("Could not open path at %s\n", path);
     std::vector<std::string> ret;
+    char buf[1024], *line;
     while((line = gzgets(fp, buf, sizeof buf))) {
         ret.emplace_back(line);
         ret[ret.size() - 1].pop_back();
@@ -434,7 +436,7 @@ int dist_main(int argc, char *argv[]) {
     std::string spacing, paths_file;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "c:p:o:O:S:k:eFh?")) >= 0) {
+    while((co = getopt(argc, argv, "F:c:p:o:O:S:k:eh?")) >= 0) {
         switch(co) {
             case 'k': k = std::atoi(optarg); break;
             case 'p': omp_set_num_threads(std::atoi(optarg)); break;
@@ -442,8 +444,8 @@ int dist_main(int argc, char *argv[]) {
             case 'S': sketch_size = std::atoi(optarg); break;
             case 'w': wsz = std::atoi(optarg); break;
             case 'F': paths_file = optarg; break;
-            case 'o': ofp = fopen(optarg, "w"); break;
-            case 'O': pairofp = fopen(optarg, "w"); break;
+            case 'o': ofp = fopen(optarg, "w"); if(ofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
+            case 'O': pairofp = fopen(optarg, "w"); if(pairofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
             case 'e': use_scientific = true; break;
             case 'h': case '?': dist_usage(*argv);
         }
@@ -451,7 +453,7 @@ int dist_main(int argc, char *argv[]) {
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Spacer sp(k, wsz, sv);
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
-                                                        : std::vector<std::string>(argv + optind, argv + argc));
+                                                       : std::vector<std::string>(argv + optind, argv + argc));
     std::vector<hll::hll_t> hlls;
     while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size);
     if(wsz < sp.c_) wsz = sp.c_;
@@ -464,7 +466,7 @@ int dist_main(int argc, char *argv[]) {
         hlls[i] = make_hll(std::vector<std::string>{inpaths[i]}, k, wsz, sv, nullptr, 1, sketch_size);
     }
     ks::string str(1 << 16);
-    str.sprintf("#Path\tSize (est.)\n");
+    str.puts("#Path\tSize (est.)\n");
     {
         const int fn(fileno(ofp));
         for(size_t i(0); i < hlls.size(); ++i) {
@@ -516,7 +518,7 @@ int setdist_main(int argc, char *argv[]) {
     std::string spacing, paths_file;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "c:p:o:O:S:k:eFh?")) >= 0) {
+    while((co = getopt(argc, argv, "F:c:p:o:O:S:k:eh?")) >= 0) {
         switch(co) {
             case 'k': k = std::atoi(optarg); break;
             case 'p': omp_set_num_threads(std::atoi(optarg)); break;
@@ -532,7 +534,7 @@ int setdist_main(int argc, char *argv[]) {
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Spacer sp(k, wsz, sv);
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
-                                                        : std::vector<std::string>(argv + optind, argv + argc));
+                                                       : std::vector<std::string>(argv + optind, argv + argc));
     std::vector<khash_t(all) *> hashes;
     while(hashes.size() < inpaths.size()) hashes.emplace_back((khash_t(all) *)calloc(sizeof(khash_t(all)), 1));
     const size_t nhashes(hashes.size());
