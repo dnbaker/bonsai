@@ -157,11 +157,11 @@ void khash_destroy(T *map) noexcept {
 }
 
 template<typename T, typename KType>
-khint_t khash_put(T *map, KType key, int *ret);
-template<> khint_t khash_put(khash_t(64) *map, uint64_t key, int *ret) {
+inline khint_t khash_put(T *map, KType key, int *ret);
+template<> inline khint_t khash_put(khash_t(64) *map, uint64_t key, int *ret) {
     return kh_put(64, map, key, ret);
 }
-template<> khint_t khash_put(khash_t(all) *map, uint64_t key, int *ret) {
+template<> inline khint_t khash_put(khash_t(all) *map, uint64_t key, int *ret) {
     return kh_put(all, map, key, ret);
 }
 

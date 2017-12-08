@@ -208,10 +208,10 @@ public:
         index_type x;
         if (n_occupied >= upper_bound) { /* update the hash table */
             if (n_buckets > (size<<1)) {
-                if (kh_resize_##name(h, n_buckets - 1) < 0) { /* clear "deleted" elements */
+                if (resize(h, n_buckets - 1) < 0) { /* clear "deleted" elements */
                     *ret = -1; return n_buckets;
                 }
-            } else if (kh_resize_##name(h, n_buckets + 1) < 0) { /* expand the hash table */
+            } else if (resize(h, n_buckets + 1) < 0) { /* expand the hash table */
                 *ret = -1; return n_buckets;
             }
         } /* TODO: to implement automatically shrinking; resize() already support shrinking */

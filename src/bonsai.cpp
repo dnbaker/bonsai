@@ -488,9 +488,9 @@ int dist_main(int argc, char *argv[]) {
     for(size_t i = 0; i < hlls.size(); ++i) {
         const hll::hll_t &h1(hlls[i]);
         for(size_t j = i + 1; j < hlls.size(); ++j) {
-            //tmp &= hlls[j];
-            dists[i * hlls.size() + j] = jaccard_index(hlls[j], h1);//tmp.report() / (h1.report() + hlls[j].report() - tmp.report());
-            //h1 = tmp;
+            const hll::hll_t &h2(hlls[j]);
+            dists[i * hlls.size() + j] = jaccard_index(h2, h1);//tmp.report() / (h1.report() + hlls[j].report() - tmp.report());
+            //LOG_DEBUG("jaccard index for %zu, %zu is %lf\n", i, j, dists[i * hlls.size() + j]);
         }
         dists[i * hlls.size() + i] = 1.;
     }
@@ -544,8 +544,15 @@ int setdist_main(int argc, char *argv[]) {
         dist_usage(*argv);
     }
     #pragma omp parallel for
-    for(size_t i = 0; i < hashes.size(); ++i)
-        fill_set_genome<lex_score>(inpaths[i].data(), sp, hashes[i], i, nullptr);
+    for(size_t i = 0; i < hashes.size(); ++i) {
+        const char *path(inpaths[i].data());
+        khash_t(all) *hash(hashes[i]);
+        assert(path);
+        assert(kh_size(hash) == 0);
+        fill_set_genome<lex_score>(path, sp, hash, i, nullptr);
+        assert(hash);
+    }
+    LOG_DEBUG("Filled genomes. Now analyzing data.\n");
     ks::string str;
     str.sprintf("#Path\tSize (est.)\n");
     {
@@ -568,13 +575,14 @@ int setdist_main(int argc, char *argv[]) {
     str.write(fileno(pairofp)); str.free();
     #pragma omp parallel for
     for(size_t i = 0; i < hashes.size(); ++i) {
-        const auto &h1(hashes[i]);
+        const auto h1(hashes[i]);
         for(size_t j = i + 1; j < hashes.size(); ++j) {
-            dists[i * hashes.size() + j] = jaccard_index(hashes[j], h1);
+            const auto h2(hashes[j]);
+            dists[i * hashes.size() + j] = jaccard_index(h2, h1);
         }
         dists[i * hashes.size() + i] = 1.;
-        khash_destroy(h1); // This is where we delete the hash tables.
     }
+    for(auto el: hashes) khash_destroy(el); // This is where we delete the hash tables.
     const int fn(fileno(pairofp));
     std::vector<ks::string> lines(nhashes);
     const char *fmt(use_scientific ? "\t%e": "\t%f");
@@ -595,21 +603,21 @@ int setdist_main(int argc, char *argv[]) {
 }
 
 
-const static std::unordered_map<std::string, int (*) (int, char **)> mains {
-    {"phase1",   phase1_main},
-    {"p1",       phase1_main},
-    {"phase2",   phase2_main},
-    {"p2",       phase2_main},
-    {"lca",      phase1_main},
-    {"hll",      hll_main},
-    {"dist",  dist_main},
-    {"setdist",  setdist_main},
-    {"hist",     hist_main},
-    {"metatree", metatree_main},
-    {"classify", classify_main}
-};
 
 int main(int argc, char *argv[]) {
+    const static std::unordered_map<std::string, int (*) (int, char **)> mains {
+        {"phase1",   phase1_main},
+        {"p1",       phase1_main},
+        {"phase2",   phase2_main},
+        {"p2",       phase2_main},
+        {"lca",      phase1_main},
+        {"hll",      hll_main},
+        {"dist",  dist_main},
+        {"setdist",  setdist_main},
+        {"hist",     hist_main},
+        {"metatree", metatree_main},
+        {"classify", classify_main}
+    };
     return (argc > 1 && mains.find(argv[1]) != mains.end() ? mains.find(argv[1])->second
                                                            : err_main)(argc - 1, argv + 1);
 }
