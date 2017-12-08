@@ -463,7 +463,7 @@ int dist_main(int argc, char *argv[]) {
     for(size_t i = 0; i < hlls.size(); ++i) {
         hlls[i] = make_hll(std::vector<std::string>{inpaths[i]}, k, wsz, sv, nullptr, 1, sketch_size);
     }
-    ks::string str;
+    ks::string str(1 << 16);
     str.sprintf("#Path\tSize (est.)\n");
     {
         const int fn(fileno(ofp));
@@ -473,8 +473,6 @@ int dist_main(int argc, char *argv[]) {
         }
         str.write(fn), str.clear();
     }
-    str.back() = '\n';
-    str.write(ofp);
     // TODO: Emit overlaps and symmetric differences.
     if(ofp != stdout) std::fclose(ofp);
     std::vector<double> dists(hlls.size() * hlls.size());
@@ -563,8 +561,6 @@ int setdist_main(int argc, char *argv[]) {
         }
         str.write(fn), str.clear();
     }
-    str.back() = '\n';
-    str.write(ofp);
     // TODO: Emit overlaps and symmetric differences.
     if(ofp != stdout) std::fclose(ofp);
     std::vector<double> dists(nhashes * nhashes);
