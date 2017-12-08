@@ -465,8 +465,9 @@ int dist_main(int argc, char *argv[]) {
     for(size_t i = 0; i < hlls.size(); ++i) {
         hlls[i] = make_hll(std::vector<std::string>{inpaths[i]}, k, wsz, sv, nullptr, 1, sketch_size);
     }
-    ks::string str(1 << 16);
-    str.puts("#Path\tSize (est.)\n");
+    ks::string str("#Path\tSize (est.)\n");
+    assert(str == "#Path\tSize (est.)\n");
+    str.resize(1 << 18);
     {
         const int fn(fileno(ofp));
         for(size_t i(0); i < hlls.size(); ++i) {
