@@ -63,6 +63,7 @@ struct khel_t<K, V, false> {
 #define __ac_set_isempty_false(flag, i) (flag[i>>4]&=~(2ull<<((i&0xfU)<<1)))
 #define __ac_set_isboth_false(flag, i) (flag[i>>4]&=~(3ull<<((i&0xfU)<<1)))
 #define __ac_set_isdel_true(flag, i) (flag[i>>4]|=1ull<<((i&0xfU)<<1))
+#if 0
 
 template<typename khkey_t, typename khval_t,
          typename hash_func=std::hash<khkey_t>, class hash_equal=std::equal_to<khkey_t>,
@@ -247,6 +248,8 @@ public:
         return x;
     }
 };
+
+#endif
 
 } // namespace kh
 
