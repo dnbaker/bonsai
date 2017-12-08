@@ -170,6 +170,7 @@ void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &spac
 
     Encoder<score> enc(nullptr, 0, space, data);
     gzFile fp(gzopen(path.data(), "rb"));
+    if(fp == nullptr) LOG_EXIT("Could not open file at %s\n", path.data());
     kseq_t *ks(kseq_init(fp));
     u64 min;
 #if 0
@@ -286,9 +287,14 @@ hll::hll_t make_hll(const std::vector<std::string> &paths,
     LOG_DEBUG("About to estimate cardinality\n");
     const Spacer space(k, w, spaces);
     hll::hll_t master(np);
-    std::mutex m;
-    est_helper helper{space, paths, m, np, data, master};
-    kt_for(num_threads, &est_helper_fn<score>, &helper, paths.size());
+    if(num_threads == 1) {
+        for(size_t i(0); i < paths.size(); ++i)
+            hll_fill_lmers<score>(master, paths[i], space, data);
+    } else {
+        std::mutex m;
+        est_helper helper{space, paths, m, np, data, master};
+        kt_for(num_threads, &est_helper_fn<score>, &helper, paths.size());
+    }
     return master;
 }
 
