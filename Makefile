@@ -32,11 +32,11 @@ endif
 
 OPT:= -O3 -funroll-loops \
 	  -fopenmp \
-	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) $(EXTRA) # -DUSE_PAR_HELPERS
+	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) $(EXTRA) -DHLL_HEADER_ONLY # -DUSE_PAR_HELPERS
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS)
 CCFLAGS=$(OPT) $(CFLAGS) -std=c11 $(WARNINGS)
-LIB=-lz -lhll
+LIB=-lz #-lhll
 LD=-L.
 
 OBJS=$(patsubst %.c,%.o,$(wildcard lib/*.c) klib/kthread.o) $(patsubst %.cpp,%.o,$(wildcard lib/*.cpp)) klib/kstring.o clhash.o
@@ -54,10 +54,10 @@ INCLUDE=-I. -Ilib
 
 all: $(OBJS) $(EX) unit
 
-libhll.a:
-	cd hll && make CXX=$(CXX) && cp libhll.a ..
+#libhll.a:
+#	cd hll && make CXX=$(CXX) && cp libhll.a ..
 
-obj: $(OBJS) libhll.a
+obj: $(OBJS)
 
 clhash.o: clhash/src/clhash.c
 	cp clhash/clhash.o . || (cd clhash $(CLHASH_CHECKOUT) && make && cd .. && mv clhash/clhash.o .)
@@ -71,21 +71,21 @@ test/%.o: test/%.cpp
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
-%: src/%.cpp $(OBJS) libhll.a
+%: src/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
 
-fahist: src/fahist.cpp $(OBJS) libhll.a
+fahist: src/fahist.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) klib/kthread.o $< -o $@ -lz
 
 tests: clean unit
 
-unit: $(OBJS) $(TEST_OBJS) libhll.a
+unit: $(OBJS) $(TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
 	# $(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) test/test_hll.o test/test_main.o $(LD) $(OBJS) -o $@ $(LIB)
 
 
 clean:
-	rm -f $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o src/*o libhll.a \
+	rm -f $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o src/*o \
 	&& cd hll && make clean && cd ..
 
 mostlyclean:
