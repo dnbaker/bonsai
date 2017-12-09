@@ -485,9 +485,9 @@ int dist_main(int argc, char *argv[]) {
     str.back() = '\n';
     str.write(fileno(pairofp)); str.free();
     for(auto &el: hlls) el.sum();
-    #pragma omp parallel for
     for(size_t i = 0; i < hlls.size(); ++i) {
         const hll::hll_t &h1(hlls[i]);
+        #pragma omp parallel for
         for(size_t j = i + 1; j < hlls.size(); ++j) {
             const hll::hll_t &h2(hlls[j]);
             dists[i * hlls.size() + j] = jaccard_index(h2, h1);//tmp.report() / (h1.report() + hlls[j].report() - tmp.report());
