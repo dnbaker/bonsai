@@ -25,6 +25,7 @@ def get_level(line):
     next(gen)
     return next(gen)
 
+
 def get_levels(path):
     from collections import Counter
     return Counter(get_level(line) for line in open(path))

@@ -21,7 +21,8 @@ class TaxEntry(object):
 
         if isinstance(line, int):
             #  Only for creating the ROOT node. This is horrible.
-            assert isinstance(classlvl_map, int)  # This should provide the taxonomic depth
+            assert isinstance(classlvl_map, int)
+            # This should provide the taxonomic depth
             self.id = line
             self.parent = gi2taxmap
             self.depth = classlvl_map
@@ -38,7 +39,8 @@ class TaxEntry(object):
             try:
                 self.depth = classlvl_map[next(toks)]
             except KeyError:
-                print("key ('%s') missing from dictionary. Abort!", file=sys.stderr)
+                print("key ('%s') missing from dictionary. Abort!",
+                      file=sys.stderr)
                 raise
             self.name = None
             self.genome_paths = []
@@ -108,7 +110,8 @@ class Taxonomy(object):
                                                self.lvl_map.keys() if
                                                isinstance(i, int)))
             raise
-        sys.stderr.write("I successfully asserted that lvl_map belongs in existence.\n")
+        sys.stderr.write("I successfully asserted that lvl_map"
+                         " belongs in existence.\n")
         self.taxes = [TaxEntry(0, 0, 0, [], "root")]
         self.map = {0: self.taxes[0]}
         with open(gi2taxpath) as f:
@@ -166,7 +169,8 @@ class Taxonomy(object):
 
     def add_line(self, line):
         self.taxes.append(TaxEntry(line, self.gi2taxmap, self.lvl_map))
-        self.map[self.taxes[len(self.taxes) - 1].id] = self.taxes[len(self.taxes) - 1]
+        self.map[self.taxes[len(self.taxes) - 1].id] = self.taxes[
+            len(self.taxes) - 1]
 
     def add_genome_path(self, path, tax):
         try:
