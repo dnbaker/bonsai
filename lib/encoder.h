@@ -271,7 +271,7 @@ struct est_helper {
 template<u64 (*score)(u64, void *)=lex_score>
 void est_helper_fn(void *data_, long index, int tid) {
     est_helper &h(*(est_helper *)(data_));
-    LOG_DEBUG("Counting kmers from file %s (index %ld) \n", h.paths_[index].data(), index);
+    //LOG_DEBUG("Counting kmers from file %s (index %ld) \n", h.paths_[index].data(), index);
     // TODO: rewrite using atomic operations on the master hll, avoid using multiple hlls.
     hll_fill_lmers<score>(h.master_, h.paths_[index], h.sp_, h.data_);
 }
@@ -284,13 +284,11 @@ hll::hll_t make_hll(const std::vector<std::string> &paths,
     if(num_threads < 0) {
         num_threads = sysconf(_SC_NPROCESSORS_ONLN);
     }
-    LOG_DEBUG("About to estimate cardinality\n");
     const Spacer space(k, w, spaces);
     hll::hll_t master(np);
-    if(num_threads == 1) {
-        for(size_t i(0); i < paths.size(); ++i)
-            hll_fill_lmers<score>(master, paths[i], space, data);
-    } else {
+    if(num_threads == 1)
+        for(size_t i(0); i < paths.size(); hll_fill_lmers<score>(master, paths[i++], space, data));
+    else {
         std::mutex m;
         est_helper helper{space, paths, m, np, data, master};
         kt_for(num_threads, &est_helper_fn<score>, &helper, paths.size());
