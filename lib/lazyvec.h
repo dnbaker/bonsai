@@ -96,7 +96,6 @@ public:
     }
     template<typename... Args>
     auto &push_back(Args&& ... args) {
-        std::fprintf(stderr, "m: %zu. n: %zu\n", m_, n_);
         if(n_ + 1 > m_)
             reserve(std::max(static_cast<size_type>(m_ * PUSH_BACK_RESIZING_FACTOR),
                              m_ + 1));
