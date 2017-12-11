@@ -1,4 +1,3 @@
-#/usr/bin/env python
 import sys
 import os
 import multiprocessing
@@ -6,12 +5,14 @@ import subprocess
 import shlex
 import numpy as np
 
+
 def parse_sizefile(fn):
     return {line.strip().split()[0]: float(line.strip().split()[1])
             for line in open(fn) if line[0] != "#"}
 
+
 def frac_off(est, corr):
-    return float(abs(est - corr)) / corr;
+    return float(abs(est - corr)) / corr
 
 
 class DistData:
@@ -63,18 +64,19 @@ def main():
     ofw("#Name\tEstim\tExact\tError\n")
     for pair in zip(estim_sizes.items(), exact_sizes.items()):
         ofw("%s.\t%f.\t%f\t%f%%\n" % (pair[0][0], pair[0][1],
-                                    pair[1][1],
-                                    frac_off(pair[0][1],
-                                             pair[1][1]) * 100))
+                                      pair[1][1],
+                                      frac_off(pair[0][1],
+                                               pair[1][1]) * 100))
     estim_dists, exact_dists = list(map(parse_distfile,
                                         [sketch_dists, set_dists]))
     names = estim_dists.names
-    ofw("#Name1\tName2\tEstim\tExact\tError\n")
+    ofw("#Name1\tName2\tEstim\tExact\tError (relative)\tError (absolute)\n")
     for i in range(len(estim_dists.arr)):
         for j in range(i + 1, len(estim_dists.arr)):
-            ofw("%s\t%s\t%f\t%f\t%f%%\n" % (names[i], names[j],
-                estim_dists.arr[i,j], exact_dists.arr[i,j],
-                frac_off(estim_dists.arr[i,j], exact_dists.arr[i,j]) * 100))
+            ofw("%s\t%s\t%f\t%f\t%f%%\t%f\n" % (names[i], names[j],
+                estim_dists.arr[i, j], exact_dists.arr[i, j],
+                frac_off(estim_dists.arr[i, j], exact_dists.arr[i, j]) * 100),
+                abs(estim_dists.arr[i, j] - exact_dists.arr[i, j]))
 
 if __name__ == "__main__":
     sys.exit(main())
