@@ -87,6 +87,7 @@ std::vector<std::string> get_paths(const char *path) {
         ret[ret.size() - 1].pop_back();
     }
     gzclose(fp);
+    for(const auto &el: ret) std::fprintf(stderr, "Path: %s\n", el.data());
     return ret;
 }
 
@@ -479,42 +480,26 @@ int dist_main(int argc, char *argv[]) {
     }
     // TODO: Emit overlaps and symmetric differences.
     if(ofp != stdout) std::fclose(ofp);
-    std::vector<double> dists(hlls.size() * hlls.size());
+    std::vector<double> dists(hlls.size() - 1);
     str.clear();
     str.sprintf("##Names \t");
     for(auto &path: inpaths) str.sprintf("%s\t", path.data());
     str.back() = '\n';
     str.write(fileno(pairofp)); str.free();
     for(auto &el: hlls) el.sum();
+    const char *fmt(use_scientific ? "\t%e": "\t%f");
     for(size_t i = 0; i < hlls.size(); ++i) {
         const hll::hll_t &h1(hlls[i]);
-        LOG_WARNING("TODO: Write this to disk as its made in upper triangular form so that we don't waste quadratic space on floating point values.\n");
         #pragma omp parallel for
-        for(size_t j = i + 1; j < hlls.size(); ++j) {
-            const hll::hll_t &h2(hlls[j]);
-            dists[i * hlls.size() + j] = jaccard_index(h2, h1);//tmp.report() / (h1.report() + hlls[j].report() - tmp.report());
-            //LOG_DEBUG("jaccard index for %zu, %zu is %lf\n", i, j, dists[i * hlls.size() + j]);
-        }
-        dists[i * hlls.size() + i] = 1.;
+        for(size_t j = i + 1; j < hlls.size(); ++j) dists[j - i - 1] = jaccard_index(hlls[j], h1);
+        str += inpaths[i];
+        for(size_t k(0); k < i + 1; ++k) str.putc_('\t');
+        if(neg_estimates_to_zero) for(size_t k(0); k < hlls.size() - i - 1; ++k) str.sprintf(fmt, std::max(0., dists[k]));
+        else                      for(size_t k(0); k < hlls.size() - i - 1; ++k) str.sprintf(fmt, dists[k]);
+        str.putc_('\n');
+        if(str.size() >= 1 << 18) str.write(fileno(pairofp)), str.clear();
     }
-    const int fn(fileno(pairofp));
-    std::vector<ks::string> lines(hlls.size());
-    const char *fmt(use_scientific ? "\t%e": "\t%f");
-    //#pragma omp parallel for
-    for(size_t i = 0; i < hlls.size(); ++i) {
-        ks::string &linestr(lines[i]);
-        linestr += inpaths[i];
-        if(neg_estimates_to_zero)
-            for(size_t j(0); j < hlls.size(); ++j)
-                linestr.sprintf(fmt, std::max(dists[i < j ? (i * hlls.size() + j): (j * hlls.size() + i)], 0.));
-        else
-            for(size_t j(0); j < hlls.size(); ++j)
-                linestr.sprintf(fmt, dists[i < j ? (i * hlls.size() + j): (j * hlls.size() + i)]);
-        linestr.putc_('\n');
-    }
-    for(auto &line: lines) {
-        line.write(fn); line.free();
-    }
+    str.write(fileno(pairofp)); str.clear();
     if(pairofp != stdout) fclose(pairofp);
     return EXIT_SUCCESS;
 }
