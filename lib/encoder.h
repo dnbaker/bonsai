@@ -286,8 +286,7 @@ hll::hll_t make_hll(const std::vector<std::string> &paths,
     }
     const Spacer space(k, w, spaces);
     hll::hll_t master(np);
-    if(num_threads == 1)
-        for(size_t i(0); i < paths.size(); hll_fill_lmers<score>(master, paths[i++], space, data));
+    if(num_threads == 1) for(size_t i(0); i < paths.size(); hll_fill_lmers<score>(master, paths[i++], space, data));
     else {
         std::mutex m;
         est_helper helper{space, paths, m, np, data, master};
