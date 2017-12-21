@@ -87,6 +87,7 @@ std::vector<std::string> get_paths(const char *path) {
         ret[ret.size() - 1].pop_back();
     }
     gzclose(fp);
+    for(const auto &el: ret) std::fprintf(stderr, "Path: %s\n", el.data());
     return ret;
 }
 
@@ -432,11 +433,11 @@ void dist_usage(const char *arg) {
 }
 
 int dist_main(int argc, char *argv[]) {
-    int wsz(-1), k(31), sketch_size(20), use_scientific(false), co;
+    int wsz(-1), k(31), sketch_size(20), use_scientific(false), neg_estimates_to_zero(false), co;
     std::string spacing, paths_file;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "F:c:p:o:O:S:k:eh?")) >= 0) {
+    while((co = getopt(argc, argv, "F:c:p:o:O:S:k:Meh?")) >= 0) {
         switch(co) {
             case 'k': k = std::atoi(optarg); break;
             case 'p': omp_set_num_threads(std::atoi(optarg)); break;
@@ -446,6 +447,7 @@ int dist_main(int argc, char *argv[]) {
             case 'F': paths_file = optarg; break;
             case 'o': ofp = fopen(optarg, "w"); if(ofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
             case 'O': pairofp = fopen(optarg, "w"); if(pairofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
+            case 'M': neg_estimates_to_zero = true; break;
             case 'e': use_scientific = true; break;
             case 'h': case '?': dist_usage(*argv);
         }
@@ -478,48 +480,36 @@ int dist_main(int argc, char *argv[]) {
     }
     // TODO: Emit overlaps and symmetric differences.
     if(ofp != stdout) std::fclose(ofp);
-    std::vector<double> dists(hlls.size() * hlls.size());
+    std::vector<double> dists(hlls.size() - 1);
     str.clear();
     str.sprintf("##Names \t");
     for(auto &path: inpaths) str.sprintf("%s\t", path.data());
     str.back() = '\n';
     str.write(fileno(pairofp)); str.free();
     for(auto &el: hlls) el.sum();
+    const char *fmt(use_scientific ? "\t%e": "\t%f");
     for(size_t i = 0; i < hlls.size(); ++i) {
         const hll::hll_t &h1(hlls[i]);
         #pragma omp parallel for
-        for(size_t j = i + 1; j < hlls.size(); ++j) {
-            const hll::hll_t &h2(hlls[j]);
-            dists[i * hlls.size() + j] = jaccard_index(h2, h1);//tmp.report() / (h1.report() + hlls[j].report() - tmp.report());
-            //LOG_DEBUG("jaccard index for %zu, %zu is %lf\n", i, j, dists[i * hlls.size() + j]);
-        }
-        dists[i * hlls.size() + i] = 1.;
+        for(size_t j = i + 1; j < hlls.size(); ++j) dists[j - i - 1] = jaccard_index(hlls[j], h1);
+        str += inpaths[i];
+        for(size_t k(0); k < i + 1; ++k) str.putc_('\t');
+        if(neg_estimates_to_zero) for(size_t k(0); k < hlls.size() - i - 1; ++k) str.sprintf(fmt, std::max(0., dists[k]));
+        else                      for(size_t k(0); k < hlls.size() - i - 1; ++k) str.sprintf(fmt, dists[k]);
+        str.putc_('\n');
+        if(str.size() >= 1 << 18) str.write(fileno(pairofp)), str.clear();
     }
-    const int fn(fileno(pairofp));
-    std::vector<ks::string> lines(hlls.size());
-    const char *fmt(use_scientific ? "\t%e": "\t%f");
-    //#pragma omp parallel for
-    for(size_t i = 0; i < hlls.size(); ++i) {
-        ks::string &linestr(lines[i]);
-        linestr += inpaths[i];
-        for(size_t j(0); j < hlls.size(); ++j) {
-            linestr.sprintf(fmt, dists[i < j ? (i * hlls.size() + j): (j * hlls.size() + i)]);
-        }
-        linestr.putc_('\n');
-    }
-    for(auto &line: lines) {
-        line.write(fn); line.free();
-    }
+    str.write(fileno(pairofp)); str.clear();
     if(pairofp != stdout) fclose(pairofp);
     return EXIT_SUCCESS;
 }
 
 int setdist_main(int argc, char *argv[]) {
-    int wsz(-1), k(31), use_scientific(false), co;
+    int wsz(-1), k(31), use_scientific(false), neg_estimates_to_zero(false), co;
     std::string spacing, paths_file;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "F:c:p:o:O:S:k:eh?")) >= 0) {
+    while((co = getopt(argc, argv, "F:c:p:o:O:S:k:Meh?")) >= 0) {
         switch(co) {
             case 'k': k = std::atoi(optarg); break;
             case 'p': omp_set_num_threads(std::atoi(optarg)); break;
@@ -529,6 +519,7 @@ int setdist_main(int argc, char *argv[]) {
             case 'o': ofp = fopen(optarg, "w"); break;
             case 'O': pairofp = fopen(optarg, "w"); break;
             case 'e': use_scientific = true; break;
+            case 'M': neg_estimates_to_zero = true; break;
             case 'h': case '?': dist_usage(*argv);
         }
     }
@@ -572,9 +563,9 @@ int setdist_main(int argc, char *argv[]) {
     for(auto &path: inpaths) str.sprintf("%s\t", path.data());
     str.back() = '\n';
     str.write(fileno(pairofp)); str.free();
-    #pragma omp parallel for
     for(size_t i = 0; i < hashes.size(); ++i) {
         const auto h1(hashes[i]);
+        #pragma omp parallel for
         for(size_t j = i + 1; j < hashes.size(); ++j) {
             const auto h2(hashes[j]);
             dists[i * hashes.size() + j] = jaccard_index(h2, h1);
@@ -589,9 +580,12 @@ int setdist_main(int argc, char *argv[]) {
     for(size_t i = 0; i < hashes.size(); ++i) {
         ks::string &linestr(lines[i]);
         linestr += inpaths[i];
-        for(size_t j(0); j < hashes.size(); ++j) {
-            linestr.sprintf(fmt, dists[i < j ? (i * nhashes + j): (j * nhashes + i)]);
-        }
+        if(neg_estimates_to_zero)
+            for(size_t j(0); j < hashes.size(); ++j)
+                linestr.sprintf(fmt, std::max(dists[i < j ? (i * hashes.size() + j): (j * hashes.size() + i)], 0.));
+        else
+            for(size_t j(0); j < hashes.size(); ++j)
+                linestr.sprintf(fmt, dists[i < j ? (i * hashes.size() + j): (j * hashes.size() + i)]);
         linestr.putc_('\n');
     }
     for(auto &line: lines) {
