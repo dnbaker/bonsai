@@ -409,8 +409,16 @@ int hist_main(int argc, char *argv[]) {
  }
 
 int err_main(int argc, char *argv[]) {
-    std::fputs("No valid subcommand provided. Options: phase1, phase2, classify, hll, metatree, dist\n", stderr);
+    std::fputs("No valid subcommand provided. Options: phase1, phase2, classify, hll, metatree, dist, sketch\n", stderr);
     return EXIT_FAILURE;
+}
+
+std::string hll_fname(const char *path, size_t sketch_p, const std::string &suffix) {
+    std::string mid(suffix.size() ? std::string(".")  + suffix + ".": std::string("."));
+    return std::string(path) + mid + std::to_string(sketch_p) + ".hll";
+}
+bool has_hll(const char *path, size_t sketch_p, const std::string &suffix) {
+    return isfile(hll_fname(path, sketch_p, suffix));
 }
 
 void dist_usage(const char *arg) {
@@ -428,32 +436,34 @@ void dist_usage(const char *arg) {
                          "-O\tOutput for genome distance matrix [stdout]\n"
                          "-e\tEmit in scientific notation\n"
                          "-F\tGet paths to genomes from file rather than positional arguments\n"
+                         "TODO: Add separate sketch_usage.\n"
                 , arg);
     std::exit(EXIT_FAILURE);
 }
 
-int dist_main(int argc, char *argv[]) {
-    int wsz(-1), k(31), sketch_size(16), use_scientific(false), neg_estimates_to_zero(false), co;
-    std::string spacing, paths_file;
-    FILE *ofp(stdout), *pairofp(stdout);
+std::string &extend_suffix(std::string &suffix, int wsz, const Spacer &sp, int k, const std::string &spacing) {
+    return suffix += ".w" + std::to_string(std::max((int)sp.c_, wsz)) + "." + std::to_string(k) + ".spacing" + spacing;
+}
+
+int sketch_main(int argc, char *argv[]) {
+    int wsz(-1), k(31), sketch_size(16), co;
+    std::string spacing, paths_file, suffix;
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "F:c:p:o:O:S:k:Meh?")) >= 0) {
+    while((co = getopt(argc, argv, "F:c:p:x:s:S:k:w:eh?")) >= 0) {
         switch(co) {
             case 'k': k = std::atoi(optarg); break;
+            case 'x': suffix = optarg; break;
             case 'p': omp_set_num_threads(std::atoi(optarg)); break;
             case 's': spacing = optarg; break;
             case 'S': sketch_size = std::atoi(optarg); break;
             case 'w': wsz = std::atoi(optarg); break;
             case 'F': paths_file = optarg; break;
-            case 'o': ofp = fopen(optarg, "w"); if(ofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
-            case 'O': pairofp = fopen(optarg, "w"); if(pairofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
-            case 'M': neg_estimates_to_zero = true; break;
-            case 'e': use_scientific = true; break;
             case 'h': case '?': dist_usage(*argv);
         }
     }
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Spacer sp(k, wsz, sv);
+    extend_suffix(suffix, wsz, sp, k, spacing);
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind, argv + argc));
     std::vector<hll::hll_t> hlls;
@@ -465,7 +475,56 @@ int dist_main(int argc, char *argv[]) {
     }
     #pragma omp parallel for
     for(size_t i = 0; i < hlls.size(); ++i) {
-        hlls[i] = make_hll(std::vector<std::string>{inpaths[i]}, k, wsz, sv, nullptr, 1, sketch_size);
+        const std::string &path(inpaths[i]);
+        hlls[i] = has_hll(path.data(), sketch_size, suffix) ? hll::hll_t(path.data())
+                                                            : make_hll(std::vector<std::string>{inpaths[i]},
+                                                                       k, wsz, sv, nullptr, 1, sketch_size);
+        hlls[i].write(hll_fname(path.data(), sketch_size, suffix));
+    }
+    return EXIT_SUCCESS;
+}
+
+int dist_main(int argc, char *argv[]) {
+    int wsz(-1), k(31), sketch_size(16), use_scientific(false), neg_estimates_to_zero(false), co, cache_sketch(false);
+    std::string spacing, paths_file, suffix;
+    FILE *ofp(stdout), *pairofp(stdout);
+    omp_set_num_threads(1);
+    while((co = getopt(argc, argv, "x:F:c:p:o:s:w:O:S:k:Meh?")) >= 0) {
+        switch(co) {
+            case 'k': k = std::atoi(optarg); break;
+            case 'x': suffix = optarg; break;
+            case 'p': omp_set_num_threads(std::atoi(optarg)); break;
+            case 's': spacing = optarg; break;
+            case 'S': sketch_size = std::atoi(optarg); break;
+            case 'w': wsz = std::atoi(optarg); break;
+            case 'F': paths_file = optarg; break;
+            case 'o': ofp = fopen(optarg, "w"); if(ofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
+            case 'O': pairofp = fopen(optarg, "w"); if(pairofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
+            case 'M': neg_estimates_to_zero = true; break;
+            case 'e': use_scientific = true; break;
+            case 'W': cache_sketch = true;  break;
+            case 'h': case '?': dist_usage(*argv);
+        }
+    }
+    spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
+    Spacer sp(k, wsz, sv);
+    extend_suffix(suffix, wsz, sp, k, spacing);
+    std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
+                                                       : std::vector<std::string>(argv + optind, argv + argc));
+    std::vector<hll::hll_t> hlls;
+    while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size);
+    if(wsz < sp.c_) wsz = sp.c_;
+    if(inpaths.size() == 0) {
+        std::fprintf(stderr, "No paths. See usage.\n");
+        dist_usage(*argv);
+    }
+    #pragma omp parallel for
+    for(size_t i = 0; i < hlls.size(); ++i) {
+        const std::string &path(inpaths[i]);
+        hlls[i] = has_hll(path.data(), sketch_size, suffix) ? hll::hll_t(path.data())
+                                                            : make_hll(std::vector<std::string>{inpaths[i]},
+                                                                       k, wsz, sv, nullptr, 1, sketch_size);
+        if(cache_sketch) hlls[i].write(hll_fname(path.data(), sketch_size, suffix));
     }
     ks::string str("#Path\tSize (est.)\n");
     assert(str == "#Path\tSize (est.)\n");
@@ -605,7 +664,8 @@ int main(int argc, char *argv[]) {
         {"p2",       phase2_main},
         {"lca",      phase1_main},
         {"hll",      hll_main},
-        {"dist",  dist_main},
+        {"dist",     dist_main},
+        {"sketch",   sketch_main},
         {"setdist",  setdist_main},
         {"hist",     hist_main},
         {"metatree", metatree_main},
