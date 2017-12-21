@@ -81,7 +81,7 @@ std::vector<std::string> get_paths(const char *path) {
     gzFile fp(gzopen(path, "rb"));
     if(fp == nullptr) LOG_EXIT("Could not open path at %s\n", path);
     std::vector<std::string> ret;
-    char buf[1024], *line;
+    char buf[2048], *line;
     while((line = gzgets(fp, buf, sizeof buf))) {
         ret.emplace_back(line);
         ret[ret.size() - 1].pop_back();
