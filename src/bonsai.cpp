@@ -423,7 +423,7 @@ void dist_usage(const char *arg) {
                          "..., where the first integer corresponds to the space "
                          "between bases repeated the second integer number of times\n"
                          "-w\tSet window size [max(size of spaced kmer, [parameter])]\n"
-                         "-S\tSet sketch size [20, for 2**20 bytes each]\n"
+                         "-S\tSet sketch size [16, for 2**16 bytes each]\n"
                          "-o\tOutput for genome size estimates [stdout]\n"
                          "-O\tOutput for genome distance matrix [stdout]\n"
                          "-e\tEmit in scientific notation\n"
@@ -433,7 +433,7 @@ void dist_usage(const char *arg) {
 }
 
 int dist_main(int argc, char *argv[]) {
-    int wsz(-1), k(31), sketch_size(20), use_scientific(false), neg_estimates_to_zero(false), co;
+    int wsz(-1), k(31), sketch_size(16), use_scientific(false), neg_estimates_to_zero(false), co;
     std::string spacing, paths_file;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
