@@ -265,8 +265,8 @@ std::map<tax_t, tax_t> build_kraken_tax(const std::string &fname);
 uint32_t lca(std::map<uint32_t, uint32_t> &parent_map, uint32_t a, uint32_t b);
 std::map<uint32_t, uint32_t> kh2kr(khash_t(p) *map);
 
-bool isfile(const char *path) noexcept;
-bool isfile(const std::string &path) noexcept {return isfile(path.data());}
+inline bool isfile(const char *path) noexcept {return access(path, F_OK) != -1;}
+inline bool isfile(const std::string &path) noexcept {return isfile(path.data());}
 
 template<typename T>
 size_t size(const T &container) {
