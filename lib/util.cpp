@@ -478,9 +478,6 @@ std::unordered_map<tax_t, strlist> tax2desc_genome_map(
     return ret;
 }
 
-bool isfile(const char *path) noexcept {
-    return access(path, F_OK) != -1;
-}
 
 const char *bool2str(bool val) {
     static const char * vals [] {

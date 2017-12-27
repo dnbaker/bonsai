@@ -87,7 +87,6 @@ std::vector<std::string> get_paths(const char *path) {
         ret[ret.size() - 1].pop_back();
     }
     gzclose(fp);
-    for(const auto &el: ret) std::fprintf(stderr, "Path: %s\n", el.data());
     return ret;
 }
 
@@ -414,7 +413,7 @@ int err_main(int argc, char *argv[]) {
 }
 
 std::string hll_fname(const char *path, size_t sketch_p, const std::string &suffix) {
-    std::string mid(suffix.size() ? std::string(".")  + suffix + ".": std::string("."));
+    const std::string mid(suffix.size() ? std::string(".")  + suffix + ".": std::string("."));
     return std::string(path) + mid + std::to_string(sketch_p) + ".hll";
 }
 bool has_hll(const char *path, size_t sketch_p, const std::string &suffix) {
@@ -446,10 +445,10 @@ std::string &extend_suffix(std::string &suffix, int wsz, const Spacer &sp, int k
 }
 
 int sketch_main(int argc, char *argv[]) {
-    int wsz(-1), k(31), sketch_size(16), co;
+    int wsz(-1), k(31), sketch_size(16), skip_cached(false), co;
     std::string spacing, paths_file, suffix;
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "F:c:p:x:s:S:k:w:eh?")) >= 0) {
+    while((co = getopt(argc, argv, "F:c:p:x:s:S:k:w:ceh?")) >= 0) {
         switch(co) {
             case 'k': k = std::atoi(optarg); break;
             case 'x': suffix = optarg; break;
@@ -457,6 +456,7 @@ int sketch_main(int argc, char *argv[]) {
             case 's': spacing = optarg; break;
             case 'S': sketch_size = std::atoi(optarg); break;
             case 'w': wsz = std::atoi(optarg); break;
+            case 'c': skip_cached = true; break;
             case 'F': paths_file = optarg; break;
             case 'h': case '?': dist_usage(*argv);
         }
@@ -467,7 +467,7 @@ int sketch_main(int argc, char *argv[]) {
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind, argv + argc));
     std::vector<hll::hll_t> hlls;
-    while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size);
+    while(hlls.size() < inpaths.size()) hlls.emplace_back();
     if(wsz < sp.c_) wsz = sp.c_;
     if(inpaths.size() == 0) {
         std::fprintf(stderr, "No paths. See usage.\n");
@@ -476,9 +476,9 @@ int sketch_main(int argc, char *argv[]) {
     #pragma omp parallel for
     for(size_t i = 0; i < hlls.size(); ++i) {
         const std::string &path(inpaths[i]);
-        hlls[i] = has_hll(path.data(), sketch_size, suffix) ? hll::hll_t(path.data())
-                                                            : make_hll(std::vector<std::string>{inpaths[i]},
-                                                                       k, wsz, sv, nullptr, 1, sketch_size);
+        if(skip_cached && has_hll(path.data(), sketch_size, suffix)) continue;
+        hlls[i] = make_hll(std::vector<std::string>{inpaths[i]},
+                           k, wsz, sv, nullptr, 1, sketch_size);
         hlls[i].write(hll_fname(path.data(), sketch_size, suffix));
     }
     return EXIT_SUCCESS;
@@ -512,7 +512,7 @@ int dist_main(int argc, char *argv[]) {
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind, argv + argc));
     std::vector<hll::hll_t> hlls;
-    while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size);
+    while(hlls.size() < inpaths.size()) hlls.emplace_back(0);
     if(wsz < sp.c_) wsz = sp.c_;
     if(inpaths.size() == 0) {
         std::fprintf(stderr, "No paths. See usage.\n");
@@ -521,9 +521,10 @@ int dist_main(int argc, char *argv[]) {
     #pragma omp parallel for
     for(size_t i = 0; i < hlls.size(); ++i) {
         const std::string &path(inpaths[i]);
-        hlls[i] = has_hll(path.data(), sketch_size, suffix) ? hll::hll_t(path.data())
-                                                            : make_hll(std::vector<std::string>{inpaths[i]},
-                                                                       k, wsz, sv, nullptr, 1, sketch_size);
+        hlls[i] = (cache_sketch && has_hll(path.data(), sketch_size, suffix))
+            ? hll::hll_t(path.data())
+            : make_hll(std::vector<std::string>{inpaths[i]},
+                       k, wsz, sv, nullptr, 1, sketch_size);
         if(cache_sketch) hlls[i].write(hll_fname(path.data(), sketch_size, suffix));
     }
     ks::string str("#Path\tSize (est.)\n");
@@ -533,7 +534,7 @@ int dist_main(int argc, char *argv[]) {
         const int fn(fileno(ofp));
         for(size_t i(0); i < hlls.size(); ++i) {
             str.sprintf("%s\t%lf\n", inpaths[i].data(), hlls[i].report());
-            if(str.size() > 1 << 18) str.write(fn), str.clear();
+            if(str.size() >= 1 << 18) str.write(fn), str.clear();
         }
         str.write(fn), str.clear();
     }
@@ -657,7 +658,7 @@ int setdist_main(int argc, char *argv[]) {
 
 
 int main(int argc, char *argv[]) {
-    const static std::unordered_map<std::string, int (*) (int, char **)> mains {
+    const static std::unordered_map<std::string, int (*) (int, char **)> md {
         {"phase1",   phase1_main},
         {"p1",       phase1_main},
         {"phase2",   phase2_main},
@@ -671,6 +672,6 @@ int main(int argc, char *argv[]) {
         {"metatree", metatree_main},
         {"classify", classify_main}
     };
-    return (argc > 1 && mains.find(argv[1]) != mains.end() ? mains.find(argv[1])->second
-                                                           : err_main)(argc - 1, argv + 1);
+    return (argc > 1 && md.find(argv[1]) != md.end() ? md.find(argv[1])->second
+                                                     : err_main)(argc - 1, argv + 1);
 }
