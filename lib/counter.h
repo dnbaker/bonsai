@@ -205,7 +205,7 @@ public:
                 return count_ < other.count_;
             }
         };
-        ks::KString ks;
+        ks::string ks;
         size_t sum(0);
         std::vector<vecc_t> vc;
         vc.reserve(map_.size());
