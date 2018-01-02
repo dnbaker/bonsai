@@ -376,13 +376,13 @@ std::string bitvec2str(const T &a) {
     return ret;
 }
 
-static inline kstring_t *kspp2ks(ks::KString &ks) {
-    static_assert(sizeof(kstring_t) == sizeof(ks::KString), "ks::KString must have the same size.");
+static inline kstring_t *kspp2ks(ks::string &ks) {
+    static_assert(sizeof(kstring_t) == sizeof(ks::string), "ks::string must have the same size.");
     return reinterpret_cast<kstring_t *>(std::addressof(ks));
 }
 
-static inline const kstring_t *kspp2ks(const ks::KString &ks) {
-    static_assert(sizeof(kstring_t) == sizeof(ks::KString), "ks::KString must have the same size.");
+static inline const kstring_t *kspp2ks(const ks::string &ks) {
+    static_assert(sizeof(kstring_t) == sizeof(ks::string), "ks::string must have the same size.");
     return reinterpret_cast<const kstring_t *>(std::addressof(ks));
 }
 

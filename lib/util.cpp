@@ -363,7 +363,7 @@ std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map, const
     typename std::unordered_map<tax_t, std::forward_list<std::string>>::iterator m;
     ret.reserve(paths.size());
 #if !NDEBUG
-    ks::KString ks;
+    ks::string ks;
 #endif
     for(const auto &path: paths) {
         if((taxid = get_taxid(path.data(), name_map)) == UINT32_C(-1)) continue;

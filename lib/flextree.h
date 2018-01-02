@@ -25,7 +25,7 @@ struct fnode_t {
     fnode_t(const bitvec_t &bits, u32 bc, u32 subtree_index, const u64 n=0):
         n_{n}, desc_pts_{0}, pc_{static_cast<u32>(popcnt::vec_popcnt(bits))},
         bc_{bc}, si_{subtree_index}, added_(false) {}
-    ks::KString str() const {
+    ks::string str() const {
         return ks::sprintf("fnode_t[n:%zu,popcount:%u,familysize:%u", n_, pc_, bc_);
     }
     void subsume(NodeType &other) {
@@ -57,7 +57,7 @@ class FlexMap {
 
 public:
     std::string str() const {
-        ks::KString ks;
+        ks::string ks;
         ks.sprintf("FlexMap:{id:%u;parent:%u;bitcount:%zu;n: %" PRIu64 ";map_(%zu);taxes(%zu): [", id_, parent_, bitcount_, n_, map_.size(), tax_.size());
         for(const auto tax: tax_) ks.putuw_(tax), ks.putc_(',');
         ks.back() = ']';
@@ -133,7 +133,7 @@ class FMEmitter {
     /*
      * Emits an additional node to the tree where its paren
     */
-    void format_emitted_node(ks::KString &ks, const NodeType *node, const tax_t taxid) const {
+    void format_emitted_node(ks::string &ks, const NodeType *node, const tax_t taxid) const {
         u64 val;
         const auto &fm(subtrees_[node->second.si_]);
         ks.putuw_(taxid);
@@ -181,7 +181,7 @@ public:
     {
     }
     void run_collapse(tax_t maxtax, std::FILE* fp=stdout) {
-        ks::KString ks;
+        ks::string ks;
         run_collapse(maxtax, ks, fp);
     }
     struct stlt {
@@ -237,7 +237,7 @@ public:
         // I think I should instead think of some other way to organize them, but this works for a start.
         for(auto el: to_remove) subtree.erase(el);
     }
-    void run_collapse(tax_t maxtax, ks::KString &ks, std::FILE* fp) {
+    void run_collapse(tax_t maxtax, ks::string &ks, std::FILE* fp) {
         const int fd(fileno(fp));
         ks.clear();
         ks.puts("#Taxid (inserted)\tScore\tParent\tChildren [comma-separated]\n");

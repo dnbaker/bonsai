@@ -11,6 +11,7 @@
 #include "lib/setcmp.h"
 #include "lib/flextree.h"
 #include "cppitertools/groupby.hpp"
+#include <sstream>
 
 using namespace emp;
 
@@ -351,7 +352,7 @@ int metatree_main(int argc, char *argv[]) {
     auto tx2desc_map(tax2desc_genome_map(tax2genome_map(name_hash, inpaths), taxmap, taxes, tax_depths));
 #if !NDEBUG
     for(const auto tax: taxes) assert(kh_get(p, taxmap, tax) != kh_end(taxmap));
-    ks::KString ks;
+    ks::string ks;
     const int stderrfn(fileno(stderr));
     ks.resize(1 << 6);
     typename decltype(tx2desc_map)::iterator it;
@@ -408,7 +409,7 @@ int hist_main(int argc, char *argv[]) {
  }
 
 int err_main(int argc, char *argv[]) {
-    std::fputs("No valid subcommand provided. Options: phase1, phase2, classify, hll, metatree, dist, sketch\n", stderr);
+    std::fputs("No valid subcommand provided. Options: phase1, phase2, classify, hll, metatree, dist, sketch, setdist\n", stderr);
     return EXIT_FAILURE;
 }
 
@@ -566,11 +567,13 @@ int dist_main(int argc, char *argv[]) {
 
 int setdist_main(int argc, char *argv[]) {
     int wsz(-1), k(31), use_scientific(false), neg_estimates_to_zero(false), co;
+    unsigned bufsize(1 << 18);
     std::string spacing, paths_file;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "F:c:p:o:O:S:k:Meh?")) >= 0) {
+    while((co = getopt(argc, argv, "F:c:p:o:O:S:B:k:Meh?")) >= 0) {
         switch(co) {
+            case 'B': std::stringstream(optarg) << bufsize; break;
             case 'k': k = std::atoi(optarg); break;
             case 'p': omp_set_num_threads(std::atoi(optarg)); break;
             case 's': spacing = optarg; break;
@@ -583,6 +586,7 @@ int setdist_main(int argc, char *argv[]) {
             case 'h': case '?': dist_usage(*argv);
         }
     }
+    std::vector<char> rdbuf(bufsize);
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Spacer sp(k, wsz, sv);
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
@@ -599,10 +603,7 @@ int setdist_main(int argc, char *argv[]) {
     for(size_t i = 0; i < hashes.size(); ++i) {
         const char *path(inpaths[i].data());
         khash_t(all) *hash(hashes[i]);
-        assert(path);
-        assert(kh_size(hash) == 0);
         fill_set_genome<lex_score>(path, sp, hash, i, nullptr);
-        assert(hash);
     }
     LOG_DEBUG("Filled genomes. Now analyzing data.\n");
     ks::string str;
@@ -611,47 +612,38 @@ int setdist_main(int argc, char *argv[]) {
         const int fn(fileno(ofp));
         for(size_t i(0); i < hashes.size(); ++i) {
             str.sprintf("%s\t%zu\n", inpaths[i].data(), kh_size(hashes[i]));
-            if(str.size() > 1 << 18) str.write(fn), str.clear();
+            if(str.size() > 1 << 17) str.write(fn), str.clear();
         }
         str.write(fn), str.clear();
     }
     // TODO: Emit overlaps and symmetric differences.
     if(ofp != stdout) std::fclose(ofp);
-    std::vector<double> dists(nhashes * nhashes);
+    std::vector<double> dists(nhashes - 1);
     str.clear();
     str.sprintf("##Names \t");
     for(auto &path: inpaths) str.sprintf("%s\t", path.data());
     str.back() = '\n';
     str.write(fileno(pairofp)); str.free();
+    setvbuf(pairofp, rdbuf.data(), _IOLBF, rdbuf.size());
+    const char *const fmt(use_scientific ? "\t%e": "\t%f");
     for(size_t i = 0; i < hashes.size(); ++i) {
-        const auto h1(hashes[i]);
+        auto &h1(hashes[i]);
+        size_t j;
         #pragma omp parallel for
-        for(size_t j = i + 1; j < hashes.size(); ++j) {
-            const auto h2(hashes[j]);
-            dists[i * hashes.size() + j] = jaccard_index(h2, h1);
-        }
-        dists[i * hashes.size() + i] = 1.;
-    }
-    for(auto el: hashes) khash_destroy(el); // This is where we delete the hash tables.
-    const int fn(fileno(pairofp));
-    std::vector<ks::string> lines(nhashes);
-    const char *fmt(use_scientific ? "\t%e": "\t%f");
-    //#pragma omp parallel for
-    for(size_t i = 0; i < hashes.size(); ++i) {
-        ks::string &linestr(lines[i]);
-        linestr += inpaths[i];
+        for(j = i + 1; j < hashes.size(); ++j)
+            dists[j - i - 1] = jaccard_index(hashes[j], h1);
+        fputc('\t', pairofp);
+        for(j = 0; j < i + 1; ++j) fputc('\t', pairofp);
         if(neg_estimates_to_zero)
-            for(size_t j(0); j < hashes.size(); ++j)
-                linestr.sprintf(fmt, std::max(dists[i < j ? (i * hashes.size() + j): (j * hashes.size() + i)], 0.));
+            for(j = 0; j < hashes.size() - i - 1; ++j)
+                fprintf(pairofp, fmt, std::max(dists[j], 0.0));
         else
-            for(size_t j(0); j < hashes.size(); ++j)
-                linestr.sprintf(fmt, dists[i < j ? (i * hashes.size() + j): (j * hashes.size() + i)]);
-        linestr.putc_('\n');
+            for(j = 0; j < hashes.size() - i - 1; ++j)
+                fprintf(pairofp, fmt, dists[j]);
+        fputc('\n', pairofp);
+        khash_destroy(h1), h1 = nullptr;
+        // Delete data as soon as we don't need it.
     }
-    for(auto &line: lines) {
-        line.write(fn); line.free();
-    }
-    if(pairofp != stdout) fclose(pairofp);
     return EXIT_SUCCESS;
 }
 

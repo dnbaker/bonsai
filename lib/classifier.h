@@ -115,7 +115,7 @@ unsigned classify_seq(ClassifierGeneric<score> &c, Encoder<score> &enc, khash_t(
     std::map<tax_t, u32>::iterator it;
     u32 ambig_count(0), missing_count(0);
     tax_t taxon(0);
-    ks::KString bks(bs->sam);
+    ks::string bks(bs->sam);
     const size_t reslen(bs->l_seq - c.sp_.c_ + 1);
     std::vector<tax_t> taxa;
     taxa.reserve(reslen > 0 ? reslen: 0); // Reserve memory without initializing
@@ -223,7 +223,7 @@ inline void process_dataset(Classifier &c, khash_t(p) *taxmap, const char *fq1, 
     gzFile ifp1(gzopen(fq1, "rb")), ifp2(fq2 ? gzopen(fq2, "rb"): nullptr);
     kseq_t *ks1(kseq_init(ifp1)), *ks2(ifp2 ? kseq_init(ifp2): nullptr);
     del_data dd{nullptr, per_set, chunk_size};
-    ks::KString cks(256u);
+    ks::string cks(256u);
     const int is_paired(!!fq2);
     while((dd.seqs_ = bseq_read(chunk_size, &nseq, (void *)ks1, (void *)ks2))) {
         LOG_INFO("Read %i seqs with chunk size %u\n", nseq, chunk_size);
