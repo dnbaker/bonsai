@@ -1,6 +1,7 @@
 #ifndef _HASH_H_
 #define _HASH_H_
 #include "util.h"
+#include <climits>
 
 namespace emp {
 
@@ -19,13 +20,22 @@ constexpr INLINE u64 wang_hash(u64 key) {
   key = key + (key << 31);
   return key;
 }
+
 struct wang_hash_struct {
-    constexpr u64 operator()(u64 key) const {return wang_hash(key);}
-};
-template<typename T>
-struct ptr_wang_hash_struct {
-    template<typename = typename std::enable_if<std::is_pointer<T>::value || sizeof(T) == 8>::type>
-    constexpr u64 operator()(T key) const {return wang_hash(reinterpret_cast<u64>(key));}
+
+    // But reduces the number of collisions in the hash table because the values will
+    // always be divisible by pointer alignment.
+    static constexpr size_t OFFSET = log2_64(alignof(void *));
+
+    template<typename U, typename=std::enable_if_t<std::is_pointer<U>::value>>
+    constexpr u64 operator()(U key) const {
+        static_assert(std::is_pointer<U>::value || std::is_arithmetic<U>::value, "Must be arithmetic  or a pointer.");
+        if constexpr(std::is_pointer<U>::value)
+            return wang_hash(reinterpret_cast<u64>(key) >> OFFSET);
+        else
+            return wang_hash(key);
+    }
+
 };
 
 template<typename T>
@@ -91,7 +101,7 @@ dbm_hash(const char *str, size_t len)
 #define HASHC  (n = *str++ + (n << 16) + (n << 6) - n)
 #ifdef DUFF
     if(len) {
-        int loop = (len + 7) >> 3;
+        size_t loop = (len + 7) >> 3;
         switch(len & 7) {
             case 0: do {
                 HASHC;

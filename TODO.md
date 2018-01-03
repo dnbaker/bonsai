@@ -1,13 +1,15 @@
-Update Classification:
-  1. New database data structure.
-  2. New classification scheme.
-  3. Update output format.
-Finish tree-building:
-  1. Finish node addition / removal.
-  2. Emit final added tree nodes.
-  3. Loop through taxonomy bottom to top.
-    a. Use iter::groupby?
-Remove old, dead code:
-  1. Move Counter into a separate project.
-  2. Remove tree climber/query, adjacency list code.
-  3. <Remove the rest>
+Updated 1/3/18
+For a few points to remember:
+
+1. Jaccard index is itself just an approximation of ANI, and a multiset Jaccard index would be closer to ANI.
+2. Metannot/wavelet trie compression and "memoized" compression (Florian project) as points of comparison.
+3. The Counting Quotient Filter is space efficient and the RSQF is quite fast. Is there any way to modify it to perform either multiset cardinality estimation (e.g. for multiset Jaccard)
+   or an improvement over standard bloom filters for search?
+
+TODO:
+
+1. Modify tree construction to give a given tax id to the first genome that contains it, but be willing to modify it and move it to be a child
+if more genomes labeled with that taxid occur.
+2. Test where nodes are being added by greedy methods. Be willing to consider adding a surplus of nodes and trim them down later.
+3. Come up with a metric for how much is gained/lost vs Kraken and vs full CDBG.
+4. Is HLL or bloom filter sketching an option for getting at kmer set overlaps with smaller memory requirements?
