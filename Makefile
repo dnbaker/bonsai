@@ -11,7 +11,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -pedantic -DUSE_PDQSORT -Wunused-variable \
 		-Wduplicated-branches -Wdangling-else  # -Wconversion
 ifndef EXTRA
-	EXTRA:= 
+	EXTRA:=
 endif
 DBG:= # -fno-inline
 OS:=$(shell uname)
