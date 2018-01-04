@@ -19,7 +19,7 @@
 
 
 #ifndef BINFINITY
-#    define BINFINITY -1ull
+#    define BINFINITY (UINT64_C(-1))
 #endif
 #ifndef BF
 #    define BF BINFINITY

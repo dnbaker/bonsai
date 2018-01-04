@@ -127,6 +127,7 @@ tax_t get_max_val(const khash_t(p) *hash) noexcept;
 std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(khash_t(p) *) noexcept;
 tax_t get_taxid(const char *fn, khash_t(name) *name_hash);
 std::string get_firstline(const char *fn);
+std::vector<std::string> get_paths(const char *path);
 std::vector<tax_t> get_all_descendents(const std::unordered_map<tax_t, std::vector<tax_t>> &map, tax_t tax);
 std::vector<tax_t> get_desc_lca(tax_t a, tax_t, const std::unordered_map<tax_t, std::vector<tax_t>> &parent_map);
 // Resolve_tree is modified from Kraken 1 source code, which
@@ -389,7 +390,7 @@ static inline const kstring_t *kspp2ks(const ks::string &ks) {
 inline constexpr int log2_64(uint64_t value)
 {
     // https://stackoverflow.com/questions/11376288/fast-computing-of-log2-for-64-bit-integers
-    const int tab64[64] = {
+    const int tab64[64] {
         63,  0, 58,  1, 59, 47, 53,  2,
         60, 39, 48, 27, 54, 33, 42,  3,
         61, 51, 37, 40, 49, 18, 28, 20,
@@ -407,21 +408,17 @@ inline constexpr int log2_64(uint64_t value)
     value |= value >> 32;
     return tab64[((uint64_t)((value - (value >> 1))*0x07EDD5E59A4E28C2)) >> 58];
 }
-std::vector<std::string> get_paths(const char *path);
 INLINE double kmer_entropy(uint64_t kmer, unsigned k) {
+    if(kmer == UINT64_C(-1) || kmer == UINT64_C(0)) return 0.; // Whooooooo
     // A better solution would be avoiding redundant work, but that only works
     // for contiguous seeds.
-    unsigned cts[5]{0};
-    while(k--) {
-        ++cts[kmer & 0x3];
-        kmer >>= 2;
-    }
-    const double div(1./(std::accumulate(std::begin(cts), std::end(cts), unsigned(0))));
-    return std::accumulate(std::begin(cts), std::end(cts),
-                           0., [=](unsigned a, unsigned b) {
-        const double tmp(div * b);
-        return tmp * std::log2(tmp);
-    });
+    unsigned cts[4]{0};
+    while(k--) ++cts[kmer & 0x3], kmer >>= 2;
+    const double div(1./k);
+    double tmp(div * cts[0]), sum(tmp * std::log2(tmp));
+    for(unsigned i(1); i < 4; ++i)
+        tmp = div * cts[i], sum += tmp * std::log2(tmp);
+    return tmp;
 }
 
 } // namespace emp
