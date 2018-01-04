@@ -36,6 +36,11 @@ static INLINE u64 lex_score(u64 i, UNUSED(void *data)) {
     return i;
 }
 
+static INLINE u64 ent_score(u64 i, void *data) {
+    // For this, the highest-entropy kmers will be selected as "minimizers".
+    return UINT64_C(-1) - static_cast<u64>(UINT64_C(7958933093282078720) * kmer_entropy(i, *(unsigned *)data));
+}
+
 static INLINE u64 hash_score(u64 i, void *data) {
     khash_t(64) *hash((khash_t(64) *)data);
     khint_t k1;
