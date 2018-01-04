@@ -47,7 +47,7 @@ all: $(OBJS) $(EX) unit
 obj: $(OBJS)
 
 clhash.o: clhash/src/clhash.c
-	ln -s clhash/clhash.o . || (cd clhash $(CLHASH_CHECKOUT) && make && cd .. && ln -s clhash/clhash.o .)
+	ls $@ || ln -s clhash/clhash.o . || (cd clhash $(CLHASH_CHECKOUT) && make && cd .. && ln -s clhash/clhash.o .)
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB)

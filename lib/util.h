@@ -408,6 +408,21 @@ inline constexpr int log2_64(uint64_t value)
     return tab64[((uint64_t)((value - (value >> 1))*0x07EDD5E59A4E28C2)) >> 58];
 }
 std::vector<std::string> get_paths(const char *path);
+INLINE double kmer_entropy(uint64_t kmer, unsigned k) {
+    // A better solution would be avoiding redundant work, but that only works
+    // for contiguous seeds.
+    unsigned cts[5]{0};
+    while(k--) {
+        ++cts[kmer & 0x3];
+        kmer >>= 2;
+    }
+    const double div(1./(std::accumulate(std::begin(cts), std::end(cts), unsigned(0))));
+    return std::accumulate(std::begin(cts), std::end(cts),
+                           0., [=](unsigned a, unsigned b) {
+        const double tmp(div * b);
+        return tmp * std::log2(tmp);
+    });
+}
 
 } // namespace emp
 
