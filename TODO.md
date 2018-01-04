@@ -8,8 +8,11 @@ For a few points to remember:
 
 TODO:
 
-1. Modify tree construction to give a given tax id to the first genome that contains it, but be willing to modify it and move it to be a child
+1. Test where nodes are being added by greedy methods. Be willing to consider adding a surplus of nodes and trim them down later.
+2. Modify tree construction to give a given tax id to the first genome that contains it, but be willing to modify it and move it to be a child
 if more genomes labeled with that taxid occur.
-2. Test where nodes are being added by greedy methods. Be willing to consider adding a surplus of nodes and trim them down later.
+  1. This function should take as an argument a set of genomes, annotations for taxids for each, and the NCBI taxonomy, and then construct as concise
+     a taxonomy as possible, providing each end genome with a node, even if there have to be a significant number of children
+     for the 'stem' nodes.
 3. Come up with a metric for how much is gained/lost vs Kraken and vs full CDBG.
 4. Is HLL or bloom filter sketching an option for getting at kmer set overlaps with smaller memory requirements?
