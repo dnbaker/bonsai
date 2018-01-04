@@ -13,26 +13,13 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 ifndef EXTRA
 	EXTRA:=
 endif
-DBG:= # -fno-inline
+DBG:=
 OS:=$(shell uname)
 FLAGS=
 
-
-# If on OSX/Darwin, pass assembly to clang's assembler because of error in gcc.
-ifneq (,$(findstring g++,$(CXX)))
-	ifeq ($(shell uname),Darwin)
-		ifeq (,$(findstring clang,$(CXX)))
-			FLAGS := $(FLAGS) -Wa,-q
-			CLHASH_CHECKOUT := "&& git checkout mac"
-		else
-			FLAGS := $(FLAGS) -flto
-		endif
-	endif
-endif
-
 OPT:= -O3 -funroll-loops \
 	  -fopenmp \
-	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) $(EXTRA) -DHLL_HEADER_ONLY # -DUSE_PAR_HELPERS
+	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) $(EXTRA) -DHLL_HEADER_ONLY
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS)
 CCFLAGS=$(OPT) $(CFLAGS) -std=c11 $(WARNINGS)
@@ -60,7 +47,7 @@ all: $(OBJS) $(EX) unit
 obj: $(OBJS)
 
 clhash.o: clhash/src/clhash.c
-	cp clhash/clhash.o . || (cd clhash $(CLHASH_CHECKOUT) && make && cd .. && mv clhash/clhash.o .)
+	ln -s clhash/clhash.o . || (cd clhash $(CLHASH_CHECKOUT) && make && cd .. && ln -s clhash/clhash.o .)
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB)

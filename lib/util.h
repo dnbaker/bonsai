@@ -407,6 +407,7 @@ inline constexpr int log2_64(uint64_t value)
     value |= value >> 32;
     return tab64[((uint64_t)((value - (value >> 1))*0x07EDD5E59A4E28C2)) >> 58];
 }
+std::vector<std::string> get_paths(const char *path);
 
 } // namespace emp
 
