@@ -242,6 +242,7 @@ public:
         ks.clear();
         ks.puts("#Taxid (inserted)\tScore\tParent\tChildren [comma-separated]\n");
         ks.write(fd), ks.clear();
+#if COMPLICATED_BUT_WEIRD
         for(;;) {
             while(heap_.size() < max_heapsz_)  {
                 // This could loop forever if all nodes are added.
@@ -253,8 +254,8 @@ public:
                     heap_.merge(tmptree);
                 }
             }
-            for(auto it(heap_.cend()), sit(heap_.cbegin()); it != sit;) {
-                format_emitted_node(ks, *--it, ++maxtax);
+            for(auto it(heap_.crbegin()), sit(heap_.crend()); it != sit;) {
+                format_emitted_node(ks, *it++, ++maxtax);
                 (*it)->second.added_ = 1;
                 if(ks.size() & ~(BufferSize-1)) {
                     ks.write(fd), ks.clear();
@@ -264,6 +265,24 @@ public:
             std::fputs("I could continue this loop to add more nodes, but I am exiting for the proof of concept.\n", stderr);
             break;
         }
+#else
+        while(left_to_add_) {
+            for(auto &subtree: subtrees_) {
+                subtree.fill_heap(heap_, max_heapsz_);
+                // condense_subtree(heap_);
+            }
+            for(auto it(heap_.crbegin()), sit(heap_.crend()); it != sit;) {
+                format_emitted_node(ks, *it++, ++maxtax);
+                (*it)->second.added_ = 1;
+                if(ks.size() & ~(BufferSize-1)) {
+                    ks.write(fd), ks.clear();
+                }
+                if(--left_to_add_ == 0) break;
+            }
+        }
+        ks.write(fd), ks.clear();
+        return;
+#endif
     }
     template<typename T>
     void process_subtree(const tax_t parent, T bit, T eit, const Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr) {
