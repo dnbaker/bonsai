@@ -2,7 +2,7 @@
 namespace emp {
 void kg_helper(void *data_, long index, int tid) {
     kg_data *data((kg_data *)data_);
-    Encoder<lex_score> enc(data->sp_);
+    Encoder<score::Lex> enc(data->sp_);
     khash_t(all) *h(data->core_[index]);
     gzFile fp(gzopen(data->paths_[index].data(), "rb"));
     if(!fp) LOG_EXIT("Could not open file at %s\n", data->paths_[index].data());
@@ -24,7 +24,7 @@ void kg_list_helper(void *data_, long index, int tid) {
     kg_list_data &data(*(kg_list_data *)data_);
     auto &list(*data.fl_[index]);
     khash_t(all) *h(data.core_[index]);
-    Encoder<lex_score> enc(data.sp_);
+    Encoder<score::Lex> enc(data.sp_);
     LOG_DEBUG("Size of list: %zu. Performing for index %ld of %zu\n", size(list), index, data.core_.size());
     for(const auto &path: list) {
         gzFile fp(gzopen(path.data(), "rb"));

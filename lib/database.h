@@ -125,7 +125,7 @@ void val_helper(void *data_, long index, int tid) {
     LOG_DEBUG("Index %ld with tid %i starting\n", index, tid);
     std::unordered_set<u64> in;
     std::unordered_set<u64> failing_kmers;
-    Encoder<lex_score> enc(nullptr, 0, *data.db_.sp_, nullptr);
+    Encoder<score::Lex> enc(nullptr, 0, *data.db_.sp_, nullptr);
     u64 passing_kmers(0);
     for(const auto &path: data.tx_.find(tax)->second) {
         LOG_DEBUG("Validator opening path at %s\n", path.data());

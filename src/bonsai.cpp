@@ -64,7 +64,7 @@ int classify_main(int argc, char *argv[]) {
     Database<khash_t(c)> db(argv[optind]);
     //reportDB<khash_t(c)>(&db, stderr);
     //for(auto &i: db._s) --i; // subtract by one since we'll re-subtract during construction.
-    ClassifierGeneric<lex_score> c(db.db_, db.s_, db.k_, db.k_, num_threads,
+    ClassifierGeneric<score::Lex> c(db.db_, db.s_, db.k_, db.k_, num_threads,
                                    emit_all, emit_fastq, emit_kraken);
     khash_t(p) *taxmap(build_parent_map(argv[optind + 1]));
     // We can use optind + 3 for both single-end and paired-end mode since the argument at
@@ -119,15 +119,15 @@ int phase2_main(int argc, char *argv[]) {
         Spacer sp(k, wsz, sv);
         Database<khash_t(c)>  phase2_map(sp);
 #if 0
-        std::size_t hash_size(use_hll ? estimate_cardinality<lex_score>(inpaths, k, k, sp.s_, nullptr, num_threads, 24): 1 << 16);
+        std::size_t hash_size(use_hll ? estimate_cardinality<score::Lex>(inpaths, k, k, sp.s_, nullptr, num_threads, 24): 1 << 16);
 #else
         // Force using hll so that we can use __sync_bool_compare_and_swap to parallelize.
-        std::size_t hash_size(estimate_cardinality<lex_score>(inpaths, k, k, sp.s_, nullptr, num_threads, 24));
+        std::size_t hash_size(estimate_cardinality<score::Lex>(inpaths, k, k, sp.s_, nullptr, num_threads, 24));
         LOG_DEBUG("Estimated cardinality: %zu\n", hash_size);
 #endif
         LOG_DEBUG("Parent map bulding from %s\n", argv[optind]);
         khash_t(p) *taxmap(build_parent_map(argv[optind]));
-        phase2_map.db_ = lca_map<lex_score>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, hash_size);
+        phase2_map.db_ = lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, hash_size);
         phase2_map.write(argv[optind + 1]);
         kh_destroy(p, taxmap);
         return EXIT_SUCCESS;
@@ -136,7 +136,7 @@ int phase2_main(int argc, char *argv[]) {
     Spacer sp(k, wsz, phase1_map.s_);
     Database<khash_t(c)>  phase2_map{phase1_map};
     khash_t(p) *taxmap(tax_path.empty() ? nullptr: build_parent_map(tax_path.data()));
-    phase2_map.db_ = minimized_map<hash_score>(inpaths, phase1_map.db_, sp, num_threads, start_size);
+    phase2_map.db_ = minimized_map<score::Hash>(inpaths, phase1_map.db_, sp, num_threads, start_size);
     // Write minimized map
     phase2_map.write(argv[optind + 1]);
     if(taxmap) kh_destroy(p, taxmap);
@@ -174,7 +174,7 @@ int hll_main(int argc, char *argv[]) {
     std::vector<std::string> inpaths(paths_file.empty() ? get_paths(paths_file.data())
                                                         : std::vector<std::string>(argv + optind, argv + argc));
     spvec_t sv(spacing.empty() ? spvec_t(k - 1, 0): parse_spacing(spacing.data(), k));
-    const double est(estimate_cardinality<lex_score>(inpaths, k, wsz, sv, nullptr, num_threads, sketch_size));
+    const double est(estimate_cardinality<score::Lex>(inpaths, k, wsz, sv, nullptr, num_threads, sketch_size));
     std::fprintf(stderr, "Estimated number of unique exact matches: %lf\n", est);
     return EXIT_SUCCESS;
 }
@@ -226,13 +226,13 @@ int phase1_main(int argc, char *argv[]) {
     spvec_t sv(parse_spacing(spacing.data(), k));
     Spacer sp(k, wsz, sv);
     std::vector<std::string> inpaths(argv + optind + 3, argv + argc);
-    std::size_t hash_size(use_hll ? estimate_cardinality<lex_score>(inpaths, k, k, sv, nullptr, num_threads, sketch_size): 1 << 16);
+    std::size_t hash_size(use_hll ? estimate_cardinality<score::Lex>(inpaths, k, k, sv, nullptr, num_threads, sketch_size): 1 << 16);
     if(use_hll) std::fprintf(stderr, "Estimated number of elements: %zu\n", hash_size);
 
     if(mode == score_scheme::LEX)
         LOG_EXIT("No phase1 required for lexicographic. Use phase2 instead.\n");
-    auto mapbuilder(mode == score_scheme::TAX_DEPTH ? taxdepth_map<lex_score>
-                                                    : ftct_map<lex_score>);
+    auto mapbuilder(mode == score_scheme::TAX_DEPTH ? taxdepth_map<score::Lex>
+                                                    : ftct_map<score::Lex>);
 
     Database<khash_t(64)> db(sp, 1, mapbuilder(inpaths, taxmap, argv[optind], sp, num_threads, hash_size));
     for(auto &i: db.s_) {
