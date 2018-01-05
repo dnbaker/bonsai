@@ -24,12 +24,12 @@
 namespace emp {
 
 
-template<u64 (*score)(u64, void *)>
+template<typename ScoreType>
 khash_t(64) *feature_count_map(std::vector<std::string> fns, const Spacer &sp, int num_threads=8);
 
 khash_t(c) *make_depth_hash(khash_t(c) *lca_map, khash_t(p) *tax_map);
 void lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map);
-template<u64 (*score)(u64, void *)>
+template<typename ScoreType>
 int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret);
 
 void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid, std::shared_mutex &m);
@@ -41,10 +41,10 @@ void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *
 #define next_minimizer next_kmer
 
 // Return value: whether or not additional sequences were present and added.
-template<u64 (*score)(u64, void *)>
+template<typename ScoreType>
 int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret) {
     assert(ret);
-    Encoder<score> enc(0, 0, sp, nullptr);
+    Encoder<ScoreType> enc(0, 0, sp, nullptr);
     int khr; // khash return value. Unused, really.
     u64 kmer;
     if(kseq_read(ks) >= 0) {
@@ -56,7 +56,7 @@ int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret) {
     } else return 0;
 }
 
-template<u64 (*score)(u64, void *)>
+template<typename ScoreType>
 size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data) {
     LOG_ASSERT(ret);
     LOG_INFO("Filling from genome at path %s\n", path);
@@ -67,9 +67,10 @@ size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, si
     }
 
     unsigned k(sp.k_);
-    if(score == ent_score) data = &k;
+    if constexpr(std::is_same<ScoreType, score::Entropy>::value)
+        data = &k;
 
-    Encoder<score> enc(0, 0, sp, data);
+    Encoder<ScoreType> enc(0, 0, sp, data);
     kseq_t *ks(kseq_init(ifp));
     int khr; // khash return value. Unused, really.
     u64 kmer;
@@ -96,22 +97,22 @@ size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, si
 
 #undef next_minimizer
 
-template<u64 (*score)(u64, void *), class Container>
+template<typename Container, typename ScoreType>
 size_t fill_set_genome_container(Container &container, const Spacer &sp, khash_t(all) *ret, void *data) {
     size_t sz(0);
     for(std::string &str: container)
-        sz += fill_set_genome<score>(str.data(), sp, ret, 0, data);
+        sz += fill_set_genome<ScoreType>(str.data(), sp, ret, 0, data);
     return sz;
 }
 
-template<u64 (*score)(u64, void *)>
+template<typename ScoreType>
 khash_t(64) *ftct_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
                       const char *seq2tax_path,
                       const Spacer &sp, int num_threads, size_t start_size) {
-    return feature_count_map<score>(fns, tax_map, seq2tax_path, sp, num_threads, start_size);
+    return feature_count_map<ScoreType>(fns, tax_map, seq2tax_path, sp, num_threads, start_size);
 }
 
-template<u64 (*score)(u64, void *)>
+template<typename ScoreType>
 khash_t(c) *minimized_map(std::vector<std::string> fns,
                           khash_t(64) *full_map,
                           const Spacer &sp, int num_threads, size_t start_size) {
@@ -131,7 +132,7 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
     // Submit the first set of jobs
     for(int i(0), e(std::min(num_threads, (int)todo)); i < e; ++i) {
         futures.emplace_back(std::async(
-          std::launch::async, fill_set_genome<score>, fns[i].data(), sp, counters[i], i, (void *)full_map));
+          std::launch::async, fill_set_genome<ScoreType>, fns[i].data(), sp, counters[i], i, (void *)full_map));
         ++submitted;
     }
 
@@ -143,7 +144,7 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
                 const size_t index(f->get());
                 futures.erase(f);
                 futures.emplace_back(std::async(
-                     std::launch::async, fill_set_genome<score>, fns[submitted].data(),
+                     std::launch::async, fill_set_genome<ScoreType>, fns[submitted].data(),
                      sp, counters[submitted], submitted, (void *)full_map));
                 LOG_INFO("Submitted for %zu. Updating map for %zu. Total completed/all: %zu/%zu. Current size: %zu\n",
                          submitted, index, completed, todo, kh_size(ret));
@@ -170,7 +171,7 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
     return ret;
 }
 
-template<u64 (*score)(u64, void *)>
+template<typename ScoreType>
 khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
                           const char *seq2tax_path, const Spacer &sp,
                           int num_threads, size_t start_size=1<<10) {
@@ -188,7 +189,7 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
     for(int i(0), e(std::min(num_threads, (int)todo)); i < e; ++i) {
         LOG_DEBUG("Launching thread to read from file %s.\n", fns[i].data());
         futures.emplace_back(std::async(
-          std::launch::async, fill_set_genome<score>, fns[i].data(), sp, counters[i], i, nullptr));
+          std::launch::async, fill_set_genome<ScoreType>, fns[i].data(), sp, counters[i], i, nullptr));
         //LOG_DEBUG("Submitted for %zu.\n", submitted);
         subbed.insert(submitted);
         ++submitted;
@@ -206,7 +207,7 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
                 if(subbed.find(submitted) != subbed.end()) throw std::runtime_error("Could not find what I was looking for....");
                 LOG_DEBUG("Launching thread to read from file %s.\n", fns[submitted].data());
                 f = std::async(
-                  std::launch::async, fill_set_genome<score>, fns[submitted].data(),
+                  std::launch::async, fill_set_genome<ScoreType>, fns[submitted].data(),
                   sp, counters[submitted], submitted, nullptr);
                 subbed.insert(submitted);
                 LOG_INFO("Submitted for %zu. Updating map for %zu. Total completed/all: %zu/%zu. Total size: %zu.\n",
@@ -241,7 +242,7 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
     return ret;
 }
 
-template<u64 (*score)(u64, void *)>
+template<typename ScoreType>
 khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
                     const char *seq2tax_path,
                     const Spacer &sp, int num_threads, size_t start_size=1<<10) {
@@ -262,7 +263,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
     for(int i(0), e(std::min(num_threads, (int)todo)); i < e; ++i) {
         LOG_DEBUG("Launching thread to read from file %s.\n", fns[i].data());
         futures.emplace_back(std::async(
-          std::launch::async, fill_set_genome<score>, fns[i].data(), sp, counters[i], i, nullptr));
+          std::launch::async, fill_set_genome<ScoreType>, fns[i].data(), sp, counters[i], i, nullptr));
         subbed.insert(submitted);
         ++submitted;
     }
@@ -280,7 +281,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
                 if(subbed.find(submitted) != subbed.end()) throw std::runtime_error("Could not find what I was looking for....");
                 LOG_DEBUG("Launching thread to read from file %s.\n", fns[submitted].data());
                 f = std::async(
-                  std::launch::async, fill_set_genome<score>, fns[submitted].data(),
+                  std::launch::async, fill_set_genome<ScoreType>, fns[submitted].data(),
                   sp, counters[submitted], submitted, nullptr);
                 subbed.insert(submitted);
                 LOG_INFO("Submitted for %zu. Updating map for %zu. Total completed/all: %zu/%zu. Total size: %zu\n",
@@ -315,7 +316,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
     return ret;
 }
 
-template <u64 (*score)(u64, void *)>
+template<typename ScoreType>
 khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, size_t start_size) {
     // Update this to include tax ids in the hash map.
     size_t submitted(0), completed(0), todo(fns.size());
@@ -332,7 +333,7 @@ khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map
     std::set<size_t> used;
     for(size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
         futures.emplace_back(std::async(
-          std::launch::async, fill_set_genome<score>, fns[i].data(), sp, counters[i], i, nullptr));
+          std::launch::async, fill_set_genome<ScoreType>, fns[i].data(), sp, counters[i], i, nullptr));
         LOG_DEBUG("Submitted for %zu.\n", submitted);
         ++submitted;
     }
@@ -347,7 +348,7 @@ khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map
                 used.insert(index);
                 LOG_DEBUG("Submitted for %zu.\n", submitted);
                 f = std::async(
-                  std::launch::async, fill_set_genome<score>, fns[submitted].data(),
+                  std::launch::async, fill_set_genome<ScoreType>, fns[submitted].data(),
                   sp, counters[submitted], submitted, nullptr);
                 ++submitted, ++completed;
                 const tax_t taxid(get_taxid(fns[index].data(), name_hash));

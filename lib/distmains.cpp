@@ -192,7 +192,7 @@ int setdist_main(int argc, char *argv[]) {
     for(size_t i = 0; i < hashes.size(); ++i) {
         const char *path(inpaths[i].data());
         khash_t(all) *hash(hashes[i]);
-        fill_set_genome<lex_score>(path, sp, hash, i, nullptr);
+        fill_set_genome<score::Lex>(path, sp, hash, i, nullptr);
     }
     LOG_DEBUG("Filled genomes. Now analyzing data.\n");
     ks::string str;

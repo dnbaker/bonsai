@@ -26,11 +26,11 @@ enum output_format {
     EMIT_ALL = 4
 };
 
-template<u64 (*score)(u64, void *)=lex_score>
+template<typename ScoreType>
 struct ClassifierGeneric {
     khash_t(c) *db_;
     Spacer sp_;
-    Encoder<score> enc_;
+    Encoder<ScoreType> enc_;
     int nt_;
     int output_flag_;
     std::atomic<u64> n_classified_;
@@ -63,20 +63,20 @@ struct ClassifierGeneric {
     }
 };
 
-template<u64 (*score)(u64, void *)>
-void ClassifierGeneric<score>::set_emit_all(bool setting) {
+template<typename ScoreType>
+void ClassifierGeneric<ScoreType>::set_emit_all(bool setting) {
     if(setting) output_flag_ |= output_format::EMIT_ALL;
     else        output_flag_ &= (~output_format::EMIT_ALL);
 }
 
-template<u64 (*score)(u64, void *)>
-void ClassifierGeneric<score>::set_emit_kraken(bool setting) {
+template<typename ScoreType>
+void ClassifierGeneric<ScoreType>::set_emit_kraken(bool setting) {
     if(setting) output_flag_ |= output_format::KRAKEN;
     else        output_flag_ &= (~output_format::KRAKEN);
 }
 
-template<u64 (*score)(u64, void *)>
-void ClassifierGeneric<score>::set_emit_fastq(bool setting) {
+template<typename ScoreType>
+void ClassifierGeneric<ScoreType>::set_emit_fastq(bool setting) {
     if(setting) output_flag_ |= output_format::FASTQ;
     else        output_flag_ &= (~output_format::FASTQ);
 }
@@ -106,9 +106,9 @@ INLINE void append_counts(u32 count, const char character, kstring_t *ks) {
     }
 }
 
-using Classifier = ClassifierGeneric<lex_score>;
-template<u64 (*score)(u64, void *)>
-unsigned classify_seq(ClassifierGeneric<score> &c, Encoder<score> &enc, khash_t(p) *taxmap, bseq1_t *bs, const int is_paired) {
+using Classifier = ClassifierGeneric<score::Lex>;
+template<typename ScoreType>
+unsigned classify_seq(ClassifierGeneric<ScoreType> &c, Encoder<ScoreType> &enc, khash_t(p) *taxmap, bseq1_t *bs, const int is_paired) {
     u64 kmer;
     khiter_t ki;
     std::map<tax_t, u32> hit_counts;
@@ -178,7 +178,7 @@ unsigned classify_seq(ClassifierGeneric<score> &c, Encoder<score> &enc, khash_t(
 
 namespace {
 struct kt_data {
-    ClassifierGeneric<lex_score> &c_;
+    ClassifierGeneric<score::Lex> &c_;
     khash_t(p) *taxmap;
     bseq1_t *bs_;
     const unsigned per_set_;
