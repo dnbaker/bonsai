@@ -182,6 +182,8 @@ template<>
 void khash_destroy(khash_t(c) *map) noexcept;
 template<>
 void khash_destroy(khash_t(p) *map) noexcept;
+template<>
+void khash_destroy(khash_t(name) *map) noexcept;
 
 template <typename T>
 void print_khash(T *rex) noexcept {

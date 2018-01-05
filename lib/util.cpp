@@ -494,6 +494,8 @@ _KHD(c)
 _KHD(64)
 _KHD(p)
 
+template<> void khash_destroy(khash_t(name) *map) noexcept {destroy_name_hash(map);}
+
 ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unordered_map<std::string, ClassLevel> &map) {
     const char *p(strchr(line, '|'));
     if(!p || (p = strchr(p + 1, '|')) == nullptr)

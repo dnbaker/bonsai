@@ -236,7 +236,7 @@ khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
 #endif
 
     // Clean up
-    destroy_name_hash(name_hash);
+    khash_destroy(name_hash);
     LOG_DEBUG("Cleaned up after LCA map building!\n");
     return ret;
 }
@@ -310,7 +310,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
     LOG_DEBUG("Finished LCA map building! Subbed %zu, completed %zu, size of futures %zu.\n", submitted, completed, used.size());
 
     // Clean up
-    destroy_name_hash(name_hash);
+    khash_destroy(name_hash);
     LOG_DEBUG("Cleaned up after LCA map building!\n");
     return ret;
 }
