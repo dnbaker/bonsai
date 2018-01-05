@@ -1,6 +1,4 @@
-#ifndef _BIT_CMP_H__
-#define _BIT_CMP_H__
-
+#pragma once
 #include "lib/tx.h"
 
 namespace emp {
@@ -83,6 +81,4 @@ int veccmp(const Container1 &a, const Container2 &b) {
 }
 
 
-}
-
-#endif // #ifndef _BIT_CMP_H__
+} // namespace emp

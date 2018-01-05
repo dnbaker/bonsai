@@ -1,7 +1,6 @@
-#ifndef _BITMAP_H__
-#define _BITMAP_H__
-
+#pragma once
 #include "lib/bitcmp.h"
+#include "lib/kgset.h"
 
 namespace emp {
 
@@ -139,7 +138,6 @@ public:
 
 
 u64 score_node_addn(const bitvec_t &bitstring,
-                              const adjmap_t &am, const count::Counter<bitvec_t> &counts, size_t nelem);
-}
+                    const adjmap_t &am, const count::Counter<bitvec_t> &counts, size_t nelem);
 
-#endif // #ifndef _BITMAP_H__
+} // namespace emp
