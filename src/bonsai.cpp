@@ -410,7 +410,7 @@ int err_main(int argc, char *argv[]) {
 
 int zomg_main(int argc, char *argv[]) {
     std::vector<std::string> paths {"1", "2", "3"};
-    TaxonomyReformation tr("Foobar", paths);
+    TaxonomyReformation tr("Foobar", paths, nullptr);
     return EXIT_FAILURE;
 }
 

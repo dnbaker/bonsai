@@ -31,17 +31,22 @@ public:
     using difference_type = std::make_signed_t<size_type>;
 
     template<typename... FactoryArgs>
-    set(size_type n=0, bool init=!std::is_pod_v<T>, FactoryArgs &&...args): n_{n}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
+    set(size_type n=0, bool init=!std::is_pod_v<T>, FactoryArgs &&...args): n_{0}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
         if(data_ == nullptr)
             throw std::bad_alloc();
         if (init)
             for(size_type i(0); i < n_; ++i)
                 new(data_.get() + i) T(std::forward<FactoryArgs>(args)...);
     }
+    set(std::initializer_list<T> l): n_(l.size()), m_(n_), data_{static_cast<T *>(std::malloc(sizeof(T) * n_))} {
+        if(data_ == nullptr)
+            throw std::bad_alloc();
+        std::copy(l.begin(), l.end(), data_);
+    }
     set(set &&other): n_(0), m_(0), data_(nullptr) {
         std::swap(*this, other);
     }
-    set(const set &other): n_(other.n_), m_(other.m_), data_(std::malloc(sizeof(T) * n_)) {
+    set(const set &other): n_(other.n_), m_(other.m_), data_(std::malloc(sizeof(T) * m_)) {
         if(data_ == nullptr)
             throw std::bad_alloc();
         std::copy(other.begin(), other.end(), begin());
@@ -53,9 +58,9 @@ public:
     T *begin()        {return data_.get();}
     T *end()          {return data_.get() + n_;}
     T *data()         {return data_.get();}
-    const T *data() const {return data_;}
-    T &back() {return data_.get()[n_ - 1];}
-    const T &back() const {return data_.get()[n_ - 1];}
+    const T *data()    const {return data_;}
+    T &back()                {return data_.get()[n_ - 1];}
+    const T &back()    const {return data_.get()[n_ - 1];}
     T &front() {return data_.get()[0];}
     const T &front() const {return data_.get()[0];}
     auto size() const {return n_;}
@@ -64,10 +69,10 @@ public:
         return std::find(begin(), end(), val);
     }
     template<typename Predicate>
-    auto find_if(const T &val, Predicate p) {
+    auto find_if(const T &val, Predicate p) const {
         return std::find_if(begin(), end(), p);
     }
-    bool contains(const T &val) {
+    bool contains(const T &val) const {
         return find(val) != end();
     }
     T *insert(const T &val) {
