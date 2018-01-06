@@ -50,7 +50,6 @@ public:
         std::memcpy(ct->keys, old_tax->keys, sizeof(tax_t) * old_tax->n_buckets);
         std::memcpy(ct->vals, old_tax->vals, sizeof(tax_t) * old_tax->n_buckets);
         std::memcpy(ct->flags, old_tax->flags, __ac_fsize(old_tax->n_buckets));
-        ct->n_buckets = old_tax->n_buckets;
 #define CP(x) ct->x = old_tax->x
         CP(n_buckets); CP(size); CP(n_occupied); CP(upper_bound);
 #undef CP
