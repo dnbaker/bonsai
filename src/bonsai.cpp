@@ -85,15 +85,22 @@ int phase2_main(int argc, char *argv[]) {
     // TODO: update documentation for tax_path and seq2taxpath options.
     if(argc < 4) {
         usage:
-        std::fprintf(stderr, "Usage: %s <flags> [tax_path if lex else <phase1map.path>] <out.path> <paths>\nFlags:\n"
+        std::fprintf(stderr, "Usage: %s <flags> [tax_path if lex/ent else <phase1map.path>] <out.path> <paths>\nFlags:\n"
                      "-k: Set k.\n"
                      "-p: Number of threads\n"
                      "-t: Build for taxonomic minimizing\n-f: Build for feature minimizing\n"
                      "-F: Load paths from file provided instead further arguments on the command-line.\n"
+                     "-e: Use entropy maximization.\n"
+                     "-f: Use feature count minimization.\n"
+                     "-t: Use tax depth maximization.\n"
+                     "-w: Set window size.\n"
+                     "-T: Set tax_path.\n"
+                     "-M: Set seq2taxpath.\n"
+                     "-S: Set spacing.\n"
                      , *argv);
         std::exit(EXIT_FAILURE);
     }
-    while((c = getopt(argc, argv, "w:M:S:p:k:T:F:tfHh?")) >= 0) {
+    while((c = getopt(argc, argv, "w:M:S:p:k:T:F:tefHh?")) >= 0) {
         switch(c) {
             case 'h': case '?': goto usage;
             case 'k': k = std::atoi(optarg); break;
@@ -106,6 +113,7 @@ int phase2_main(int argc, char *argv[]) {
             case 'T': tax_path = optarg; break;
             case 'M': seq2taxpath = optarg; break;
             case 'F': paths_file = optarg; break;
+            case 'e': mode = score_scheme::ENTROPY; break;
         }
     }
     if(wsz < 0 || wsz < k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
@@ -114,7 +122,7 @@ int phase2_main(int argc, char *argv[]) {
                                                        : std::vector<std::string>(argv + optind + 2, argv + argc));
     if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
     LOG_DEBUG("Got paths\n");
-    if(score_scheme::LEX == mode) {
+    if(score_scheme::LEX == mode || score_scheme::ENTROPY) {
         if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for lexicographic mode for final database generation.");
         Spacer sp(k, wsz, sv);
         Database<khash_t(c)>  phase2_map(sp);
@@ -127,7 +135,8 @@ int phase2_main(int argc, char *argv[]) {
 #endif
         LOG_DEBUG("Parent map bulding from %s\n", argv[optind]);
         khash_t(p) *taxmap(build_parent_map(argv[optind]));
-        phase2_map.db_ = lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, hash_size);
+        phase2_map.db_ = score_scheme::LEX == mode ? lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, hash_size)
+                                                   : lca_map<score::Entropy>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, hash_size);
         phase2_map.write(argv[optind + 1]);
         kh_destroy(p, taxmap);
         return EXIT_SUCCESS;

@@ -38,6 +38,7 @@ class QueueMap {
     //
     using PairType = ElScore<T, ScoreType>;
     using map_iterator = typename std::map<ElScore<T, ScoreType>, unsigned>::iterator;
+    using const_map_iterator = typename std::map<ElScore<T, ScoreType>, unsigned>::const_iterator;
     std::list<ElScore<T, ScoreType>>         list_;
     std::map<ElScore<T, ScoreType>, unsigned> map_;
     const size_t                         wsz_;  // window size to keep
@@ -61,13 +62,13 @@ class QueueMap {
     map_iterator begin() {
         return map_.begin();
     }
-    const map_iterator begin() const {
+    const_map_iterator begin() const {
         return map_.cbegin();
     }
     map_iterator end() {
         return map_.end();
     }
-    const map_iterator end() const {
+    const_map_iterator end() const {
         return map_.cend();
     }
     // Do a std::enable_if that involves moving the element if it's by reference?

@@ -51,8 +51,8 @@ TEST_CASE("phll") {
     //static const size_t nps[] {23, 24, 25, 29, 30, 31};
     static const size_t nps[] {23};
     for(const auto np: nps) {
-        const ssize_t exact(count_cardinality<lex_score>(paths, 31, 31, vec, nullptr, 2));
-        const ssize_t inexact(estimate_cardinality<lex_score>(paths, 31, 31, vec, nullptr, 2, np));
+        const ssize_t exact(count_cardinality<score::Lex>(paths, 31, 31, vec, nullptr, 2));
+        const ssize_t inexact(estimate_cardinality<score::Lex>(paths, 31, 31, vec, nullptr, 2, np));
         fprintf(stderr, "For np %zu, we have %lf for expected and %lf for measured as correct as we expect to be, theoretically for %zu and %zu.\n",
                 np, (1.03896 / std::sqrt(1ull << np)), (std::abs((double)exact - inexact) / inexact), exact, inexact);
         REQUIRE(std::abs((double)exact - inexact) < 1.03896 * inexact / std::sqrt(1uLL << np));

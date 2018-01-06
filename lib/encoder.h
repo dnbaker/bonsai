@@ -99,7 +99,7 @@ public:
 #if !NDEBUG
     elscore_t max_in_queue_manual() {
         elscore_t t1{BF, BF};
-        for(auto &i: qmap_) if(i.first < t1) t1 = i.first;
+        for(const auto &i: qmap_) if(i.first < t1) t1 = i.first;
         return t1;
     }
 #endif
