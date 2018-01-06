@@ -4,9 +4,11 @@
 #include <algorithm>
 #include <numeric>
 
+using namespace emp;
+using EncType = Encoder<score::Lex>;
+
 // This file tests qmap, encoding, and decoding.
 
-using namespace emp;
 
 TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly.", "[contiguous]") {
     spvec_t v;
@@ -17,7 +19,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         test.resize(34); // Just long enough to encode a k-31 with 3 total spaces in it.
         while(v.size() < 30) v.push_back(0);
         Spacer sp(31, 31, v);
-        Encoder<lex_score> enc(&test[0], 34, sp, nullptr);
+        EncType enc(&test[0], 34, sp, nullptr);
         REQUIRE(sp.s_.size() == 30);
         REQUIRE(std::accumulate(sp.s_.begin(), sp.s_.end(), 0u) == sp.s_.size() + std::accumulate(v.begin(), v.end(), 0));
         std::string to_use = test;
@@ -31,7 +33,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         test.resize(34);
         while(v.size() < 30) v.push_back(0);
         Spacer sp(31, 31, v);
-        Encoder<lex_score> enc(&test[0], 34, sp, nullptr);
+        EncType enc(&test[0], 34, sp, nullptr);
         REQUIRE(sp.s_.size() == 30);
         REQUIRE(std::accumulate(sp.s_.begin(), sp.s_.end(), 0u) == sp.s_.size() + std::accumulate(v.begin(), v.end(), 0));
         std::string to_use = test;
@@ -43,7 +45,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         v = {1, 2, 18};
         while(v.size() < 30) v.push_back(0);
         Spacer sp(31, 31, v);
-        Encoder<lex_score> enc(nullptr, 34, sp, nullptr);
+        EncType enc(nullptr, 34, sp, nullptr);
         gzFile fp(gzopen("test/small_genome.fa", "rb"));
         kseq_t *ks(kseq_init(fp));
         kseq_read(ks);
@@ -66,7 +68,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
             while(v.size() < 30) v.push_back(0);
             Spacer sp(31, window_size, v);
             window_size = std::max(window_size, (int)sp.c_);
-            Encoder<lex_score> enc(ks->seq.s, ks->seq.l, sp, nullptr);
+            EncType enc(ks->seq.s, ks->seq.l, sp, nullptr);
             uint64_t km, n(0);
             while(enc.has_next_kmer()) {
                 ++n;
@@ -74,7 +76,9 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
                     minimizers.push_back(km);
             }
             REQUIRE(minimizers.size() == ks->seq.l - window_size + 1);
+#if !NDEBUG
             REQUIRE(enc.max_in_queue() == enc.max_in_queue_manual());
+#endif
             gzclose(fp);
             kseq_destroy(ks);
         }

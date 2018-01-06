@@ -36,9 +36,18 @@ struct ClassifierGeneric {
     std::atomic<u64> n_classified_;
     std::atomic<u64> n_unclassified_;
     public:
-    void set_emit_all(bool setting);
-    void set_emit_kraken(bool setting);
-    void set_emit_fastq(bool setting);
+    void set_emit_all(bool setting) {
+        if(setting) output_flag_ |= output_format::EMIT_ALL;
+        else        output_flag_ &= (~output_format::EMIT_ALL);
+    }
+    void set_emit_kraken(bool setting) {
+        if(setting) output_flag_ |= output_format::KRAKEN;
+        else        output_flag_ &= (~output_format::KRAKEN);
+    }
+    void set_emit_fastq(bool setting) {
+        if(setting) output_flag_ |= output_format::FASTQ;
+        else        output_flag_ &= (~output_format::FASTQ);
+    }
     INLINE int get_emit_all()    {return output_flag_ & output_format::EMIT_ALL;}
     INLINE int get_emit_kraken() {return output_flag_ & output_format::KRAKEN;}
     INLINE int get_emit_fastq()  {return output_flag_ & output_format::FASTQ;}
@@ -57,29 +66,9 @@ struct ClassifierGeneric {
     }
     ClassifierGeneric(const char *dbpath, spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
                       bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false):
-        ClassifierGeneric(khash_load<khash_t(c)>(dbpath), spaces, k, wsz, num_threads, emit_all, emit_fastq, emit_kraken) {
-    }
-    ~ClassifierGeneric() {
+        ClassifierGeneric(khash_load<khash_t(c)>(dbpath), spaces, k, wsz, num_threads, emit_all, emit_fastq, emit_kraken) {}
     }
 };
-
-template<typename ScoreType>
-void ClassifierGeneric<ScoreType>::set_emit_all(bool setting) {
-    if(setting) output_flag_ |= output_format::EMIT_ALL;
-    else        output_flag_ &= (~output_format::EMIT_ALL);
-}
-
-template<typename ScoreType>
-void ClassifierGeneric<ScoreType>::set_emit_kraken(bool setting) {
-    if(setting) output_flag_ |= output_format::KRAKEN;
-    else        output_flag_ &= (~output_format::KRAKEN);
-}
-
-template<typename ScoreType>
-void ClassifierGeneric<ScoreType>::set_emit_fastq(bool setting) {
-    if(setting) output_flag_ |= output_format::FASTQ;
-    else        output_flag_ &= (~output_format::FASTQ);
-}
 
 INLINE void append_taxa_run(const tax_t last_taxa,
                             const u32 taxa_run,
