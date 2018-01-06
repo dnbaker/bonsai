@@ -49,7 +49,7 @@ INLINE auto vec_popcnt(const T &container) {
 
 unsigned vec_popcnt(u64 *p, size_t l);
     
-template<typename T, typename std::enable_if_t<std::is_arithmetic<T>::value>>
+template<typename T, typename std::enable_if_t<std::is_arithmetic_v<T>>>
 INLINE unsigned bitdiff(T a, T b) {
     // TODO: Modify to use SSE intrinsics to speed up calculation.
     // See https://github.com/WojciechMula/sse-popcount for examples/code.

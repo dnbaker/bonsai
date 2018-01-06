@@ -31,7 +31,7 @@ public:
     using difference_type = std::make_signed_t<size_type>;
 
     template<typename... FactoryArgs>
-    set(size_type n=0, bool init=!std::is_pod<T>::value, FactoryArgs &&...args): n_{n}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
+    set(size_type n=0, bool init=!std::is_pod_v<T>, FactoryArgs &&...args): n_{n}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
         if(data_ == nullptr)
             throw std::bad_alloc();
         if (init)
@@ -141,7 +141,7 @@ public:
     T &operator[](size_type idx) {return data_[idx];}
     const T &operator[](size_type idx) const {return data_[idx];}
     ~set(){
-        if constexpr(!std::is_trivially_destructible<T>::value) {
+        if constexpr(!std::is_trivially_destructible_v<T>) {
             for(auto &el: *this) el.~T();
         }
     }

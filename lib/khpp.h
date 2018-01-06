@@ -39,7 +39,7 @@ struct packed_pair {
         return std::tie(first, second) == std::tie(other.first, other.second);
     }
     static constexpr bool trivially_destructible() {
-        return std::is_trivially_destructible<K>::value && std::is_trivially_destructible<V>::value;
+        return std::is_trivially_destructible_v<K> && std::is_trivially_destructible_v<V>;
     }
 } PACKED;
 

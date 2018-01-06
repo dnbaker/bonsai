@@ -86,7 +86,7 @@ namespace emp {
 
 namespace count {
 
-template<typename Container, typename=std::enable_if_t<std::is_arithmetic<typename Container::value_type>::value>>
+template<typename Container, typename=std::enable_if_t<std::is_arithmetic_v<typename Container::value_type>>>
 std::string vec2str(const Container &vec)  {
     std::string ret;
     for(const auto i: vec) ret += std::to_string(i) + ", ";
@@ -100,12 +100,12 @@ struct is_specialization : std::false_type {};
 template<template<typename...> class Ref, typename... Args>
 struct is_specialization<Ref<Args...>, Ref>: std::true_type {};
 
-template<typename T, class Hash=std::hash<T>>
+template<typename T, class Hash=std::hash<T>, typename SizeType=size_t>
 class Counter {
-    size_t                                                n_;
-    size_t                                            nelem_;
-    std::unordered_map<T, size_t, Hash>                 map_;
-    std::unordered_map<unsigned, unsigned>                 *hist_;
+    SizeType                                                n_;
+    SizeType                                            nelem_;
+    std::unordered_map<T, SizeType, Hash>                 map_;
+    std::unordered_map<unsigned, unsigned>            *hist_;
 
 public:
     Counter(): n_(0), nelem_(0), hist_(nullptr) {}
@@ -124,7 +124,7 @@ public:
     ~Counter() {if(hist_) delete hist_;}
 
     template<typename Q=T>
-    void add(const typename std::enable_if<std::is_fundamental<Q>::value, Q>::type elem) {
+    void add(const typename std::enable_if_t<std::is_fundamental_v<Q>, Q> elem) {
 #if __GNUC__ >= 7
         if(auto match = map_.find(elem); match == map_.end()) map_.emplace(elem, 1);
         else                                          ++match->second;
@@ -137,35 +137,48 @@ public:
     }
 
     template<typename Q=T>
-    void add(const typename std::enable_if<!std::is_fundamental<Q>::value, Q>::type &elem) {
+    void add(const typename std::enable_if_t<!std::is_fundamental_v<Q>, Q> &elem) {
         auto match(map_.find(elem));
         if(match == map_.end()) map_.emplace(elem, 1);
         else                    ++match->second;
         ++n_;
     }
+    template<typename Q=T>
+    void add(typename std::enable_if_t<!std::is_fundamental_v<Q>, Q> &&elem) {
+        auto match(map_.find(elem));
+        if(match == map_.end()) map_.emplace(std::move(elem), 1);
+        else                    ++match->second;
+        ++n_;
+    }
 
-    void set_nelem(size_t nelem) {
+    void set_nelem(SizeType nelem) {
         nelem_ = nelem;
     }
 
-    size_t get_nelem() const {return nelem_;}
+    SizeType get_nelem() const {return nelem_;}
 
     template<class C>
     void fill(C container) {
-        for(auto i: container) add(i);
+        for(const auto i: container) add(i);
+    }
+    template<class C, class Fn>
+    void fill(C container, const Fn &function) {
+        for(const auto i: container) add(function(i));
     }
 
-    size_t size()        const {return map_.size();}
-    size_t total()       const {return n_;}
+    SizeType size()        const {return map_.size();}
+    SizeType total()       const {return n_;}
     auto begin()              const {return map_.begin();}
+    auto begin()                    {return map_.begin();}
     auto end()                const {return map_.end();}
+    auto end()                      {return map_.end();}
     auto cbegin()             const {return map_.cbegin();}
     auto cend()               const {return map_.cend();}
     auto find(const T &elem)  const {return map_.find(elem);}
 
-    const std::unordered_map<T, size_t, Hash> &get_map() { return map_;}
+    const std::unordered_map<T, SizeType, Hash> &get_map() { return map_;}
 
-    template<typename = std::enable_if<std::is_same<bitvec_t, T>::value>>
+    template<typename = std::enable_if<std::is_same_v<bitvec_t, T>>>
     std::unordered_map<unsigned, unsigned> *make_hist() {
         std::unordered_map<unsigned, unsigned>::iterator m;
         LOG_DEBUG("map size: %zu\n", map_.size());
@@ -197,40 +210,38 @@ public:
     }
 
     void print_counts(std::FILE *fp) const {
-        struct vecc_t {
-            const T *vec_;
-            size_t count_;
-            vecc_t(const T *vec, const size_t count): vec_(vec), count_(count) {}
-            inline bool operator<(const vecc_t &other) {
-                return count_ < other.count_;
-            }
-        };
-        ks::string ks;
-        size_t sum(0);
-        std::vector<vecc_t> vc;
-        vc.reserve(map_.size());
-        for(auto &i: map_) vc.emplace_back(&i.first, i.second);
-        SORT(std::begin(vc), std::end(vc));
-        ksprintf(static_cast<kstring_t*>(ks), "#Number of distinct patterns: %zu\n", vc.size());
-        ksprintf(static_cast<kstring_t*>(ks), "#Pattern\tCount\tNumber of bits set in pattern\n");
-        for(const auto &i: vc) {
-            size_t n(0);
-            const T &vec(*i.vec_);
-            size_t pc(0);
-            for(const auto j: vec) {
-                sum += j;
-                auto k(j);
-                // WISHLIST: could data-parallelize with a lookup table.
-                for(u64 i(0); i < std::min(CHAR_BIT * sizeof(j), nelem_ - n); ++i) {
-                    kputc_('0' + (k&1), ks);
-                    pc += k&1;
-                    k >>= 1;
+        if constexpr(!std::is_scalar_v<T>) {
+            struct vecc_t {
+                const T *vec_;
+                SizeType count_;
+                vecc_t(const T *vec, const SizeType count): vec_(vec), count_(count) {}
+                inline bool operator<(const vecc_t &other) {
+                    return count_ < other.count_;
                 }
+            };
+            ks::string ks;
+            SizeType sum(0);
+            std::vector<vecc_t> vc;
+            vc.reserve(map_.size());
+            for(auto &i: map_) vc.emplace_back(&i.first, i.second);
+            SORT(std::begin(vc), std::end(vc));
+            ksprintf(static_cast<kstring_t*>(ks), "#Number of distinct patterns: %zu\n", vc.size());
+            ksprintf(static_cast<kstring_t*>(ks), "#Pattern\tCount\tNumber of bits set in pattern\n");
+            for(const auto &i: vc) {
+                SizeType n(0), pc(0);
+                for(auto j: *i.vec_) {
+                    sum += j;
+                    for(u64 i(0); i < std::min(CHAR_BIT * sizeof(j), nelem_ - n); ++i)
+                        kputc_('0' + (j&1), ks), pc += j&1, j >>= 1;
+                }
+                ksprintf(ks, "\t%zu\t%zu\n", i.count_, pc);
             }
-            ksprintf(ks, "\t%zu\t%zu\n", i.count_, pc);
+            if(ks.size()) std::fwrite(ks.data(), 1, ks.size(), fp);
+        } else {
+            for(const auto &el: map_) {
+                std::fprintf(fp, "%s\t%s\n", std::to_string(el.first).data(), std::to_string(el.second).data());
+            }
         }
-
-        if(ks.size()) std::fwrite(ks.data(), 1, ks.size(), fp);
     }
 };
 
