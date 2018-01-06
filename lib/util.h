@@ -167,7 +167,7 @@ template<> inline khint_t khash_put(khash_t(all) *map, uint64_t key, int *ret) {
 }
 
 template<typename T> khint_t khash_get(T *map, uint64_t key) {
-    if constexpr(std::is_same<std::decay_t<decltype(map->keys[0])>, uint64_t>::value) {
+    if constexpr(std::is_same_v<std::decay_t<decltype(map->keys[0])>, uint64_t>) {
         return kh_get(64, (khash_t(64) *)map, key);
     } else {
         return kh_get(c, (khash_t(c) *)map, key);
@@ -347,7 +347,7 @@ std::unordered_map<tax_t, strlist> tax2desc_genome_map(
         const khash_t(p) *taxmap, const std::vector<tax_t> &taxes,
         const std::unordered_map<tax_t, ClassLevel> &lvl_map);
 
-template<typename Container, typename=std::enable_if_t<std::is_same<typename Container::value_type, tax_t>::value>>
+template<typename Container, typename=std::enable_if_t<std::is_same_v<typename Container::value_type, tax_t>>>
 tax_t lca(khash_t(p) *taxmap, const Container& v) noexcept {
     if(v.size() == 0) {
         fprintf(stderr, "Warning: no elements provided. Returning 0 for lca.\n");
@@ -422,6 +422,17 @@ INLINE double kmer_entropy(uint64_t kmer, unsigned k) {
         tmp = div * cts[i], sum += tmp * std::log2(tmp);
     return tmp;
 }
+
+template<typename T>
+INLINE const char *get_str(const T &str) {
+    return str.data();
+}
+template<typename T>
+INLINE char *get_str(T &str) {
+    return str.data();
+}
+INLINE char *get_str(char *str)             {return str;}
+INLINE const char *get_str(const char *str) {return str;}
 
 } // namespace emp
 

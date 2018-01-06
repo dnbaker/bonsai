@@ -36,7 +36,8 @@ protected:
     uint64_t        counter_:63;
     uint64_t          filled_:1;
 public:
-    TaxonomyReformation(const char *name_path):
+    template<typename StrCon>
+    TaxonomyReformation(const char *name_path, const StrCon &paths):
         pmap_{kh_init(p)}, rpmap_{kh_init(p)},
         name_map_{build_name_hash(name_path)},
         old_ids_{0, 1},
@@ -48,12 +49,15 @@ public:
         kh_val(pmap_, ki) = 0;
         ki = kh_put(p, rpmap_, 0, &khr);
         kh_val(rpmap_, ki) = 1;
+        fill_path_map(paths);
+        count::Counter<tax_t> ctr;
+        for(const auto &pair: path_map) ctr.add(pair.second);
     }
 
     template<typename T>
     void fill_path_map(const T &container) {
         for(const std::string &path: container) {
-            const tax_t id(get_taxid(path.data(), name_map_));
+            const tax_t id(get_taxid(get_str(path), name_map_));
             if(id == tax_t(-1)) {
                 LOG_WARNING("Tax id not found in path %s. Skipping. This can be fixed by augmenting the name dictionary file.\n", path);
                 continue;

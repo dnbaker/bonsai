@@ -27,10 +27,10 @@ struct wang_hash_struct {
     // always be divisible by pointer alignment.
     static constexpr size_t OFFSET = log2_64(alignof(void *));
 
-    template<typename U, typename=std::enable_if_t<std::is_pointer<U>::value>>
+    template<typename U, typename=std::enable_if_t<std::is_pointer_v<U>>>
     constexpr u64 operator()(U key) const {
-        static_assert(std::is_pointer<U>::value || std::is_arithmetic<U>::value, "Must be arithmetic  or a pointer.");
-        if constexpr(std::is_pointer<U>::value)
+        static_assert(std::is_pointer_v<U> || std::is_arithmetic_v<U>, "Must be arithmetic  or a pointer.");
+        if constexpr(std::is_pointer_v<U>)
             return wang_hash(reinterpret_cast<u64>(key) >> OFFSET);
         else
             return wang_hash(key);

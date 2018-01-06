@@ -97,7 +97,7 @@ struct Database {
     }
 
     template<typename Q=T>
-    typename std::enable_if<std::is_same<khash_t(c), Q>::value, u32>::type
+    typename std::enable_if_t<std::is_same_v<khash_t(c), Q>, u32>
     get_lca(u64 kmer) {
         khiter_t ki;
         return ((ki = kh_get(c, db_, kmer)) == kh_end(db_)) ? kh_val(db_, ki)

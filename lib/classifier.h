@@ -67,7 +67,6 @@ struct ClassifierGeneric {
     ClassifierGeneric(const char *dbpath, spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
                       bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false):
         ClassifierGeneric(khash_load<khash_t(c)>(dbpath), spaces, k, wsz, num_threads, emit_all, emit_fastq, emit_kraken) {}
-    }
 };
 
 INLINE void append_taxa_run(const tax_t last_taxa,

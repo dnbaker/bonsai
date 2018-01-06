@@ -75,7 +75,7 @@ inline int veccmp(const void *a, const void *b, size_t nbytes) {
 template<typename Container1, typename Container2>
 int veccmp(const Container1 &a, const Container2 &b) {
     using T = std::decay_t<decltype(a[0])>;
-    static_assert(std::is_same<T, std::decay_t<decltype(b[0])>>::value, "a and be must be containers of the same type.");
+    static_assert(std::is_same_v<T, std::decay_t<decltype(b[0])>>, "a and be must be containers of the same type.");
     if(unlikely(a.size() != b.size())) LOG_EXIT("a and b must be the same size! %zu, %zu\n", static_cast<size_t>(a.size()), static_cast<size_t>(b.size()));
     return veccmp(a.data(), b.data(), a.size() * sizeof(T));
 }

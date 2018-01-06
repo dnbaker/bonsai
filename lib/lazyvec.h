@@ -27,7 +27,7 @@ class vector {
 public:
     using value_type = T;
     template<typename... FactoryArgs>
-    vector(size_type n=0, bool init=!std::is_pod<T>::value, FactoryArgs &&...args): n_{n}, m_{n}, data_{n ? static_cast<T *>(std::malloc(sizeof(T) * n)): nullptr} {
+    vector(size_type n=0, bool init=!std::is_pod_v<T>, FactoryArgs &&...args): n_{n}, m_{n}, data_{n ? static_cast<T *>(std::malloc(sizeof(T) * n)): nullptr} {
         if (init)
             for(size_type i(0); i < n_; ++i)
                 new(data_ + i) T(std::forward<FactoryArgs>(args)...);
@@ -128,7 +128,7 @@ public:
     T &operator[](size_type idx) {return data_[idx];}
     const T &operator[](size_type idx) const {return data_[idx];}
     ~vector(){
-        if constexpr(!std::is_trivially_destructible<T>::value) {
+        if constexpr(!std::is_trivially_destructible_v<T>) {
             for(auto &el: *this) el.~T();
         }
         std::free(data_);

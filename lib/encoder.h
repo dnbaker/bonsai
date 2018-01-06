@@ -145,7 +145,7 @@ public:
     // Whether or not an additional kmer is present in the sequence being encoded.
     INLINE int has_next_kmer() const {
         return pos_ < l_ - sp_.c_ + 1;
-        static_assert(std::is_same<decltype((std::int64_t)l_ - sp_.c_ + 1), std::int64_t>::value, "is not same");
+        static_assert(std::is_same_v<decltype((std::int64_t)l_ - sp_.c_ + 1), std::int64_t>, "is not same");
     }
     // This fetches our next kmer for our window. It is immediately placed in the qmap_t,
     // which is a tree map containing kmers and scores so we can keep track of the best-scoring
