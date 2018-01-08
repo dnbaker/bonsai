@@ -71,6 +71,10 @@
 #define kputuw_ kputuw
 #endif
 
+#ifndef STLFREE
+#define STLFREE(x) do {decltype(x) tmp##x; std::swap(x, tmp##x);} while(0)
+#endif
+
 #define TIME_CODE(code, name) do             \
 {                                            \
     auto i_##_name(::std::chrono::system_clock::now());\
@@ -425,15 +429,15 @@ INLINE double kmer_entropy(uint64_t kmer, unsigned k) {
 }
 
 template<typename T>
-INLINE const char *get_str(const T &str) {
+INLINE const char *get_cstr(const T &str) {
     return str.data();
 }
 template<typename T>
-INLINE char *get_str(T &str) {
+INLINE char *get_cstr(T &str) {
     return str.data();
 }
-INLINE char *get_str(char *str)             {return str;}
-INLINE const char *get_str(const char *str) {return str;}
+INLINE char *get_cstr(char *str)             {return str;}
+INLINE const char *get_cstr(const char *str) {return str;}
 
 } // namespace emp
 

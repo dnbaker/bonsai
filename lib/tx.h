@@ -48,6 +48,7 @@ public:
         old_ids_{0, 1},
         counter_(1), filled_(false), panic_on_undef_(panic_on_undef)
     {
+        // Copy input hash map
         khash_t(p) *ct(kh_init(p));
         kh_resize(p, ct, kh_size(old_tax));
         std::memcpy(ct->keys, old_tax->keys, sizeof(tax_t) * old_tax->n_buckets);
@@ -56,18 +57,13 @@ public:
 #define CP(x) ct->x = old_tax->x
         CP(n_buckets); CP(size); CP(n_occupied); CP(upper_bound);
 #undef CP
-        // Add the root of the tree.
+
+        // Add the root of the tree to our pmap.
         int khr;
         khint_t ki(kh_put(p, pmap_, tax_t(counter_), &khr));
         kh_val(pmap_, ki) = 0;
         fill_path_map(paths);
-#if CHUNKY_BUT_FUNKY
-        std::unordered_set<tax_t> funkynodes; // Nodes with more than one genome which we'll have to break up.
-        for(const auto &pair: path_map)
-            if(pair.second.size() > 1)
-                funkynodes.insert(pair.first);
-#endif
-        // Arbitrary seeding scheme which still will vary run to run
+        // Deterministic seeding that still varies run to run.
         std::mt19937 mt(std::hash<size_t>()(kh_size(old_tax) * path_map.size()));
         std::unordered_map<tax_t, tax_t> old_to_new;
         for(auto &pair: path_map) {
@@ -86,7 +82,7 @@ public:
         }
         std::vector<tax_t> insertion_order;
         insertion_order.reserve(path_map.size());
-        for(const auto &[tax, _]: path_map) insertion_order.push_back(tax);
+        for(const auto &pair: path_map) insertion_order.push_back(pair.first);
         assert(insertion_order.size() == std::unordered_set<tax_t>(insertion_order.begin(), insertion_order.end()).size() &&
                "Some tax ids are being repeated in this array.");
         pdqsort(std::begin(insertion_order), std::end(insertion_order),
@@ -109,64 +105,43 @@ public:
                     // TODO: remove \.at check when we're certain it's working.
 
         LOG_DEBUG("Paths to genomes with new subtax elements:\n\n\n%s", newtaxprintf().data());
-        
+
     }
 
     ks::string newtaxprintf() {
         ks::string ret("#New ID\tGenome path (NEW FIRST)\n");
-        for(const auto &pair: newid_path_map) {
+        for(const auto &pair: newid_path_map)
             ret.sprintf("%u\t%s\n", pair.first, pair.second.data());
-        }
         ret += "#(Original taxonomy)\n";
-        for(const auto &pair: path_map) {
+        for(const auto &pair: path_map)
             ret.sprintf("%u\t%s\n", pair.first, pair.second.data());
-        }
         return ret;
     }
     void fnewtaxprintf(std::FILE *fp) {
         auto taxstr(newtaxprintf());
-        std::fwrite(taxstr.data(), 1, taxstr.size(), fp);
+        taxstr.write(fp);
     }
 
     template<typename T>
     void fill_path_map(const T &container) {
         for(const auto &path: container) {
-            const tax_t id(get_taxid(get_str(path), name_map_));
+            const tax_t id(get_taxid(get_cstr(path), name_map_));
             if(id == tax_t(-1)) {
                 if(panic_on_undef_)
-                    throw std::runtime_error(ks::sprintf("Tax id not found in path %s. Skipping. This can be fixed by augmenting the name dictionary file.\n", get_str(path)).data());
+                    throw std::runtime_error(ks::sprintf("Tax id not found in path %s. Skipping. This can be fixed by augmenting the name dictionary file.\n", get_cstr(path)).data());
                 else
-                    LOG_WARNING("Tax id not found in path %s. Skipping. This can be fixed by augmenting the name dictionary file.\n", get_str(path));
+                    LOG_WARNING("Tax id not found in path %s. Skipping. This can be fixed by augmenting the name dictionary file.\n", get_cstr(path));
                 continue;
             }
             path_map[id].push_back(path);
         }
     }
 
-    void add_genome(const char *path) {
-        assert(name_map_);
-        const tax_t id(get_taxid(path, name_map_));
-        if(id == tax_t(-1)) {
-            LOG_WARNING("Tax id not found in path %s. Skipping. This can be fixed by augmenting the name dictionary file.\n", path);
-            return;
-        }
-        khint_t ki;
-        if((ki = kh_get(p, pmap_, id)) == kh_end(pmap_)) {
-            // Add the node, insert its parent (I will also need access to the NCBI taxonomy for that.)
-        } else {
-            // This node is now
-        }
-        if(parent(id) == tax_t(-1)) LOG_EXIT("Error in taxonomy hash map.");
-        assert(!"NotImplemented.");
-    }
-    template<typename StrType> void add_genome(const StrType &path) {add_genome(get_str(path));}
-
     // Convenience functions
     tax_t parent(tax_t child) const {
         const auto ind(kh_get(p, pmap_, child));
         return ind == kh_end(pmap_) ? tax_t(-1): kh_val(pmap_, ind);
     }
-#define STLFREE(x) do {decltype(x) tmp##x; std::swap(x, tmp##x);} while(0)
     void clear() {
         if(name_map_) khash_destroy(name_map_);
         if(pmap_) khash_destroy(pmap_);
@@ -174,9 +149,8 @@ public:
         STLFREE(path_map);
         STLFREE(newid_path_map);
     }
-#undef STLFREE
     ~TaxonomyReformation() {
-        this->clear();
+        clear();
     }
 };
 using concise_tax_t = TaxonomyReformation;
