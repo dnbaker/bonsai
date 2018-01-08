@@ -27,7 +27,7 @@ struct wang_hash_struct {
     // always be divisible by pointer alignment.
     static constexpr size_t OFFSET = log2_64(alignof(void *));
 
-    template<typename U, typename=std::enable_if_t<std::is_pointer_v<U>>>
+    template<typename U, typename=std::enable_if_t<std::is_pointer_v<U> || std::is_arithmetic_v<U>>>
     constexpr u64 operator()(U key) const {
         static_assert(std::is_pointer_v<U> || std::is_arithmetic_v<U>, "Must be arithmetic  or a pointer.");
         if constexpr(std::is_pointer_v<U>)
@@ -85,8 +85,8 @@ INLINE u64 irving_inv_hash(u64 key) {
 // Taken from khash. https://github.com/attractivechaos/klib
 static INLINE int X31_hash_string(const char *s)
 {
-    int h = *s;
-    if (h) for (++s ; *s; ++s) h = (h << 5) - h + *s;
+    int h = *s++;
+    if (h) while(*s) h = (h << 5) - h + *s++;
     return h;
 }
 

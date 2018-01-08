@@ -135,6 +135,9 @@ std::vector<tax_t> get_desc_lca(tax_t a, tax_t, const std::unordered_map<tax_t, 
 tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
                    khash_t(p) *parent_map) noexcept;
 
+
+template<
+
 const char *bool2str(bool val);
 
 #ifdef roundup64
