@@ -82,6 +82,8 @@ public:
         std::vector<tax_t> insertion_order;
         insertion_order.reserve(path_map.size());
         for(const auto &[tax, _]: path_map) insertion_order.push_back(tax);
+        assert(insertion_order.size() == std::unordered_set<tax_t>(insertion_order.begin(), insertion_order.end()).size() &&
+               "Some tax ids are being repeated in this array.");
         pdqsort(std::begin(insertion_order), std::end(insertion_order),
                 [old_tax] (const tax_t a, const tax_t b) {
             return node_depth(old_tax, a) < node_depth(old_tax, b);
@@ -132,9 +134,18 @@ public:
         const auto ind(kh_get(p, pmap_, child));
         return ind == kh_end(pmap_) ? tax_t(-1): kh_val(pmap_, ind);
     }
+    void clear() {
+        if(name_map_) khash_destroy(name_map_);
+        if(pmap_) khash_destroy(pmap_);
+        std::vector<tax_t> tmp_ids;
+        std::unordered_map<tax_t, std::vector<std::string>> tmp_map;
+        std::swap(tmp_ids, olds_ids_); // Free vector
+        std::swap(tmp_map, path_map);
+        
+    //std::unordered_map<tax_t, std::vector<std::string>> path_map;
+    }
     ~TaxonomyReformation() {
-        khash_destroy(name_map_);
-        khash_destroy(pmap_);
+        this->clear();
     }
 };
 using concise_tax_t = TaxonomyReformation;
