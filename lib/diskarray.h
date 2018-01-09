@@ -22,15 +22,11 @@ public:
         allocate_file(fp_, memsz());
         struct stat sb;
         fstat(fileno(fp_), &sb);
-        std::fprintf(stderr, "Size of file: %zu\n", size_t(sb.st_size));
         if((mm_ = (char *)mmap(nullptr, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(fp_), 0)) == MAP_FAILED) throw 1;
-        std::fprintf(stderr, "mm_: %p. memsz: %zu\n", (void *)mm_, memsz());
     }
     size_t memsz() const {
         size_t ret(nr_ * nc_);
-        std::fprintf(stderr, "Full dims: %zu\n", ret);
         ret = (ret >> 3) + !!(ret & 0x7u);
-        std::fprintf(stderr, "N bytes: %zu\n", ret);
         return ret;
     }
     size_t size() const {return nr_ * nc_;}
