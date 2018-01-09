@@ -8,8 +8,9 @@ int main(int argc, char *argv[]) {
     std::fprintf(stderr, "Popcount: %zu\n", ba.popcount());
     {
         Timer e(ks::sprintf("Set 1s for %zu by %zu", n, n).data());
-        for(size_t i(0); i < n; ++i)
+        for(size_t i(0); i < n; ++i) {
             ba.set1(i);
+        }
     }
     std::fprintf(stderr, "Popcount: %zu\n", ba.popcount());
 }
