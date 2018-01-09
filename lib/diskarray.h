@@ -24,11 +24,13 @@ public:
         fstat(fileno(fp_), &sb);
         std::fprintf(stderr, "Size of file: %zu\n", size_t(sb.st_size));
         if((mm_ = (char *)mmap(nullptr, sb.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(fp_), 0)) == MAP_FAILED) throw 1;
-        std::fprintf(stderr, "mm_: %p\n", (void *)mm_);
+        std::fprintf(stderr, "mm_: %p. memsz: %zu\n", (void *)mm_, memsz());
     }
     size_t memsz() const {
         size_t ret(nr_ * nc_);
+        std::fprintf(stderr, "Full dims: %zu\n", ret);
         ret = (ret >> 3) + !!(ret & 0x7u);
+        std::fprintf(stderr, "N bytes: %zu\n", ret);
         return ret;
     }
     size_t size() const {return nr_ * nc_;}
@@ -36,22 +38,15 @@ public:
         if(fp_) std::fclose(fp_);
         if(mm_) munmap((void *)mm_, memsz());
     }
-    void set1(size_t index) {
-        mm_[index>>3] |= (1u << (index & 0x7u));
-    }
-    void set0(size_t index) {
-        mm_[index>>3] &= ~(1u << (index & 0x7u));
-    }
+    void set1(size_t index) {mm_[index>>3] |= (1u << (index & 0x7u));}
+    void set0(size_t index) {mm_[index>>3] &= ~(1u << (index & 0x7u));}
     void set1(size_t row, size_t column) {set1(row * nc_ + column);}
     void set0(size_t row, size_t column) {set0(row * nc_ + column);}
     bool operator[](size_t pos) const {return mm_[pos>>3] & (1u << (pos & 0x7u));}
     bool operator()(size_t row, size_t column) const {return operator[](row * nc_ + column);}
     size_t popcount() const {
-        using namespace emp;
-        u64 *ptr((u64 *)mm_);
-        size_t ret(0), i(0);
-        while(i < memsz() >> 3) ret += popcnt::popcount(ptr[i++]);
-        for(i = memsz() & ~0x7uLL; i < memsz(); ret += popcnt::popcount(mm_[i++]));
+        size_t ret, i;
+        for(i = ret = 0; i < memsz(); ret += emp::popcnt::popcount(mm_[i++]));
         return ret;
     }
 };
