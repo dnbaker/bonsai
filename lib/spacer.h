@@ -39,8 +39,8 @@ public:
         Spacer(k, w, parse_spacing(space_string, k))
     {
     }
-    Spacer(const Spacer &other): s_(other.s_), k_(other.k_), c_(other.c_), w_(other.w_) {
-    }
+    Spacer(unsigned k): Spacer(k, k) {}
+    Spacer(const Spacer &other): s_(other.s_), k_(other.k_), c_(other.c_), w_(other.w_) {}
     void write(u64 kmer, std::FILE *fp=stdout) const {
         kmer ^= XOR_MASK;
         int offset = ((k_ - 1) << 1);
