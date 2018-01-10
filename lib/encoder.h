@@ -57,21 +57,11 @@ static INLINE u64 hash_score(u64 i, void *data) {
 }
 
 namespace score {
-struct Lex {
-    u64 operator()(u64 i, void *data) const {
-        return lex_score(i, data);
-    }
-};
-struct Entropy {
-    u64 operator()(u64 i, void *data) const {
-        return ent_score(i, data);
-    }
-};
-struct Hash {
-    u64 operator()(u64 i, void *data) const {
-        return ent_score(i, data);
-    }
-};
+#define DECHASH(name, fn) struct name {u64 operator()(u64 i, void *data) const { return fn(i, data);}}
+DECHASH(Lex, lex_score);
+DECHASH(Entropy, ent_score);
+DECHASH(Hash, hash_score);
+#undef DECHASH
 } // namespace score
 
 
@@ -114,6 +104,7 @@ public:
     Encoder(const Spacer &sp, void *data): Encoder(nullptr, 0, sp, data) {}
     Encoder(const Spacer &sp): Encoder(sp, nullptr) {}
     Encoder(const Encoder &other): Encoder(other.sp_, other.data_) {}
+    Encoder(unsigned k): Encoder(nullptr, 0, Spacer(k), nullptr) {}
 
     // Assign functions: These tell the encoder to fetch kmers from this string.
     // kstring and kseq are overloads which call assign(char *s, size_t l) on
@@ -289,21 +280,27 @@ void est_helper_fn(void *data_, long index, int tid) {
 }
 
 template<typename ScoreType=score::Lex>
-hll::hll_t make_hll(const std::vector<std::string> &paths,
-                unsigned k, uint16_t w, spvec_t spaces,
-                void *data=nullptr, int num_threads=-1, size_t np=23) {
-    // Default to using all available threads.
-    if(num_threads < 0) {
-        num_threads = sysconf(_SC_NPROCESSORS_ONLN);
-    }
+void fill_hll(hll::hll_t &ret, const std::vector<std::string> &paths,
+              unsigned k, uint16_t w, spvec_t spaces,
+              void *data=nullptr, int num_threads=1, size_t np=23) {
+    // Default to using all available threads if num_threads is negative.
+    if(num_threads < 1) num_threads = sysconf(_SC_NPROCESSORS_ONLN);
     const Spacer space(k, w, spaces);
-    hll::hll_t master(np);
-    if(num_threads == 1) for(size_t i(0); i < paths.size(); hll_fill_lmers<ScoreType>(master, paths[i++], space, data));
+    if(num_threads == 1) for(size_t i(0); i < paths.size(); hll_fill_lmers<ScoreType>(ret, paths[i++], space, data));
     else {
         std::mutex m;
-        est_helper helper{space, paths, m, np, data, master};
+        est_helper helper{space, paths, m, np, data, ret};
         kt_for(num_threads, &est_helper_fn<ScoreType>, &helper, paths.size());
     }
+    
+}
+
+template<typename ScoreType=score::Lex>
+hll::hll_t make_hll(const std::vector<std::string> &paths,
+                unsigned k, uint16_t w, spvec_t spaces,
+                void *data=nullptr, int num_threads=1, size_t np=23) {
+    hll::hll_t master(np);
+    fill_hll(master, paths, k, w, spaces, data, num_threads, np);
     return master;
 }
 

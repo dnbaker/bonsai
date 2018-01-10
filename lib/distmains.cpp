@@ -134,7 +134,7 @@ int dist_main(int argc, char *argv[]) {
     std::vector<double> dists(hlls.size() - 1);
     str.clear();
     str.sprintf("##Names \t");
-    for(auto &path: inpaths) str.sprintf("%s\t", path.data());
+    for(const auto &path: inpaths) str.sprintf("%s\t", path.data());
     str.back() = '\n';
     str.write(fileno(pairofp)); str.free();
     for(auto &el: hlls) el.sum();

@@ -61,10 +61,9 @@ size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, si
     LOG_ASSERT(ret);
     LOG_INFO("Filling from genome at path %s\n", path);
     gzFile ifp(gzopen(path, "rb"));
-    if(!ifp) {
-        fprintf(stderr, "Could not open file %s for index %zu. Abort!\n", path, index);
-        std::exit(EXIT_FAILURE);
-    }
+    if(!ifp)
+        LOG_EXIT("Could not open file %s for index %zu. Abort!\n",
+                 path, index);
 
     unsigned k(sp.k_);
     if constexpr(std::is_same_v<ScoreType, score::Entropy>)
