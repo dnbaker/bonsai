@@ -16,22 +16,24 @@ void usage(const char *arg) {
     std::exit(EXIT_FAILURE);
 }
 
-#if !NOTHREADING
+#define NOTHREADING
+
+#ifndef NOTHREADING
 std::mutex output_lock;
 #endif
 
-#if NOTHREADING
+#ifdef NOTHREADING
 #define EMIT_RESULTS(sketchval, exactval) do { \
-    std::fprintf(ofp, "%s\t%s\t%s\t%lf\t%lf\t%lf\t%lf\n", \
-                 argv[optind + i], argv[optind + j], BOOLS[i == j], \
-                 sketchval, exactval, std::abs(sketchval - exactval), \
-                 std::abs(sketchval - exactval) / exactval * 100.); } while(0)
+    ks.sprintf("%s\t%s\t%lf\t%lf\t%lf\t%lf\t%u\n", \
+               argv[optind + i], argv[optind + j], \
+               sketchval, exactval, std::abs(sketchval - exactval), \
+               std::abs(sketchval - exactval) / exactval * 100., sketchsize); } while(0)
 #else
 #define EMIT_RESULTS(sketchval, exactval) do { std::lock_guard<std::mutex> lock(output_lock);\
-    std::fprintf(ofp, "%s\t%s\t%s\t%lf\t%lf\t%lf\t%lf\n", \
-                 argv[optind + i], argv[optind + j], BOOLS[i == j], \
-                 sketchval, exactval, std::abs(sketchval - exactval), \
-                 std::abs(sketchval - exactval) / exactval * 100.); } while(0)
+    ks.sprintf(ofp, "%s\t%s\t%lf\t%lf\t%lf\t%lf\t%u\n", \
+               argv[optind + i], argv[optind + j], \
+               sketchval, exactval, std::abs(sketchval - exactval), \
+               std::abs(sketchval - exactval) / exactval * 100., sketchsize); } while(0)
 #endif
 
 int main(int argc, char *argv[]) {
@@ -50,17 +52,16 @@ int main(int argc, char *argv[]) {
         }
     }
     omp_set_num_threads(1); // Only using one thread currently as multithreading has not been debugged.
-    static const char *BOOLS [2] {
-        "False", "True"
-    };
     std::vector<char> buf(1 << 16);
     std::setvbuf(ofp, buf.data(), _IOFBF, buf.size());
     const size_t ngenomes(argc - optind);
     LOG_DEBUG("Comparing %u genomes\n", unsigned(ngenomes));
+    if(ngenomes == 0) return EXIT_FAILURE;
     spvec_t sv;
     double sketchval, exactval;
-    std::fprintf(ofp, "#Path1\tPath2\tTrue if path1==path2\tApproximate jaccard index\tExact jaccard index\t"
-                      "Absolute difference\t%% difference from exact value\n");
+    const int fn(fileno(ofp));
+    ks::string ks("#Path1\tPath2\tApproximate jaccard index\tExact jaccard index\t"
+                  "Absolute difference\t%% difference from exact value\tSketch size\n");
 #if 0
     std::mt19937_64 mt(std::time(nullptr));
     std::shuffle(argv + optind, argv + argc, mt);
@@ -73,7 +74,9 @@ int main(int argc, char *argv[]) {
             assert(kh_size(s1) == 0);
             fill_hll(h1, std::vector<std::string>{argv[optind + i]}, k, k, sv, nullptr, 1, sketchsize);
             fill_set_genome<score::Lex>(argv[optind + i], sp, s1, i, nullptr);
+#ifndef NOTHREADING
             #pragma omp parallel for
+#endif
             for(size_t j = i + 1; j < ngenomes; ++j) {
                 fill_set_genome<score::Lex>(argv[optind + j], sp, s2, j, nullptr);
 #if COPY_HLL
@@ -89,6 +92,7 @@ int main(int argc, char *argv[]) {
 #else
                 h2.clear();
 #endif
+                if(ks.size() >= 1 << 16) ks.write(fn), ks.clear();
             }
             kh_clear(all, s1);
             h1.clear();
@@ -112,6 +116,7 @@ int main(int argc, char *argv[]) {
                 sketchval = hll::jaccard_index(sketches[i], sketches[j]);
                 exactval  = emp::jaccard_index(sets[i], sets[j]);
                 EMIT_RESULTS(sketchval, exactval);
+                if(ks.size() >= 1 << 16) ks.write(fn), ks.clear();
             }
         }
     }
