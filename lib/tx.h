@@ -35,7 +35,7 @@ protected:
     khash_t(name)    *name_map_;
     std::vector<tax_t> old_ids_;
     std::unordered_map<tax_t, std::vector<std::string>> path_map;
-    std::unordered_map<tax_t, std::vector<std::string>> newid_path_map;
+    std::unordered_map<tax_t, std::string> newid_path_map;
     uint64_t        counter_:62;
     uint64_t          filled_:1;
     uint64_t  panic_on_undef_:1;
@@ -74,7 +74,7 @@ public:
                     path_map[tmp] = {path};
                     ki = kh_put(p, ct, tmp, &khr);
                     kh_val(ct, ki) = pair.first;
-                    newid_path_map[tmp] = {path};
+                    newid_path_map[tmp] = path;
                 }
                 std::vector<std::string> vec;
                 std::swap(vec, pair.second);
@@ -105,7 +105,7 @@ public:
                     // TODO: remove \.at check when we're certain it's working.
 
         LOG_DEBUG("Paths to genomes with new subtax elements:\n\n\n%s", newtaxprintf().data());
-
+        STL_FREE(path_map);
     }
 
     ks::string newtaxprintf() {
@@ -141,6 +141,17 @@ public:
     tax_t parent(tax_t child) const {
         const auto ind(kh_get(p, pmap_, child));
         return ind == kh_end(pmap_) ? tax_t(-1): kh_val(pmap_, ind);
+    }
+    void write_name_map(const char *fn) {
+        gzFile fp(gzopen(fn, "wb"));
+        if(fp == nullptr) throw std::runtime_error(ks::sprintf("Could not open file at %s for writing", fn).data());
+#if ZLIB_VER_MAJOR <= 1 && ZLIB_VER_MINOR <= 2 && ZLIB_VER_REVISION < 5
+        gzbuffer(fp, 1 << 18);
+#endif
+        for(const auto &pair: newid_path_map) {
+            gzprintf(fp, "%s\t%u\n", pair.second.data(), pair.first);
+        }
+        gzclose(fp);
     }
     void clear() {
         if(name_map_) khash_destroy(name_map_);
