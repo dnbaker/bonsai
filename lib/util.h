@@ -438,6 +438,10 @@ INLINE char *get_cstr(T &str) {
 }
 INLINE char *get_cstr(char *str)             {return str;}
 INLINE const char *get_cstr(const char *str) {return str;}
+INLINE char *strchrnul(char *str, int c) {
+    while(*str && *str != c) ++str;
+    return str;
+}
 
 } // namespace emp
 
