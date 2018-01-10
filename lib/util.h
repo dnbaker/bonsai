@@ -428,14 +428,8 @@ INLINE double kmer_entropy(uint64_t kmer, unsigned k) {
     return tmp;
 }
 
-template<typename T>
-INLINE const char *get_cstr(const T &str) {
-    return str.data();
-}
-template<typename T>
-INLINE char *get_cstr(T &str) {
-    return str.data();
-}
+template<typename T> INLINE const char *get_cstr(const T &str) {return str.data();}
+template<typename T> INLINE char *get_cstr(T &str)             {return str.data();}
 INLINE char *get_cstr(char *str)             {return str;}
 INLINE const char *get_cstr(const char *str) {return str;}
 INLINE char *strchrnul(char *str, int c) {
