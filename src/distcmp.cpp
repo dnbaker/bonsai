@@ -61,37 +61,33 @@ int main(int argc, char *argv[]) {
     double sketchval, exactval;
     const int fn(fileno(ofp));
     ks::string ks("#Path1\tPath2\tApproximate jaccard index\tExact jaccard index\t"
-                  "Absolute difference\t%% difference from exact value\tSketch size\n");
+                  "Absolute difference\t%difference from exact value\tSketch size\n");
 #if 0
     std::mt19937_64 mt(std::time(nullptr));
     std::shuffle(argv + optind, argv + argc, mt);
 #endif
+    Spacer sp(k);
     if(lowmem) {
         khash_t(all) *s1(kh_init(all)), *s2(kh_init(all));
         hll::hll_t h1(sketchsize), h2(sketchsize);
-        Spacer sp(k);
         for(size_t i(0); i < ngenomes; ++i) {
             assert(kh_size(s1) == 0);
             fill_hll(h1, std::vector<std::string>{argv[optind + i]}, k, k, sv, nullptr, 1, sketchsize);
             fill_set_genome<score::Lex>(argv[optind + i], sp, s1, i, nullptr);
+            LOG_DEBUG("Filled sets for %zu\n", i);
 #ifndef NOTHREADING
             #pragma omp parallel for
 #endif
             for(size_t j = i + 1; j < ngenomes; ++j) {
                 fill_set_genome<score::Lex>(argv[optind + j], sp, s2, j, nullptr);
-#if COPY_HLL
-                h2 = make_hll(std::vector<std::string>{argv[optind + j]}, k, k, sv, nullptr, 1, sketchsize);
-#else
                 fill_hll(h2, std::vector<std::string>{argv[optind + j]}, k, k, sv, nullptr, 1, sketchsize);
 #endif
+                LOG_DEBUG("Filled sets for %zu, %zu\n", i, j);
                 double sketchval = hll::jaccard_index(h1, h2);
                 double exactval  = emp::jaccard_index(s1, s2);
                 EMIT_RESULTS(sketchval, exactval);
                 kh_clear(all, s2);
-#if COPY_HLL
-#else
                 h2.clear();
-#endif
                 if(ks.size() >= 1 << 16) ks.write(fn), ks.clear();
             }
             kh_clear(all, s1);
@@ -101,7 +97,6 @@ int main(int argc, char *argv[]) {
     } else {
         std::vector<khash_t(all)*> sets;
         while(sets.size() < ngenomes) sets.emplace_back(kh_init(all));
-        Spacer sp(k);
         #pragma omp parallel for
         for(unsigned i = 0; i < ngenomes; ++i) {
             fill_set_genome<score::Lex>(argv[optind + i], sp, sets[i], i, nullptr);
@@ -120,5 +115,6 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+    ks.write(fn); ks.free();
     if(ofp != stdout) std::fclose(ofp);
 }
