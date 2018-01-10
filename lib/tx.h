@@ -36,6 +36,7 @@ protected:
     std::vector<tax_t> old_ids_;
     std::unordered_map<tax_t, std::vector<std::string>> path_map;
     std::unordered_map<tax_t, std::string> newid_path_map;
+    khash_t(p) *old_to_new_;
     uint64_t        counter_:62;
     uint64_t          filled_:1;
     uint64_t  panic_on_undef_:1;
@@ -45,6 +46,7 @@ public:
                         const khash_t(p) *old_tax, bool panic_on_undef=false):
         pmap_{kh_init(p)},
         name_map_{build_name_hash(name_path)},
+        old_to_new_(kh_init(p)),
         old_ids_{0, 1},
         counter_(1), filled_(false), panic_on_undef_(panic_on_undef)
     {
@@ -65,7 +67,6 @@ public:
         fill_path_map(paths);
         // Deterministic seeding that still varies run to run.
         std::mt19937 mt(std::hash<size_t>()(kh_size(old_tax) * path_map.size()));
-        std::unordered_map<tax_t, tax_t> old_to_new;
         for(auto &pair: path_map) {
             if(pair.second.size() > 1) {
                 for(auto &path: pair.second) {
@@ -90,22 +91,22 @@ public:
             return node_depth(old_tax, a) < node_depth(old_tax, b);
         });
         for(const auto tax: insertion_order) {
-            old_to_new[tax] = old_ids_.size();
+            int khr;
+            khiter_t ki(kh_put(p, old_to_new_, tax, &khr));
+            kh_val(old_to_new_, tax) = old_ids_.size();
             old_ids_.emplace_back(tax);
             ki = kh_put(p, pmap_, static_cast<tax_t>(old_ids_.size()), &khr);
-            kh_val(pmap_, ki) = old_to_new.at(kh_val(ct, kh_get(p, ct, tax)));
+            kh_val(pmap_, ki) = kh_val(old_to_new_, kh_get(p, old_to_new_, kh_val(ct, kh_get(p, ct, tax))));
             // TODO: remove \.at check when we're certain it's working.
         }
         khash_destroy(ct);
         // Now convert name_map from old to new.
         for(khint_t ki(0); ki < kh_size(name_map_); ++ki)
             if(kh_exist(name_map_, ki))
-                kh_val(name_map_, ki) = \
-                    old_to_new.at(kh_val(name_map_, ki));
-                    // TODO: remove \.at check when we're certain it's working.
+                kh_val(name_map_, ki) = kh_val(old_to_new_, kh_get(p, old_to_new_, kh_val(name_map_, ki)));
 
         LOG_DEBUG("Paths to genomes with new subtax elements:\n\n\n%s", newtaxprintf().data());
-        STL_FREE(path_map);
+        STLFREE(path_map);
     }
 
     ks::string newtaxprintf() {
@@ -153,9 +154,21 @@ public:
         }
         gzclose(fp);
     }
+    void write_old_to_new(const char *fn) {
+        gzFile fp(gzopen(fn, "wb"));
+        if(fp == nullptr) throw std::runtime_error(ks::sprintf("Could not open file at %s for writing", fn).data());
+#if ZLIB_VER_MAJOR <= 1 && ZLIB_VER_MINOR <= 2 && ZLIB_VER_REVISION < 5
+        gzbuffer(fp, 1 << 18);
+#endif
+        for(khiter_t ki(0); ki < kh_end(old_to_new_); ++ki)
+            if(kh_exist(old_to_new_, ki))
+                gzprintf(fp, "%u\n%u\n", kh_key(old_to_new_, ki), kh_val(old_to_new_, ki));
+        gzclose(fp);
+    }
     void clear() {
         if(name_map_) khash_destroy(name_map_);
         if(pmap_) khash_destroy(pmap_);
+        if(old_to_new_) khash_destroy(old_to_new_);
         STLFREE(old_ids_);
         STLFREE(path_map);
         STLFREE(newid_path_map);
