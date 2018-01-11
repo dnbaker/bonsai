@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <zlib.h>
 #include "kspp/ks.h"
 #include "klib/kstring.h"
 #include "khash64.h"
@@ -52,6 +53,11 @@
 #  define INLINE inline
 #  define PACKED
 #  endif
+#endif
+#if ZLIB_VER_MAJOR <= 1 && ZLIB_VER_MINOR <= 2 && ZLIB_VER_REVISION < 5
+#define gzbuffer(fp, size)
+#else
+#define gzbuffer(fp, size) gzbuffer(fp, size)
 #endif
 
 #ifdef USE_PDQSORT
@@ -228,8 +234,8 @@ size_t khash_write(T *map, const char *path) noexcept {
 template <typename T>
 T *khash_load_impl(std::FILE *fp) noexcept {
     T *rex((T *)std::calloc(1, sizeof(T)));
-    typedef typename std::remove_pointer<decltype(rex->keys)>::type keytype_t;
-    typedef typename std::remove_pointer<decltype(rex->vals)>::type valtype_t;
+    using keytype_t = std::remove_pointer_t<decltype(rex->keys)>;
+    using valtype_t = std::remove_pointer_t<decltype(rex->vals)>;
     fread(&rex->n_buckets, 1, sizeof(rex->n_buckets), fp);
     fread(&rex->n_occupied, 1, sizeof(rex->n_occupied), fp);
     fread(&rex->size, 1, sizeof(rex->size), fp);
