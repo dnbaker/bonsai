@@ -145,10 +145,8 @@ public:
     }
     void write_name_map(const char *fn) {
         gzFile fp(gzopen(fn, "wb"));
-        if(fp == nullptr) throw std::runtime_error(ks::sprintf("Could not open file at %s for writing", fn).data());
-#if ZLIB_VER_MAJOR <= 1 && ZLIB_VER_MINOR <= 2 && ZLIB_VER_REVISION < 5
         gzbuffer(fp, 1 << 18);
-#endif
+        if(fp == nullptr) throw std::runtime_error(ks::sprintf("Could not open file at %s for writing", fn).data());
         for(const auto &pair: newid_path_map) {
             gzprintf(fp, "%s\t%u\n", pair.second.data(), pair.first);
         }
@@ -157,9 +155,7 @@ public:
     void write_old_to_new(const char *fn) {
         gzFile fp(gzopen(fn, "wb"));
         if(fp == nullptr) throw std::runtime_error(ks::sprintf("Could not open file at %s for writing", fn).data());
-#if ZLIB_VER_MAJOR <= 1 && ZLIB_VER_MINOR <= 2 && ZLIB_VER_REVISION < 5
         gzbuffer(fp, 1 << 18);
-#endif
         for(khiter_t ki(0); ki < kh_end(old_to_new_); ++ki)
             if(kh_exist(old_to_new_, ki))
                 gzprintf(fp, "%u\n%u\n", kh_key(old_to_new_, ki), kh_val(old_to_new_, ki));
