@@ -14,6 +14,16 @@ u32 comb_size(const spvec_t &spaces) {
     return ret;
 }
 
+ks::string str(const spvec_t &vec) {
+    ks::string ret;
+    std::fprintf(stderr, "About to print ret\n");
+    std::fprintf(stderr, "About to print '%s'\n", ret.data());
+    for(const auto val: vec)
+        ret.sprintf("%u,", val);
+    ret.pop();
+    return ret;
+}
+
 spvec_t parse_spacing(const char *ss, unsigned k) {
     if(!ss) return spvec_t(k - 1, 0); // No spaces
 

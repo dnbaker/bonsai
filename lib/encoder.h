@@ -181,12 +181,13 @@ khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
 template<typename ScoreType>
 void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &space,
                     void *data=nullptr) {
-
+    hll.not_ready();
     Encoder<ScoreType> enc(nullptr, 0, space, data);
     gzFile fp(gzopen(path.data(), "rb"));
     if(fp == nullptr) LOG_EXIT("Could not open file at %s\n", path.data());
     kseq_t *ks(kseq_init(fp));
     u64 min;
+    LOG_DEBUG("I have initialized ks: %p, gzfp: %p, and am about to fill lmers.\n", (void *)ks, (void *)fp);
     while(kseq_read(ks) >= 0) {
         enc.assign(ks);
         while(enc.has_next_kmer())
@@ -281,12 +282,20 @@ void est_helper_fn(void *data_, long index, int tid) {
 
 template<typename ScoreType=score::Lex>
 void fill_hll(hll::hll_t &ret, const std::vector<std::string> &paths,
-              unsigned k, uint16_t w, spvec_t spaces,
+              unsigned k, uint16_t w, const spvec_t &spaces,
               void *data=nullptr, int num_threads=1, size_t np=23) {
     // Default to using all available threads if num_threads is negative.
-    if(num_threads < 1) num_threads = sysconf(_SC_NPROCESSORS_ONLN);
+#if 0
+    LOG_DEBUG("Filling hll of %zu/%zu size, %zu paths, k%u, w%u, data %p, nt %u, sketch size %zu",
+              ret.size(), ret.p(), paths.size(), k, w, data, num_threads, np);
+    LOG_DEBUG("Spacer: %s\n", ::emp::str(spaces).data());
+#endif
+    if(num_threads < 0) {
+        num_threads = sysconf(_SC_NPROCESSORS_ONLN);
+        LOG_WARNING("Number of threads was negative and has been adjusted to all available threads (%i).\n", num_threads);
+    }
     const Spacer space(k, w, spaces);
-    if(num_threads == 1) for(size_t i(0); i < paths.size(); hll_fill_lmers<ScoreType>(ret, paths[i++], space, data));
+    if(num_threads <= 1) for(size_t i(0); i < paths.size(); hll_fill_lmers<ScoreType>(ret, paths[i++], space, data));
     else {
         std::mutex m;
         est_helper helper{space, paths, m, np, data, ret};
