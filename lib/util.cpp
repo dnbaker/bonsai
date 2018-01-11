@@ -131,8 +131,7 @@ khash_t(name) *build_name_hash(const char *fn) noexcept {
     khint_t ki;
     while((len = getline(&buf, &bufsz, fp)) >= 0) {
         switch(*buf) case '\0': case '\n': case '#': continue;
-        p = strchr(buf, '\t');
-        *p = 0;
+        p = ::emp::strchrnul(buf, '\t');
         ki = kh_put(name, ret, buf, &khr);
         if(khr == 0) { // Key already present.
             LOG_INFO("Key %s already present. Updating value from %i to %s\n", kh_key(ret, ki), kh_val(ret, ki), p + 1);
