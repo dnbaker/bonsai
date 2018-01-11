@@ -105,7 +105,7 @@ public:
                     // TODO: remove \.at check when we're certain it's working.
 
         LOG_DEBUG("Paths to genomes with new subtax elements:\n\n\n%s", newtaxprintf().data());
-        STL_FREE(path_map);
+        STLFREE(path_map);
     }
 
     ks::string newtaxprintf() {
