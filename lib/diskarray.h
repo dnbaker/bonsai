@@ -6,6 +6,8 @@
 #include <sys/mman.h>
 
 namespace ba {
+using emp::khash_t(64);
+using emp::tax_t;
 
 void allocate_file(std::FILE *fp, size_t nbits);
 
@@ -47,6 +49,37 @@ public:
     size_t popcount() const {
         size_t ret, i;
         for(i = ret = 0; i < memsz(); ret += emp::popcnt::popcount((unsigned)(uint8_t)mm_[i++]));
+        return ret;
+    }
+    void fill_row(std::vector<uint8_t> &data, size_t row) const {
+        if(data.size() != nc_) data.resize(nc_);
+        std::copy(data.begin(), data.end(), mm_ + row * nc_);
+    }
+    std::vector<uint8_t> get_row(size_t row) const {
+        std::vector<uint8_t> ret;
+        fill_row(ret, row);
+        return ret;
+    }
+};
+
+class MMapTaxonomyBitmap: public DiskBitArray {
+    MMapTaxonomyBitmap(size_t nkmers, size_t ntax): DiskBitArray(nkmers, ntax) {}
+    void set_kmer(const khash_t(64) *map, u64 kmer, tax_t tax) {
+        khint_t ki(kh_get(64, map, kmer));
+        if(ki == kh_end(map)) throw 1;
+        set1(kh_val(map, ki), tax);
+    }
+    bool contains_kmer(const khash_t(64) *map, u64 kmer, tax_t tax) const {
+        khint_t ki(kh_get(64, map, kmer));
+        if(ki == kh_end(map)) throw 1;
+        return operator()(kh_val(map, ki), tax);
+    }
+    void fill_kmer_bitmap(std::vector<uint8_t> &data, const khash_t(64) *map, u64 kmer) {
+        if(data.size() != nc_) data.resize(nc_);
+    }
+    std::vector<uint8_t> kmer_bitmap(const khash_t(64) *map, u64 kmer) {
+        std::vector<uint8_t> ret;
+        fill_kmer_bitmap(ret, map, kmer);
         return ret;
     }
 };
