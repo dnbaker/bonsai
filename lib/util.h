@@ -1,6 +1,7 @@
 #ifndef _EMP_UTIL_H__
 #define _EMP_UTIL_H__
 #include <algorithm>
+#include <fstream>
 #include <chrono>
 #include <cinttypes>
 #include <cstdint>
@@ -438,6 +439,7 @@ INLINE char *get_cstr(T &str) {
 }
 INLINE char *get_cstr(char *str)             {return str;}
 INLINE const char *get_cstr(const char *str) {return str;}
+std::ifstream::pos_type filesize(const char* filename);
 
 } // namespace emp
 
