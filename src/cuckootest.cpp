@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
         std::fprintf(stderr, "Usage: %s <output_path> <tax_path> <name_table>\n", argv[0]);
         std::exit(1);
     }
-    int nthreads(8);
+    unsigned nthreads(8);
     FILE *ofp = stdout;
     cuckoohash_map<ITYPE, u32, identhash<ITYPE>> ccounter;
     std::deque<std::thread> threads;

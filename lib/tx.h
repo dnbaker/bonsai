@@ -46,19 +46,28 @@ public:
                         const khash_t(p) *old_tax, bool panic_on_undef=false):
         pmap_{kh_init(p)},
         name_map_{build_name_hash(name_path)},
-        old_to_new_(kh_init(p)),
         old_ids_{0, 1},
+        old_to_new_(kh_init(p)),
         counter_(1), filled_(false), panic_on_undef_(panic_on_undef)
     {
+        LOG_DEBUG("Initialized default stuff. name map size: %zu\n", kh_size(name_map_));
         // Copy input hash map
         khash_t(p) *ct(kh_init(p));
         kh_resize(p, ct, kh_size(old_tax));
+        assert(ct->n_buckets == old_tax->n_buckets && (std::to_string(ct->n_buckets) + "," + std::to_string(old_tax->n_buckets)).data());
         std::memcpy(ct->keys, old_tax->keys, sizeof(tax_t) * old_tax->n_buckets);
         std::memcpy(ct->vals, old_tax->vals, sizeof(tax_t) * old_tax->n_buckets);
         std::memcpy(ct->flags, old_tax->flags, __ac_fsize(old_tax->n_buckets));
 #define CP(x) ct->x = old_tax->x
         CP(n_buckets); CP(size); CP(n_occupied); CP(upper_bound);
 #undef CP
+        LOG_DEBUG("Copied stuff. copied map size: %zu\n", kh_size(ct));
+#if !NDEBUG
+        for(khint_t ki(0); ki < kh_end(ct); ++ki)
+            if(kh_exist(ct, ki))
+                assert(kh_get(p, old_tax, kh_key(ct, ki)) != kh_end(old_tax));
+#endif
+        LOG_DEBUG("Map was correctly copied.\n");
 
         // Add the root of the tree to our pmap.
         int khr;
@@ -156,9 +165,17 @@ public:
         gzFile fp(gzopen(fn, "wb"));
         if(fp == nullptr) throw std::runtime_error(ks::sprintf("Could not open file at %s for writing", fn).data());
         gzbuffer(fp, 1 << 18);
+        gzprintf(fp, "#Old\tNew\n");
         for(khiter_t ki(0); ki < kh_end(old_to_new_); ++ki)
             if(kh_exist(old_to_new_, ki))
-                gzprintf(fp, "%u\n%u\n", kh_key(old_to_new_, ki), kh_val(old_to_new_, ki));
+                gzprintf(fp, "%u\t%u\n", kh_key(old_to_new_, ki), kh_val(old_to_new_, ki));
+        gzclose(fp);
+    }
+    void write_new_to_old(const char *fn) {
+        gzFile fp(gzopen(fn, "wb"));
+        if(fp == nullptr) throw std::runtime_error(ks::sprintf("Could not open file at %s for writing", fn).data());
+        gzbuffer(fp, 1 << 18);
+        for(const auto &el: old_ids_) gzwrite(fp, (void *)&el, sizeof(el));
         gzclose(fp);
     }
     void clear() {
@@ -174,6 +191,9 @@ public:
     }
 };
 using concise_tax_t = TaxonomyReformation;
+std::vector<tax_t> build_new2old_map(const char *str, size_t bufsz=1<<16);
+INLINE std::vector<tax_t> build_new2old_map(const std::string &str, size_t bufsz) { return build_new2old_map(str.data(), bufsz);}
+std::vector<tax_t> binary_new2old_map(const char *);
 
 
 
