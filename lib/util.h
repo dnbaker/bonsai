@@ -1,6 +1,7 @@
 #ifndef _EMP_UTIL_H__
 #define _EMP_UTIL_H__
 #include <algorithm>
+#include <fstream>
 #include <chrono>
 #include <cinttypes>
 #include <cstdint>
@@ -13,6 +14,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <zlib.h>
 #include "kspp/ks.h"
 #include "klib/kstring.h"
 #include "khash64.h"
@@ -51,6 +53,12 @@
 #  define INLINE inline
 #  define PACKED
 #  endif
+#endif
+//#if ZLIB_VER_MAJOR <= 1 && ZLIB_VER_MINOR <= 2 && ZLIB_VER_REVISION < 5
+#if 1
+#define gzbuffer(fp, size)
+#else
+#define gzbuffer(fp, size) gzbuffer(fp, size)
 #endif
 
 #ifdef USE_PDQSORT
@@ -227,8 +235,8 @@ size_t khash_write(T *map, const char *path) noexcept {
 template <typename T>
 T *khash_load_impl(std::FILE *fp) noexcept {
     T *rex((T *)std::calloc(1, sizeof(T)));
-    typedef typename std::remove_pointer<decltype(rex->keys)>::type keytype_t;
-    typedef typename std::remove_pointer<decltype(rex->vals)>::type valtype_t;
+    using keytype_t = std::remove_pointer_t<decltype(rex->keys)>;
+    using valtype_t = std::remove_pointer_t<decltype(rex->vals)>;
     fread(&rex->n_buckets, 1, sizeof(rex->n_buckets), fp);
     fread(&rex->n_occupied, 1, sizeof(rex->n_occupied), fp);
     fread(&rex->size, 1, sizeof(rex->size), fp);
@@ -432,10 +440,31 @@ template<typename T> INLINE const char *get_cstr(const T &str) {return str.data(
 template<typename T> INLINE char *get_cstr(T &str)             {return str.data();}
 INLINE char *get_cstr(char *str)             {return str;}
 INLINE const char *get_cstr(const char *str) {return str;}
+std::ifstream::pos_type filesize(const char* filename);
 INLINE char *strchrnul(char *str, int c) {
     while(*str && *str != c) ++str;
     return str;
 }
+
+namespace detail {
+    static const std::unordered_map<int, const char *> zerr2str {
+        {Z_OK, "Z_OK"},
+        {Z_STREAM_END, "Z_STREAM_END"},
+        {Z_STREAM_END, "Z_STREAM_END"},
+        {Z_NEED_DICT, "Z_NEED_DICT"},
+        {Z_ERRNO, "Z_ERRNO"},
+        {Z_STREAM_ERROR, "Z_STREAM_ERROR"},
+        {Z_DATA_ERROR, "Z_DATA_ERROR"},
+        {Z_MEM_ERROR, "Z_MEM_ERROR"},
+        {Z_BUF_ERROR, "Z_BUF_ERROR"},
+        {Z_VERSION_ERROR, "Z_VERSION_ERROR"}
+    };
+}
+
+class zlib_error: public std::runtime_error {
+public:
+    zlib_error(int c, const char *fn=nullptr): std::runtime_error(ks::sprintf("zlib error code %u (%s).", c, detail::zerr2str.find(c)->second).data()) {}
+};
 
 } // namespace emp
 

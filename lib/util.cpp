@@ -468,7 +468,7 @@ std::unordered_map<tax_t, strlist> tax2desc_genome_map(
 #endif
             }
         }
-        for(const auto child: pair.second) 
+        for(const auto child: pair.second)
             if((pit = tx2g.find(child)) != tx2g.end())
                 for(const auto &el: pit->second)
                     list.push_front(el);
@@ -621,6 +621,10 @@ std::vector<std::string> get_paths(const char *path) {
     return ret;
 }
 
-
+std::ifstream::pos_type filesize(const char* filename)
+{
+    std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
+    return in.tellg();
+}
 
 } //namespace emp

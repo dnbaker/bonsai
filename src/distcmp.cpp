@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
     FILE *ofp(stdout);
     while((c = getopt(argc, argv, "p:o:k:n:mh")) >= 0) {
         switch(c) {
-            case 'n': sketchsize = std::atoi(optarg); break;
+            case 'n': sketchsize = std::atoi(optarg); LOG_DEBUG("Set sketch size to %u with string '%s'\n", sketchsize, optarg); break;
             case 'k':          k = std::atoi(optarg); break;
             case 'h': case '?': usage(argv[0]); break;
             case 'o':       ofp = std::fopen(optarg, "w"); break;
@@ -62,27 +62,24 @@ int main(int argc, char *argv[]) {
     const int fn(fileno(ofp));
     ks::string ks("#Path1\tPath2\tApproximate jaccard index\tExact jaccard index\t"
                   "Absolute difference\t%difference from exact value\tSketch size\n");
-#if 0
-    std::mt19937_64 mt(std::time(nullptr));
-    std::shuffle(argv + optind, argv + argc, mt);
-#endif
     Spacer sp(k);
     if(lowmem) {
         khash_t(all) *s1(kh_init(all)), *s2(kh_init(all));
+        kh_resize(all, s1, 1 << 16), kh_resize(all, s2, 1 << 16);
         hll::hll_t h1(sketchsize), h2(sketchsize);
+        std::vector<std::string> paths{"ZOMG"};
         for(size_t i(0); i < ngenomes; ++i) {
             assert(kh_size(s1) == 0);
-            fill_hll(h1, std::vector<std::string>{argv[optind + i]}, k, k, sv, nullptr, 1, sketchsize);
+            LOG_DEBUG("Filling hll\n");
+            paths[0] = argv[optind + i];
+            fill_hll(h1, paths, k, k, sv, nullptr, 1, sketchsize);
             fill_set_genome<score::Lex>(argv[optind + i], sp, s1, i, nullptr);
-            LOG_DEBUG("Filled sets for %zu\n", i);
 #ifndef NOTHREADING
             #pragma omp parallel for
 #endif
             for(size_t j = i + 1; j < ngenomes; ++j) {
                 fill_set_genome<score::Lex>(argv[optind + j], sp, s2, j, nullptr);
                 fill_hll(h2, std::vector<std::string>{argv[optind + j]}, k, k, sv, nullptr, 1, sketchsize);
-#endif
-                LOG_DEBUG("Filled sets for %zu, %zu\n", i, j);
                 double sketchval = hll::jaccard_index(h1, h2);
                 double exactval  = emp::jaccard_index(s1, s2);
                 EMIT_RESULTS(sketchval, exactval);
