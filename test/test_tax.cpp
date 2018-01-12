@@ -25,11 +25,13 @@ TEST_CASE("tax") {
         std::free(buf);
         std::fclose(fp);
     }
+    std::fprintf(stderr, "Parsed paths");
     Spacer sp(13, 13, v);
     kgset_t set(paths, sp);
     REQUIRE(set.size() == paths.size());
     count::Counter<bitvec_t> counts(bitmap_t(set).to_counter());
     adjmap_t adj(counts);
+    std::fprintf(stderr, "Made adjmap");
     //LOG_DEBUG("Weight: %zu. Number of bit patterns: %zu. Total weight of all bit patterns: %zu\n", set.weight(), counts.size(), counts.total());
 
     //counts.print_counts(stderr);
@@ -38,6 +40,7 @@ TEST_CASE("tax") {
     thing.reserve(1 << 16);
     for(size_t i(0); i < 1 << 16; ++i)
         thing.emplace_back(((uint64_t)rand() << 32) | rand());
+    std::fprintf(stderr, "Made thing");
 }
 
 TEST_CASE("bitstrings") {

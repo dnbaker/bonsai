@@ -54,7 +54,8 @@
 #  define PACKED
 #  endif
 #endif
-#if ZLIB_VER_MAJOR <= 1 && ZLIB_VER_MINOR <= 2 && ZLIB_VER_REVISION < 5
+//#if ZLIB_VER_MAJOR <= 1 && ZLIB_VER_MINOR <= 2 && ZLIB_VER_REVISION < 5
+#if 1
 #define gzbuffer(fp, size)
 #else
 #define gzbuffer(fp, size) gzbuffer(fp, size)
@@ -450,6 +451,26 @@ INLINE char *strchrnul(char *str, int c) {
     while(*str && *str != c) ++str;
     return str;
 }
+
+namespace detail {
+    static const std::unordered_map<int, const char *> zerr2str {
+        {Z_OK, "Z_OK"},
+        {Z_STREAM_END, "Z_STREAM_END"},
+        {Z_STREAM_END, "Z_STREAM_END"},
+        {Z_NEED_DICT, "Z_NEED_DICT"},
+        {Z_ERRNO, "Z_ERRNO"},
+        {Z_STREAM_ERROR, "Z_STREAM_ERROR"},
+        {Z_DATA_ERROR, "Z_DATA_ERROR"},
+        {Z_MEM_ERROR, "Z_MEM_ERROR"},
+        {Z_BUF_ERROR, "Z_BUF_ERROR"},
+        {Z_VERSION_ERROR, "Z_VERSION_ERROR"}
+    };
+}
+
+class zlib_error: public std::runtime_error {
+public:
+    zlib_error(int c, const char *fn=nullptr): std::runtime_error(ks::sprintf("zlib error code %u (%s).", c, detail::zerr2str.find(c)->second).data()) {}
+};
 
 } // namespace emp
 
