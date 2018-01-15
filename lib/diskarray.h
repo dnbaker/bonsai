@@ -11,6 +11,7 @@ using emp::tax_t;
 
 void allocate_file(std::FILE *fp, size_t nbits);
 
+
 class DiskBitArray {
 protected:
     std::FILE *fp_; // file pointer
@@ -37,6 +38,16 @@ public:
     ~DiskBitArray() {
         if(fp_) std::fclose(fp_);
         if(mm_) munmap((void *)mm_, memsz());
+    }
+    void set1_ts(size_t index) {
+        for(const char val(1u << (index & 0x7u));
+            (mm_[index>>3] & val) == 0;
+            __sync_bool_compare_and_swap(mm_ + (index>>3), mm_[index>>3], mm_[index>>3] | val));
+    }
+    void set0_ts(size_t index) {
+        for(const char val(~(1u << (index & 0x7u)));
+            mm_[index>>3] & ~val;
+            __sync_bool_compare_and_swap(mm_ + (index>>3), mm_[index>>3], mm_[index>>3] & val));
     }
     void set1(size_t index) {
         mm_[index>>3] |= (1u << (index & 0x7u));

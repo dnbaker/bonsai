@@ -33,7 +33,8 @@ std::vector<tax_t> binary_new2old_map(const char *fn) {
     std::vector<tax_t> ret;
     const size_t fsize(filesize(fn));
     if(fsize == 0) throw std::runtime_error(ks::sprintf("Empty file at %s", fn).data());
-    ret.reserve(fsize);
+    if(fsize & (sizeof(tax_t) - 1)) throw std::runtime_error(ks::sprintf("Wrong number of bytes %s (%zu/%zu)", fn, fsize, fsize & 3u).data());
+    ret.reserve(fsize >> 2);
     int c;
     while((c = gzread(fp, (void *)&tmp, sizeof(tmp))) == Z_OK) ret.push_back(tmp);
     if(c != Z_STREAM_END) throw zlib_error(c, fn);
