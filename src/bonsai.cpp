@@ -409,10 +409,25 @@ int err_main(int argc, char *argv[]) {
 }
 
 int zomg_main(int argc, char *argv[]) {
+    // This is testing code which will eventually prepare the reformed taxonomy (without and with)
+    // new nodes for downstream work and classificaiton.
     std::vector<std::string> paths {"1", "2", "3"};
     TaxonomyReformation tr("Foobar", paths, nullptr);
     return EXIT_FAILURE;
 }
+
+int mmap_bitmap_main(int argc, char *argv[]) {
+#if 0
+    1. HLL -> estimate total number of kmers in data.
+    2. Round up to upper bound of expected size.
+    3. Make ba::DiskArray
+    4. Update from all genomes in threadsafe way.
+    5. ???
+    6. Profit
+#endif
+    return EXIT_SUCCESS;
+}
+
 
 
 
