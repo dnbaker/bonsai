@@ -39,15 +39,11 @@ public:
         if(fp_) std::fclose(fp_);
         if(mm_) munmap((void *)mm_, memsz());
     }
-    void set1_ts(size_t index) {
-        for(const char val(1u << (index & 0x7u));
-            (mm_[index>>3] & val) == 0;
-            __sync_bool_compare_and_swap(mm_ + (index>>3), mm_[index>>3], mm_[index>>3] | val));
+    auto set1_ts(size_t index) {
+        return __sync_or_and_fetch(mm_ + (index>>3), 1u << (index & 0x7u));
     }
     void set0_ts(size_t index) {
-        for(const char val(~(1u << (index & 0x7u)));
-            mm_[index>>3] & ~val;
-            __sync_bool_compare_and_swap(mm_ + (index>>3), mm_[index>>3], mm_[index>>3] & val));
+        return __sync_xor_and_fetch(mm_ + (index>>3), 1u << (index & 0x7u));
     }
     void set1(size_t index) {
         mm_[index>>3] |= (1u << (index & 0x7u));
