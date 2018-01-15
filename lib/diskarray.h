@@ -82,7 +82,10 @@ class MMapTaxonomyBitmap: public DiskBitArray {
         return operator()(kh_val(map, ki), tax);
     }
     void fill_kmer_bitmap(std::vector<uint8_t> &data, const khash_t(64) *map, u64 kmer) {
-        if(data.size() != nc_) data.resize(nc_);
+        if(data.size() != (nc_ + 7)>>3) data.resize((nc_ + 7)>>3);
+        khint_t ki(kh_get(64, map, kmer));
+        if(ki == kh_end(map)) throw 2;
+        std::memcpy(data.data(), mm_ + ((kh_val(map, ki) * nc_)>>3), data.size());
     }
     std::vector<uint8_t> kmer_bitmap(const khash_t(64) *map, u64 kmer) {
         std::vector<uint8_t> ret;
