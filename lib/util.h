@@ -198,6 +198,44 @@ void khash_destroy(khash_t(p) *map) noexcept;
 template<>
 void khash_destroy(khash_t(name) *map) noexcept;
 
+#define KHR(x) khashraii_##x##_t
+
+#define KHRAII_DEC(x)\
+\
+class KHR(x) {\
+    khash_t(x) h_;\
+public:\
+    KHR(x)(): h_{0} {}\
+    /* \
+    KHR(x)(size_t n): KHR(x) () {resize(n);}\
+    operator khash_t(x) *() {return &h_;}\
+    operator const khash_t(x) *() const {return &h_;}\
+    khash_t(x) *operator->() {return &h_;}\
+    const khash_t(x) *operator->() const {return &h_;}\
+    void resize(size_t n) {kh_resize(x, &h_, n);}\
+    KHR(x)(const KHR(x) &other): KHR(x)() {\
+        resize(other->n_buckets);\
+        std::memcpy(h_.keys, other->keys, sizeof(*h_.keys) * other->n_buckets);\
+        std::memcpy(h_.vals, other->vals, sizeof(*h_.vals) * other->n_buckets);\
+        std::memcpy(h_.flags, other->flags, sizeof(*h_.flags) * __ac_fsize(other->n_buckets));\
+    }\
+    KHR(x)(KHR(x) &&other): {\
+        std::memcpy(this, &other, sizeof(*this));\
+        std::memset(&other, 0, sizeof(other));\
+    }\
+    ~KHR(x)() {\
+        std::free(h_.keys);\
+        std::free(h_.vals);\
+        std::free(h_.flags);\
+    }\
+    */\
+};
+
+KHRAII_DEC(64)
+KHRAII_DEC(all)
+KHRAII_DEC(p)
+KHRAII_DEC(c)
+
 template <typename T>
 void print_khash(T *rex) noexcept {
     fprintf(stderr, "n buckets %zu, nocc %zu, size %zu, upper bound %zu.\n",

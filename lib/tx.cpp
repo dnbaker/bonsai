@@ -41,4 +41,30 @@ std::vector<tax_t> binary_new2old_map(const char *fn) {
     return ret;
 }
 
+
+void bitmap_filler_helper(void *data_, long index, int tid) {
+    bf_helper_t &data(*(bf_helper_t *)data_);
+    ba::MMapTaxonomyBitmap &map(data.bm_);
+    const tax_t taxid(data.taxes_[index]);
+    u64 val;
+    Encoder enc(data.sp_);
+    gzFile fp(gzopen(data.paths_[index].data(), "rb"));
+    kseq_t *ks(kseq_init(fp));
+    while(kseq_read(ks) >= 0) {
+        enc.assign(ks);
+        while(enc.has_next_kmer())
+            if((val = enc.next_minimizer()) != BF)
+                map.set_kmer_ts(data.h_, val, taxid);
+    }
+    kseq_destroy(ks);
+    gzclose(fp);
+}
+#if 0
+struct bf_helper_t {
+    const Spacer &sp_;
+    const std::vector<std::string> &paths_;
+    const khash_t(64) *h_;
+};
+#endif
+
 } // namespace emp
