@@ -9,6 +9,7 @@
 #include "lib/counter.h"
 #include "lib/bits.h"
 #include "lib/linearset.h"
+#include "lib/diskarray.h"
 
 
 template<typename T>
@@ -194,6 +195,14 @@ using concise_tax_t = TaxonomyReformation;
 std::vector<tax_t> build_new2old_map(const char *str, size_t bufsz=1<<16);
 INLINE std::vector<tax_t> build_new2old_map(const std::string &str, size_t bufsz) { return build_new2old_map(str.data(), bufsz);}
 std::vector<tax_t> binary_new2old_map(const char *);
+void bitmap_filler_helper(void *data_, long index, int tid);
+struct bf_helper_t {
+    const Spacer &sp_;
+    const std::vector<std::string> &paths_;
+    const std::vector<tax_t> &taxes_;
+    const khash_t(64) *h_;
+    ba::MMapTaxonomyBitmap &bm_;
+};
 
 
 
