@@ -467,6 +467,7 @@ INLINE double kmer_entropy(uint64_t kmer, unsigned k) {
     // for contiguous seeds.
     unsigned cts[4]{0};
     while(k--) ++cts[kmer & 0x3], kmer >>= 2;
+#pragma message("This could be very certainly accelerated with bit magic.")
     const double div(1./k);
     double tmp(div * cts[0]), sum(tmp * std::log2(tmp));
     for(unsigned i(1); i < 4; ++i)
