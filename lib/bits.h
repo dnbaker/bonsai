@@ -22,7 +22,7 @@ INLINE unsigned popcount(char val) noexcept {
 
 template<>
 INLINE unsigned popcount(unsigned long long val) noexcept {
-#if USE_CQF_ASM
+#ifndef NO_USE_CQF_ASM
 // From cqf https://github.com/splatlab/cqf/
     asm("popcnt %[val], %[val]"
             : [val] "+r" (val)
