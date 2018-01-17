@@ -770,14 +770,11 @@ INLINE double kmer_entropy(uint64_t kmer, unsigned k) {
         case 3: counts += lut3[kmer]; break;
     }
 #endif
-    const unsigned cts [] {
-        counts >> 24, (counts >> 16) & 0xFF, (counts >> 8) & 0xFF, counts & 0xF
-    };
     const double div(1./k);
-    double tmp(div * cts[0]), sum(tmp * std::log2(tmp));
-    for(unsigned i(1); i < 4; ++i)
-        tmp = div * cts[i], sum += tmp * std::log2(tmp);
-    return tmp;
+    double tmp(div * (counts >> 24)), sum(tmp * std::log2(tmp));
+    tmp = div * ((counts >> 16) & 0xFF), sum += tmp * std::log2(tmp);
+    tmp = div * ((counts >> 8) & 0xFF), sum += tmp * std::log2(tmp);
+    return tmp = div * (counts & 0xFF), sum += tmp * std::log2(tmp);
 }
 
 template<typename T> INLINE const char *get_cstr(const T &str) {return str.data();}
