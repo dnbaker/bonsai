@@ -1,7 +1,7 @@
 #ifndef _BITS_H__
 #define _BITS_H__
 #include <type_traits>
-#include "lib/util.h"
+#include "lib/kmerutil.h"
 
 namespace emp {
 
@@ -67,6 +67,7 @@ INLINE auto vec_bitdiff(const T &a, const T &b) {
 }
 
 } //namespace popcnt
+
 
 
 } // namespace emp
