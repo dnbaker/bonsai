@@ -5,7 +5,7 @@
 #include "lib/bits.h"
 #include "lib/counter.h"
 #include "lib/bitcmp.h"
-#include "lib/linearset.h"
+#include "lib/linear.h"
 
 namespace emp {
 
