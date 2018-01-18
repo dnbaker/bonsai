@@ -344,7 +344,6 @@ inline bool has_key(const Key &key, const Map &map) {
 
 INLINE u32 nuccount(u64 kmer, unsigned k) {
     kmer ^= XOR_MASK;
-    if(kmer == UINT64_C(-1) || kmer == UINT64_C(0)) return 0.; // Whooooooo
     u32 counts(0);
     static const u32 lut4 [] {
         67108864, 50397184, 50331904, 50331649, 50397184, 33685504, 33620224, 33619969, 50331904, 33620224, 33554944, 33554689, 50331649, 33619969, 33554689, 33554434,
