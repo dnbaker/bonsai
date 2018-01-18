@@ -182,7 +182,9 @@ public:
     }
     bool contains(const K &val) const {return find(val) != n_;}
     bool contains_val(const V &val) const {return find_val(val) != n_;}
-    bool contains_pair(const K &key, const V &val) const {
+    bool contains_pair(const K &val, const V &val) const {return find(val) != n_;}
+    template<typename Predicate>
+    bool find_if_pair(const K &key, const V &val, Predicate p) const {
         for(size_type i(0); i < n_; ++i)
             if(keys_[i] == key)
                 return vals_[i] == val;
@@ -201,23 +203,6 @@ public:
         new(data_ + n_++) T(std::forward<Args>(args)...);
         return back();
     }
-    template<typename... Args>
-    auto &emplace_front(Args&& ... args) {
-        if(n_ + 1 > m_)
-            reserve(std::max(static_cast<size_type>(m_ * RESIZE_FACTOR), m_ + 1));
-        std::memmove(data_.get() + sizeof(T), data_, n_ * sizeof(T));
-        new(data_) T(std::forward<Args>(args)...);
-        ++n_;
-        return front();
-    }
-    auto &push_back(const T &val) {
-        if(n_ + 1 > m_)
-            reserve(std::max(static_cast<size_type>(m_ * RESIZE_FACTOR), m_ + 1));
-        data_.get()[n_++] = val;
-        return back();
-    }
-    
-    void zero() {std::memset(data_.get(), 0, sizeof(T) * n_);} // DOES NOT CALL DESTRUCTORS
     void reserve(size_t newsize) {
         if(newsize > m_) {
             auto tmp(static_cast<T*>(std::realloc(data_.get(), sizeof(T) * newsize)));

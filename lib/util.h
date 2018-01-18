@@ -374,10 +374,18 @@ INLINE u32 nuccount(u64 kmer, unsigned k) {
     };
     static const u32 lut1 [] {16777216, 65536, 256, 1};
     static const u32 lut0 [] {0};
-    const u32 *luts[] {lut0, lut1, lut2, lut3};
-    while(k > 4) counts += lut4[kmer & 0xFF], kmer >>= 8, k -= 4;
-    counts += luts[k][kmer];
-    return counts;
+    static const u32 *luts[] {lut0, lut1, lut2, lut3};
+    switch(k >> 2) {
+        case 8: counts += lut4[kmer & 0xFF], kmer >>= 8, k -= 4; [[fallthrough]]
+        case 7: counts += lut4[kmer & 0xFF], kmer >>= 8, k -= 4; [[fallthrough]]
+        case 6: counts += lut4[kmer & 0xFF], kmer >>= 8, k -= 4; [[fallthrough]]
+        case 5: counts += lut4[kmer & 0xFF], kmer >>= 8, k -= 4; [[fallthrough]]
+        case 4: counts += lut4[kmer & 0xFF], kmer >>= 8, k -= 4; [[fallthrough]]
+        case 3: counts += lut4[kmer & 0xFF], kmer >>= 8, k -= 4; [[fallthrough]]
+        case 2: counts += lut4[kmer & 0xFF], kmer >>= 8, k -= 4; [[fallthrough]]
+        case 1: counts += lut4[kmer & 0xFF], kmer >>= 8, k -= 4; [[fallthrough]]
+    }
+    return counts += luts[k][kmer];
 }
 
 #if !NDEBUG
