@@ -3,6 +3,7 @@
 #include <type_traits>
 #include <stdexcept>
 #include <cstring>
+#include <cstdint>
 #include <ratio>
 #include <memory>
 #include <cstdlib>
@@ -135,10 +136,30 @@ public:
     }
 };
 
-template<typename K, typename V, class ResizeRatio=std::ratio<3,2>>
-class map {
+template<typename K, typename SizeType=std::uint32_t>
+class counter {
+    // Simple class for a linear-search dictionary for tables of up to ~100 integers.
+    // This outperforms trees and hash tables for small numbers of elements.
+    // This is ideal for our taxonomic resolution at classification time, where the number of kmers and therefore assigned taxids is limited.
     std::vector<K> keys;
-    std::vector<K> vals;
+    std::vector<SizeType> vals;
+public:
+    using size_type = SizeType;
+    unsigned add(const K &key) {
+        if(auto it(std::find(keys.begin(), keys.end(), key)); it == keys.end()) {
+            vals.push_back(1);
+            keys.push_back(key);
+            return keys.size() - 1;
+        } else {
+            ++vals[it - keys.begin()];
+            return it - keys.begin();
+        }
+    }
+    unsigned get_count(const K &key) {
+        if(auto it(std::find(keys.begin(), keys.end(), key)); it != keys.end())
+            return vals[it - keys.begin()];
+        else return 0;
+    }
 };
 
 }
