@@ -179,12 +179,12 @@ std::map<tax_t, tax_t> build_kraken_tax(const std::string &fname) {
 tax_t lca(const std::map<tax_t, tax_t> &parent_map, tax_t a, tax_t b)
 {
   std::map<tax_t, tax_t>::const_iterator m;
-  if (a == 0 || b == 0) return a ? a : b;
+  if(a == 0 || b == 0) return a ? a : b;
 
   std::set<uint32_t> a_path;
   while (a) a_path.insert(a), a = parent_map.find(a)->second;
   while (b) {
-    if (a_path.find(b) != a_path.end())
+    if(a_path.find(b) != a_path.end())
       return b;
     b = parent_map.find(b)->second;
   }
@@ -230,44 +230,74 @@ void kset_union(khash_t(all) *a, khash_t(all) *b) noexcept {
 
  // Tree resolution: take all hit taxa (plus ancestors), then
  // return leaf of highest weighted leaf-to-root path.
- // Taken, slightly modified from Kraken
-tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
-                      khash_t(p) *parent_map) noexcept
+ // Taken, modified from Kraken with new, faster containers.
+tax_t resolve_tree(const std::map<tax_t, tax_t> &hit_counts,
+                   const khash_t(p) *parent_map) noexcept
 {
-  std::set<tax_t> max_taxa;
+  linear::set<tax_t> max_taxa;
   tax_t max_taxon(0), max_score(0);
 
   // Sum each taxon's LTR path
   for(auto it(hit_counts.cbegin()), e(hit_counts.cend()); it != e; ++it) {
     tax_t taxon(it->first), node(taxon), score(0);
-    khiter_t ki;
     // Instead of while node > 0
-    while(node) {
-        score += hit_counts[node];
-        ki = kh_get(p, parent_map, node);
-        node = kh_val(parent_map, ki);
-    }
-    if (score > max_score) {
+    while(node)
+        score += hit_counts.at(node), node = kh_val(parent_map, kh_get(p, parent_map, node));
+    if(score > max_score) {
       max_taxa.clear();
       max_score = score;
       max_taxon = taxon;
       //LOG_DEBUG("max score: %u. max taxon: %u\n", max_score, max_taxon);
-    } else if (score == max_score) {
-      if (max_taxa.empty()) // Is this check needed?
+    } else if(score == max_score) {
+      if(max_taxa.empty()) // Is this check needed?
         max_taxa.insert(max_taxon);
       max_taxa.insert(taxon);
     }
   }
   // If two LTR paths are tied for max, return LCA of all
   if(max_taxa.size()) {
-    //LOG_DEBUG("Ambiguous. Get the lca of all of these. Size: %zu\n", max_taxa.size());
     auto sit(max_taxa.begin());
-    max_taxon = *sit;
-    for(++sit; sit != max_taxa.end(); ++sit) max_taxon = lca(parent_map, max_taxon, *sit);
+    for(max_taxon = *sit++;sit != max_taxa.end(); max_taxon = lca(parent_map, max_taxon, *sit++));
   }
 
   return max_taxon;
 }
+tax_t resolve_tree(const linear::counter<tax_t, u16> &hit_counts,
+                   const khash_t(p) *parent_map) noexcept
+{
+  linear::set<tax_t> max_taxa;
+  tax_t max_taxon(0), max_score(0);
+
+  // Sum each taxon's LTR path
+  for(unsigned i(0); i < hit_counts.size(); ++i) {
+    tax_t taxon(hit_counts.keys()[i]), node(taxon), score(0);
+    khiter_t ki;
+    // Instead of while node > 0
+    while(node) {
+        score += hit_counts.get_count(node);
+        ki = kh_get(p, parent_map, node);
+        node = kh_val(parent_map, ki);
+    }
+    if(score > max_score) {
+      max_taxa.clear();
+      max_score = score;
+      max_taxon = taxon;
+      //LOG_DEBUG("max score: %u. max taxon: %u\n", max_score, max_taxon);
+    } else if(score == max_score) {
+      if(max_taxa.empty()) // Is this check needed?
+        max_taxa.insert(max_taxon);
+      max_taxa.insert(taxon);
+    }
+  }
+  // If two LTR paths are tied for max, return LCA of all
+  if(max_taxa.size()) {
+    auto sit(max_taxa.begin());
+    for(max_taxon = *sit++;sit != max_taxa.end(); max_taxon = lca(parent_map, max_taxon, *sit++));
+  }
+
+  return max_taxon;
+}
+
 
 std::string rand_string(size_t n) {
     std::string ret;
