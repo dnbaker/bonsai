@@ -1,6 +1,5 @@
 #ifndef _DB_H__
 #define _DB_H__
-
 #include <atomic>
 #include <zlib.h>
 #include "kspp/ks.h"
@@ -10,11 +9,13 @@
 #include "lib/util.h"
 
 namespace emp {
-void append_kraken_classification(const std::map<tax_t, u32> &hit_counts,
+using tax_counter = linear::counter<tax_t, u16>;
+
+void append_kraken_classification(const tax_counter &hit_counts,
                                   const std::vector<tax_t> &taxa,
                                   const tax_t taxon, const u32 ambig_count, const u32 missing_count,
                                   bseq1_t *bs, kstring_t *bks);
-void append_fastq_classification(const std::map<tax_t, u32> &hit_counts,
+void append_fastq_classification(const tax_counter &hit_counts,
                                  const std::vector<u32> &taxa,
                                  const tax_t taxon, const u32 ambig_count, const u32 missing_count,
                                  bseq1_t *bs, kstring_t *bks, const int verbose, const int is_paired);
@@ -33,8 +34,7 @@ struct ClassifierGeneric {
     Encoder<ScoreType> enc_;
     int nt_;
     int output_flag_;
-    std::atomic<u64> n_classified_;
-    std::atomic<u64> n_unclassified_;
+    std::atomic<u64> classified_[2];
     public:
     void set_emit_all(bool setting) {
         if(setting) output_flag_ |= output_format::EMIT_ALL;
@@ -57,8 +57,7 @@ struct ClassifierGeneric {
         sp_(k, wsz, spaces),
         enc_(sp_),
         nt_(num_threads > 0 ? num_threads: 16),
-        n_classified_(0),
-        n_unclassified_(0)
+        classified_{0, 0}
     {
         set_emit_all(emit_all);
         set_emit_fastq(emit_fastq);
@@ -67,6 +66,8 @@ struct ClassifierGeneric {
     ClassifierGeneric(const char *dbpath, spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
                       bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false):
         ClassifierGeneric(khash_load<khash_t(c)>(dbpath), spaces, k, wsz, num_threads, emit_all, emit_fastq, emit_kraken) {}
+    u64 n_classified()   const {return classified_[0];}
+    u64 n_unclassified() const {return classified_[1];}
 };
 
 INLINE void append_taxa_run(const tax_t last_taxa,
@@ -96,17 +97,16 @@ INLINE void append_counts(u32 count, const char character, kstring_t *ks) {
 
 using Classifier = ClassifierGeneric<score::Lex>;
 template<typename ScoreType>
-unsigned classify_seq(ClassifierGeneric<ScoreType> &c, Encoder<ScoreType> &enc, khash_t(p) *taxmap, bseq1_t *bs, const int is_paired) {
+unsigned classify_seq(ClassifierGeneric<ScoreType> &c,
+                      Encoder<ScoreType> &enc,
+                      const khash_t(p) *taxmap, bseq1_t *bs, const int is_paired, std::vector<tax_t> &taxa) {
     u64 kmer;
     khiter_t ki;
-    std::map<tax_t, u32> hit_counts;
-    std::map<tax_t, u32>::iterator it;
+    linear::counter<tax_t, u16> hit_counts;
     u32 ambig_count(0), missing_count(0);
     tax_t taxon(0);
     ks::string bks(bs->sam);
-    const size_t reslen(bs->l_seq - c.sp_.c_ + 1);
-    std::vector<tax_t> taxa;
-    taxa.reserve(reslen > 0 ? reslen: 0); // Reserve memory without initializing
+    taxa.clear();
 
     enc.assign(bs->seq, bs->l_seq);
     while(enc.has_next_kmer()) {
@@ -116,14 +116,9 @@ unsigned classify_seq(ClassifierGeneric<ScoreType> &c, Encoder<ScoreType> &enc, 
             if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count, taxa.push_back(0);
             //If the kmer is missing from our database, just say we don't know what it is.
             else {
-                // Check map for presence of the hit.
-                // If it's not there, insert it with a hint.
                 // Otherwise, increment the count.
                 taxa.push_back(kh_val(c.db_, ki));
-                if((it = hit_counts.lower_bound(kh_val(c.db_, ki))) == hit_counts.end() ||
-                        it->first != kh_val(c.db_, ki)) {
-                    hit_counts.emplace_hint(it, kh_val(c.db_, ki), 1);
-                } else ++it->second;
+                hit_counts.add(kh_val(c.db_, ki));
             }
         }
     }
@@ -139,26 +134,20 @@ unsigned classify_seq(ClassifierGeneric<ScoreType> &c, Encoder<ScoreType> &enc, 
                     // Check map for presence of the hit.
                     // If it's not there, insert it with a hint.
                     // Otherwise, increment the count.
-                    if((it = hit_counts.lower_bound(kh_val(c.db_, ki))) == hit_counts.end() ||
-                            it->first != kh_val(c.db_, ki))
-                        hit_counts.emplace_hint(it, kh_val(c.db_, ki), 1);
-                    else ++it->second;
-                    taxa.push_back(0);
+                    taxa.push_back(kh_val(c.db_, ki));
+                    hit_counts.add(kh_val(c.db_, ki));
                 }
             }
         }
     }
 
-    if((taxon = resolve_tree(hit_counts, taxmap))) ++c.n_classified_;
-    else                                           ++c.n_unclassified_;
+    ++c.classified_[!(taxon = resolve_tree(hit_counts, taxmap))];
     if(c.get_emit_all() || taxon) {
         if(c.get_emit_fastq()) {
             append_fastq_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, kspp2ks(bks), c.get_emit_kraken(), is_paired);
         } else if(c.get_emit_kraken()) {
             append_kraken_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, kspp2ks(bks));
         }
-        // Else just increase quantitation... But that requires some kind of lock-free hash table for counting.
-        // Use Jellyfish?
     }
     bs->sam   = bks.release();
     return bs->l_sam = bks.size();

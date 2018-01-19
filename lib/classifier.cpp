@@ -8,14 +8,15 @@ void kt_for_helper(void *data_, long index, int tid) {
     size_t retstr_size(0);
     const int inc(!!data->is_paired_ + 1);
     Encoder<score::Lex> enc(data->c_.enc_);
+    std::vector<tax_t> taxa;
     for(unsigned i(index * data->per_set_),end(std::min(i + data->per_set_, data->total_));
         i < end;
         i += inc)
-            retstr_size += classify_seq(data->c_, enc, data->taxmap, data->bs_ + i, data->is_paired_);
+            retstr_size += classify_seq(data->c_, enc, data->taxmap, data->bs_ + i, data->is_paired_, taxa);
     data->retstr_size_ += retstr_size;
 }
 
-void append_fastq_classification(const std::map<tax_t, u32> &hit_counts,
+void append_fastq_classification(const tax_counter &hit_counts,
                                  const std::vector<tax_t> &taxa,
                                  const tax_t taxon, const u32 ambig_count, const u32 missing_count,
                                  bseq1_t *bs, kstring_t *bks, const int verbose, const int is_paired) {
@@ -52,18 +53,17 @@ void append_fastq_classification(const std::map<tax_t, u32> &hit_counts,
     bks->s[bks->l] = 0;
 }
 
-void append_kraken_classification(const std::map<tax_t, u32> &hit_counts,
+void append_kraken_classification(const tax_counter &hit_counts,
                                   const std::vector<tax_t> &taxa,
                                   const tax_t taxon, const u32 ambig_count, const u32 missing_count,
                                   bseq1_t *bs, kstring_t *bks) {
-    kputc((taxon == 0) * ('U' - 'C') + 'C', bks);
-    //kputc(taxon ? 'C': 'U', bks); Equivalent to above but without a branch.
-    //Probably meaningless in practice, but....
-    kputc('\t', bks);
+    const char tbl[]{'C', 'U'};
+    kputc_(tbl[!taxon], bks);
+    kputc_('\t', bks);
     kputs(bs->name, bks);
-    kputc('\t', bks);
+    kputc_('\t', bks);
     kputuw_(taxon, bks);
-    kputc('\t', bks);
+    kputc_('\t', bks);
     kputw(bs->l_seq, bks);
     kputc('\t', bks);
     append_counts(missing_count, 'M', bks);
