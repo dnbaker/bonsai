@@ -383,27 +383,10 @@ INLINE u32 nuccount(u64 kmer, unsigned k) {
         case 4: counts += lut4[kmer & 0xFF], kmer >>= 8, k -= 4; [[fallthrough]]
         case 3: counts += lut4[kmer & 0xFF], kmer >>= 8, k -= 4; [[fallthrough]]
         case 2: counts += lut4[kmer & 0xFF], kmer >>= 8, k -= 4; [[fallthrough]]
-        case 1: counts += lut4[kmer & 0xFF], kmer >>= 8, k -= 4; [[fallthrough]]
+        case 1: counts += lut4[kmer & 0xFF], kmer >>= 8, k -= 4;
     }
     return counts += luts[k][kmer];
 }
-
-#if !NDEBUG
-template<typename T, class Compare=std::less<typename T::value_type>>
-void assert_sorted_impl(const T &container, Compare cmp=Compare{}) {
-    using std::begin;
-    auto it(begin(container)), it2(begin(container));
-    if(it2 != end(container)) ++it2;
-    while(it2 != end(container)) {
-        assert(cmp(*it, *it2));
-        ++it, ++it2;
-    }
-}
-#define assert_sorted(container, ...) ::emp::assert_sorted_impl(container, ##__VA_ARGS__)
-#else
-#define assert_sorted(container, ...)
-#endif
-
 
 #if 0
 superkingdom
@@ -546,7 +529,10 @@ namespace detail {
 
 class zlib_error: public std::runtime_error {
 public:
-    zlib_error(int c, const char *fn=nullptr): std::runtime_error(ks::sprintf("zlib error code %u (%s).", c, detail::zerr2str.find(c)->second).data()) {}
+    zlib_error(int c, const char *fn=nullptr):
+        std::runtime_error(ks::sprintf("zlib error code %u (%s) accessing file %s.", c,
+                                       detail::zerr2str.at(c), fn ? fn: "<no file provided>").data())
+    {}
 };
 
 } // namespace emp
