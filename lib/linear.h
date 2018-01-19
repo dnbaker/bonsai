@@ -104,7 +104,9 @@ public:
         return back();
     }
     
-    void zero() {std::memset(data_.get(), 0, sizeof(T) * n_);} // DOES NOT CALL DESTRUCTORS
+    void zero()  {std::memset(data_.get(), 0, sizeof(T) * n_);} // DOES NOT CALL DESTRUCTORS
+    void clear() {n_ = 0;}
+    bool empty() const {return size() == 0;}
     void reserve(size_t newsize) {
         if(newsize > m_) {
             auto tmp(static_cast<T*>(std::realloc(data_.get(), sizeof(T) * newsize)));
@@ -144,25 +146,28 @@ class counter {
     // Simple class for a linear-search dictionary for tables of up to ~100 integers.
     // This outperforms trees and hash tables for small numbers of elements.
     // This is ideal for our taxonomic resolution at classification time, where the number of kmers and therefore assigned taxids is limited.
-    std::vector<K> keys;
-    std::vector<SizeType> vals;
+    std::vector<K> keys_;
+    std::vector<SizeType> vals_;
 public:
     using size_type = SizeType;
     unsigned add(const K &key) {
-        if(auto it(std::find(keys.begin(), keys.end(), key)); it == keys.end()) {
-            vals.push_back(1);
-            keys.push_back(key);
-            return keys.size() - 1;
+        if(auto it(std::find(keys_.begin(), keys_.end(), key)); it == keys_.end()) {
+            vals_.push_back(1);
+            keys_.push_back(key);
+            return keys_.size() - 1;
         } else {
-            ++vals[it - keys.begin()];
-            return it - keys.begin();
+            ++vals_[it - keys_.begin()];
+            return it - keys_.begin();
         }
     }
-    unsigned get_count(const K &key) {
-        if(auto it(std::find(keys.begin(), keys.end(), key)); it != keys.end())
-            return vals[it - keys.begin()];
+    unsigned get_count(const K &key) const {
+        if(auto it(std::find(keys_.begin(), keys_.end(), key)); it != keys_.end())
+            return vals_[it - keys_.begin()];
         else return 0;
     }
+    size_type size() const { return keys_.size();}
+    const std::vector<K> &keys() const {return keys_;}
+    const std::vector<K> &vals() const {return vals_;}
 };
 
 }

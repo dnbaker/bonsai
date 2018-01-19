@@ -21,6 +21,7 @@
 #include "lib/sample_gen.h"
 #include "lib/rand.h"
 #include "lib/lazyvec.h"
+#include "lib/linear.h"
 
 #ifdef __GNUC__
 #  ifndef likely
@@ -98,15 +99,15 @@ void STLFREE(T &container) {
 
 namespace emp {
 
-using u32 = std::uint32_t;
-using tax_t = u32;
-using u64 = std::uint64_t;
 using i32 = std::int32_t;
 using i64 = std::int64_t;
-using std::size_t;
+using u16 = std::uint16_t;
+using u32 = std::uint32_t;
+using u64 = std::uint64_t;
 using u8 = std::uint8_t;
+using std::size_t;
+using tax_t = u32;
 using std::forward_list;
-using std::unordered_map;
 using strlist = forward_list<std::string>;
 using cpslist = forward_list<std::string*>;
 using bitvec_t = std::vector<u64>;
@@ -149,8 +150,10 @@ std::vector<tax_t> get_all_descendents(const std::unordered_map<tax_t, std::vect
 std::vector<tax_t> get_desc_lca(tax_t a, tax_t, const std::unordered_map<tax_t, std::vector<tax_t>> &parent_map);
 // Resolve_tree is modified from Kraken 1 source code, which
 // is MIT-licensed. https://github.com/derrickwood/kraken
-tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
-                   khash_t(p) *parent_map) noexcept;
+tax_t resolve_tree(const std::map<tax_t, tax_t> &hit_counts,
+                   const khash_t(p) *parent_map) noexcept;
+tax_t resolve_tree(const linear::counter<tax_t, u16> &hit_counts,
+                   const khash_t(p) *parent_map) noexcept;
 
 
 const char *bool2str(bool val);
