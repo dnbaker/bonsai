@@ -1,7 +1,6 @@
 #pragma once
 #include "lib/feature_min.h"
 #include "lib/counter.h"
-#include "lib/bits.h"
 
 namespace emp {
 

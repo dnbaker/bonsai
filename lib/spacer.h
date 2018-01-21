@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
-#include "bits.h"
+#include "kmerutil.h"
 
 namespace emp {
 
