@@ -2,7 +2,6 @@
 #define __FLEX_TREE_H
 
 #include "lib/util.h"
-#include "lib/bits.h"
 #include "lib/counter.h"
 #include "lib/bitcmp.h"
 #include "lib/linear.h"

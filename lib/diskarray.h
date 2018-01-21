@@ -1,6 +1,5 @@
 #pragma once
 #include "lib/util.h"
-#include "lib/bits.h"
 #include <climits>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -55,7 +54,7 @@ public:
     bool operator()(size_t row, size_t column) const {return operator[](row * nc_ + column);}
     size_t popcount() const {
         size_t ret, i;
-        for(i = ret = 0; i < memsz(); ret += emp::popcnt::popcount((unsigned)(uint8_t)mm_[i++]));
+        for(i = ret = 0; i < memsz(); ret += popcnt::popcount(mm_[i++]));
         return ret;
     }
     void fill_row(std::vector<uint8_t> &data, size_t row) const {
