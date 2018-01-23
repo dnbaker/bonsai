@@ -32,11 +32,11 @@ void lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map);
 template<typename ScoreType>
 int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret);
 
-void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid, std::shared_mutex &m);
-void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid);
-khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, khash_t(p) *tax);
-void update_feature_counter(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, const tax_t taxid);
-void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *ret);
+void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid, std::shared_mutex &m);
+void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid);
+khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, const khash_t(p) *tax);
+void update_feature_counter(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, const tax_t taxid);
+void update_minimized_map(const khash_t(all) *set, const khash_t(64) *full_map, khash_t(c) *ret);
 
 #define next_minimizer next_kmer
 
