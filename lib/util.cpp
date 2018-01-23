@@ -190,30 +190,17 @@ tax_t lca(const std::map<tax_t, tax_t> &parent_map, tax_t a, tax_t b)
 }
 
 khash_t(p) *build_parent_map(const char *fn) noexcept {
-    if(fn == nullptr) {
-        LOG_WARNING("no filename provided. returning null.\n");
-        return nullptr;
-    }
-    std::FILE *fp(std::fopen(fn, "r"));
-    if(fp == nullptr) {
-        LOG_WARNING("Could not open file at %s. returning null.\n", fn);
-        return nullptr;
-    }
+    std::ifstream is(fn);
     khash_t(p) *ret(kh_init(p));
-    size_t bufsz = 4096;
-    char *buf((char *)std::malloc(bufsz));
-    ssize_t len;
     khint_t ki;
     int khr;
-    while((len = getline(&buf, &bufsz, fp)) >= 0) {
-        switch(*buf) case '\n': case '0': case '#': continue;
-        ki = kh_put(p, ret, atoi(buf), &khr);
-        kh_val(ret, ki) = atoi(strchr(buf, '|') + 2);
+    while(std::getline(is, line)) {
+        switch(line[0]) case '\n': case '0': case '#': continue;
+        ki = kh_put(p, ret, std::atoi(line.data()), &khr);
+        kh_val(ret, ki) = std::atoi(strchr(line.data(), '|') + 2);
     }
     ki = kh_put(p, ret, 1, &khr);
     kh_val(ret, ki) = 0; // Root of the tree.
-    std::fclose(fp);
-    std::free(buf);
     LOG_DEBUG("Built parent map of size %zu from path %s\n", kh_size(ret), fn);
     return ret;
 }
