@@ -141,8 +141,8 @@ lazy::vector<u64, size_t> load_binary_kmers(const char *path);
 khash_t(all) *load_binary_kmerset(const char *path);
 
 tax_t get_max_val(const khash_t(p) *hash) noexcept;
-std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(khash_t(p) *) noexcept;
-tax_t get_taxid(const char *fn, khash_t(name) *name_hash);
+std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(const khash_t(p) *) noexcept;
+tax_t get_taxid(const char *fn, const khash_t(name) *name_hash);
 std::string get_firstline(const char *fn);
 std::vector<std::string> get_paths(const char *path);
 std::vector<tax_t> get_all_descendents(const std::unordered_map<tax_t, std::vector<tax_t>> &map, tax_t tax);

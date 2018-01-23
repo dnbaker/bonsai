@@ -5,13 +5,13 @@
 namespace emp {
 
 
-void lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map) {
+void lca2depth(khash_t(c) *lca_map, const khash_t(p) *tax_map) {
     for(khiter_t ki(kh_begin(lca_map)); ki != kh_end(lca_map); ++ki)
         if(kh_exist(lca_map, ki))
             kh_val(lca_map, ki) = node_depth(tax_map, kh_val(lca_map, ki));
 }
 
-khash_t(c) *make_depth_hash(khash_t(c) *lca_map, khash_t(p) *tax_map) {
+khash_t(c) *make_depth_hash(khash_t(c) *lca_map, const khash_t(p) *tax_map) {
     khash_t(c) *ret(kh_init(c));
     kh_resize(c, ret, kh_size(lca_map));
     khiter_t ki1;
@@ -25,7 +25,7 @@ khash_t(c) *make_depth_hash(khash_t(c) *lca_map, khash_t(p) *tax_map) {
     return ret;
 }
 
-void update_feature_counter(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, const tax_t taxid) {
+void update_feature_counter(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, const tax_t taxid) {
     // TODO: make this threadsafe.
     int khr;
     khint_t k2;
@@ -41,7 +41,7 @@ void update_feature_counter(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax,
 
 #ifndef USE_PAR_HELPERS
 
-void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *ret) {
+void update_minimized_map(const khash_t(all) *set, const khash_t(64) *full_map, khash_t(c) *ret) {
     khiter_t kif;
     LOG_DEBUG("Size of set: %zu\n", kh_size(set));
     for(khiter_t ki(0); ki != kh_end(set); ++ki) {
@@ -56,7 +56,7 @@ void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *
     return;
 }
 
-khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, khash_t(p) *tax) {
+khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, const khash_t(p) *tax) {
     khash_t(64) *ret(kh_init(64));
     int khr;
     khiter_t kir;
@@ -71,7 +71,7 @@ khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, khash_t(p) *tax) {
 }
 
 
-void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid, std::shared_mutex &m) {
+void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid, std::shared_mutex &m) {
     std::unique_lock<std::shared_mutex> lock(m);
     int khr;
     khint_t k2;
@@ -92,7 +92,7 @@ void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t ta
     }
     LOG_DEBUG("After updating with set of size %zu, total set current size is %zu.\n", kh_size(set), kh_size(kc));
 }
-void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid) {
+void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid) {
     int khr;
     khint_t k2;
     tax_t val;
@@ -112,7 +112,7 @@ void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t ta
     LOG_DEBUG("After updating with set of size %zu, total set current size is %zu.\n", kh_size(set), kh_size(kc));
 }
 #else
-void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *ret) {
+void update_minimized_map(const khash_t(all) *set, const khash_t(64) *full_map, khash_t(c) *ret) {
     int khr;
     khiter_t kif, kir;
     LOG_DEBUG("Size of set: %zu\n", kh_size(set));
@@ -130,7 +130,7 @@ void update_minimized_map(khash_t(all) *set, khash_t(64) *full_map, khash_t(c) *
     return;
 }
 
-khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, khash_t(p) *tax) {
+khash_t(64) *make_taxdepth_hash(const khash_t(c) *kc, const khash_t(p) *tax) {
     khash_t(64) *ret(kh_init(64));
     int khr;
     khiter_t kir;
@@ -144,7 +144,7 @@ khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, khash_t(p) *tax) {
     return ret;
 }
 
-void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid, std::shared_mutex &m) {
+void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid, std::shared_mutex &m) {
     int khr;
     khint_t k2;
     LOG_DEBUG("Adding set of size %zu t total set of current size %zu.\n", kh_size(set), kh_size(kc));
@@ -158,7 +158,8 @@ void update_lca_map(khash_t(c) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t ta
     }
     LOG_DEBUG("After updating with set of size %zu, total set current size is %zu.\n", kh_size(set), kh_size(kc));
 }
-void update_td_map(khash_t(64) *kc, khash_t(all) *set, khash_t(p) *tax, tax_t taxid) {
+
+void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid) {
     int khr;
     khint_t k2;
     tax_t val;
