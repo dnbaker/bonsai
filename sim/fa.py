@@ -21,6 +21,14 @@ def chunker(iterable, chunk_size):
             range(0, len(iterable), max(1, chunk_size)))
 
 
+def write_nameid_map(name_id_map, filenames):
+    with open(name_id_map, "w") as f:
+        for file in filenames:
+            name = next(open(file)).split('|')[0][1:]
+            taxid = int(name)
+            f.write("%s\t%i\n" % (name, taxid))
+
+
 class SeqId:
     def __init__(self, sequence, id):
         self.seq = sequence

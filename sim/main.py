@@ -42,9 +42,9 @@ if __name__ == "__main__":
         nchunks = nleaf_seq // (mult_per_layer ** i)
         chunk_size = nleaf_seq // nchunks
         assert nleaf_seq % chunk_size == 0
-        # sys.stderr.write(f"chunk size: {chunk_size}. nchunks: {nchunks}.\n")
+        sys.stderr.write(f"chunk size: {chunk_size}. nchunks: {nchunks}.\n")
         for seqsetid, seqset in enumerate(chunker(leaf_seqs, chunk_size)):
-            # print("seqset len: %i" % len(seqset), file=sys.stderr)
+            print("seqset len: %i" % len(seqset), file=sys.stderr)
             add = fa.gen_seq(args.num_nucs_shared_per_level)
             for seq in seqset:
                 seq.seq += add
@@ -56,16 +56,23 @@ if __name__ == "__main__":
                 for seq in seqset:
                     seq.seq += add
                     seq.subgroups[i] = seqsetid
+    used_seqids = set(i.id for i in leaf_seqs)
     filenames = []
     for seq in leaf_seqs:
         fn = outdir + seq.filename()
         seq.write(fn)
         filenames.append(fn)
     print("Successfully created synthetic genomes.", file=sys.stderr)
-    with open(name_id_map, "w") as f:
-        for file in filenames:
-            name = next(open(file)).split('|')[0][1:])
-            taxid = int(name)
-            f.write("%s\t%i\n" % (name, taxid))
+    print("I normallly would continue, but I'm killing "
+          "this so I can examine logging.")
+    sys.exit(1)
+    fa.write_nameid_map(name_id_map, filenames)
+    with open(args.parent_map, "w") as f:
+        raise NotImplementedError("I still need to create the fake taxonomy"
+                                  " file. At that point, I'll have a full "
+                                  "synthetic taxonomy to use.")
+    for i in range(1, depth):
+        nnodes = mult_per_layer ** i
+        cmax = max(used_seqids)
+        print("For tree at height %i..." % i)
     sys.stderr.write("Genomes: %s\n" % ', '.join(filenames))
-
