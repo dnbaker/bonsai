@@ -194,10 +194,14 @@ khash_t(p) *build_parent_map(const char *fn) noexcept {
     khash_t(p) *ret(kh_init(p));
     khint_t ki;
     int khr;
+    std::string line;
+    char *p;
     while(std::getline(is, line)) {
         switch(line[0]) case '\n': case '0': case '#': continue;
         ki = kh_put(p, ret, std::atoi(line.data()), &khr);
-        kh_val(ret, ki) = std::atoi(strchr(line.data(), '|') + 2);
+        kh_val(ret, ki) = (p = std::strchr(line.data(), '|')) ? std::atoi(p + 2)
+                                                              : tax_t(-1);
+        if(kh_val(ret, ki) == tax_t(-1)) LOG_WARNING("Malformed line: %s", line.data());
     }
     ki = kh_put(p, ret, 1, &khr);
     kh_val(ret, ki) = 0; // Root of the tree.

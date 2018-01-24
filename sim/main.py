@@ -4,6 +4,7 @@ import sys
 from fa import chunker
 
 if __name__ == "__main__":
+    from sys import stderr
     import argparse
     parser = argparse.ArgumentParser(description=(
         "Create a set of synthetic genomes consisting "
@@ -22,57 +23,85 @@ if __name__ == "__main__":
                         default=3,
                         help=("Number of subgroups for "
                               "each parent node."))
+    parser.add_argument("--parent-map", "-p",
+                        help="Path to which to write synthetic taxonomy.",
+                        default="nodes.dmp")
     parser.add_argument("-S", "--subgroup-size", type=int,
                         default=3,
                         help="Number of genomes for each subgroup")
-    parser.add_argument("-o", "--outdir", default=None, type=str)
-    parser.add_argument("--name-id-map", "-m", default=None, type=str)
+    parser.add_argument("-o", "--outdir", default="./", type=str)
+    parser.add_argument("--name-id-map", "-m", default="synth_nameidmap.txt")
     args = parser.parse_args()
-    npl = args.num_nucleotides_per_leaf
+
+    # Variables/settings for constructing synthetic genome
+    # and accessory files.
     mult_per_layer = args.split_size * args.subgroup_size
     depth = args.tree_depth
     nleaves = mult_per_layer ** (depth - 1)
-    leaf_seqs = [fa.SeqId(fa.gen_seq(npl), i) for i in range(nleaves)]
+    leaf_seqs = [fa.SeqId(fa.gen_seq(args.num_nucleotides_per_leaf), i) for
+                 i in range(nleaves)]
     nleaf_seq = len(leaf_seqs)
-    outdir = args.outdir if args.outdir else "./"
-    name_id_map = args.name_id_map
-    if not name_id_map:
-        name_id_map = "./synth_nameidmap.txt"
+    outdir = args.outdir
+    name_id_map = outdir + args.name_id_map
+
+    # Variables for constructing the parent_map dictionary.
+    pcmap = {}
+    used_seqids = set(i.taxid() for i in leaf_seqs)
+    ctax = max(used_seqids) + 1
+    last_layer = []
+
     for i in range(1, depth):
         nchunks = nleaf_seq // (mult_per_layer ** i)
         chunk_size = nleaf_seq // nchunks
         assert nleaf_seq % chunk_size == 0
-        sys.stderr.write(f"chunk size: {chunk_size}. nchunks: {nchunks}.\n")
+        stderr.write(f"chunk size: {chunk_size}. nchunks: {nchunks}.\n")
         for seqsetid, seqset in enumerate(chunker(leaf_seqs, chunk_size)):
-            print("seqset len: %i" % len(seqset), file=sys.stderr)
+            print("seqset len: %i" % len(seqset), file=stderr)
             add = fa.gen_seq(args.num_nucs_shared_per_level)
             for seq in seqset:
                 seq.seq += add
                 seq.subsets[i] = seqsetid
             for sssid, seqsubset in enumerate(chunker(seqset,
                                                       args.subgroup_size)):
-                print("seqsubset len: %i" % len(seqsubset), file=sys.stderr)
+                # print("seqsubset len: %i" % len(seqsubset), file=stderr)
                 add = fa.gen_seq(args.num_nucs_shared_per_subgroup)
                 for seq in seqset:
                     seq.seq += add
                     seq.subgroups[i] = seqsetid
-    used_seqids = set(i.id for i in leaf_seqs)
-    filenames = []
-    for seq in leaf_seqs:
-        fn = outdir + seq.filename()
-        seq.write(fn)
-        filenames.append(fn)
-    print("Successfully created synthetic genomes.", file=sys.stderr)
-    print("I normallly would continue, but I'm killing "
-          "this so I can examine logging.")
-    sys.exit(1)
+            if i == 1:  # or it not last_layer
+                # Add leaf node to parent connections
+                for seq in seqset:
+                    pcmap[seq.taxid()] = ctax + seqsetid
+        if i > 1:
+            # Add higher nodes to parent connections
+            if i == depth - 1:
+                pcmap.update((el, 1) for el in last_layer)
+                break
+                # This leaves the loop on the last layer in the tree
+                # because the root is 1 by construction
+            else:
+                # pcmap.update((tax, i + ctax) for tax in
+                #              last_layer[i:i+mult_per_layer] for
+                #              i in range(mult_per_layer))
+                for i in range(mult_per_layer):
+                    for tax in last_layer[i:i + mult_per_layer]:
+                        pcmap[tax] = i + ctax
+        last_layer = [ctax + i for i in range(nchunks)]
+        used_seqids.update(last_layer)
+        ctax = max(used_seqids) + 1
+    del used_seqids
+    del ctax
+    del last_layer
+    {seq.write(outdir + seq.filename()) for seq in leaf_seqs}
+    print("[1/3] Successfully created synthetic genomes.", file=stderr)
+
+    filenames = [outdir + seq.filename() for seq in leaf_seqs]
     fa.write_nameid_map(name_id_map, filenames)
-    with open(args.parent_map, "w") as f:
-        raise NotImplementedError("I still need to create the fake taxonomy"
-                                  " file. At that point, I'll have a full "
-                                  "synthetic taxonomy to use.")
-    for i in range(1, depth):
-        nnodes = mult_per_layer ** i
-        cmax = max(used_seqids)
-        print("For tree at height %i..." % i)
-    sys.stderr.write("Genomes: %s\n" % ', '.join(filenames))
+    print("[2/3] Successfully wrote nameidmap to %s." % name_id_map,
+          file=stderr)
+
+    fa.write_parent_map(args.parent_map, pcmap)
+    print("[3/3] Successfully wrote child->parent map.", file=stderr)
+    stderr.write("Genomes: %s\n" % ', '.join(filenames))
+    stderr.write("Nameidmap: %s\n" % name_id_map)
+    stderr.write("Taxonomy: %s\n" % args.parent_map)

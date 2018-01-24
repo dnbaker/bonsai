@@ -7,7 +7,7 @@
 #include "klib/kthread.h"
 #include "lib/feature_min.h"
 #include "lib/counter.h"
-#include "lib/linear.h"
+#include "linear/linear.h"
 #include "lib/diskarray.h"
 
 

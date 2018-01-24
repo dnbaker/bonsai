@@ -21,6 +21,11 @@ def chunker(iterable, chunk_size):
             range(0, len(iterable), max(1, chunk_size)))
 
 
+def write_parent_map(path, pcmap):
+    with open(path, "w") as f:
+        {f.write("%i\t|\t%i\n" % (k, v)) for k, v in pcmap.items()}
+
+
 def write_nameid_map(name_id_map, filenames):
     with open(name_id_map, "w") as f:
         for file in filenames:
