@@ -25,3 +25,6 @@
 [submodule "kspp"]
 	path = kspp
 	url = https://github.com/dnbaker/kspp
+[submodule "linear"]
+	path = linear
+	url = https://github.com/dnbaker/linear

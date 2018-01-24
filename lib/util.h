@@ -14,12 +14,12 @@
 #include <zlib.h>
 #include "kspp/ks.h"
 #include "klib/kstring.h"
+#include "linear/linear.h"
 #include "khash64.h"
 #include "lib/logutil.h"
 #include "lib/sample_gen.h"
 #include "lib/rand.h"
 #include "lib/lazyvec.h"
-#include "lib/linear.h"
 #include "lib/popcnt.h"
 
 #ifdef __GNUC__
