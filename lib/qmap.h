@@ -21,11 +21,11 @@ struct ElScore {
     }
     INLINE ElScore(): el_(0), score_(0) {}
     INLINE bool operator<(const ElScore &other) const {
-        return std::tie(score_, el_) < std::tie(other.score_, other.el_);
+        return std::tie(score_, el_) < std::tie(other.score_, other.el_); // Lexicographic is tie-breaker.
     }
     INLINE bool operator==(const ElScore &other) const {
         return el_ == other.el_;
-        //return std::tie(score_, el_) == std::tie(other.el_, other.score_); // Lexicographic is tie-breaker.
+        //return std::tie(score_, el_) == std::tie(other.el_, other.score_);
     }
 };
 
@@ -34,30 +34,24 @@ template<typename T, typename ScoreType>
 class QueueMap {
     // I could make this more efficient by using pointers instead of
     // ElScore structs.
-    // *maybe* TODO
     //
-    using PairType = ElScore<T, ScoreType>;
-    using map_iterator = typename std::map<ElScore<T, ScoreType>, unsigned>::iterator;
+    using PairType           = ElScore<T, ScoreType>;
+    using map_iterator       = typename std::map<ElScore<T, ScoreType>, unsigned>::iterator;
     using const_map_iterator = typename std::map<ElScore<T, ScoreType>, unsigned>::const_iterator;
+
     std::list<ElScore<T, ScoreType>>         list_;
     std::map<ElScore<T, ScoreType>, unsigned> map_;
     const size_t                         wsz_;  // window size to keep
     public:
     QueueMap(size_t wsz): wsz_(wsz) {}
     INLINE void add(const PairType &el) {
-        auto it(map_.lower_bound(el));
-        if(it != map_.end()) {
+        if(auto it(map_.lower_bound(el)); it != map_.end()) {
             if(it->first == el) ++it->second;
             else map_.emplace_hint(it, el, 1);
-        }
-        else map_.emplace(el, 1);
-        //else map_.emplace_hint(it, el, 1);
+        } else map_.emplace(el, 1);
     }
     INLINE void del(const PairType &el) {
-        auto f(map_.find(el));
-        //LOG_DEBUG("Removing %s\n", f->first.to_string().data());
-        if(--f->second <= 0)
-            map_.erase(f);
+        if(auto f(map_.find(el)); --f->second <= 0) map_.erase(f);
     }
     map_iterator begin() {
         return map_.begin();
