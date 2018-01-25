@@ -24,37 +24,36 @@ def makefn(x, y, z):
     return "experiment_%i_genomes.k%i.n%i.out" % (len(x), y, z)
 
 
-def usage():
-    print("python %s [path to file with"
-          " one fn per line] <or paths here>" % sys.argv[0])
-
-
 def main():
     argv = sys.argv
     # Handle args
-    flags = ("--no-redo", "-n")
-    redo = True
     sketch_range = range(14, 24, 2)
     kmer_range = range(18, 32, 2)
-    if any(flag in argv for flag in flags):
-        argv = [i for i in argv if i not in flags]
-        redo = False
-    if "-h" in argv:
-        print("This calculates all pairwise distances between "
-              "genomes for %i combinations of parameters."
-              "This does take a while." % (len(sketch_range) *
-                                           len(kmer_range)),
-              file=sys.stderr)
-        usage()
-        return 1
+    import argparse
+    p = argparse.ArgumentParser(
+        description="This calculates all pairwise distances between "
+                    "genomes for %i combinations of parameters."
+                    "This does take a while." % (len(sketch_range) *
+                                                 len(kmer_range)))
+    p.add_argument("--no-redo", "-n", action="store_true")
+    p.add_argument("--threads", "-p",
+                   default=multiprocessing.cpu_count())
+    p.add_argument('genomes', metavar='paths', type=str, nargs='+',
+                   help=('paths to genomes or a path to a file'
+                         ' with one genome per line.'))
+    args = p.parse_args()
+
+    threads = args.threads
+    redo = not args.no_redo
+    genomes = args.genomes
     try:
-        paths = [i.strip() for i in open(argv[1])]
+        paths = [i.strip() for i in open(genomes[0])]
         if not all(os.path.isfile(path) for path in paths):
             raise Exception("Punt this to opening all files")
     except:
-        paths = sys.argv[1:]
+        paths = genomes
     if not paths:
-        usage()
+        print("See usage: [-h/--help].", file=sys.stderr)
         return 1
     submission_sets = ((ks, ss, makefn(paths, ks, ss), paths, redo)
                        for ss in sketch_range for ks in kmer_range)
