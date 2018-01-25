@@ -3,6 +3,7 @@
 #include <type_traits>
 #include <stdexcept>
 #include <cstring>
+#include <cstdint>
 #include <ratio>
 #include <memory>
 #include <cstdlib>
@@ -31,29 +32,26 @@ public:
     using difference_type = std::make_signed_t<size_type>;
 
     template<typename... FactoryArgs>
-    set(size_type n=0, bool init=!std::is_pod_v<T>, FactoryArgs &&...args): n_{0}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
+    set(size_type n=0, bool init=!std::is_pod_v<T>,
+        FactoryArgs &&...args):
+            n_{0}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
         if(data_ == nullptr)
             throw std::bad_alloc();
-        if (init)
-            for(size_type i(0); i < n_; ++i)
-                new(data_.get() + i) T(std::forward<FactoryArgs>(args)...);
     }
     set(std::initializer_list<T> l): n_(l.size()), m_(n_), data_{static_cast<T *>(std::malloc(sizeof(T) * n_))} {
         if(data_ == nullptr)
             throw std::bad_alloc();
         std::copy(l.begin(), l.end(), data_);
     }
-    set(set &&other): n_(0), m_(0), data_(nullptr) {
-        std::swap(*this, other);
-    }
+    set(set &&other): n_(0), m_(0), data_(nullptr) {std::swap(*this, other);}
     set(const set &other): n_(other.n_), m_(other.m_), data_(std::malloc(sizeof(T) * m_)) {
         if(data_ == nullptr)
             throw std::bad_alloc();
         std::copy(other.begin(), other.end(), begin());
     }
-    const T *cbegin() const {return data_;}
+    const T *cbegin() const {return data_.get();}
     const T *cend()   const {return data_.get() + n_;}
-    const T *begin()  const {return data_;}
+    const T *begin()  const {return data_.get();}
     const T *end()    const {return data_.get() + n_;}
     T *begin()        {return data_.get();}
     T *end()          {return data_.get() + n_;}
@@ -63,9 +61,12 @@ public:
     const T &back()    const {return data_.get()[n_ - 1];}
     T &front() {return data_.get()[0];}
     const T &front() const {return data_.get()[0];}
-    auto size() const {return n_;}
+    auto size()     const {return n_;}
     auto capacity() const {return m_;}
-    auto find(const T &val) {
+    T *find(const T &val) {
+        return std::find(begin(), end(), val);
+    }
+    const T *find(const T &val) const {
         return std::find(begin(), end(), val);
     }
     template<typename Predicate>
@@ -81,50 +82,38 @@ public:
     }
     // Note: push_back and emplace_back are the same *except* that push_back changes size multiplicatively.
     template<typename... Args>
-    auto &emplace_back(Args&& ... args) {
-        if(n_ + 1 > m_) {
-            m_ = std::max(static_cast<size_type>(m_ * RESIZE_FACTOR), m_ + 1);
-            auto tmp(static_cast<T *>(std::realloc(data_, sizeof(T) * (m_))));
-            if(tmp == nullptr) throw  std::bad_alloc();
-            data_.release();
-            data_.reset(tmp);
-        }
+    T &emplace_back(Args&& ... args) {
+        if(n_ + 1 > m_)
+            reserve(std::max(static_cast<size_type>(m_ * RESIZE_FACTOR), m_ + 1));
         new(data_ + n_++) T(std::forward<Args>(args)...);
         return back();
     }
     template<typename... Args>
-    auto &emplace_front(Args&& ... args) {
-        if(n_ + 1 > m_) {
-            m_ = std::max(static_cast<size_type>(m_ * RESIZE_FACTOR), m_ + 1);
-            auto tmp(static_cast<T *>(std::realloc(data_, sizeof(T) * (m_))));
-            if(tmp == nullptr) throw  std::bad_alloc();
-            data_.release();
-            data_.reset(tmp);
-        }
+    T &emplace_front(Args&& ... args) {
+        if(n_ + 1 > m_)
+            reserve(std::max(static_cast<size_type>(m_ * RESIZE_FACTOR), m_ + 1));
         std::memmove(data_.get() + sizeof(T), data_, n_ * sizeof(T));
         new(data_) T(std::forward<Args>(args)...);
         ++n_;
         return front();
     }
-    auto &push_back(const T &val) {
-        if(n_ + 1 > m_) {
-            m_ = std::max(static_cast<size_type>(m_ * RESIZE_FACTOR), m_ + 1);
-            auto tmp(static_cast<T *>(std::realloc(data_.get(), sizeof(T) * (m_))));
-            if(tmp == nullptr) throw std::bad_alloc();
-            data_.release();
-            data_.reset(tmp);
-        }
+    T &push_back(const T &val) {
+        if(n_ + 1 > m_)
+            reserve(std::max(static_cast<size_type>(m_ * RESIZE_FACTOR), m_ + 1));
         data_.get()[n_++] = val;
         return back();
     }
     
-    void zero() {std::memset(data_.get(), 0, sizeof(T) * n_);} // DOES NOT CALL DESTRUCTORS
+    void zero()  {std::memset(data_.get(), 0, sizeof(T) * n_);} // DOES NOT CALL DESTRUCTORS
+    void clear() {n_ = 0;}
+    bool empty() const {return size() == 0;}
     void reserve(size_t newsize) {
         if(newsize > m_) {
             auto tmp(static_cast<T*>(std::realloc(data_.get(), sizeof(T) * newsize)));
             if(tmp == nullptr) throw std::bad_alloc();
             data_.release();
             data_.reset(tmp);
+            m_ = newsize;
         }
     }
     template<typename... Args>
@@ -150,6 +139,35 @@ public:
             for(auto &el: *this) el.~T();
         }
     }
+};
+
+template<typename K, typename SizeType=std::uint32_t>
+class counter {
+    // Simple class for a linear-search dictionary for tables of up to ~100 integers.
+    // This outperforms trees and hash tables for small numbers of elements.
+    // This is ideal for our taxonomic resolution at classification time, where the number of kmers and therefore assigned taxids is limited.
+    std::vector<K> keys_;
+    std::vector<SizeType> vals_;
+public:
+    using size_type = SizeType;
+    unsigned add(const K &key) {
+        if(auto it(std::find(keys_.begin(), keys_.end(), key)); it == keys_.end()) {
+            vals_.push_back(1);
+            keys_.push_back(key);
+            return keys_.size() - 1;
+        } else {
+            ++vals_[it - keys_.begin()];
+            return it - keys_.begin();
+        }
+    }
+    unsigned get_count(const K &key) const {
+        if(auto it(std::find(keys_.begin(), keys_.end(), key)); it != keys_.end())
+            return vals_[it - keys_.begin()];
+        else return 0;
+    }
+    size_type size() const { return keys_.size();}
+    const std::vector<K> &keys() const {return keys_;}
+    const std::vector<K> &vals() const {return vals_;}
 };
 
 }

@@ -1,6 +1,5 @@
 #pragma once
 #include "lib/util.h"
-#include "lib/bits.h"
 #include <climits>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -10,6 +9,7 @@ using emp::khash_t(64);
 using emp::tax_t;
 
 void allocate_file(std::FILE *fp, size_t nbits);
+
 
 class DiskBitArray {
 protected:
@@ -38,17 +38,23 @@ public:
         if(fp_) std::fclose(fp_);
         if(mm_) munmap((void *)mm_, memsz());
     }
-    void set1(size_t index) {
-        mm_[index>>3] |= (1u << (index & 0x7u));
+    auto set1_ts(size_t index) {
+        return __sync_or_and_fetch(mm_ + (index>>3), 1u << (index & 0x7u));
     }
+    auto set0_ts(size_t index) {
+        return __sync_xor_and_fetch(mm_ + (index>>3), 1u << (index & 0x7u));
+    }
+    void set1(size_t index) {mm_[index>>3] |= (1u << (index & 0x7u));}
     void set0(size_t index) {mm_[index>>3] &= ~(1u << (index & 0x7u));}
     void set1(size_t row, size_t column) {set1(row * nc_ + column);}
     void set0(size_t row, size_t column) {set0(row * nc_ + column);}
+    void set1_ts(size_t row, size_t column) {set1_ts(row * nc_ + column);}
+    void set0_ts(size_t row, size_t column) {set0_ts(row * nc_ + column);}
     bool operator[](size_t pos) const {return mm_[pos>>3] & (1u << (pos & 0x7u));}
     bool operator()(size_t row, size_t column) const {return operator[](row * nc_ + column);}
     size_t popcount() const {
         size_t ret, i;
-        for(i = ret = 0; i < memsz(); ret += emp::popcnt::popcount((unsigned)(uint8_t)mm_[i++]));
+        for(i = ret = 0; i < memsz(); ret += popcnt::popcount(mm_[i++]));
         return ret;
     }
     void fill_row(std::vector<uint8_t> &data, size_t row) const {
@@ -63,11 +69,17 @@ public:
 };
 
 class MMapTaxonomyBitmap: public DiskBitArray {
+public:
     MMapTaxonomyBitmap(size_t nkmers, size_t ntax): DiskBitArray(nkmers, ntax) {}
     void set_kmer(const khash_t(64) *map, u64 kmer, tax_t tax) {
         khint_t ki(kh_get(64, map, kmer));
         if(ki == kh_end(map)) throw 1;
         set1(kh_val(map, ki), tax);
+    }
+    void set_kmer_ts(const khash_t(64) *map, u64 kmer, tax_t tax) {
+        khint_t ki(kh_get(64, map, kmer));
+        if(ki == kh_end(map)) throw 1;
+        DiskBitArray::set1_ts(kh_val(map, ki), tax);
     }
     bool contains_kmer(const khash_t(64) *map, u64 kmer, tax_t tax) const {
         khint_t ki(kh_get(64, map, kmer));
@@ -75,7 +87,10 @@ class MMapTaxonomyBitmap: public DiskBitArray {
         return operator()(kh_val(map, ki), tax);
     }
     void fill_kmer_bitmap(std::vector<uint8_t> &data, const khash_t(64) *map, u64 kmer) {
-        if(data.size() != nc_) data.resize(nc_);
+        if(data.size() != (nc_ + 7)>>3) data.resize((nc_ + 7)>>3);
+        khint_t ki(kh_get(64, map, kmer));
+        if(ki == kh_end(map)) throw 2;
+        std::memcpy(data.data(), mm_ + ((kh_val(map, ki) * nc_)>>3), data.size());
     }
     std::vector<uint8_t> kmer_bitmap(const khash_t(64) *map, u64 kmer) {
         std::vector<uint8_t> ret;
