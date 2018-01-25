@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <thread>
 #include <unordered_map>
-#include <functional>
+#include "lib/util.h"
 #include "klib/kthread.h"
 #include "lib/feature_min.h"
 #include "lib/counter.h"

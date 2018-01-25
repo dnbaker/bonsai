@@ -1,6 +1,5 @@
 #ifndef DIST_MAINS_H__
 #define DIST_MAINS_H__
-#include <functional>
 #include <fstream>
 #include <omp.h>
 #include "lib/util.h"

@@ -1,6 +1,7 @@
 from __future__ import division
 import fa
 import sys
+import os
 from fa import chunker
 
 if __name__ == "__main__":
@@ -29,7 +30,7 @@ if __name__ == "__main__":
     parser.add_argument("-S", "--subgroup-size", type=int,
                         default=3,
                         help="Number of genomes for each subgroup")
-    parser.add_argument("-o", "--outdir", default="./", type=str)
+    parser.add_argument("-o", "--outdir", default=".", type=str)
     parser.add_argument("--name-id-map", "-m", default="synth_nameidmap.txt")
     args = parser.parse_args()
 
@@ -42,7 +43,14 @@ if __name__ == "__main__":
                  i in range(nleaves)]
     nleaf_seq = len(leaf_seqs)
     outdir = args.outdir
+    if not os.path.isdir(outdir):
+        if os.path.isfile(outdir):
+            raise Exception("Path set for outdir ('%s') is a"
+                            " file... Nah, dawg." % outdir)
+        os.mkdir(outdir)
+    outdir = outdir + '/'  # Append slash
     name_id_map = outdir + args.name_id_map
+    parent_map = outdir + args.parent_map
 
     # Variables for constructing the parent_map dictionary.
     pcmap = {}
@@ -54,7 +62,6 @@ if __name__ == "__main__":
         nchunks = nleaf_seq // (mult_per_layer ** i)
         chunk_size = nleaf_seq // nchunks
         assert nleaf_seq % chunk_size == 0
-        stderr.write(f"chunk size: {chunk_size}. nchunks: {nchunks}.\n")
         for seqsetid, seqset in enumerate(chunker(leaf_seqs, chunk_size)):
             print("seqset len: %i" % len(seqset), file=stderr)
             add = fa.gen_seq(args.num_nucs_shared_per_level)
@@ -100,8 +107,8 @@ if __name__ == "__main__":
     print("[2/3] Successfully wrote nameidmap to %s." % name_id_map,
           file=stderr)
 
-    fa.write_parent_map(args.parent_map, pcmap)
+    fa.write_parent_map(parent_map, pcmap)
     print("[3/3] Successfully wrote child->parent map.", file=stderr)
     stderr.write("Genomes: %s\n" % ', '.join(filenames))
     stderr.write("Nameidmap: %s\n" % name_id_map)
-    stderr.write("Taxonomy: %s\n" % args.parent_map)
+    stderr.write("Taxonomy: %s\n" % parent_map)
