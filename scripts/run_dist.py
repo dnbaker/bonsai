@@ -7,13 +7,15 @@ import os
 
 def submit_call(tup):
     k, n, opath, paths, redo = tup
+    if any(not os.path.isfile(path) for path in paths):
+        raise Exception("The files are NOT in the computer! %s" % ", ".join(paths))
     if not redo:
-        if os.path.isfile(opath):
-            if os.path.getsize(opath):
-                print("%s has run and redo is set to false. "
-                      "Continuing" % opath)
-                return
+        if os.path.isfile(opath) and os.path.getsize(opath):
+            print("%s has run and redo is set to false. "
+                  "Continuing" % opath, file=sys.stderr)
+            return
     cstr = "distcmp -o%s -mn%i -k%i %s" % (opath, n, k, ' '.join(paths))
+    print("Calling '%s'" % cstr, file=sys.stderr)
     subprocess.check_call(shlex.split(cstr))
 
 
