@@ -4,7 +4,6 @@
 #include <cstdio>
 #include <unistd.h>
 #include <future>
-#include <functional>
 #include "util.h"
 
 // Converting sequences to numeric equivalent

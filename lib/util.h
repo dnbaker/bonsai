@@ -1,4 +1,5 @@
 #pragma once
+#include "kspp/ks.h"
 #include <algorithm>
 #include <chrono>
 #include <cinttypes>
@@ -12,7 +13,7 @@
 #include <unordered_set>
 #include <type_traits>
 #include <zlib.h>
-#include "kspp/ks.h"
+#include <functional>
 #include "klib/kstring.h"
 #include "linear/linear.h"
 #include "khash64.h"

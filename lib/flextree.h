@@ -3,7 +3,7 @@
 
 #include "lib/util.h"
 #include "lib/counter.h"
-#include "lib/bitcmp.h"
+#include "lib/bitmap.h"
 #include "linear/linear.h"
 
 namespace emp {
