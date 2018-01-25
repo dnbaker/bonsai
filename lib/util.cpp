@@ -10,19 +10,15 @@
 namespace emp {
 
 size_t count_lines(const char *fn) noexcept {
-    std::FILE *fp(std::fopen(fn, "r"));
-    if(fp == nullptr) LOG_EXIT("Could not open file at %s\n", fn);
-    size_t bufsz = 4096;
-    char *buf((char *)std::malloc(bufsz));
-    ssize_t len;
+    std::ifstream is(fn);
+    if(!is.good()) LOG_EXIT("Could not open file at %s\n", fn);
+    std::string line;
     size_t n(0);
-    while((len = getline(&buf, &bufsz, fp)) >= 0) ++n;
-    std::free(buf);
-    std::fclose(fp);
+    while(std::getline(is, line)) ++n;
     return n;
 }
 
-std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(khash_t(p) *tax) noexcept {
+std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(const khash_t(p) *tax) noexcept {
     std::unordered_map<tax_t, std::vector<tax_t>> ret;
     typename std::unordered_map<tax_t, std::vector<tax_t>>::iterator m;
     for(khiter_t ki(0); ki < kh_end(tax); ++ki) {
@@ -134,14 +130,16 @@ khash_t(name) *build_name_hash(const char *fn) noexcept {
         p = ::emp::strchrnul(buf, '\t');
         ki = kh_put(name, ret, buf, &khr);
         if(khr == 0) { // Key already present.
-            LOG_INFO("Key %s already present. Updating value from %i to %s\n", kh_key(ret, ki), kh_val(ret, ki), p + 1);
-        }  else {
+            LOG_INFO("Key %s already present. Updating value from "
+                     "%i to %s.\tNote: if you have performed TaxonomyReformation, this is an error.\n", kh_key(ret, ki), kh_val(ret, ki), p + 1);
+        } else {
             namelen = p - buf;
-            kh_key(ret, ki) = (char *)std::malloc(namelen + 1);
-            memcpy((void*)kh_key(ret, ki), buf, namelen);
-           ((char *)kh_key(ret, ki))[namelen] = '\0';
+            char *tmp = static_cast<char *>(std::malloc(namelen + 1));
+            std::memcpy(tmp, buf, namelen);
+            tmp[namelen] = '\0';
+            kh_key(ret, ki) = tmp;
         }
-        kh_val(ret, ki) = atoi(p + 1);
+        kh_val(ret, ki) = std::atoi(p + 1);
     }
     std::fclose(fp);
     std::free(buf);
@@ -192,30 +190,21 @@ tax_t lca(const std::map<tax_t, tax_t> &parent_map, tax_t a, tax_t b)
 }
 
 khash_t(p) *build_parent_map(const char *fn) noexcept {
-    if(fn == nullptr) {
-        LOG_WARNING("no filename provided. returning null.\n");
-        return nullptr;
-    }
-    std::FILE *fp(std::fopen(fn, "r"));
-    if(fp == nullptr) {
-        LOG_WARNING("Could not open file at %s. returning null.\n", fn);
-        return nullptr;
-    }
+    std::ifstream is(fn);
     khash_t(p) *ret(kh_init(p));
-    size_t bufsz = 4096;
-    char *buf((char *)std::malloc(bufsz));
-    ssize_t len;
     khint_t ki;
     int khr;
-    while((len = getline(&buf, &bufsz, fp)) >= 0) {
-        switch(*buf) case '\n': case '0': case '#': continue;
-        ki = kh_put(p, ret, atoi(buf), &khr);
-        kh_val(ret, ki) = atoi(strchr(buf, '|') + 2);
+    std::string line;
+    char *p;
+    while(std::getline(is, line)) {
+        switch(line[0]) case '\n': case '0': case '#': continue;
+        ki = kh_put(p, ret, std::atoi(line.data()), &khr);
+        kh_val(ret, ki) = (p = std::strchr(line.data(), '|')) ? std::atoi(p + 2)
+                                                              : tax_t(-1);
+        if(kh_val(ret, ki) == tax_t(-1)) LOG_WARNING("Malformed line: %s", line.data());
     }
     ki = kh_put(p, ret, 1, &khr);
     kh_val(ret, ki) = 0; // Root of the tree.
-    std::fclose(fp);
-    std::free(buf);
     LOG_DEBUG("Built parent map of size %zu from path %s\n", kh_size(ret), fn);
     return ret;
 }
@@ -325,14 +314,22 @@ std::string get_firstline(const char *fn) {
     return ret;
 }
 
-tax_t get_taxid(const char *fn, khash_t(name) *name_hash) {
+tax_t get_taxid(const char *fn, const khash_t(name) *name_hash) {
     gzFile fp(gzopen(fn, "rb"));
     if(fp == nullptr) LOG_EXIT("Could not read from file %s\n", fn);
     static const size_t bufsz(2048);
     khint_t ki;
     char buf[bufsz];
     char *line(gzgets(fp, buf, bufsz));
+    if(line == nullptr) {
+        int err;
+        LOG_INFO("zlib error: %s\n", gzerror(fp, &err));
+        throw zlib_error(err, fn);
+    }
     char *p(++line);
+#ifdef SYNTHETIC_GENOME_EXPERIMENTS
+    const tax_t ret(std::atoi(p));
+#else
     if(std::strchr(p, '|')) {
         p = std::strrchr(p, '|');
         while(*--p != '|');
@@ -344,17 +341,6 @@ tax_t get_taxid(const char *fn, khash_t(name) *name_hash) {
         while(!std::isspace(*p)) ++p;
         *p = 0;
     }
-#if 0
-    tax_t ret;
-    if((ki = kh_get(name, name_hash, line)) == kh_end(name_hash)) {
-        LOG_DEBUG("Key %s is missing\n", line);
-        ret = -1;
-    } else {
-        LOG_DEBUG("Key %s has value %u\n", kh_key(name_hash, ki), kh_val(name_hash, ki));
-        LOG_DEBUG("Successfully got taxid %u for path %s\n", kh_val(name_hash, ki), fn);
-        ret = kh_val(name_hash, ki);
-    }
-#else
     const tax_t ret(unlikely((ki = kh_get(name, name_hash, line)) == kh_end(name_hash)) ? UINT32_C(-1) : kh_val(name_hash, ki));
 #endif
     gzclose(fp);
