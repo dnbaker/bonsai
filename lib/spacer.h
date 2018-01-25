@@ -5,7 +5,6 @@
 #include <string>
 #include <algorithm>
 #include "kmerutil.h"
-#include "logutil.h"
 
 namespace emp {
 

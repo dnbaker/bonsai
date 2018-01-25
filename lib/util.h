@@ -1,19 +1,16 @@
-#ifndef _EMP_UTIL_H__
-#define _EMP_UTIL_H__
+#pragma once
 #include <algorithm>
-#include <fstream>
 #include <chrono>
 #include <cinttypes>
-#include <cstdint>
 #include <cstdio>
-#include <cstdlib>
 #include <forward_list>
+#include <fstream>
 #include <limits>
 #include <map>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
-#include <vector>
+#include <type_traits>
 #include <zlib.h>
 #include "kspp/ks.h"
 #include "klib/kstring.h"
@@ -22,6 +19,8 @@
 #include "lib/sample_gen.h"
 #include "lib/rand.h"
 #include "lib/lazyvec.h"
+#include "lib/linear.h"
+#include "lib/popcnt.h"
 
 #ifdef __GNUC__
 #  ifndef likely
@@ -79,8 +78,14 @@
 #define kputuw_ kputuw
 #endif
 
-#ifndef STLFREE
-#define STLFREE(x) do {decltype(x) tmp##x; std::swap(x, tmp##x);} while(0)
+template<typename T>
+void STLFREE(T &container) {
+    T tmp;
+    std::swap(tmp, container);
+}
+
+#ifndef XOR_MASK
+#    define XOR_MASK 0xe37e28c4271b5a2dULL
 #endif
 
 #define TIME_CODE(code, name) do             \
@@ -93,18 +98,18 @@
 
 namespace emp {
 
-using u32 = std::uint32_t;
-using tax_t = u32;
-using u64 = std::uint64_t;
 using i32 = std::int32_t;
 using i64 = std::int64_t;
-using std::size_t;
+using u16 = std::uint16_t;
+using u32 = std::uint32_t;
+using u64 = std::uint64_t;
 using u8 = std::uint8_t;
+using std::size_t;
+using tax_t = u32;
 using std::forward_list;
-using std::unordered_map;
 using strlist = forward_list<std::string>;
 using cpslist = forward_list<std::string*>;
-using bitvec_t = std::vector<u64>;
+using popcnt::bitvec_t;
 
 class Timer {
     using TpType = std::chrono::system_clock::time_point;
@@ -144,8 +149,10 @@ std::vector<tax_t> get_all_descendents(const std::unordered_map<tax_t, std::vect
 std::vector<tax_t> get_desc_lca(tax_t a, tax_t, const std::unordered_map<tax_t, std::vector<tax_t>> &parent_map);
 // Resolve_tree is modified from Kraken 1 source code, which
 // is MIT-licensed. https://github.com/derrickwood/kraken
-tax_t resolve_tree(std::map<tax_t, tax_t> &hit_counts,
-                   khash_t(p) *parent_map) noexcept;
+tax_t resolve_tree(const std::map<tax_t, tax_t> &hit_counts,
+                   const khash_t(p) *parent_map) noexcept;
+tax_t resolve_tree(const linear::counter<tax_t, u16> &hit_counts,
+                   const khash_t(p) *parent_map) noexcept;
 
 
 const char *bool2str(bool val);
@@ -197,6 +204,41 @@ template<>
 void khash_destroy(khash_t(p) *map) noexcept;
 template<>
 void khash_destroy(khash_t(name) *map) noexcept;
+
+#define KHR(x) khashraii_##x##_t
+
+#define KHRAII_DEC(x)\
+\
+class KHR(x) {\
+    khash_t(x) h_;\
+public:\
+    KHR(x)() {std::memset(this, 0, sizeof(*this));}\
+    void resize(size_t n) {kh_resize(x, &h_, n);} \
+    KHR(x) (size_t n): KHR(x)() {resize(n);} \
+    operator khash_t(x) *() {return &h_;}\
+    operator const khash_t(x) *() const {return &h_;}\
+    khash_t(x) *operator->() {return &h_;}\
+    const khash_t(x) *operator->() const {return &h_;}\
+    KHR(x)(const KHR(x) &other): KHR(x)(other->n_buckets) {\
+        std::memcpy(h_.keys, other->keys, sizeof(*h_.keys) * other->n_buckets);\
+        std::memcpy(h_.vals, other->vals, sizeof(*h_.vals) * other->n_buckets);\
+        std::memcpy(h_.flags, other->flags, sizeof(*h_.flags) * __ac_fsize(other->n_buckets));\
+    }\
+    KHR(x)(KHR(x) &&other) {\
+        std::memcpy(this, &other, sizeof(*this));\
+        std::memset(&other, 0, sizeof(other));\
+    }\
+    ~KHR(x)() {\
+        std::free(h_.keys);\
+        std::free(h_.vals);\
+        std::free(h_.flags);\
+    }\
+};
+
+KHRAII_DEC(64)
+KHRAII_DEC(all)
+KHRAII_DEC(p)
+KHRAII_DEC(c)
 
 template <typename T>
 void print_khash(T *rex) noexcept {
@@ -302,22 +344,51 @@ inline bool has_key(const Key &key, const Map &map) {
     return map.find(key) != map.end();
 }
 
-#if !NDEBUG
-template<typename T, class Compare=std::less<typename T::value_type>>
-void assert_sorted_impl(const T &container, Compare cmp=Compare{}) {
-    using std::begin;
-    auto it(begin(container)), it2(begin(container));
-    if(it2 != end(container)) ++it2;
-    while(it2 != end(container)) {
-        assert(cmp(*it, *it2));
-        ++it, ++it2;
-    }
-}
-#define assert_sorted(container, ...) ::emp::assert_sorted_impl(container, ##__VA_ARGS__)
-#else
-#define assert_sorted(container, ...)
-#endif
+INLINE u32 nuccount(u64 kmer, unsigned k) {
+    u32 ret(0);
+    kmer ^= XOR_MASK;
+    const uint64_t COUNT_MASK = (0xFFFFFFFFFFFFFFFF >> (64 - 2 * k));
+    static const uint64_t c_table[4] = {
+        0xffffffffffffffff,
+        0xaaaaaaaaaaaaaaaa,
+        0x5555555555555555,
+        0x0000000000000000
+    };
+    uint64_t c0 = c_table[0];
+    uint64_t x0 = kmer ^ c0;
+    uint64_t x1 = (x0 >> 1);
+    uint64_t x2 = x1 & UINT64_C(0x5555555555555555);
+    uint64_t x3 = x0 & x2;
+    x3 &= COUNT_MASK;
+    auto tmp = popcnt::popcount(x3); // because __builtin_popcountll returns a 32-bit element.
+    ret |= (tmp <<= 24);
 
+    c0 = c_table[1];
+    x0 = kmer ^ c0;
+    x1 = (x0 >> 1);
+    x2 = x1 & UINT64_C(0x5555555555555555);
+    x3 = x0 & x2;
+    x3 &= COUNT_MASK;
+    tmp = popcnt::popcount(x3);
+    ret |= (tmp <<= 16);
+
+    c0 = c_table[2];
+    x0 = kmer ^ c0;
+    x1 = (x0 >> 1);
+    x2 = x1 & UINT64_C(0x5555555555555555);
+    x3 = x0 & x2;
+    x3 &= COUNT_MASK;
+    tmp = popcnt::popcount(x3);
+    ret |= (tmp <<= 8);
+
+    c0 = c_table[3];
+    x0 = kmer ^ c0;
+    x1 = (x0 >> 1);
+    x2 = x1 & UINT64_C(0x5555555555555555);
+    x3 = x0 & x2;
+    x3 &= COUNT_MASK;
+    return ret |= (tmp = popcnt::popcount(x3));
+}
 
 #if 0
 superkingdom
@@ -423,27 +494,18 @@ inline constexpr int log2_64(uint64_t value)
     value |= value >> 32;
     return tab64[((uint64_t)((value - (value >> 1))*0x07EDD5E59A4E28C2)) >> 58];
 }
+
 INLINE double kmer_entropy(uint64_t kmer, unsigned k) {
-    if(kmer == UINT64_C(-1) || kmer == UINT64_C(0)) return 0.; // Whooooooo
-    // A better solution would be avoiding redundant work, but that only works
-    // for contiguous seeds.
-    unsigned cts[4]{0};
-    while(k--) ++cts[kmer & 0x3], kmer >>= 2;
+    const u32 counts(nuccount(kmer, k));
     const double div(1./k);
-    double tmp(div * cts[0]), sum(tmp * std::log2(tmp));
-    for(unsigned i(1); i < 4; ++i)
-        tmp = div * cts[i], sum += tmp * std::log2(tmp);
-    return tmp;
+    double tmp(div * (counts >> 24)), sum(tmp * std::log2(tmp));
+    tmp = div * ((counts >> 16) & 0xFF), sum += tmp * std::log2(tmp);
+    tmp = div * ((counts >> 8) & 0xFF), sum += tmp * std::log2(tmp);
+    return tmp = div * (counts & 0xFF), sum += tmp * std::log2(tmp);
 }
 
-template<typename T>
-INLINE const char *get_cstr(const T &str) {
-    return str.data();
-}
-template<typename T>
-INLINE char *get_cstr(T &str) {
-    return str.data();
-}
+template<typename T> INLINE const char *get_cstr(const T &str) {return str.data();}
+template<typename T> INLINE char *get_cstr(T &str)             {return str.data();}
 INLINE char *get_cstr(char *str)             {return str;}
 INLINE const char *get_cstr(const char *str) {return str;}
 std::ifstream::pos_type filesize(const char* filename);
@@ -469,9 +531,10 @@ namespace detail {
 
 class zlib_error: public std::runtime_error {
 public:
-    zlib_error(int c, const char *fn=nullptr): std::runtime_error(ks::sprintf("zlib error code %u (%s).", c, detail::zerr2str.find(c)->second).data()) {}
+    zlib_error(int c, const char *fn=nullptr):
+        std::runtime_error(ks::sprintf("zlib error code %u (%s) accessing file %s.", c,
+                                       detail::zerr2str.at(c), fn ? fn: "<no file provided>").data())
+    {}
 };
 
 } // namespace emp
-
-#endif // #ifdef _EMP_UTIL_H__

@@ -7,8 +7,8 @@
 #include "klib/kthread.h"
 #include "lib/feature_min.h"
 #include "lib/counter.h"
-#include "lib/bits.h"
-#include "lib/linearset.h"
+#include "lib/linear.h"
+#include "lib/diskarray.h"
 
 
 template<typename T>
@@ -154,8 +154,8 @@ public:
     }
     void write_name_map(const char *fn) {
         gzFile fp(gzopen(fn, "wb"));
-        gzbuffer(fp, 1 << 18);
         if(fp == nullptr) throw std::runtime_error(ks::sprintf("Could not open file at %s for writing", fn).data());
+        gzbuffer(fp, 1 << 18);
         for(const auto &pair: newid_path_map) {
             gzprintf(fp, "%s\t%u\n", pair.second.data(), pair.first);
         }
@@ -186,14 +186,20 @@ public:
         STLFREE(path_map);
         STLFREE(newid_path_map);
     }
-    ~TaxonomyReformation() {
-        clear();
-    }
+    ~TaxonomyReformation() {clear();}
 };
 using concise_tax_t = TaxonomyReformation;
 std::vector<tax_t> build_new2old_map(const char *str, size_t bufsz=1<<16);
 INLINE std::vector<tax_t> build_new2old_map(const std::string &str, size_t bufsz) { return build_new2old_map(str.data(), bufsz);}
 std::vector<tax_t> binary_new2old_map(const char *);
+void bitmap_filler_helper(void *data_, long index, int tid);
+struct bf_helper_t {
+    const Spacer &sp_;
+    const std::vector<std::string> &paths_;
+    const std::vector<tax_t> &taxes_;
+    const khash_t(64) *h_;
+    ba::MMapTaxonomyBitmap &bm_;
+};
 
 
 

@@ -16,3 +16,8 @@ if more genomes labeled with that taxid occur.
      for the 'stem' nodes.
 3. Come up with a metric for how much is gained/lost vs Kraken and vs full CDBG.
 4. Is HLL or bloom filter sketching an option for getting at kmer set overlaps with smaller memory requirements?
+5. Investigate frequency based minimizers (absolute kmer frequencies rather than minimizing by number of genomes or taxonomic depth)
+6. universal hitting sets as a compression scheme
+
+*/
+

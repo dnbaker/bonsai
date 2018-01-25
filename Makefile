@@ -13,6 +13,9 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 ifndef EXTRA
 	EXTRA:=
 endif
+ifndef INCPLUS
+	INCPLUS:=
+endif
 DBG:=
 OS:=$(shell uname)
 FLAGS=
@@ -37,7 +40,7 @@ EX=$(patsubst src/%.cpp,%,$(wildcard src/*.cpp))
 HEADERS=lib/encoder.h lib/kmerutil.h lib/spacer.h lib/misc.h \
 		lib/kseq_declare.h lib/feature_min.h hll/hll.h lib/hash.h lib/db.h
 
-INCLUDE=-I. -Ilib
+INCLUDE=-I. -Ilib $(INCPLUS)
 
 all: $(OBJS) $(EX) unit
 
@@ -47,7 +50,7 @@ all: $(OBJS) $(EX) unit
 obj: $(OBJS)
 
 clhash.o: clhash/src/clhash.c
-	ls $@ || ln -s clhash/clhash.o . || (cd clhash $(CLHASH_CHECKOUT) && make && cd .. && ln -s clhash/clhash.o .)
+	ls $@ 2>/dev/null || ln -s clhash/clhash.o . 2>/dev/null || (cd clhash $(CLHASH_CHECKOUT) && make && cd .. && ln -s clhash/clhash.o .)
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB)

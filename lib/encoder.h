@@ -38,6 +38,7 @@ using ScoringFunction = u64 (*)(u64, void*);
 static INLINE u64 lex_score(u64 i, UNUSED(void *data)) {return i;}
 static INLINE u64 ent_score(u64 i, void *data) {
     // For this, the highest-entropy kmers will be selected as "minimizers".
+    LOG_WARNING("Note: this will likely need a tie breaker.");
     return UINT64_C(-1) - static_cast<u64>(UINT64_C(7958933093282078720) * kmer_entropy(i, *(unsigned *)data));
 }
 static INLINE u64 hash_score(u64 i, void *data) {
