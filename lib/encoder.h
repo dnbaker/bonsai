@@ -295,8 +295,11 @@ void fill_hll(hll::hll_t &ret, const std::vector<std::string> &paths,
         LOG_WARNING("Number of threads was negative and has been adjusted to all available threads (%i).\n", num_threads);
     }
     const Spacer space(k, w, spaces);
-    if(num_threads <= 1) for(size_t i(0); i < paths.size(); hll_fill_lmers<ScoreType>(ret, paths[i++], space, data));
-    else {
+    if(num_threads <= 1) {
+        LOG_DEBUG("Starting serial\n");
+        for(size_t i(0); i < paths.size(); hll_fill_lmers<ScoreType>(ret, paths[i++], space, data));
+    } else {
+        LOG_DEBUG("Starting parallel\n");
         std::mutex m;
         est_helper helper{space, paths, m, np, data, ret};
         kt_for(num_threads, &est_helper_fn<ScoreType>, &helper, paths.size());
