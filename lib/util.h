@@ -493,6 +493,7 @@ inline constexpr int log2_64(uint64_t value)
     value |= value >> 8;
     value |= value >> 16;
     value |= value >> 32;
+    // This could be replaced with a __builtin_clz
     return tab64[((uint64_t)((value - (value >> 1))*0x07EDD5E59A4E28C2)) >> 58];
 }
 
