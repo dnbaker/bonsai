@@ -24,16 +24,16 @@ std::mutex output_lock;
 
 #ifdef NOTHREADING
 #define EMIT_RESULTS(sketchval, exactval) do { \
-    ks.sprintf("%s\t%s\t%lf\t%lf\t%lf\t%lf\t%u\n", \
+    ks.sprintf("%s\t%s\t%lf\t%lf\t%lf\t%lf\t%u\t%u\n", \
                argv[optind + i], argv[optind + j], \
                sketchval, exactval, std::abs(sketchval - exactval), \
-               std::abs(sketchval - exactval) / exactval * 100., sketchsize); } while(0)
+               std::abs(sketchval - exactval) / exactval * 100., sketchsize, k); } while(0)
 #else
 #define EMIT_RESULTS(sketchval, exactval) do { std::lock_guard<std::mutex> lock(output_lock);\
-    ks.sprintf(ofp, "%s\t%s\t%lf\t%lf\t%lf\t%lf\t%u\n", \
+    ks.sprintf(ofp, "%s\t%s\t%lf\t%lf\t%lf\t%lf\t%u\t%u\n", \
                argv[optind + i], argv[optind + j], \
                sketchval, exactval, std::abs(sketchval - exactval), \
-               std::abs(sketchval - exactval) / exactval * 100., sketchsize); } while(0)
+               std::abs(sketchval - exactval) / exactval * 100., sketchsize, k); } while(0)
 #endif
 
 int main(int argc, char *argv[]) {
@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
     double sketchval, exactval;
     const int fn(fileno(ofp));
     ks::string ks("#Path1\tPath2\tApproximate jaccard index\tExact jaccard index\t"
-                  "Absolute difference\t%difference from exact value\tSketch size\n");
+                  "Absolute difference\t%difference from exact value\tSketch size\tKmer size\n");
     Spacer sp(k);
     if(lowmem) {
         khash_t(all) *s1(kh_init(all)), *s2(kh_init(all));
@@ -72,14 +72,14 @@ int main(int argc, char *argv[]) {
             assert(kh_size(s1) == 0);
             LOG_DEBUG("Filling hll\n");
             paths[0] = argv[optind + i];
-            fill_hll(h1, paths, k, k, sv, nullptr, 1, sketchsize);
             fill_set_genome<score::Lex>(argv[optind + i], sp, s1, i, nullptr);
+            hll_from_khash(h1, s1);
 #ifndef NOTHREADING
             #pragma omp parallel for
 #endif
             for(size_t j = i + 1; j < ngenomes; ++j) {
                 fill_set_genome<score::Lex>(argv[optind + j], sp, s2, j, nullptr);
-                fill_hll(h2, std::vector<std::string>{argv[optind + j]}, k, k, sv, nullptr, 1, sketchsize);
+                hll_from_khash(h2, s2);
                 double sketchval = hll::jaccard_index(h1, h2);
                 double exactval  = emp::jaccard_index(s1, s2);
                 EMIT_RESULTS(sketchval, exactval);
