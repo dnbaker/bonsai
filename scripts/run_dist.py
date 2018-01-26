@@ -21,15 +21,17 @@ def submit_call(tup):
 
 
 def makefn(x, y, z):
-    return "experiment_%i_genomes.k%i.n%i.out" % (len(x), y, z)
+    from functools import reduce
+    from operator import or_
+    return "experiment_%i_%x_genomes.k%i.n%i.out" % (len(x), reduce(or_, map(hash, x)),  y, z)
 
 
 def main():
+    sketch_range = range(14, 24, 2)
+    kmer_range = range(27, 33, 2)
+    import argparse
     argv = sys.argv
     # Handle args
-    sketch_range = range(14, 24, 2)
-    kmer_range = range(18, 32, 2)
-    import argparse
     p = argparse.ArgumentParser(
         description="This calculates all pairwise distances between "
                     "genomes for %i combinations of parameters."
@@ -45,16 +47,9 @@ def main():
 
     threads = args.threads
     redo = not args.no_redo
-    genomes = args.genomes
-    try:
+    paths = genomes = args.genomes
+    if len(genomes) == 1 and os.path.isfile(next(open(genomes[0])).strip()):
         paths = [i.strip() for i in open(genomes[0])]
-        if not all(os.path.isfile(path) for path in paths):
-            raise Exception("Punt this to opening all files")
-    except:
-        paths = genomes
-    if not paths:
-        print("See usage: [-h/--help].", file=sys.stderr)
-        return 1
     submission_sets = ((ks, ss, makefn(paths, ks, ss), paths, redo)
                        for ss in sketch_range for ks in kmer_range)
     multiprocessing.Pool(multiprocessing.cpu_count()).map(submit_call,

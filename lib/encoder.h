@@ -308,6 +308,17 @@ void fill_hll(hll::hll_t &ret, const std::vector<std::string> &paths,
     
 }
 
+template<typename T>
+void hll_from_khash(hll::hll_t &ret, const T *kh, bool clear=true) {
+    if(clear) {
+        LOG_DEBUG("Clearing hll::hll_t ret with address %p\n", (void *)&ret);
+        ret.clear();
+    }
+    for(khiter_t i(0); i < kh_size(kh); ++i)
+        if(kh_exist(kh, i))
+            ret.addh(kh->keys[i]);
+}
+
 template<typename ScoreType=score::Lex>
 hll::hll_t make_hll(const std::vector<std::string> &paths,
                 unsigned k, uint16_t w, spvec_t spaces,
