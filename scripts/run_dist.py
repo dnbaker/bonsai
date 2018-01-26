@@ -22,8 +22,8 @@ def submit_call(tup):
 
 def makefn(x, y, z):
     from functools import reduce
-    from operator import or_
-    return "experiment_%i_%x_genomes.k%i.n%i.out" % (len(x), reduce(or_, map(hash, x)),  y, z)
+    from operator import xor
+    return "experiment_%i_%x_genomes.k%i.n%i.out" % (len(x), reduce(xor, map(hash, x)),  y, z)
 
 
 def main():
