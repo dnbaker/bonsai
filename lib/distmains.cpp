@@ -26,12 +26,12 @@ std::string &extend_suffix(std::string &suffix, int wsz, const Spacer &sp, int k
     return suffix += ".w" + std::to_string(std::max((int)sp.c_, wsz)) + "." + std::to_string(k) + ".spacing" + spacing;
 }
 
-std::string hll_fname(const char *path, size_t sketch_p, const std::string &suffix) {
-    const std::string mid(suffix.size() ? std::string(".")  + suffix + ".": std::string("."));
-    return std::string(path) + mid + std::to_string(sketch_p) + ".hll";
+ks::string hll_fname(const char *path, size_t sketch_p, const std::string &suffix) {
+    return ks::sprintf("%s.%s%zu.hll", get_cstr(path), (suffix.size() ? std::string(".")  + suffix + ".": std::string(".")).data(), sketch_p);
 }
+
 bool has_hll(const char *path, size_t sketch_p, const std::string &suffix) {
-    return isfile(hll_fname(path, sketch_p, suffix));
+    return isfile(hll_fname(path, sketch_p, suffix).data());
 }
 
 // Main functions
@@ -70,7 +70,7 @@ int sketch_main(int argc, char *argv[]) {
         if(skip_cached && has_hll(path.data(), sketch_size, suffix)) continue;
         hlls[i] = make_hll(std::vector<std::string>{inpaths[i]},
                            k, wsz, sv, nullptr, 1, sketch_size);
-        hlls[i].write(hll_fname(path.data(), sketch_size, suffix));
+        hlls[i].write(hll_fname(path.data(), sketch_size, suffix).data());
     }
     return EXIT_SUCCESS;
 }
@@ -116,7 +116,7 @@ int dist_main(int argc, char *argv[]) {
             ? hll::hll_t(path.data())
             : make_hll(std::vector<std::string>{inpaths[i]},
                        k, wsz, sv, nullptr, 1, sketch_size);
-        if(cache_sketch) hlls[i].write(hll_fname(path.data(), sketch_size, suffix));
+        if(cache_sketch) hlls[i].write(hll_fname(path.data(), sketch_size, suffix).data());
     }
     ks::string str("#Path\tSize (est.)\n");
     assert(str == "#Path\tSize (est.)\n");
