@@ -14,7 +14,7 @@ u32 comb_size(const spvec_t &spaces);
 spvec_t parse_spacing(const char *space_string, unsigned k);
 ks::string str(const spvec_t &vec);
 struct Spacer {
-    static const u32 max_k = 31;
+    static const u32 max_k = 32;
     // Instance variables
     spvec_t s_; // Spaces to skip
     const u32 k_:8;  // Kmer size
