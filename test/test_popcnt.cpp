@@ -1,9 +1,10 @@
 #include "test/catch.hpp"
-#include "lib/bits.h"
+#include "lib/popcnt.h"
+#include "lib/util.h"
 #include <vector>
 
 using namespace emp;
-using namespace emp::popcnt;
+using namespace popcnt;
 
 TEST_CASE("popcnt") {
     std::vector<uint64_t> vals;
