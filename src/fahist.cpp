@@ -61,7 +61,6 @@ int main(int argc, char **argv) {
                 std::ifstream ifs(*p);
                 while(std::getline(ifs, tmp)) {
                     std::cout << tmp << '\n';
-                    if(tmp[tmp.size() - 1] == '\n') tmp.pop_back();
                     paths.emplace_back(std::move(tmp));
                 }
             }
