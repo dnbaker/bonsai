@@ -125,6 +125,10 @@ public:
     void rename(const char *name) {name_ = name;}
 };
 
+namespace {
+template<typename T> class TD;
+}
+
 KHASH_SET_INIT_INT64(all)
 KHASH_MAP_INIT_INT64(c, tax_t)
 KHASH_MAP_INIT_INT64(64, u64)
@@ -187,11 +191,13 @@ template<> inline khint_t khash_put(khash_t(all) *map, uint64_t key, int *ret) {
     return kh_put(all, map, key, ret);
 }
 
-template<typename T> khint_t khash_get(T *map, uint64_t key) {
-    if constexpr(std::is_same_v<std::decay_t<decltype(map->keys[0])>, uint64_t>) {
-        return kh_get(64, (khash_t(64) *)map, key);
+template<typename T, typename KType> khint_t khash_get(T *map, KType key) {
+    if constexpr(std::is_same_v<std::decay_t<KType>, uint64_t>) {
+        return kh_get(64, (khash_t(64) *)map, (uint64_t)key);
+    } else if constexpr(std::is_same_v<KType, const char *>) {
+        return kh_get(name, (khash_t(name) *)map, (const char *)key);
     } else {
-        return kh_get(c, (khash_t(c) *)map, key);
+        return kh_get(c, (khash_t(c) *)map, (uint32_t)key);
     }
 }
 

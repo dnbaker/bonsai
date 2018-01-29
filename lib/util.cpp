@@ -400,10 +400,6 @@ std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map, const
     return ret;
 }
 
-namespace {
-template<typename T> class TD;
-}
-
 
 std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(
         const khash_t(p) *taxmap, const std::vector<tax_t> &taxes,
