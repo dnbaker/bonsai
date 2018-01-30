@@ -55,28 +55,33 @@ int sketch_main(int argc, char *argv[]) {
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Spacer sp(k, wsz, sv);
     extend_suffix(suffix, wsz, sp, k, spacing);
-    std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
-                                                       : std::vector<std::string>(argv + optind, argv + argc));
+    std::vector<std::vector<std::string>> ivecs;
+    {
+        std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
+                                                           : std::vector<std::string>(argv + optind, argv + argc));
+        for(const auto &el: inpaths) ivecs.emplace_back(std::vector<std::string>{el});
+    }
     std::vector<hll::hll_t> hlls;
-    while(hlls.size() < inpaths.size()) hlls.emplace_back();
+    while(hlls.size() < (unsigned)omp_get_num_threads()) hlls.emplace_back(sketch_size);
     if(wsz < sp.c_) wsz = sp.c_;
-    if(inpaths.size() == 0) {
+    if(ivecs.size() == 0) {
         std::fprintf(stderr, "No paths. See usage.\n");
         dist_usage(*argv);
     }
     #pragma omp parallel for
     for(size_t i = 0; i < hlls.size(); ++i) {
-        const std::string &path(inpaths[i]);
+        const std::string &path(ivecs[i][0]);
         if(skip_cached && has_hll(path.data(), sketch_size, suffix)) continue;
-        hlls[i] = make_hll(std::vector<std::string>{inpaths[i]},
-                           k, wsz, sv, nullptr, 1, sketch_size);
-        hlls[i].write(hll_fname(path.data(), sketch_size, suffix).data());
+        const auto tnum(omp_get_thread_num());
+        hlls[tnum] = make_hll(ivecs[i],
+                              k, wsz, sv, nullptr, 1, sketch_size);
+        hlls[tnum].write(hll_fname(path.data(), sketch_size, suffix).data());
     }
     return EXIT_SUCCESS;
 }
 
 int dist_main(int argc, char *argv[]) {
-    int wsz(-1), k(31), sketch_size(16), use_scientific(false), neg_estimates_to_zero(false), co, cache_sketch(false);
+    int wsz(-1), k(31), sketch_size(16), use_scientific(false), co, cache_sketch(false);
     std::string spacing, paths_file, suffix;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
@@ -91,7 +96,6 @@ int dist_main(int argc, char *argv[]) {
             case 'F': paths_file = optarg; break;
             case 'o': ofp = fopen(optarg, "w"); if(ofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
             case 'O': pairofp = fopen(optarg, "w"); if(pairofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
-            case 'M': neg_estimates_to_zero = true; break;
             case 'e': use_scientific = true; break;
             case 'W': cache_sketch = true;  break;
             case 'h': case '?': dist_usage(*argv);
@@ -103,7 +107,7 @@ int dist_main(int argc, char *argv[]) {
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind, argv + argc));
     std::vector<hll::hll_t> hlls;
-    while(hlls.size() < inpaths.size()) hlls.emplace_back(0);
+    while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size);
     if(wsz < sp.c_) wsz = sp.c_;
     if(inpaths.size() == 0) {
         std::fprintf(stderr, "No paths. See usage.\n");
@@ -139,14 +143,16 @@ int dist_main(int argc, char *argv[]) {
     str.write(fileno(pairofp)); str.free();
     for(auto &el: hlls) el.sum();
     const char *fmt(use_scientific ? "\t%e": "\t%f");
+    std::vector<hll::hll_t> scratch_hlls;
+    while(scratch_hlls.size() < (unsigned)omp_get_num_threads()) scratch_hlls.emplace_back(sketch_size);
     for(size_t i = 0; i < hlls.size(); ++i) {
         const hll::hll_t &h1(hlls[i]);
         #pragma omp parallel for
-        for(size_t j = i + 1; j < hlls.size(); ++j) dists[j - i - 1] = jaccard_index(hlls[j], h1);
+        for(size_t j = i + 1; j < hlls.size(); ++j)
+            dists[j - i - 1] = jaccard_index(hlls[j], h1, scratch_hlls[omp_get_thread_num()]);
         str += inpaths[i];
         for(size_t k(0); k < i + 1; ++k) str.putc_('\t'), str.putc_('-');
-        if(neg_estimates_to_zero) for(size_t k(0); k < hlls.size() - i - 1; ++k) str.sprintf(fmt, std::max(0., dists[k]));
-        else                      for(size_t k(0); k < hlls.size() - i - 1; ++k) str.sprintf(fmt, dists[k]);
+        for(size_t k(0); k < hlls.size() - i - 1; ++k) str.sprintf(fmt, dists[k]);
         str.putc_('\n');
         if(str.size() >= 1 << 18) str.write(fileno(pairofp)), str.clear();
     }
@@ -154,8 +160,9 @@ int dist_main(int argc, char *argv[]) {
     if(pairofp != stdout) fclose(pairofp);
     return EXIT_SUCCESS;
 }
+
 int setdist_main(int argc, char *argv[]) {
-    int wsz(-1), k(31), use_scientific(false), neg_estimates_to_zero(false), co;
+    int wsz(-1), k(31), use_scientific(false), co;
     unsigned bufsize(1 << 18);
     std::string spacing, paths_file;
     FILE *ofp(stdout), *pairofp(stdout);
@@ -171,7 +178,6 @@ int setdist_main(int argc, char *argv[]) {
             case 'o': ofp = fopen(optarg, "w"); break;
             case 'O': pairofp = fopen(optarg, "w"); break;
             case 'e': use_scientific = true; break;
-            case 'M': neg_estimates_to_zero = true; break;
             case 'h': case '?': dist_usage(*argv);
         }
     }
@@ -222,12 +228,8 @@ int setdist_main(int argc, char *argv[]) {
         for(j = i + 1; j < hashes.size(); ++j)
             dists[j - i - 1] = jaccard_index(hashes[j], h1);
         for(j = 0; j < i + 1; ++j) fputc('\t', pairofp), fputc('-', pairofp);
-        if(neg_estimates_to_zero)
-            for(j = 0; j < hashes.size() - i - 1; ++j)
-                fprintf(pairofp, fmt, std::max(dists[j], 0.0));
-        else
-            for(j = 0; j < hashes.size() - i - 1; ++j)
-                fprintf(pairofp, fmt, dists[j]);
+        for(j = 0; j < hashes.size() - i - 1; ++j)
+            fprintf(pairofp, fmt, dists[j]);
         fputc('\n', pairofp);
         khash_destroy(h1), h1 = nullptr;
         // Delete data as soon as we don't need it.
