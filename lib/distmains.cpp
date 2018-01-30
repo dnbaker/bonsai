@@ -103,7 +103,7 @@ int dist_main(int argc, char *argv[]) {
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind, argv + argc));
     std::vector<hll::hll_t> hlls;
-    while(hlls.size() < inpaths.size()) hlls.emplace_back(0);
+    while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size);
     if(wsz < sp.c_) wsz = sp.c_;
     if(inpaths.size() == 0) {
         std::fprintf(stderr, "No paths. See usage.\n");
@@ -139,10 +139,15 @@ int dist_main(int argc, char *argv[]) {
     str.write(fileno(pairofp)); str.free();
     for(auto &el: hlls) el.sum();
     const char *fmt(use_scientific ? "\t%e": "\t%f");
+    std::vector<hll::hll_t> scratch_hlls;
+    while(scratch_hlls.size() < omp_get_num_threads()) scratch_hlls.emplace_back(sketch_size);
     for(size_t i = 0; i < hlls.size(); ++i) {
         const hll::hll_t &h1(hlls[i]);
         #pragma omp parallel for
-        for(size_t j = i + 1; j < hlls.size(); ++j) dists[j - i - 1] = jaccard_index(hlls[j], h1);
+        for(size_t j = i + 1; j < hlls.size(); ++j) {
+            hll::hll_t &scratch_hll(scratch_hlls[omp_get_thread_num()]);
+            dists[j - i - 1] = jaccard_index(hlls[j], h1, scratch_hll);
+        }
         str += inpaths[i];
         for(size_t k(0); k < i + 1; ++k) str.putc_('\t'), str.putc_('-');
         if(neg_estimates_to_zero) for(size_t k(0); k < hlls.size() - i - 1; ++k) str.sprintf(fmt, std::max(0., dists[k]));
