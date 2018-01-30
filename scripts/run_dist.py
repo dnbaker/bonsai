@@ -4,6 +4,7 @@ import subprocess
 import multiprocessing
 import os
 
+
 def submit_distcmp_call(tup):
     k, n, opath, paths, redo = tup
     if any(not os.path.isfile(path) for path in paths):
@@ -65,18 +66,16 @@ def main():
         for ss in sketch_range:
             for ks in kmer_range:
                 fn = makefn(paths, ks, ss, mashify)
-                for path in paths:
-                    thisfn = fn + (".%s.out" %
-                                   os.basename(path).split(".")[0])
-                    opaths = [_path for _path in paths if _path != path]
+                for i in range(len(paths) - 1):
+                    identifier = os.basename(paths[i]).split(".")[0]
+                    thisfn = "%s.%s.out" % (fn, identifier)
                     cstr = "mash dist -s %i -t -k %i -p %i %s > %s" % (
                         1 << ss, ks, threads,
-                        " ".join([path] + opaths), thisfn)
-                    print("Submitting cstr: %s" % cstr)
+                        " ".join(paths[i:]), thisfn)
                     subprocess.check_call(cstr, shell=True)
     else:
         multiprocessing.Pool(threads).map(submit_distcmp_call,
-                                           submission_sets)
+                                          submission_sets)
     return 0
 
 
