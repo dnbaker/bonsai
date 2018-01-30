@@ -55,22 +55,27 @@ int sketch_main(int argc, char *argv[]) {
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Spacer sp(k, wsz, sv);
     extend_suffix(suffix, wsz, sp, k, spacing);
-    std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
-                                                       : std::vector<std::string>(argv + optind, argv + argc));
+    std::vector<std::vector<std::string>> ivecs;
+    {
+        std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
+                                                           : std::vector<std::string>(argv + optind, argv + argc));
+        for(const auto &el: inpaths) ivecs.emplace_back(std::vector<std::string>{el});
+    }
     std::vector<hll::hll_t> hlls;
-    while(hlls.size() < inpaths.size()) hlls.emplace_back();
+    while(hlls.size() < (unsigned)omp_get_num_threads()) hlls.emplace_back(sketch_size);
     if(wsz < sp.c_) wsz = sp.c_;
-    if(inpaths.size() == 0) {
+    if(ivecs.size() == 0) {
         std::fprintf(stderr, "No paths. See usage.\n");
         dist_usage(*argv);
     }
     #pragma omp parallel for
     for(size_t i = 0; i < hlls.size(); ++i) {
-        const std::string &path(inpaths[i]);
+        const std::string &path(ivecs[i][0]);
         if(skip_cached && has_hll(path.data(), sketch_size, suffix)) continue;
-        hlls[i] = make_hll(std::vector<std::string>{inpaths[i]},
-                           k, wsz, sv, nullptr, 1, sketch_size);
-        hlls[i].write(hll_fname(path.data(), sketch_size, suffix).data());
+        const auto tnum(omp_get_thread_num());
+        hlls[tnum] = make_hll(ivecs[i],
+                              k, wsz, sv, nullptr, 1, sketch_size);
+        hlls[tnum].write(hll_fname(path.data(), sketch_size, suffix).data());
     }
     return EXIT_SUCCESS;
 }
@@ -140,7 +145,7 @@ int dist_main(int argc, char *argv[]) {
     for(auto &el: hlls) el.sum();
     const char *fmt(use_scientific ? "\t%e": "\t%f");
     std::vector<hll::hll_t> scratch_hlls;
-    while(scratch_hlls.size() < omp_get_num_threads()) scratch_hlls.emplace_back(sketch_size);
+    while(scratch_hlls.size() < (unsigned)omp_get_num_threads()) scratch_hlls.emplace_back(sketch_size);
     for(size_t i = 0; i < hlls.size(); ++i) {
         const hll::hll_t &h1(hlls[i]);
         #pragma omp parallel for
