@@ -4,8 +4,7 @@ import subprocess
 import multiprocessing
 import os
 
-
-def submit_call(tup):
+def submit_distcmp_call(tup):
     k, n, opath, paths, redo = tup
     if any(not os.path.isfile(path) for path in paths):
         raise Exception("The files are NOT in the computer! %s" %
@@ -20,10 +19,14 @@ def submit_call(tup):
     subprocess.check_call(shlex.split(cstr))
 
 
-def makefn(x, y, z):
+def makefn(x, y, z, mashify):
     from functools import reduce
     from operator import xor
-    return "experiment_%i_%x_genomes.k%i.n%i.out" % (len(x), reduce(xor, map(hash, x)),  y, z)
+    hashval = reduce(xor, map(hash, x))
+    if not mashify:
+        return "experiment_%i_%x_genomes.k%i.n%i.out" % (len(x), hashval, y, z)
+    return "mashed_experiment_%i_%x_genomes.k%i.n%i." % (
+        len(x), hashval,  y, z)
 
 
 def main():
@@ -39,7 +42,10 @@ def main():
                                                  len(kmer_range)))
     p.add_argument("--no-redo", "-n", action="store_true")
     p.add_argument("--threads", "-p",
-                   default=multiprocessing.cpu_count())
+                   default=multiprocessing.cpu_count(), type=int)
+    p.add_argument("--use-mash", "-M", action="store_true",
+                   help=("Use Mash to calculate distances "
+                         "rather than 'bonsai dist'"))
     p.add_argument('genomes', metavar='paths', type=str, nargs='+',
                    help=('paths to genomes or a path to a file'
                          ' with one genome per line.'))
@@ -48,12 +54,29 @@ def main():
     threads = args.threads
     redo = not args.no_redo
     paths = genomes = args.genomes
+    mashify = args.use_mash
+    if mashify:
+        sketch_range = range(12, 18)
     if len(genomes) == 1 and os.path.isfile(next(open(genomes[0])).strip()):
         paths = [i.strip() for i in open(genomes[0])]
-    submission_sets = ((ks, ss, makefn(paths, ks, ss), paths, redo)
+    submission_sets = ((ks, ss, makefn(paths, ks, ss, mashify), paths, redo)
                        for ss in sketch_range for ks in kmer_range)
-    multiprocessing.Pool(multiprocessing.cpu_count()).map(submit_call,
-                                                          submission_sets)
+    if mashify:
+        for ss in sketch_range:
+            for ks in kmer_range:
+                fn = makefn(paths, ks, ss, mashify)
+                for path in paths:
+                    thisfn = fn + (".%s.out" %
+                                   path.split("/")[-1].split(".")[0])
+                    opaths = [_path for _path in paths if _path != path]
+                    cstr = "mash dist -s %i -t -k %i -p %i %s > %s" % (
+                        1 << ss, ks, threads,
+                        " ".join(opaths), thisfn)
+                    print("Submitting cstr: %s" % cstr)
+                    subprocess.check_call(cstr, shell=True)
+    else:
+        multiprocessing.Pool(threads).map(submit_distcmp_call,
+                                           submission_sets)
     return 0
 
 
