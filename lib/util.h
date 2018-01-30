@@ -54,8 +54,7 @@
 #  define PACKED
 #  endif
 #endif
-//#if ZLIB_VER_MAJOR <= 1 && ZLIB_VER_MINOR <= 2 && ZLIB_VER_REVISION < 5
-#if 1
+#if ZLIB_VERNUM < 0x1235
 #define gzbuffer(fp, size)
 #else
 #define gzbuffer(fp, size) gzbuffer(fp, size)
