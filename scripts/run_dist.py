@@ -67,11 +67,11 @@ def main():
                 fn = makefn(paths, ks, ss, mashify)
                 for path in paths:
                     thisfn = fn + (".%s.out" %
-                                   path.split("/")[-1].split(".")[0])
+                                   os.basename(path).split(".")[0])
                     opaths = [_path for _path in paths if _path != path]
                     cstr = "mash dist -s %i -t -k %i -p %i %s > %s" % (
                         1 << ss, ks, threads,
-                        " ".join(opaths), thisfn)
+                        " ".join([path] + opaths), thisfn)
                     print("Submitting cstr: %s" % cstr)
                     subprocess.check_call(cstr, shell=True)
     else:
