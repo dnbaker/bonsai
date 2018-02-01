@@ -5,13 +5,17 @@ import multiprocessing
 import os
 
 
+
+def is_nonempty_file(path):
+    return os.path.isfile(path) and os.path.getsize(path)
+
+
 def submit_distcmp_call(tup):
     k, n, opath, paths, redo = tup
     if any(not os.path.isfile(path) for path in paths):
         raise Exception("The files are NOT in the computer! %s" %
                         ", ".join(paths))
-    if not redo:
-        if os.path.isfile(opath) and os.path.getsize(opath):
+        if not redo and is_nonempty_file(opath):
             print("%s has run and redo is set to false. "
                   "Continuing" % opath, file=sys.stderr)
             return
@@ -32,15 +36,13 @@ def makefn(x, y, z, mashify):
 
 def main():
     sketch_range = range(10, 24, 1)
-    kmer_range = range(24, 33, 1)
     import argparse
     argv = sys.argv
     # Handle args
     p = argparse.ArgumentParser(
         description="This calculates all pairwise distances between "
-                    "genomes for %i combinations of parameters."
-                    "This does take a while." % (len(sketch_range) *
-                                                 len(kmer_range)))
+                    "genomes for all  combinations of parameters."
+                    "This does take a while.")
     p.add_argument("--no-redo", "-n", action="store_true")
     p.add_argument("--threads", "-p",
                    default=multiprocessing.cpu_count(), type=int)
@@ -50,8 +52,11 @@ def main():
     p.add_argument('genomes', metavar='paths', type=str, nargs='+',
                    help=('paths to genomes or a path to a file'
                          ' with one genome per line.'))
+    p.add_argument("--range-start", default=24, type=int)
+    p.add_argument("--range-end", default=32, type=int)
     args = p.parse_args()
 
+    kmer_range = range(args.range_start, args.range_end + 1)
     threads = args.threads
     redo = not args.no_redo
     paths = genomes = args.genomes
@@ -67,6 +72,8 @@ def main():
                 for i in range(len(paths) - 1):
                     identifier = os.path.basename(paths[i]).split(".")[0]
                     thisfn = "%s.%s.out" % (fn, identifier)
+                    if not redo and is_nonempty_file(thisfn):
+                        continue
                     cstr = "mash dist -s %i -t -k %i -p %i %s > %s" % (
                         1 << ss, ks, threads,
                         " ".join(paths[i:]), thisfn)
