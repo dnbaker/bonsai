@@ -6,7 +6,18 @@ if sys.version_info[0] < 3:
                       "[Make your life easier, take the plunge!]" %
                       os.path.basename(__file__))
 
-basename = os.path.basename
+
+def nk2sketchbytes(sketchtype, n=-1, k=-1):
+    if k < 0 or n < 0:
+        raise Exception("Set n, k kwargs for nk2sketchbytes pls")
+    try:
+        return {"mash": 8 if k > 16 else 4,
+                "hlash": 1}[sketchtype.lower()] << n
+    except KeyError:
+        sys.stderr.write(
+            ("Key error in nk2sketchbytes."
+             "key: %s. Expected mash or hlash" % sketchtype))
+        raise
 
 
 def get_flag(tok):
@@ -14,8 +25,7 @@ def get_flag(tok):
     '''
     if not tok:
         return False
-    flagchar = tok[0]
-    rest = tok[1:]
+    flagchar, rest = tok[0], tok[1:]
     if rest:
         try:
             return int(rest)
@@ -25,45 +35,107 @@ def get_flag(tok):
     return False
 
 
+def canonname(k1, k2=None):
+    if not k2:
+        assert len(k1) == 2
+        tmp1, k2 = k1
+        k1 = tmp1
+    return sorted(map(os.path.basename, (k1, k2)))
+
+
+def get_nk(path):
+    k = n = 0
+    flags = [(tok, get_flag(tok)) for
+             tok in path.split("/")[-1].split(".")]
+    for tok, val in ((tok, get_flag(tok)) for tok in
+                     os.path.basename(path).split(".")):
+        if not val:
+            continue
+        if tok[0] == 'k':
+            k = val
+        elif tok[0] == 'n':
+            n = val
+        elif "exper" not in tok:
+            raise ValueError("Unexpected token %s" % tok)
+    if not k or not n:
+        raise Exception("Invalid mashexp filename %s" % path)
+    return n, k
+
+
+def canonkey(k1, k2=None, n=-1, k=-1):
+    if isinstance(k1, HlashData):
+        return k1.key
+    if n < 0 or k < 0:
+        raise Exception("ZOMG")
+    return tuple((*canonname(k1, k2), n, k))
+
+
 def mash2dict(path):
+    basename = os.path.basename
     with open(path) as ifp:
-        flags = [(tok, get_flag(tok)) for
-                 tok in path.split("/")[-1].split(".")]
-        k = 0
-        n = 0
-        print(flags)
-        for tok, val in flags:
-            if not val:
-                continue
-            if tok[0] == 'k':
-                k = val
-            elif tok[0] == 'n':
-                n = val
-            elif "exper" not in tok:
-                raise ValueError("Unexpected token %s" % tok)
-        if not k or not n:
-            raise Exception("Invalid mashexp filename")
         try:
             k1 = basename(next(ifp).strip().split()[1])
         except StopIteration:
             print("StopIteration from file with path %s" % path)
             raise
-        ret = {tuple(["_".join(sorted([k1, basename(i.split()[0])])), k, n]):
+        n, k = get_nk(path)
+        ret = {canonkey(k1, i.split()[0], nk2sketchbytes("mash", n, k), k):
                float(i.strip().split()[1]) for i in ifp}
+    print("Ret: %s" % ret, file=sys.stderr)
     return ret
 
 
-def folder2dict(paths):
+def folder2paths(paths):
+    # This is a misnomer. It holds either a list of paths or a string
+    # representing a folder from which we glob everything
     if isinstance(paths, str):
         if os.path.isdir(paths):
             import glob
-            paths = glob.glob(paths + "/*")
+            paths = glob.glob(paths + "/*out")
+    assert isinstance(paths, list)
+    if len(paths) == 1:
+        import glob
+        plist = glob.glob("%s/*" % paths[0])
+        paths = list(plist)
+    fail = False
+    for path in paths:
+        if not os.path.isfile(path):
+            print("path %s is not a file." % path, file=sys.stderr)
+            fail = True
+    if fail:
+        raise Exception("The files are NOT in the computer.")
+    return paths
+
+
+def folder2mashdict(paths):
+    paths = folder2paths(paths)
     ret = {}
     for path in paths:
-        if "experim" not in path:
-            continue
-        ret.update(mash2dict(path))
+        if "experim" in path:
+            ret.update(mash2dict(path))
     return ret
 
 
-__all__ = ["mash2dict", "folder2dict", "get_flag"]
+class HlashData:
+    def __init__(self, line):
+        toks = line.strip().split()
+        self.paths = canonname(toks[:2])
+        self.est, self.exact = map(float, toks[2:4])
+        self.n, self.k = map(int, toks[-2:])
+        self.nbytes = 1 << self.n
+        self.key = canonkey(self.paths[0], self.paths[1],
+                            n=self.nbytes, k=self.k)
+
+
+def folder2hlashdict(paths):
+    paths = folder2paths(paths)
+    return {canonkey(x): x for x in map(HlashData,
+                                        (line for path in paths if
+                                         "genome" in path and "out" in path
+                                         for line in open(path) if
+                                         line[0] != "#"))}
+
+
+__all__ = ["mash2dict", "folder2dict", "get_flag",
+           "folder2hlashdict", "folder2paths",
+           "HlashData", "nk2sketchbytes", "canonname", "canonkey"]

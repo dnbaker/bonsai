@@ -31,8 +31,8 @@ def makefn(x, y, z, mashify):
 
 
 def main():
-    sketch_range = range(14, 24, 2)
-    kmer_range = range(27, 33, 2)
+    sketch_range = range(10, 24, 1)
+    kmer_range = range(24, 33, 1)
     import argparse
     argv = sys.argv
     # Handle args
@@ -56,8 +56,6 @@ def main():
     redo = not args.no_redo
     paths = genomes = args.genomes
     mashify = args.use_mash
-    if mashify:
-        sketch_range = range(12, 18)
     if len(genomes) == 1 and os.path.isfile(next(open(genomes[0])).strip()):
         paths = [i.strip() for i in open(genomes[0])]
     submission_sets = ((ks, ss, makefn(paths, ks, ss, mashify), paths, redo)
@@ -67,7 +65,7 @@ def main():
             for ks in kmer_range:
                 fn = makefn(paths, ks, ss, mashify)
                 for i in range(len(paths) - 1):
-                    identifier = os.basename(paths[i]).split(".")[0]
+                    identifier = os.path.basename(paths[i]).split(".")[0]
                     thisfn = "%s.%s.out" % (fn, identifier)
                     cstr = "mash dist -s %i -t -k %i -p %i %s > %s" % (
                         1 << ss, ks, threads,

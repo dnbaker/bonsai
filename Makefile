@@ -16,6 +16,9 @@ endif
 ifndef INCPLUS
 	INCPLUS:=
 endif
+ifndef EXTRA_LD
+	EXTRA_LD:=
+endif
 DBG:=
 OS:=$(shell uname)
 FLAGS=
@@ -27,7 +30,7 @@ XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS)
 CCFLAGS=$(OPT) $(CFLAGS) -std=c11 $(WARNINGS)
 LIB=-lz #-lhll
-LD=-L.
+LD=-L. $(EXTRA_LD)
 
 OBJS=$(patsubst %.c,%.o,$(wildcard lib/*.c) klib/kthread.o) $(patsubst %.cpp,%.o,$(wildcard lib/*.cpp)) klib/kstring.o clhash.o
 
