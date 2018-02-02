@@ -146,6 +146,22 @@ public:
         assert(has_next_kmer());
         return kmer(pos_++);
     }
+    INLINE u64 &next_unspaced_kmer(u64 &last_kmer) {
+        assert(has_next_kmer() && sp_.unspaced());
+        return unspaced_kmer(pos_++, last_kmer);
+    }
+    INLINE u64 &unspaced_kmer(unsigned start, u64 &last_kmer) {
+        assert(start <= l_ - sp_.c_ + 1);
+        if(l_ < sp_.c_) return BF;
+        u64 new_kmer(cstr_lut[s_[start]]);
+        for(const auto s: sp_.s_) {
+            new_kmer <<= 2;
+            start += s;
+            new_kmer |= cstr_lut[s_[start]];
+        }
+        new_kmer = canonical_representation(new_kmer, sp_.k_) ^ XOR_MASK;
+        return last_kmer;
+    }
     // This is the actual point of entry for fetching our minimizers.
     // It wraps encoding and scoring a kmer, updates qmap, and returns the minimizer
     // for the next window.
@@ -195,9 +211,9 @@ void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &spac
             if((min = enc.next_minimizer()) != BF)
                 hll.addh(min);
     }
+    cleanup:
     kseq_destroy(ks);
     gzclose(fp);
-    //LOG_DEBUG("Filled hll of exact size %zu and estimated size %lf from path %s\n", s.size(), hll.report(), path.data());
 }
 
 template<typename ScoreType>
