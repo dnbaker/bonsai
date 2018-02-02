@@ -36,8 +36,13 @@ public:
         }
     }
     Spacer(unsigned k, std::uint16_t w, const char *space_string):
-        Spacer(k, w, parse_spacing(space_string, k))
-    {
+        Spacer(k, w, parse_spacing(space_string, k)) {}
+    bool unspaced() const {
+        bool ret(true);
+        for(const auto el: s_)
+            if(el != 1)
+                return false;
+        return true;
     }
     Spacer(unsigned k): Spacer(k, k) {}
     Spacer(const Spacer &other): s_(other.s_), k_(other.k_), c_(other.c_), w_(other.w_) {}
