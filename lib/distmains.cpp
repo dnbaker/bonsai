@@ -107,31 +107,34 @@ int dist_main(int argc, char *argv[]) {
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind, argv + argc));
     std::vector<hll::hll_t> hlls;
-    std::vector<std::vector<std::string>> scratch_vv;
-    while(scratch_vv.size() < (unsigned)omp_get_num_threads()) scratch_vv.emplace_back(std::vector<std::string>{"empty"}), scratch_vv.back()[0].reserve(256);
-    while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size);
-    if(wsz < sp.c_) wsz = sp.c_;
-    if(inpaths.size() == 0) {
-        std::fprintf(stderr, "No paths. See usage.\n");
-        dist_usage(*argv);
-    }
-    #pragma omp parallel for
-    for(size_t i = 0; i < hlls.size(); ++i) {
-        const std::string &path(inpaths[i]);
-        if(cache_sketch && has_hll(path.data(), sketch_size, suffix))
-            hlls[i].read(path);
-        else {
-            // By reserving 256 character, we make it probably that no allocation is necessary in this loop.
-            std::vector<std::string> &scratch_stringvec(scratch_vv[omp_get_thread_num()]);
-            scratch_stringvec[0] = inpaths[i];
-#if 0
-            hlls[i] = make_hll(scratch_stringvec,
-                               k, wsz, sv, nullptr, 1, sketch_size);
-#else
-            fill_hll(hlls[i], scratch_stringvec, k, wsz, sv, nullptr, 1, sketch_size); // Avoid allocation fights.
-#endif
+    {
+        // Scope to force deallocation of scratch_vv.
+        std::vector<std::vector<std::string>> scratch_vv;
+        while(scratch_vv.size() < (unsigned)omp_get_num_threads()) scratch_vv.emplace_back(std::vector<std::string>{"empty"}), scratch_vv.back()[0].reserve(256);
+        while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size);
+        if(wsz < sp.c_) wsz = sp.c_;
+        if(inpaths.size() == 0) {
+            std::fprintf(stderr, "No paths. See usage.\n");
+            dist_usage(*argv);
         }
-        if(cache_sketch) hlls[i].write(hll_fname(path.data(), sketch_size, suffix).data());
+        #pragma omp parallel for
+        for(size_t i = 0; i < hlls.size(); ++i) {
+            const std::string &path(inpaths[i]);
+            if(cache_sketch && has_hll(path.data(), sketch_size, suffix))
+                hlls[i].read(path);
+            else {
+                // By reserving 256 character, we make it probably that no allocation is necessary in this loop.
+                std::vector<std::string> &scratch_stringvec(scratch_vv[omp_get_thread_num()]);
+                scratch_stringvec[0] = inpaths[i];
+    #if 0
+                hlls[i] = make_hll(scratch_stringvec,
+                                   k, wsz, sv, nullptr, 1, sketch_size);
+    #else
+                fill_hll(hlls[i], scratch_stringvec, k, wsz, sv, nullptr, 1, sketch_size); // Avoid allocation fights.
+    #endif
+            }
+            if(cache_sketch) hlls[i].write(hll_fname(path.data(), sketch_size, suffix).data());
+        }
     }
     ks::string str("#Path\tSize (est.)\n");
     assert(str == "#Path\tSize (est.)\n");
