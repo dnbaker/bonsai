@@ -121,7 +121,7 @@ int dist_main(int argc, char *argv[]) {
         if(cache_sketch && has_hll(path.data(), sketch_size, suffix))
             hlls[i].read(path);
         else {
-            // By reserving 256 character, we make it probably that no allocation is necessary in this loop.
+            // By reserving 256 characters, we make it probable that no allocation is necessary in this loop.
             std::vector<std::string> &scratch_stringvec(scratch_vv[omp_get_thread_num()]);
             scratch_stringvec[0] = inpaths[i];
 #if 0
@@ -154,13 +154,10 @@ int dist_main(int argc, char *argv[]) {
     str.write(fileno(pairofp)); str.free();
     for(auto &el: hlls) el.sum();
     const char *fmt(use_scientific ? "\t%e": "\t%f");
-    std::vector<hll::hll_t> scratch_hlls;
-    while(scratch_hlls.size() < (unsigned)omp_get_num_threads()) scratch_hlls.emplace_back(sketch_size);
     for(size_t i = 0; i < hlls.size(); ++i) {
         hll::hll_t &h1(hlls[i]);
         #pragma omp parallel for
-        for(size_t j = i + 1; j < hlls.size(); ++j)
-            dists[j - i - 1] = jaccard_index(hlls[j], h1, scratch_hlls[omp_get_thread_num()]);
+        for(size_t j = i + 1; j < hlls.size(); ++j) dists[j - i - 1] = jaccard_index(hlls[j], h1);
         h1.free();
         str += inpaths[i];
         for(size_t k(0); k < i + 1; ++k) str.putc_('\t'), str.putc_('-');
