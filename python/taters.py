@@ -7,8 +7,8 @@ if sys.version_info[0] < 3:
                       os.path.basename(__file__))
 
 
-def nk2sketchbytes(sketchtype, n=-1, k=-1):
-    if k < 0 or n < 0:
+def nk2sketchbytes(sketchtype, n=0, k=0):
+    if not (k and n):
         raise Exception("Set n, k kwargs for nk2sketchbytes pls")
     try:
         return {"mash": 8 if k > 16 else 4,
@@ -45,8 +45,6 @@ def canonname(k1, k2=None):
 
 def get_nk(path):
     k = n = 0
-    flags = [(tok, get_flag(tok)) for
-             tok in path.split("/")[-1].split(".")]
     for tok, val in ((tok, get_flag(tok)) for tok in
                      os.path.basename(path).split(".")):
         if not val:
@@ -57,15 +55,15 @@ def get_nk(path):
             n = val
         elif "exper" not in tok:
             raise ValueError("Unexpected token %s" % tok)
-    if not k or not n:
+    if not (k and n):
         raise Exception("Invalid mashexp filename %s" % path)
     return n, k
 
 
-def canonkey(k1, k2=None, n=-1, k=-1):
+def canonkey(k1, k2=None, n=0, k=0):
     if isinstance(k1, HlashData):
         return k1.key
-    if n < 0 or k < 0:
+    if not (k and n):
         raise Exception("ZOMG")
     return tuple((*canonname(k1, k2), n, k))
 

@@ -43,7 +43,7 @@ EX=$(patsubst src/%.cpp,%,$(wildcard src/*.cpp))
 HEADERS=lib/encoder.h lib/kmerutil.h lib/spacer.h lib/misc.h \
 		lib/kseq_declare.h lib/feature_min.h hll/hll.h lib/hash.h lib/db.h
 
-INCLUDE=-I. -Ilib $(INCPLUS)
+INCLUDE=-Iclhash/include -I. -Ilib $(INCPLUS)
 
 all: $(OBJS) $(EX) unit
 
