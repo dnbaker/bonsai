@@ -157,10 +157,11 @@ int dist_main(int argc, char *argv[]) {
     std::vector<hll::hll_t> scratch_hlls;
     while(scratch_hlls.size() < (unsigned)omp_get_num_threads()) scratch_hlls.emplace_back(sketch_size);
     for(size_t i = 0; i < hlls.size(); ++i) {
-        const hll::hll_t &h1(hlls[i]);
+        hll::hll_t &h1(hlls[i]);
         #pragma omp parallel for
         for(size_t j = i + 1; j < hlls.size(); ++j)
             dists[j - i - 1] = jaccard_index(hlls[j], h1, scratch_hlls[omp_get_thread_num()]);
+        h1.free();
         str += inpaths[i];
         for(size_t k(0); k < i + 1; ++k) str.putc_('\t'), str.putc_('-');
         for(size_t k(0); k < hlls.size() - i - 1; ++k) str.sprintf(fmt, dists[k]);
