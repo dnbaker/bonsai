@@ -78,9 +78,9 @@ DECHASH(Hash, hash_score);
 template<typename ScoreType=score::Lex>
 class Encoder {
     const char   *s_; // String from which we are encoding our kmers.
-    std::int64_t  l_; // Length of the string
+    u64           l_; // Length of the string
     const Spacer sp_; // Defines window size, spacing, and kmer size.
-    int         pos_; // Current position within the string s_ we're working with.
+    u64         pos_; // Current position within the string s_ we're working with.
     void      *data_; // A void pointer for using with scoring. Needed for hash_score.
     qmap_t     qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
     const ScoreType scorer_; // scoring struct
@@ -146,22 +146,39 @@ public:
         assert(has_next_kmer());
         return kmer(pos_++);
     }
+#if 0
     INLINE u64 &next_unspaced_kmer(u64 &last_kmer) {
         assert(has_next_kmer() && sp_.unspaced());
-        return unspaced_kmer(pos_++, last_kmer);
+        unspaced_kmer(pos_, last_kmer);
+        if(unlikely(last_kmer == BF)) {
+            if(likely((pos_ += sp_.k_) < l_ - sp_.c_)) {
+                last_kmer = UINT64_C(0);
+                for(unsigned i(0); i < sp_.k_; ++i) {
+                    last_kmer |= cstr_lut[s_[pos_++]];
+                    last_kmer <<= 2;
+                    ++i;
+                }
+            } else {
+                pos_ = l_ - sp_.c_ + 1;
+            }
+            pos_ = std::min(pos_ + sp_.k_, l_);
+        } else {
+            ++pos_;
+        }
+        return last_kmer;
     }
     INLINE u64 &unspaced_kmer(unsigned start, u64 &last_kmer) {
         assert(start <= l_ - sp_.c_ + 1);
         if(l_ < sp_.c_) return BF;
         u64 new_kmer(cstr_lut[s_[start]]);
-        for(const auto s: sp_.s_) {
+        for(unsigned i(0); i < sp_.k_; ++i) {
             new_kmer <<= 2;
-            start += s;
             new_kmer |= cstr_lut[s_[start]];
         }
         new_kmer = canonical_representation(new_kmer, sp_.k_) ^ XOR_MASK;
         return last_kmer;
     }
+#endif
     // This is the actual point of entry for fetching our minimizers.
     // It wraps encoding and scoring a kmer, updates qmap, and returns the minimizer
     // for the next window.
