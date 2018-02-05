@@ -41,6 +41,9 @@ public:
         for(const auto el: s_) if(el != 1) return false;
         return true;
     }
+    bool unwindowed() const {
+        return k_ == w_;
+    }
     Spacer(unsigned k): Spacer(k, k) {}
     Spacer(const Spacer &other): s_(other.s_), k_(other.k_), c_(other.c_), w_(other.w_) {}
     void write(u64 kmer, std::FILE *fp=stdout) const {
