@@ -79,7 +79,9 @@ template<typename ScoreType=score::Lex>
 class Encoder {
     const char   *s_; // String from which we are encoding our kmers.
     u64           l_; // Length of the string
+public:
     const Spacer sp_; // Defines window size, spacing, and kmer size.
+private:
     u64         pos_; // Current position within the string s_ we're working with.
     void      *data_; // A void pointer for using with scoring. Needed for hash_score.
     qmap_t     qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
@@ -250,7 +252,6 @@ void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &spac
     gzFile fp(gzopen(path.data(), "rb"));
     if(fp == nullptr) LOG_EXIT("Could not open file at %s\n", path.data());
     kseq_t *ks(kseq_init(fp));
-#pragma message("You better finish writing the optimized unspaced version of this.")
     LOG_DEBUG("I have initialized ks: %p, gzfp: %p, and am about to fill lmers.\n", (void *)ks, (void *)fp);
     add_to_hll<ScoreType>(hll, ks, enc);
     kseq_destroy(ks);
