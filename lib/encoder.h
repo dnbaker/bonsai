@@ -223,11 +223,32 @@ void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &spac
     u64 min;
 #pragma message("You better finish writing the optimized unspaced version of this.")
     LOG_DEBUG("I have initialized ks: %p, gzfp: %p, and am about to fill lmers.\n", (void *)ks, (void *)fp);
-    while(kseq_read(ks) >= 0) {
-        enc.assign(ks);
-        while(enc.has_next_kmer())
-            if((min = enc.next_minimizer()) != BF)
-                hll.addh(min);
+    if(enc.sp_.unwindowed()) {
+        if(enc.sp_.unspaced() {
+            while(kseq_read(ks) >= 0) {
+                enc.assign(ks);
+                while(enc.has_next_kmer())
+                    if((min = enc.next_kmer()) != BF)
+                        hll.addh(min);
+            }
+        } else {
+            while(kseq_read(ks) >= 0) {
+                enc.assign(ks);
+                while(enc.has_next_kmer())
+                    if((min = enc.next_kmer()) != BF)
+                        hll.addh(min);
+            }
+        }
+    } else {
+        if(enc.sp_.unspaced()) {
+        } else {
+            while(kseq_read(ks) >= 0) {
+                enc.assign(ks);
+                while(enc.has_next_kmer())
+                    if((min = enc.next_minimizer()) != BF)
+                        hll.addh(min);
+            }
+        }
     }
     cleanup:
     kseq_destroy(ks);
