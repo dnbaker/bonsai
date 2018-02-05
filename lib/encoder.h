@@ -86,14 +86,6 @@ class Encoder {
     const ScoreType scorer_; // scoring struct
 
 public:
-    // These functions check that the queue is really keeping track of the best kmer for a window.
-#if !NDEBUG
-    elscore_t max_in_queue_manual() {
-        elscore_t t1{BF, BF};
-        for(const auto &i: qmap_) if(i.first < t1) t1 = i.first;
-        return t1;
-    }
-#endif
     Encoder(char *s, size_t l, const Spacer &sp, void *data=nullptr):
       s_(s),
       l_(l),
@@ -146,10 +138,8 @@ public:
         assert(has_next_kmer());
         return kmer(pos_++);
     }
-#if 0
-    INLINE u64 &next_unspaced_kmer(u64 &last_kmer) {
+    INLINE u64 next_unspaced_kmer(u64 last_kmer) {
         assert(has_next_kmer() && sp_.unspaced());
-        unspaced_kmer(pos_, last_kmer);
         if(unlikely(last_kmer == BF)) {
             if(likely((pos_ += sp_.k_) < l_ - sp_.c_)) {
                 last_kmer = UINT64_C(0);
@@ -160,25 +150,11 @@ public:
                 }
             } else {
                 pos_ = l_ - sp_.c_ + 1;
+                last_kmer = BF; // To signal to not use this kmer.
             }
-            pos_ = std::min(pos_ + sp_.k_, l_);
-        } else {
-            ++pos_;
-        }
+        } else last_kmer <<= 2, last_kmer |= cstr_lut[s_[pos_++ + sp_.k_]];
         return last_kmer;
     }
-    INLINE u64 &unspaced_kmer(unsigned start, u64 &last_kmer) {
-        assert(start <= l_ - sp_.c_ + 1);
-        if(l_ < sp_.c_) return BF;
-        u64 new_kmer(cstr_lut[s_[start]]);
-        for(unsigned i(0); i < sp_.k_; ++i) {
-            new_kmer <<= 2;
-            new_kmer |= cstr_lut[s_[start]];
-        }
-        new_kmer = canonical_representation(new_kmer, sp_.k_) ^ XOR_MASK;
-        return last_kmer;
-    }
-#endif
     // This is the actual point of entry for fetching our minimizers.
     // It wraps encoding and scoring a kmer, updates qmap, and returns the minimizer
     // for the next window.
@@ -192,6 +168,36 @@ public:
     }
 };
 
+template<typename ScoreType, typename KhashType>
+void add_to_khash(KhashType *kh, Encoder<ScoreType> &enc, kseq_t *ks) {
+    u64 min(BF);
+    int khr;
+    if(enc.sp_.unwindowed()) {
+        if(enc.sp_.unspaced()) {
+            while(kseq_read(ks) >= 0) {
+                enc.assign(ks);
+                while(enc.has_next_kmer())
+                    if((min = enc.next_unspaced_kmer(min)) != BF)
+                        khash_put(kh, min, &khr);
+            }
+        } else {
+            while(kseq_read(ks) >= 0) {
+                enc.assign(ks);
+                while(enc.has_next_kmer())
+                    if((min = enc.next_kmer()) != BF)
+                        khash_put(kh, min, &khr);
+            }
+        }
+    } else {
+        while(kseq_read(ks) >= 0) {
+            enc.assign(ks);
+            while(enc.has_next_kmer())
+                if((min = enc.next_minimizer()) != BF)
+                    khash_put(kh, min, &khr);
+        }
+    }
+}
+
 
 template<typename ScoreType>
 khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
@@ -201,34 +207,21 @@ khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
     gzFile fp(gzopen(path.data(), "rb"));
     kseq_t *ks(kseq_init(fp));
     khash_t(all) *ret(kh_init(all));
-    int khr;
-    u64 min;
-    while(kseq_read(ks) >= 0) {
-        enc.assign(ks);
-        while(enc.has_next_kmer()) if((min = enc.next_minimizer()) != BF) kh_put(all, ret, min, &khr);
-    }
+    add_to_khash<ScoreType, khash_t(all)>(ret, enc, ks);
     kseq_destroy(ks);
     gzclose(fp);
     return ret;
 }
 
 template<typename ScoreType>
-void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &space,
-                    void *data=nullptr) {
-    hll.not_ready();
-    Encoder<ScoreType> enc(nullptr, 0, space, data);
-    gzFile fp(gzopen(path.data(), "rb"));
-    if(fp == nullptr) LOG_EXIT("Could not open file at %s\n", path.data());
-    kseq_t *ks(kseq_init(fp));
-    u64 min;
-#pragma message("You better finish writing the optimized unspaced version of this.")
-    LOG_DEBUG("I have initialized ks: %p, gzfp: %p, and am about to fill lmers.\n", (void *)ks, (void *)fp);
+void add_to_hll(hll::hll_t &hll, kseq_t *ks, Encoder<ScoreType> &enc) {
+    u64 min(BF);
     if(enc.sp_.unwindowed()) {
-        if(enc.sp_.unspaced() {
+        if(enc.sp_.unspaced()) {
             while(kseq_read(ks) >= 0) {
                 enc.assign(ks);
                 while(enc.has_next_kmer())
-                    if((min = enc.next_kmer()) != BF)
+                    if((min = enc.next_unspaced_kmer(min)) != BF)
                         hll.addh(min);
             }
         } else {
@@ -240,37 +233,28 @@ void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &spac
             }
         }
     } else {
-        if(enc.sp_.unspaced()) {
-        } else {
-            while(kseq_read(ks) >= 0) {
-                enc.assign(ks);
-                while(enc.has_next_kmer())
-                    if((min = enc.next_minimizer()) != BF)
-                        hll.addh(min);
-            }
+        while(kseq_read(ks) >= 0) {
+            enc.assign(ks);
+            while(enc.has_next_kmer())
+                if((min = enc.next_minimizer()) != BF)
+                    hll.addh(min);
         }
     }
-    cleanup:
-    kseq_destroy(ks);
-    gzclose(fp);
 }
 
 template<typename ScoreType>
-hll::hll_t hllcount_lmers(const std::string &path, const Spacer &space,
-                          size_t np=22, void *data=nullptr) {
-
+void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &space,
+                    void *data=nullptr) {
+    hll.not_ready();
     Encoder<ScoreType> enc(nullptr, 0, space, data);
     gzFile fp(gzopen(path.data(), "rb"));
+    if(fp == nullptr) LOG_EXIT("Could not open file at %s\n", path.data());
     kseq_t *ks(kseq_init(fp));
-    hll::hll_t ret(np);
-    u64 min;
-    while(kseq_read(ks) >= 0) {
-        enc.assign(ks);
-        while(enc.has_next_kmer()) if((min = enc.next_minimizer()) != BF) ret.add(wang_hash(min));
-    }
+#pragma message("You better finish writing the optimized unspaced version of this.")
+    LOG_DEBUG("I have initialized ks: %p, gzfp: %p, and am about to fill lmers.\n", (void *)ks, (void *)fp);
+    add_to_hll<ScoreType>(hll, ks, enc);
     kseq_destroy(ks);
     gzclose(fp);
-    return ret;
 }
 
 #define SUB_CALL \
