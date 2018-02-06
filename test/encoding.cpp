@@ -80,23 +80,69 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
             kseq_destroy(ks);
         }
     }
-    SECTION("space_case") {
+    SECTION("space_case", "[no ambiguous bases]") {
         Spacer sp(31, 31);
         Encoder<score::Entropy> enc(sp);
         gzFile fp(gzopen("test/phix.fa", "rb"));
+        if(fp == nullptr) throw std::runtime_error("ZOMG fp is null for file at test/phix.fa");
         kseq_t *ks(kseq_init(fp));
-        std::vector<u64> kmers;
+        if(ks == nullptr) throw std::runtime_error("ks is null for fp");
+        std::unordered_set<u64> kmers, okmers;
         u64 k(BF);
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
             while(enc.has_next_kmer()) {
                 if((k = enc.next_unspaced_kmer(k)) != BF)
-                    kmers.push_back(k);
+                    kmers.insert(k);
             }
         }
-        for(const auto k: kmers) {
-            std::fprintf(stderr, "kmer: '%s'\n", sp.to_string(k).data());
+        kseq_rewind(ks);
+        gzrewind(fp);
+        while(kseq_read(ks) >= 0) {
+            enc.assign(ks);
+            while(enc.has_next_kmer()) {
+                if((k = enc.next_minimizer()) != BF)
+                    okmers.insert(k);
+            }
         }
+        LOG_DEBUG("Size of each: kmers %zu, okmers %zu\n", kmers.size(), okmers.size());
+        size_t olap(0);
+        for(const auto k: kmers) olap += (okmers.find(k) != okmers.end());
+        REQUIRE(kmers.size() == okmers.size());
+        REQUIRE(olap == kmers.size());
+        gzclose(fp);
+        kseq_destroy(ks);
+    }
+    SECTION("space_case_jump") {
+        const char *SPACED_FN = "ec/GCF_000007445.1_ASM744v1_genomic.fna.gz";
+        Spacer sp(31, 31);
+        Encoder<score::Entropy> enc(sp);
+        gzFile fp(gzopen(SPACED_FN, "rb"));
+        kseq_t *ks(kseq_init(fp));
+        std::unordered_set<u64> kmers, okmers;
+        u64 k(BF);
+        while(kseq_read(ks) >= 0) {
+            enc.assign(ks);
+            while(enc.has_next_kmer()) {
+                if((k = enc.next_unspaced_kmer(k)) != BF)
+                    kmers.insert(k);
+            }
+        }
+        kseq_rewind(ks);
+        gzrewind(fp);
+        while(kseq_read(ks) >= 0) {
+            LOG_DEBUG("Reading a seq from the file.\n");
+            enc.assign(ks);
+            while(enc.has_next_kmer()) {
+                if((k = enc.next_minimizer()) != BF)
+                    okmers.insert(k);
+            }
+        }
+        LOG_DEBUG("Size of each: kmers %zu, okmers %zu\n", kmers.size(), okmers.size());
+        size_t olap(0);
+        for(const auto k: kmers) olap += (okmers.find(k) != okmers.end());
+        REQUIRE(kmers.size() == okmers.size());
+        REQUIRE(olap == kmers.size());
         gzclose(fp);
         kseq_destroy(ks);
     }
