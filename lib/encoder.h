@@ -109,7 +109,7 @@ public:
     INLINE void assign(char *s, size_t l) {
         s_ = s; l_ = l; pos_ = 0;
         qmap_.reset();
-        assert(l_ >= sp_.c_ || !has_next_kmer());
+        assert((l_ >= sp_.c_ || (!has_next_kmer())) || std::fprintf(stderr, "l: %zu. c: %zu. pos: %zu\n", l, size_t(sp_.c_), pos_) == 0);
     }
     INLINE void assign(kstring_t *ks) {assign(ks->s, ks->l);}
     INLINE void assign(kseq_t    *ks) {assign(&ks->seq);}
@@ -132,7 +132,7 @@ public:
     INLINE u64 decode(u64 kmer) const {return kmer ^ XOR_MASK;}
     // Whether or not an additional kmer is present in the sequence being encoded.
     INLINE int has_next_kmer() const {
-        return pos_ < l_ - sp_.c_ + 1;
+        return (pos_ + sp_.c_ - 1) < l_;
         static_assert(std::is_same_v<decltype((std::int64_t)l_ - sp_.c_ + 1), std::int64_t>, "is not same");
     }
     // This fetches our next kmer for our window. It is immediately placed in the qmap_t,

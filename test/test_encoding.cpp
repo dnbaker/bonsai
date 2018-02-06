@@ -76,9 +76,6 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
                     minimizers.push_back(km);
             }
             REQUIRE(minimizers.size() == ks->seq.l - window_size + 1);
-#if !NDEBUG
-            REQUIRE(enc.max_in_queue() == enc.max_in_queue_manual());
-#endif
             gzclose(fp);
             kseq_destroy(ks);
         }
@@ -86,5 +83,21 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
     SECTION("space_case") {
         Spacer sp(31, 31);
         Encoder<score::Entropy> enc(sp);
+        gzFile fp(gzopen("test/phix.fa", "rb"));
+        kseq_t *ks(kseq_init(fp));
+        std::vector<u64> kmers;
+        u64 k(BF);
+        while(kseq_read(ks) >= 0) {
+            enc.assign(ks);
+            while(enc.has_next_kmer()) {
+                if((k = enc.next_unspaced_kmer(k)) != BF)
+                    kmers.push_back(k);
+            }
+        }
+        for(const auto k: kmers) {
+            std::fprintf(stderr, "kmer: '%s'\n", sp.to_string(k).data());
+        }
+        gzclose(fp);
+        kseq_destroy(ks);
     }
 }

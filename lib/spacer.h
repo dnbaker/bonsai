@@ -30,6 +30,7 @@ public:
     {
         if(k > max_k) LOG_EXIT("Provided k %u greater than max %u.\n", k_, max_k);
         for(auto &i: s_) ++i; // Convert differences into offsets
+        LOG_DEBUG("comb size: %u\n", c_);
         if(s_.size() + 1 != k) {
             LOG_EXIT("Error: input vector must have size 1 less than k. k: %u. size: %zu.\n",
                      k, s_.size());
