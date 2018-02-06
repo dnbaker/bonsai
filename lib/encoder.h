@@ -94,8 +94,7 @@ public:
       pos_(0),
       data_(data),
       qmap_(sp_.w_ - sp_.c_ + 1),
-      scorer_{},
-      is_rc_(false) {}
+      scorer_{} {}
     Encoder(const Spacer &sp, void *data): Encoder(nullptr, 0, sp, data) {}
     Encoder(const Spacer &sp): Encoder(sp, nullptr) {}
     Encoder(const Encoder &other): Encoder(other.sp_, other.data_) {}
@@ -111,7 +110,7 @@ public:
     }
     INLINE void assign(kstring_t *ks) {assign(ks->s, ks->l);}
     INLINE void assign(kseq_t    *ks) {assign(&ks->seq);}
-    template<Functor func, typename... Args>
+    template<typename Functor, typename... Args>
     INLINE void for_each(const Functor &func, Args &&... args) {
         this->assign(std::forward<Args>(args)...);
         u64 min(BF);
@@ -123,6 +122,32 @@ public:
             while(has_next_kmer())
                 if((min = next_minimizer()) != BF)
                     func(min);
+    }
+    template<typename HllType>
+    void hll_add(HllType &hll, const char *str, size_t l) {
+        this->for_each([&](u64 min) {hll.addh(min);}, str, l);
+    }
+    template<typename HllType>
+    void hll_add(HllType &hll, kseq_t *ks) {
+        while(kseq_read(ks) >= 0)
+            this->for_each([&](u64 min) {hll.addh(min);}, ks->seq.s, ks->seq.l);
+    }
+    template<typename HllType>
+    void hll_add(HllType &hll, gzFile fp) {
+        kseq_t *ks(kseq_init(fp));
+        hll_add(hll, ks);
+        kseq_destroy(ks);
+    }
+    template<typename HllType>
+    void hll_add(HllType &hll, const char *path, const char *mode="rb") {
+        gzFile fp(gzopen(path, mode));
+        if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s\n", path).data());
+        hll_add(hll, fp);
+    }
+    template<typename HllType, typename ContainerType>
+    void hll_add(HllType &hll, ContainerType &con) {
+        static_assert(std::is_same_v<std::remove_cv_t<std::decay_t<decltype((*std::begin(con))[0])>>, char>, "Container must contain contain a set of objects which can be accessed with the operator[] and return a character.");
+        for(const auto &el: con) hll_add(get_cstr(hll, el));
     }
 
     // Encodes a kmer starting at `start` within string `s_`.
@@ -151,30 +176,8 @@ public:
         return kmer(pos_++);
     }
     INLINE u64 next_unspaced_kmer(u64 last_kmer) {
-        assert(has_next_kmer() && sp_.unspaced());
-        if(unlikely(last_kmer == BF)) {
-            if(likely((pos_ += sp_.k_) < l_ - sp_.c_)) {
-                is_rc_ = false;
-                last_kmer = UINT64_C(0);
-                for(unsigned i(0); i < sp_.k_; ++i) {
-                    last_kmer |= cstr_lut[s_[pos_++]];
-                    last_kmer <<= 2;
-                    ++i;
-                }
-            } else {
-                pos_ = l_ - sp_.c_ + 1;
-                return last_kmer = BF; // To signal to not use this kmer.
-            }
-        } else {
-            if(is_rc_) {
-                static const uint8_t binrc[] {3,2,1,0};
-                last_kmer >>= 2, last_kmer |= ((u64)(binrc[cstr_lut[s_[pos_++ + sp_.k_]]])) << 62;
-            } else {
-                last_kmer <<= 2, last_kmer |= cstr_lut[s_[pos_++ + sp_.k_]];
-            }
-        }
-        if(canonicalize(last_kmer, sp_.k_)) is_rc_ = !is_rc_;
-        return last_kmer;
+        //LOG_WARNING("NotImplementedError.");
+        return next_kmer();
     }
     // This is the actual point of entry for fetching our minimizers.
     // It wraps encoding and scoring a kmer, updates qmap, and returns the minimizer

@@ -80,6 +80,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
             kseq_destroy(ks);
         }
     }
+#if 0
     SECTION("space_case", "[no ambiguous bases]") {
         Spacer sp(31, 31);
         Encoder<score::Entropy> enc(sp);
@@ -146,4 +147,5 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         gzclose(fp);
         kseq_destroy(ks);
     }
+#endif
 }
