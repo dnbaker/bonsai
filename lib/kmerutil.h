@@ -106,6 +106,12 @@ static INLINE u64 canonical_representation(u64 kmer, uint8_t n) {
     const u64 revcom(reverse_complement(kmer, n));
     return kmer < revcom ? kmer : revcom;
 }
+static INLINE bool canonicalize(u64 &kmer, uint8_t n) {
+    const u64 revcom(reverse_complement(kmer, n));
+    if(kmer < revcom) return false;
+    kmer = revcom;
+    return true;
+}
 
 } // namespace emp
 
