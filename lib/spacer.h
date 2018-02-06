@@ -48,7 +48,6 @@ public:
     Spacer(unsigned k): Spacer(k, k) {}
     Spacer(const Spacer &other): s_(other.s_), k_(other.k_), c_(other.c_), w_(other.w_) {}
     void write(u64 kmer, std::FILE *fp=stdout) const {
-        kmer ^= XOR_MASK;
         int offset = ((k_ - 1) << 1);
         std::fputc(num2nuc((kmer >> offset) & 0x3u), fp);
         for(auto s: s_) {
@@ -60,7 +59,6 @@ public:
         std::fputc('\n', fp);
     }
     std::string to_string(u64 kmer) const {
-        kmer ^= XOR_MASK;
         std::string ret;
         ret.reserve(c_ - k_ + 1);
         int offset = ((k_ - 1) << 1);
