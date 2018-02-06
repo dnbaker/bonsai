@@ -15,11 +15,12 @@ spvec_t parse_spacing(const char *space_string, unsigned k);
 ks::string str(const spvec_t &vec);
 struct Spacer {
     static const u32 max_k = 32;
+
     // Instance variables
-    spvec_t s_; // Spaces to skip
-    const u32 k_:8;  // Kmer size
-    const u32 c_:16; // comb size
-    const u32 w_:16; // window size
+    spvec_t          s_; // Spaces to skip
+    const uint8_t  k_:8;  // Kmer size
+    const u32     c_:16; // comb size
+    const u32     w_:16; // window size
 
 public:
     Spacer(unsigned k, std::uint16_t w, spvec_t spaces=spvec_t{}):
@@ -66,7 +67,7 @@ public:
         for(auto s: s_) {
             assert(offset >= 0);
             offset -= 2;
-            while(s-- > 1) ret.push_back('-');
+            while(s-->1) ret.push_back('-');
             ret.push_back(num2nuc((kmer >> offset) & 0x3u));
         }
         return ret;
