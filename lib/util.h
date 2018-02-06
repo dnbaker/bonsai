@@ -352,7 +352,6 @@ inline bool has_key(const Key &key, const Map &map) {
 
 INLINE u32 nuccount(u64 kmer, unsigned k) {
     u32 ret(0);
-    kmer ^= XOR_MASK;
     const uint64_t COUNT_MASK = (0xFFFFFFFFFFFFFFFF >> (64 - 2 * k));
     static const uint64_t c_table[4] = {
         0xffffffffffffffff,

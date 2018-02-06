@@ -35,7 +35,7 @@ static INLINE int is_lt(T i, T j, UNUSED(void *data)) {
 
 using ScoringFunction = u64 (*)(u64, void*);
 
-static INLINE u64 lex_score(u64 i, UNUSED(void *data)) {return i;}
+static INLINE u64 lex_score(u64 i, UNUSED(void *data)) {return i ^ XOR_MASK;}
 static INLINE u64 ent_score(u64 i, void *data) {
     // For this, the highest-entropy kmers will be selected as "minimizers".
     return UINT64_C(-1) - static_cast<u64>(UINT64_C(7958933093282078720) * kmer_entropy(i, *(unsigned *)data));
@@ -85,7 +85,6 @@ private:
     void      *data_; // A void pointer for using with scoring. Needed for hash_score.
     qmap_t     qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
     const ScoreType scorer_; // scoring struct
-    bool     is_rc_;  // A variable tracking whether or not the current kmer is reverse complemented.
 
 public:
     Encoder(char *s, size_t l, const Spacer &sp, void *data=nullptr):
@@ -123,12 +122,9 @@ public:
             start += s;
             new_kmer |= cstr_lut[s_[start]];
         }
-        new_kmer = canonical_representation(new_kmer, sp_.k_) ^ XOR_MASK;
+        new_kmer = canonical_representation(new_kmer, sp_.k_);
         return new_kmer;
     }
-    // When we encode kmers, we XOR it with this XOR_MASK for good key dispersion
-    // in spite of potential redundacies in the sequence.
-    INLINE u64 decode(u64 kmer) const {return kmer ^ XOR_MASK;}
     // Whether or not an additional kmer is present in the sequence being encoded.
     INLINE int has_next_kmer() const {
         return (pos_ + sp_.c_ - 1) < l_;
@@ -157,7 +153,6 @@ public:
                 return last_kmer = BF; // To signal to not use this kmer.
             }
         } else {
-            last_kmer ^= XOR_MASK; // Un-mask
             if(is_rc_) {
                 static const uint8_t binrc[] {3,2,1,0};
                 last_kmer >>= 2, last_kmer |= ((u64)(binrc[cstr_lut[s_[pos_++ + sp_.k_]]])) << 62;
@@ -166,7 +161,7 @@ public:
             }
         }
         if(canonicalize(last_kmer, sp_.k_)) is_rc_ = !is_rc_;
-        return last_kmer ^= XOR_MASK;
+        return last_kmer;
     }
     // This is the actual point of entry for fetching our minimizers.
     // It wraps encoding and scoring a kmer, updates qmap, and returns the minimizer
