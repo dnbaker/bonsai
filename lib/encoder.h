@@ -86,6 +86,7 @@ private:
     void      *data_; // A void pointer for using with scoring. Needed for hash_score.
     qmap_t     qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
     const ScoreType scorer_; // scoring struct
+    bool     is_rc_;  // A variable tracking whether or not the current kmer is reverse complemented.
 
 public:
     Encoder(char *s, size_t l, const Spacer &sp, void *data=nullptr):
@@ -95,7 +96,8 @@ public:
       pos_(0),
       data_(data),
       qmap_(sp_.w_ - sp_.c_ + 1),
-      scorer_{} {}
+      scorer_{},
+      is_rc_(false) {}
     Encoder(const Spacer &sp, void *data): Encoder(nullptr, 0, sp, data) {}
     Encoder(const Spacer &sp): Encoder(sp, nullptr) {}
     Encoder(const Encoder &other): Encoder(other.sp_, other.data_) {}
@@ -144,6 +146,7 @@ public:
         assert(has_next_kmer() && sp_.unspaced());
         if(unlikely(last_kmer == BF)) {
             if(likely((pos_ += sp_.k_) < l_ - sp_.c_)) {
+                is_rc_ = false;
                 last_kmer = UINT64_C(0);
                 for(unsigned i(0); i < sp_.k_; ++i) {
                     last_kmer |= cstr_lut[s_[pos_++]];
@@ -152,10 +155,19 @@ public:
                 }
             } else {
                 pos_ = l_ - sp_.c_ + 1;
-                last_kmer = BF; // To signal to not use this kmer.
+                return last_kmer = BF; // To signal to not use this kmer.
             }
-        } else last_kmer <<= 2, last_kmer |= cstr_lut[s_[pos_++ + sp_.k_]];
-        return last_kmer;
+        } else {
+            last_kmer ^= XOR_MASK; // Un-mask
+            if(is_rc_) {
+                static const uint8_t binrc[] {3,2,1,0};
+                last_kmer >>= 2, last_kmer |= ((u64)(binrc[cstr_lut[s_[pos_++ + sp_.k_]]])) << 62;
+            } else {
+                last_kmer <<= 2, last_kmer |= cstr_lut[s_[pos_++ + sp_.k_]];
+            }
+        }
+        if(canonicalize(last_kmer, sp_.k_)) is_rc_ = !is_rc_;
+        return last_kmer ^= XOR_MASK;
     }
     // This is the actual point of entry for fetching our minimizers.
     // It wraps encoding and scoring a kmer, updates qmap, and returns the minimizer
