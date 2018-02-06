@@ -111,6 +111,19 @@ public:
     }
     INLINE void assign(kstring_t *ks) {assign(ks->s, ks->l);}
     INLINE void assign(kseq_t    *ks) {assign(&ks->seq);}
+    template<Functor func, typename... Args>
+    INLINE void for_each(const Functor &func, Args &&... args) {
+        this->assign(std::forward<Args>(args)...);
+        u64 min(BF);
+        if(sp_.unwindowed())
+            while(has_next_kmer())
+                if((min = next_kmer()) != BF)
+                    func(min);
+        else
+            while(has_next_kmer())
+                if((min = next_minimizer()) != BF)
+                    func(min);
+    }
 
     // Encodes a kmer starting at `start` within string `s_`.
     INLINE u64 kmer(unsigned start) {
