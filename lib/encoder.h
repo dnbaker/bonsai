@@ -84,18 +84,21 @@ private:
     u64         pos_; // Current position within the string s_ we're working with.
     void      *data_; // A void pointer for using with scoring. Needed for hash_score.
     qmap_t     qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
-    const ScoreType scorer_; // scoring struct
+    const ScoreType  scorer_; // scoring struct
+    const bool canonicalize_;
 
 public:
-    Encoder(char *s, size_t l, const Spacer &sp, void *data=nullptr):
+    Encoder(char *s, size_t l, const Spacer &sp, void *data=nullptr,
+            bool canonicalize=true):
       s_(s),
       l_(l),
       sp_(sp),
       pos_(0),
       data_(data),
       qmap_(sp_.w_ - sp_.c_ + 1),
-      scorer_{} {}
-    Encoder(const Spacer &sp, void *data): Encoder(nullptr, 0, sp, data) {}
+      scorer_{},
+      canonicalize_(canonicalize) {}
+    Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data) {}
     Encoder(const Spacer &sp): Encoder(sp, nullptr) {}
     Encoder(const Encoder &other): Encoder(other.sp_, other.data_) {}
     Encoder(unsigned k): Encoder(nullptr, 0, Spacer(k), nullptr) {}
@@ -106,7 +109,7 @@ public:
     INLINE void assign(const char *s, size_t l) {
         s_ = s; l_ = l; pos_ = 0;
         qmap_.reset();
-        assert((l_ >= sp_.c_ || (!has_next_kmer())) || std::fprintf(stderr, "l: %zu. c: %zu. pos: %zu\n", l, size_t(sp_.c_), pos_) == 0);
+        assert((l_ >= sp_.c_ || (!has_next_kmer())) || std::fprintf(stderr, "l: %" PRIu64 ". c: %zu. pos: %zu\n", l, size_t(sp_.c_), pos_) == 0);
     }
     INLINE void assign(kstring_t *ks) {assign(ks->s, ks->l);}
     INLINE void assign(kseq_t    *ks) {assign(&ks->seq);}
@@ -116,24 +119,58 @@ public:
     template<typename Functor>
     INLINE void for_each(const Functor &func, const char *str, size_t l) {
         this->assign(str, l);
+        if(!has_next_kmer()) return;
         u64 min(BF);
-        if(sp_.unwindowed()) {
-            LOG_DEBUG("Now fetching kmers unwindowed!\n");
-            while(has_next_kmer())
-                if((min = next_kmer()) != BF)
-                    func(min);
+        if(canonicalize_) {
+            if(sp_.unwindowed()) {
+                LOG_DEBUG("Now fetching kmers unwindowed, canonicalized!\n");
+                while(has_next_kmer())
+                    if((min = next_kmer()) != BF)
+                        func(canonical_representation(min, sp_.k_));
+            } else {
+                LOG_DEBUG("Now fetching kmers windowed, canonicalized!\n");
+                while(has_next_kmer())
+                    if((min = next_canonicalized_minimizer()) != BF)
+                        func(min);
+            }
         } else {
-            LOG_DEBUG("Now fetching kmers windowed!\n");
-            while(has_next_kmer())
-                if((min = next_minimizer()) != BF)
+            // Note that an entropy-based score calculation can be sped up for this case.
+            // This will likely need a separate function.
+            if(sp_.unwindowed()) {
+                const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
+                unsigned offset(0);
+                LOG_DEBUG("Now fetching kmers unwindowed, uncanonicalized!\n");
+                min = cstr_lut[s_[pos_++]];
+                while(pos_ < sp_.k_) {
+                    min <<= 2;
+                    min |= cstr_lut[s_[pos_++]];
+                }
+                func(min);
+                while(pos_ < l_) {
+                    min <<= 2;
+                    min |= cstr_lut[s_[pos_++]];
+                    while(min == BF) {
+                        LOG_DEBUG("We hit a -1!\n");
+                        min = 0;
+                        while(pos_ < l_) {
+                            min <<= 2;
+                            min |= cstr_lut[s_[pos_++]];
+                        }
+                    }
+                    min &= mask;
                     func(min);
+                }
+            } else {
+                LOG_DEBUG("Now fetching kmers windowed, uncanonicalized!\n");
+                while(has_next_kmer())
+                    if((min = next_minimizer()) != BF)
+                        func(min);
+            }
         }
     }
     template<typename Functor>
     INLINE void for_each(const Functor &func, kseq_t *ks) {
-        while(kseq_read(ks) >= 0) {
-            for_each<Functor>(func, ks->seq.s, ks->seq.l);
-        }
+        while(kseq_read(ks) >= 0) for_each<Functor>(func, ks->seq.s, ks->seq.l);
     }
     template<typename Functor>
     void for_each(const Functor &func, gzFile fp) {
@@ -180,8 +217,6 @@ public:
             start += s;
             new_kmer |= cstr_lut[s_[start]];
         }
-        // TODO: punt canonicalizing to downstream tools.
-        new_kmer = canonical_representation(new_kmer, sp_.k_);
         return new_kmer;
     }
     // Whether or not an additional kmer is present in the sequence being encoded.
@@ -197,7 +232,7 @@ public:
         return kmer(pos_++);
     }
     INLINE u64 next_unspaced_kmer(u64 last_kmer) {
-        //LOG_WARNING("NotImplementedError.");
+        LOG_WARNING("NotImplementedError.");
         return next_kmer();
     }
     // This is the actual point of entry for fetching our minimizers.
@@ -206,6 +241,11 @@ public:
     INLINE u64 next_minimizer() {
         assert(has_next_kmer());
         const u64 k(kmer(pos_++)), kscore(scorer_(k, data_));
+        return qmap_.next_value(k, kscore);
+    }
+    INLINE u64 next_canonicalized_minimizer() {
+        assert(has_next_kmer());
+        const u64 k(canonical_representation(kmer(pos_++), sp_.k_)), kscore(scorer_(k, data_));
         return qmap_.next_value(k, kscore);
     }
     elscore_t max_in_queue() const {
