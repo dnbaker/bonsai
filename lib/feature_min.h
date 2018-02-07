@@ -60,7 +60,7 @@ size_t fill_set_genome_container(Container &container, const Spacer &sp, khash_t
 }
 
 template<typename ScoreType>
-khash_t(64) *ftct_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
+khash_t(64) *ftct_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
                       const char *seq2tax_path,
                       const Spacer &sp, int num_threads, size_t start_size) {
     return feature_count_map<ScoreType>(fns, tax_map, seq2tax_path, sp, num_threads, start_size);
@@ -93,20 +93,17 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
     // Daemon -- check the status of currently running jobs, submit new ones when available.
     while(submitted < todo) {
         //LOG_DEBUG("Submitted %zu, todo %zu\n", submitted, todo);
-        for(auto f(futures.begin()), fend(futures.end()); f != fend; ++f) {
-            if(is_ready(*f)) {
-                const size_t index(f->get());
-                futures.erase(f);
-                futures.emplace_back(std::async(
-                     std::launch::async, fill_set_genome<ScoreType>, fns[submitted].data(),
-                     sp, counters[submitted], submitted, (void *)full_map));
-                LOG_INFO("Submitted for %zu. Updating map for %zu. Total completed/all: %zu/%zu. Current size: %zu\n",
-                         submitted, index, completed, todo, kh_size(ret));
-                ++submitted, ++completed;
-                update_minimized_map(counters[index], full_map, ret);
-                kh_destroy(all, counters[index]); // Destroy set once we're done with it.
-                break;
-            }
+        if(auto f = std::find_if(futures.begin(), futures.end(), [](auto &f) {return is_ready(f);}); f != futures.end()) {
+            const size_t index(f->get());
+            futures.erase(f);
+            futures.emplace_back(std::async(
+                 std::launch::async, fill_set_genome<ScoreType>, fns[submitted].data(),
+                 sp, counters[submitted], submitted, (void *)full_map));
+            LOG_INFO("Submitted for %zu. Updating map for %zu. Total completed/all: %zu/%zu. Current size: %zu\n",
+                     submitted, index, completed, todo, kh_size(ret));
+            ++submitted, ++completed;
+            update_minimized_map(counters[index], full_map, ret);
+            kh_destroy(all, counters[index]); // Destroy set once we're done with it.
         }
     }
 
@@ -126,7 +123,7 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
 }
 
 template<typename ScoreType>
-khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
+khash_t(64) *taxdepth_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
                           const char *seq2tax_path, const Spacer &sp,
                           int num_threads, size_t start_size=1<<10) {
     size_t submitted(0), completed(0), todo(fns.size());
@@ -271,7 +268,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
 }
 
 template<typename ScoreType>
-khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, size_t start_size) {
+khash_t(64) *feature_count_map(const std::vector<std::string> fns, khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, size_t start_size) {
     // Update this to include tax ids in the hash map.
     size_t submitted(0), completed(0), todo(fns.size());
     std::vector<khash_t(all) *> counters(todo, nullptr);
@@ -294,21 +291,20 @@ khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map
 
     // Daemon -- check the status of currently running jobs, submit new ones when available.
     while(submitted < todo) {
-        for(auto &f: futures) {
-            if(is_ready(f)) {
-                const size_t index(f.get());
-                if(submitted == todo) break;
-                if(used.find(index) != used.end()) continue;
-                used.insert(index);
-                LOG_DEBUG("Submitted for %zu.\n", submitted);
-                f = std::async(
-                  std::launch::async, fill_set_genome<ScoreType>, fns[submitted].data(),
-                  sp, counters[submitted], submitted, nullptr);
-                ++submitted, ++completed;
-                const tax_t taxid(get_taxid(fns[index].data(), name_hash));
-                update_feature_counter(ret, counters[index], tax_map, taxid);
-                kh_destroy(all, counters[index]); // Destroy set once we're done with it.
-            }
+        if(auto it = std::find_if(std::begin(futures), std::end(futures), [](auto &f) {return is_ready(f);}); it != futures.end()) {
+            auto &f(*it);
+            const size_t index(f.get());
+            if(submitted == todo) break;
+            if(used.find(index) != used.end()) continue;
+            used.insert(index);
+            LOG_DEBUG("Submitted for %zu.\n", submitted);
+            f = std::async(
+              std::launch::async, fill_set_genome<ScoreType>, fns[submitted].data(),
+              sp, counters[submitted], submitted, nullptr);
+            ++submitted, ++completed;
+            const tax_t taxid(get_taxid(fns[index].data(), name_hash));
+            update_feature_counter(ret, counters[index], tax_map, taxid);
+            kh_destroy(all, counters[index]); // Destroy set once we're done with it.
         }
     }
 

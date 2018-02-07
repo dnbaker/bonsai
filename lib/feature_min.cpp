@@ -39,8 +39,6 @@ void update_feature_counter(khash_t(64) *kc, const khash_t(all) *set, const khas
     }
 }
 
-#ifndef USE_PAR_HELPERS
-
 void update_minimized_map(const khash_t(all) *set, const khash_t(64) *full_map, khash_t(c) *ret) {
     khiter_t kif;
     LOG_DEBUG("Size of set: %zu\n", kh_size(set));
@@ -92,72 +90,6 @@ void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_t(p) *t
     }
     LOG_DEBUG("After updating with set of size %zu, total set current size is %zu.\n", kh_size(set), kh_size(kc));
 }
-void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid) {
-    int khr;
-    khint_t k2;
-    tax_t val;
-    LOG_DEBUG("Adding set of size %zu t total set of current size %zu.\n", kh_size(set), kh_size(kc));
-    for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
-        if(kh_exist(set, ki)) {
-            if((k2 = kh_get(64, kc, kh_key(set, ki))) == kh_end(kc)) {
-                k2 = kh_put(64, kc, kh_key(set, ki), &khr);
-                kh_val(kc, k2) = TDencode(node_depth(tax, kh_val(kc, ki)), kh_val(kc, ki));
-                if(unlikely(kh_size(kc) % 1000000 == 0)) LOG_INFO("Final hash size %zu\n", kh_size(kc));
-            } else if(kh_val(kc, k2) != taxid) {
-                do val = lca(tax, taxid, kh_val(kc, k2));
-                while(!kh_try_set(64, kc, k2, val == (tax_t)-1 ? 1: TDencode(node_depth(tax, val), val)));
-            }
-        }
-    }
-    LOG_DEBUG("After updating with set of size %zu, total set current size is %zu.\n", kh_size(set), kh_size(kc));
-}
-#else
-void update_minimized_map(const khash_t(all) *set, const khash_t(64) *full_map, khash_t(c) *ret) {
-    int khr;
-    khiter_t kif, kir;
-    LOG_DEBUG("Size of set: %zu\n", kh_size(set));
-    for(khiter_t ki(0); ki != kh_end(set); ++ki) {
-        if(!kh_exist(set, ki) ||
-               kh_get(c, ret, kh_key(set, ki)) != kh_end(ret))
-            continue;
-            // If the key is already in the main map, what's the problem?
-        if(unlikely((kif = kh_get(64, full_map, kh_key(set, ki))) == kh_end(full_map)))
-            LOG_EXIT("Missing kmer from database... Check for matching spacer and kmer size.\n");
-        kir = kh_put(c, ret, kh_key(full_map, kif), &khr);
-        kh_val(ret, kir) = kh_val(full_map, kif);
-        if(unlikely(kh_size(ret) % 1000000 == 0)) LOG_INFO("Final hash size %zu\n", kh_size(ret));
-    }
-    return;
-}
-
-khash_t(64) *make_taxdepth_hash(const khash_t(c) *kc, const khash_t(p) *tax) {
-    khash_t(64) *ret(kh_init(64));
-    int khr;
-    khiter_t kir;
-    kh_resize(64, ret, kc->n_buckets);
-    for(khiter_t ki(0); ki != kh_end(kc); ++ki) {
-        if(kh_exist(kc, ki)) {
-            kir = kh_put(64, ret, kh_key(kc, ki), &khr);
-            kh_val(ret, kir) = TDencode(node_depth(tax, kh_val(kc, ki)), kh_val(kc, ki));
-        }
-    }
-    return ret;
-}
-
-void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid, std::shared_mutex &m) {
-    int khr;
-    khint_t k2;
-    LOG_DEBUG("Adding set of size %zu t total set of current size %zu.\n", kh_size(set), kh_size(kc));
-    for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
-        if(kh_exist(set, ki)) {
-            if((k2 = kh_get(c, kc, kh_key(set, ki))) == kh_end(kc)) {
-                k2 = kh_put(c, kc, kh_key(set, ki), &khr);
-                kh_val(kc, k2) = taxid;
-            } else if(kh_val(kc, k2) != taxid) kh_val(kc, k2) = lca(tax, taxid, kh_val(kc, k2));
-        }
-    }
-    LOG_DEBUG("After updating with set of size %zu, total set current size is %zu.\n", kh_size(set), kh_size(kc));
-}
 
 void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid) {
     int khr;
@@ -178,7 +110,5 @@ void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *t
     }
     LOG_DEBUG("After updating with set of size %zu, total set current size is %zu.\n", kh_size(set), kh_size(kc));
 }
-#endif // #ifndef/else USE_PAR_HELPERS
-
 
 } //namespace emp
