@@ -55,13 +55,7 @@ TEST_CASE("phll") {
         {
             hll::hll_t hll(np);
             Encoder enc(Spacer(31, 31, vec));
-            for(const auto &path: paths) {
-                gzFile fp(gzopen(path.data(), "rb"));
-                kseq_t *ks(kseq_init(fp));
-                enc.hll_add(hll, ks);
-                kseq_destroy(ks);
-                gzclose(fp);
-            }
+            enc.add(hll, paths);
             std::fprintf(stderr, "The hll_add method returned an estimated quantity of %lf, compared to estimated %zd manually\n", hll.report(), inexact);
             ssize_t hll_rep(hll.report());
             if(hll_rep == inexact)

@@ -29,8 +29,6 @@ khash_t(64) *feature_count_map(std::vector<std::string> fns, const Spacer &sp, i
 
 khash_t(c) *make_depth_hash(khash_t(c) *lca_map, khash_t(p) *tax_map);
 void lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map);
-template<typename ScoreType>
-int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret);
 
 void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid, std::shared_mutex &m);
 void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid);
@@ -38,63 +36,20 @@ khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, const khash_t(p) *tax);
 void update_feature_counter(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, const tax_t taxid);
 void update_minimized_map(const khash_t(all) *set, const khash_t(64) *full_map, khash_t(c) *ret);
 
-#define next_minimizer next_kmer
-
-// Return value: whether or not additional sequences were present and added.
-template<typename ScoreType>
-int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret) {
-    assert(ret);
-    Encoder<ScoreType> enc(0, 0, sp, nullptr);
-    int khr; // khash return value. Unused, really.
-    u64 kmer;
-    if(kseq_read(ks) >= 0) {
-        enc.assign(ks);
-        while(enc.has_next_kmer())
-            if((kmer = enc.next_minimizer()) != BF)
-                kh_put(all, ret, kmer, &khr);
-        return 1;
-    } else return 0;
-}
-
 template<typename ScoreType>
 size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data) {
     LOG_ASSERT(ret);
     LOG_INFO("Filling from genome at path %s\n", path);
-    gzFile ifp(gzopen(path, "rb"));
-    if(!ifp)
-        LOG_EXIT("Could not open file %s for index %zu. Abort!\n",
-                 path, index);
 
     unsigned k(sp.k_);
     if constexpr(std::is_same_v<ScoreType, score::Entropy>)
         data = &k;
 
     Encoder<ScoreType> enc(0, 0, sp, data);
-    kseq_t *ks(kseq_init(ifp));
-    int khr; // khash return value. Unused, really.
-    u64 kmer;
-    if(sp.w_ > sp.c_) {
-        while(kseq_read(ks) >= 0) {
-            enc.assign(ks);
-            while(likely(enc.has_next_kmer()))
-                if((kmer = enc.next_minimizer()) != BF)
-                    kh_put(all, ret, kmer, &khr);
-        }
-    } else {
-        while(kseq_read(ks) >= 0) {
-            enc.assign(ks);
-            while(likely(enc.has_next_kmer()))
-                if((kmer = enc.next_kmer()) != BF)
-                    kh_put(all, ret, kmer, &khr);
-        }
-    }
-    kseq_destroy(ks);
-    gzclose(ifp);
+    enc.add(ret, path);
     LOG_INFO("Set of size %lu filled from genome at path %s\n", kh_size(ret), path);
     return index;
 }
-
-#undef next_minimizer
 
 template<typename Container, typename ScoreType>
 size_t fill_set_genome_container(Container &container, const Spacer &sp, khash_t(all) *ret, void *data) {

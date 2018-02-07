@@ -103,51 +103,71 @@ public:
     // Assign functions: These tell the encoder to fetch kmers from this string.
     // kstring and kseq are overloads which call assign(char *s, size_t l) on
     // the correct portions of the structs.
-    INLINE void assign(char *s, size_t l) {
+    INLINE void assign(const char *s, size_t l) {
         s_ = s; l_ = l; pos_ = 0;
         qmap_.reset();
         assert((l_ >= sp_.c_ || (!has_next_kmer())) || std::fprintf(stderr, "l: %zu. c: %zu. pos: %zu\n", l, size_t(sp_.c_), pos_) == 0);
     }
     INLINE void assign(kstring_t *ks) {assign(ks->s, ks->l);}
     INLINE void assign(kseq_t    *ks) {assign(&ks->seq);}
-    template<typename Functor, typename... Args>
-    INLINE void for_each(const Functor &func, Args &&... args) {
-        this->assign(std::forward<Args>(args)...);
+
+
+    // Utility 'for-each'-like functions.
+    template<typename Functor>
+    INLINE void for_each(const Functor &func, const char *str, size_t l) {
+        this->assign(str, l);
         u64 min(BF);
-        if(sp_.unwindowed())
+        if(sp_.unwindowed()) {
+            LOG_DEBUG("Now fetching kmers unwindowed!\n");
             while(has_next_kmer())
                 if((min = next_kmer()) != BF)
                     func(min);
-        else
+        } else {
+            LOG_DEBUG("Now fetching kmers windowed!\n");
             while(has_next_kmer())
                 if((min = next_minimizer()) != BF)
                     func(min);
+        }
     }
-    template<typename HllType>
-    void hll_add(HllType &hll, const char *str, size_t l) {
-        this->for_each([&](u64 min) {hll.addh(min);}, str, l);
+    template<typename Functor>
+    INLINE void for_each(const Functor &func, kseq_t *ks) {
+        while(kseq_read(ks) >= 0) {
+            for_each<Functor>(func, ks->seq.s, ks->seq.l);
+        }
     }
-    template<typename HllType>
-    void hll_add(HllType &hll, kseq_t *ks) {
-        while(kseq_read(ks) >= 0)
-            this->for_each([&](u64 min) {hll.addh(min);}, ks->seq.s, ks->seq.l);
-    }
-    template<typename HllType>
-    void hll_add(HllType &hll, gzFile fp) {
+    template<typename Functor>
+    void for_each(const Functor &func, gzFile fp) {
         kseq_t *ks(kseq_init(fp));
-        hll_add(hll, ks);
+        for_each<Functor>(func, ks);
         kseq_destroy(ks);
     }
-    template<typename HllType>
-    void hll_add(HllType &hll, const char *path, const char *mode="rb") {
-        gzFile fp(gzopen(path, mode));
-        if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s\n", path).data());
-        hll_add(hll, fp);
+    template<typename Functor>
+    void for_each(const Functor &func, const char *path) {
+        gzFile fp(gzopen(path, "rb"));
+        if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        for_each<Functor>(func, fp);
+        gzclose(fp);
     }
-    template<typename HllType, typename ContainerType>
-    void hll_add(HllType &hll, ContainerType &con) {
-        static_assert(std::is_same_v<std::remove_cv_t<std::decay_t<decltype((*std::begin(con))[0])>>, char>, "Container must contain contain a set of objects which can be accessed with the operator[] and return a character.");
-        for(const auto &el: con) hll_add(get_cstr(hll, el));
+    template<typename Functor, typename ContainerType,
+             typename=std::enable_if_t<std::is_same_v<typename ContainerType::value_type::value_type, char>>>
+    void for_each(const Functor &func, const ContainerType &strcon) {
+        for(const auto &el: strcon) for_each<Functor>(func, get_cstr(el));
+    }
+
+    template<typename Target>
+    void add(hll::hll_t &hll, const Target &target) {
+        this->for_each([&](u64 min) {hll.addh(min);}, target);
+    }
+
+    template<typename Target>
+    void add(khash_t(all) *set, const Target &target) {
+        int khr;
+        this->for_each([&] (u64 min) {kh_put(all, set, min, &khr);}, target);
+    }
+
+    template<typename ContainerType>
+    void add(ContainerType &con, ContainerType &strcon) {
+        for(const auto &el: strcon) add(get_cstr(con, get_cstr(el)));
     }
 
     // Encodes a kmer starting at `start` within string `s_`.
@@ -160,6 +180,7 @@ public:
             start += s;
             new_kmer |= cstr_lut[s_[start]];
         }
+        // TODO: punt canonicalizing to downstream tools.
         new_kmer = canonical_representation(new_kmer, sp_.k_);
         return new_kmer;
     }
@@ -228,12 +249,8 @@ khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
                               void *data=nullptr) {
 
     Encoder<ScoreType> enc(nullptr, 0, space, data);
-    gzFile fp(gzopen(path.data(), "rb"));
-    kseq_t *ks(kseq_init(fp));
     khash_t(all) *ret(kh_init(all));
-    add_to_khash<ScoreType, khash_t(all)>(ret, enc, ks);
-    kseq_destroy(ks);
-    gzclose(fp);
+    enc.add(ret, path.data());
     return ret;
 }
 
@@ -271,13 +288,7 @@ void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &spac
                     void *data=nullptr) {
     hll.not_ready();
     Encoder<ScoreType> enc(nullptr, 0, space, data);
-    gzFile fp(gzopen(path.data(), "rb"));
-    if(fp == nullptr) LOG_EXIT("Could not open file at %s\n", path.data());
-    kseq_t *ks(kseq_init(fp));
-    LOG_DEBUG("I have initialized ks: %p, gzfp: %p, and am about to fill lmers.\n", (void *)ks, (void *)fp);
-    add_to_hll<ScoreType>(hll, ks, enc);
-    kseq_destroy(ks);
-    gzclose(fp);
+    enc.add(hll, path.data());
 }
 
 #define SUB_CALL \
