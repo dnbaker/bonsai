@@ -80,10 +80,9 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
             kseq_destroy(ks);
         }
     }
-#if 0
     SECTION("space_case", "[no ambiguous bases]") {
         Spacer sp(31, 31);
-        Encoder<score::Entropy> enc(sp);
+        Encoder<score::Lex> enc(sp);
         gzFile fp(gzopen("test/phix.fa", "rb"));
         LOG_DEBUG("Opened fp\n");
         if(fp == nullptr) throw std::runtime_error("ZOMG fp is null for file at test/phix.fa");
@@ -119,8 +118,10 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         gzclose(fp);
         kseq_destroy(ks);
     }
+//#if 0
     SECTION("space_case_jump") {
-        const char *SPACED_FN = "ec/GCF_000007445.1_ASM744v1_genomic.fna.gz";
+        const char *SPACED_FN = "test/phix.fa";
+        //const char *SPACED_FN = "ec/GCF_000007445.1_ASM744v1_genomic.fna.gz";
         Spacer sp(31, 31);
         Encoder<score::Entropy> enc(sp);
         gzFile fp(gzopen(SPACED_FN, "rb"));
@@ -131,21 +132,15 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
             enc.assign(ks);
             while(enc.has_next_kmer()) {
                 if((k = enc.next_unspaced_kmer(k)) != BF) {
-                    kmers.insert(k);
+                    kmers.insert(canonical_representation(k, 31));
                     //assert(canonical_representation(k, 31) == k ||);
                 }
             }
         }
         kseq_rewind(ks);
         gzrewind(fp);
-        while(kseq_read(ks) >= 0) {
-            LOG_DEBUG("Reading a seq from the file of length %zu.\n", ks->seq.l);
-            enc.assign(ks);
-            while(enc.has_next_kmer()) {
-                if((k = enc.next_kmer()) != BF)
-                    okmers.insert(k);
-            }
-        }
+        enc.set_canonicalize(false);
+        enc.for_each([&](auto km) {okmers.insert(canonical_representation(km, 31));}, ks);
         size_t olap(0);
         for(const auto k: kmers) olap += (okmers.find(k) != okmers.end());
         LOG_DEBUG("Size of each: kmers %zu, okmers %zu, olap %zu\n", kmers.size(), okmers.size(), olap);
@@ -154,5 +149,5 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         gzclose(fp);
         kseq_destroy(ks);
     }
-#endif
+//#endif
 }
