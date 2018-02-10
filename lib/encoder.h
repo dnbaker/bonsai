@@ -131,8 +131,11 @@ public:
     INLINE u64 decode(u64 kmer) const {return kmer ^ XOR_MASK;}
     // Whether or not an additional kmer is present in the sequence being encoded.
     INLINE int has_next_kmer() const {
-        return (pos_ + sp_.c_ - 1) < l_;
         static_assert(std::is_same_v<decltype((std::int64_t)l_ - sp_.c_ + 1), std::int64_t>, "is not same");
+#if !NDEBUG
+        if((pos_ & ((1 << 16u) - 1)) == 0) LOG_DEBUG("pos %zu comb %u l %zu\n", pos_, sp_.c_, l_);
+#endif
+        return (pos_ + sp_.c_ - 1) < l_;
     }
     // This fetches our next kmer for our window. It is immediately placed in the qmap_t,
     // which is a tree map containing kmers and scores so we can keep track of the best-scoring
@@ -153,6 +156,7 @@ public:
                     ++i;
                 }
             } else {
+                LOG_DEBUG("No more kmers, returning BF\n");
                 pos_ = l_ - sp_.c_ + 1;
                 return last_kmer = BF; // To signal to not use this kmer.
             }
@@ -166,13 +170,14 @@ public:
             }
         }
         if(canonicalize(last_kmer, sp_.k_)) is_rc_ = !is_rc_;
-        return last_kmer ^= XOR_MASK;
+        last_kmer ^= XOR_MASK;
+        return last_kmer;
     }
     // This is the actual point of entry for fetching our minimizers.
     // It wraps encoding and scoring a kmer, updates qmap, and returns the minimizer
     // for the next window.
     INLINE u64 next_minimizer() {
-        assert(has_next_kmer());
+        if(unlikely(!has_next_kmer())) return BF;
         const u64 k(kmer(pos_++)), kscore(scorer_(k, data_));
         return qmap_.next_value(k, kscore);
     }
