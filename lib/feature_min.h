@@ -29,8 +29,6 @@ khash_t(64) *feature_count_map(std::vector<std::string> fns, const Spacer &sp, i
 
 khash_t(c) *make_depth_hash(khash_t(c) *lca_map, khash_t(p) *tax_map);
 void lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map);
-template<typename ScoreType>
-int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret);
 
 void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid, std::shared_mutex &m);
 void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid);
@@ -38,63 +36,20 @@ khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, const khash_t(p) *tax);
 void update_feature_counter(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, const tax_t taxid);
 void update_minimized_map(const khash_t(all) *set, const khash_t(64) *full_map, khash_t(c) *ret);
 
-#define next_minimizer next_kmer
-
-// Return value: whether or not additional sequences were present and added.
-template<typename ScoreType>
-int fill_set_seq(kseq_t *ks, const Spacer &sp, khash_t(all) *ret) {
-    assert(ret);
-    Encoder<ScoreType> enc(0, 0, sp, nullptr);
-    int khr; // khash return value. Unused, really.
-    u64 kmer;
-    if(kseq_read(ks) >= 0) {
-        enc.assign(ks);
-        while(enc.has_next_kmer())
-            if((kmer = enc.next_minimizer()) != BF)
-                kh_put(all, ret, kmer, &khr);
-        return 1;
-    } else return 0;
-}
-
 template<typename ScoreType>
 size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data) {
     LOG_ASSERT(ret);
     LOG_INFO("Filling from genome at path %s\n", path);
-    gzFile ifp(gzopen(path, "rb"));
-    if(!ifp)
-        LOG_EXIT("Could not open file %s for index %zu. Abort!\n",
-                 path, index);
 
     unsigned k(sp.k_);
     if constexpr(std::is_same_v<ScoreType, score::Entropy>)
         data = &k;
 
     Encoder<ScoreType> enc(0, 0, sp, data);
-    kseq_t *ks(kseq_init(ifp));
-    int khr; // khash return value. Unused, really.
-    u64 kmer;
-    if(sp.w_ > sp.c_) {
-        while(kseq_read(ks) >= 0) {
-            enc.assign(ks);
-            while(likely(enc.has_next_kmer()))
-                if((kmer = enc.next_minimizer()) != BF)
-                    kh_put(all, ret, kmer, &khr);
-        }
-    } else {
-        while(kseq_read(ks) >= 0) {
-            enc.assign(ks);
-            while(likely(enc.has_next_kmer()))
-                if((kmer = enc.next_kmer()) != BF)
-                    kh_put(all, ret, kmer, &khr);
-        }
-    }
-    kseq_destroy(ks);
-    gzclose(ifp);
+    enc.add(ret, path);
     LOG_INFO("Set of size %lu filled from genome at path %s\n", kh_size(ret), path);
     return index;
 }
-
-#undef next_minimizer
 
 template<typename Container, typename ScoreType>
 size_t fill_set_genome_container(Container &container, const Spacer &sp, khash_t(all) *ret, void *data) {
@@ -105,7 +60,7 @@ size_t fill_set_genome_container(Container &container, const Spacer &sp, khash_t
 }
 
 template<typename ScoreType>
-khash_t(64) *ftct_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
+khash_t(64) *ftct_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
                       const char *seq2tax_path,
                       const Spacer &sp, int num_threads, size_t start_size) {
     return feature_count_map<ScoreType>(fns, tax_map, seq2tax_path, sp, num_threads, start_size);
@@ -138,20 +93,17 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
     // Daemon -- check the status of currently running jobs, submit new ones when available.
     while(submitted < todo) {
         //LOG_DEBUG("Submitted %zu, todo %zu\n", submitted, todo);
-        for(auto f(futures.begin()), fend(futures.end()); f != fend; ++f) {
-            if(is_ready(*f)) {
-                const size_t index(f->get());
-                futures.erase(f);
-                futures.emplace_back(std::async(
-                     std::launch::async, fill_set_genome<ScoreType>, fns[submitted].data(),
-                     sp, counters[submitted], submitted, (void *)full_map));
-                LOG_INFO("Submitted for %zu. Updating map for %zu. Total completed/all: %zu/%zu. Current size: %zu\n",
-                         submitted, index, completed, todo, kh_size(ret));
-                ++submitted, ++completed;
-                update_minimized_map(counters[index], full_map, ret);
-                kh_destroy(all, counters[index]); // Destroy set once we're done with it.
-                break;
-            }
+        if(auto f = std::find_if(futures.begin(), futures.end(), [](auto &f) {return is_ready(f);}); f != futures.end()) {
+            const size_t index(f->get());
+            futures.erase(f);
+            futures.emplace_back(std::async(
+                 std::launch::async, fill_set_genome<ScoreType>, fns[submitted].data(),
+                 sp, counters[submitted], submitted, (void *)full_map));
+            LOG_INFO("Submitted for %zu. Updating map for %zu. Total completed/all: %zu/%zu. Current size: %zu\n",
+                     submitted, index, completed, todo, kh_size(ret));
+            ++submitted, ++completed;
+            update_minimized_map(counters[index], full_map, ret);
+            kh_destroy(all, counters[index]); // Destroy set once we're done with it.
         }
     }
 
@@ -171,7 +123,7 @@ khash_t(c) *minimized_map(std::vector<std::string> fns,
 }
 
 template<typename ScoreType>
-khash_t(64) *taxdepth_map(std::vector<std::string> &fns, khash_t(p) *tax_map,
+khash_t(64) *taxdepth_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
                           const char *seq2tax_path, const Spacer &sp,
                           int num_threads, size_t start_size=1<<10) {
     size_t submitted(0), completed(0), todo(fns.size());
@@ -316,7 +268,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
 }
 
 template<typename ScoreType>
-khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, size_t start_size) {
+khash_t(64) *feature_count_map(const std::vector<std::string> fns, khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, size_t start_size) {
     // Update this to include tax ids in the hash map.
     size_t submitted(0), completed(0), todo(fns.size());
     std::vector<khash_t(all) *> counters(todo, nullptr);
@@ -339,21 +291,20 @@ khash_t(64) *feature_count_map(std::vector<std::string> fns, khash_t(p) *tax_map
 
     // Daemon -- check the status of currently running jobs, submit new ones when available.
     while(submitted < todo) {
-        for(auto &f: futures) {
-            if(is_ready(f)) {
-                const size_t index(f.get());
-                if(submitted == todo) break;
-                if(used.find(index) != used.end()) continue;
-                used.insert(index);
-                LOG_DEBUG("Submitted for %zu.\n", submitted);
-                f = std::async(
-                  std::launch::async, fill_set_genome<ScoreType>, fns[submitted].data(),
-                  sp, counters[submitted], submitted, nullptr);
-                ++submitted, ++completed;
-                const tax_t taxid(get_taxid(fns[index].data(), name_hash));
-                update_feature_counter(ret, counters[index], tax_map, taxid);
-                kh_destroy(all, counters[index]); // Destroy set once we're done with it.
-            }
+        if(auto it = std::find_if(std::begin(futures), std::end(futures), [](auto &f) {return is_ready(f);}); it != futures.end()) {
+            auto &f(*it);
+            const size_t index(f.get());
+            if(submitted == todo) break;
+            if(used.find(index) != used.end()) continue;
+            used.insert(index);
+            LOG_DEBUG("Submitted for %zu.\n", submitted);
+            f = std::async(
+              std::launch::async, fill_set_genome<ScoreType>, fns[submitted].data(),
+              sp, counters[submitted], submitted, nullptr);
+            ++submitted, ++completed;
+            const tax_t taxid(get_taxid(fns[index].data(), name_hash));
+            update_feature_counter(ret, counters[index], tax_map, taxid);
+            kh_destroy(all, counters[index]); // Destroy set once we're done with it.
         }
     }
 
