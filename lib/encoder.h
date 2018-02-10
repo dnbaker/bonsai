@@ -35,7 +35,7 @@ static INLINE int is_lt(T i, T j, UNUSED(void *data)) {
 
 using ScoringFunction = u64 (*)(u64, void*);
 
-static INLINE u64 lex_score(u64 i, UNUSED(void *data)) {return i;}
+static INLINE u64 lex_score(u64 i, UNUSED(void *data)) {return i ^ XOR_MASK;}
 static INLINE u64 ent_score(u64 i, void *data) {
     // For this, the highest-entropy kmers will be selected as "minimizers".
     return UINT64_C(-1) - static_cast<u64>(UINT64_C(7958933093282078720) * kmer_entropy(i, *(unsigned *)data));
@@ -84,11 +84,12 @@ private:
     u64         pos_; // Current position within the string s_ we're working with.
     void      *data_; // A void pointer for using with scoring. Needed for hash_score.
     qmap_t     qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
-    const ScoreType scorer_; // scoring struct
-    bool     is_rc_;  // A variable tracking whether or not the current kmer is reverse complemented.
+    const ScoreType  scorer_; // scoring struct
+    const bool canonicalize_;
 
 public:
-    Encoder(char *s, size_t l, const Spacer &sp, void *data=nullptr):
+    Encoder(char *s, size_t l, const Spacer &sp, void *data=nullptr,
+            bool canonicalize=true):
       s_(s),
       l_(l),
       sp_(sp),
@@ -96,8 +97,8 @@ public:
       data_(data),
       qmap_(sp_.w_ - sp_.c_ + 1),
       scorer_{},
-      is_rc_(false) {}
-    Encoder(const Spacer &sp, void *data): Encoder(nullptr, 0, sp, data) {}
+      canonicalize_(canonicalize) {}
+    Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data) {}
     Encoder(const Spacer &sp): Encoder(sp, nullptr) {}
     Encoder(const Encoder &other): Encoder(other.sp_, other.data_) {}
     Encoder(unsigned k): Encoder(nullptr, 0, Spacer(k), nullptr) {}
@@ -105,13 +106,106 @@ public:
     // Assign functions: These tell the encoder to fetch kmers from this string.
     // kstring and kseq are overloads which call assign(char *s, size_t l) on
     // the correct portions of the structs.
-    INLINE void assign(char *s, size_t l) {
+    INLINE void assign(const char *s, size_t l) {
         s_ = s; l_ = l; pos_ = 0;
         qmap_.reset();
-        assert((l_ >= sp_.c_ || (!has_next_kmer())) || std::fprintf(stderr, "l: %zu. c: %zu. pos: %zu\n", l, size_t(sp_.c_), pos_) == 0);
+        assert((l_ >= sp_.c_ || (!has_next_kmer())) || std::fprintf(stderr, "l: %" PRIu64 ". c: %zu. pos: %zu\n", l, size_t(sp_.c_), pos_) == 0);
     }
     INLINE void assign(kstring_t *ks) {assign(ks->s, ks->l);}
     INLINE void assign(kseq_t    *ks) {assign(&ks->seq);}
+
+
+    // Utility 'for-each'-like functions.
+    template<typename Functor>
+    INLINE void for_each(const Functor &func, const char *str, size_t l) {
+        this->assign(str, l);
+        if(!has_next_kmer()) return;
+        u64 min(BF);
+        if(canonicalize_) {
+            if(sp_.unwindowed()) {
+                LOG_DEBUG("Now fetching kmers unwindowed, canonicalized!\n");
+                while(has_next_kmer())
+                    if((min = next_kmer()) != BF)
+                        func(canonical_representation(min, sp_.k_));
+            } else {
+                LOG_DEBUG("Now fetching kmers windowed, canonicalized!\n");
+                while(has_next_kmer())
+                    if((min = next_canonicalized_minimizer()) != BF)
+                        func(min);
+            }
+        } else {
+            // Note that an entropy-based score calculation can be sped up for this case.
+            // This will likely need a separate function.
+            if(sp_.unwindowed()) {
+                const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
+                unsigned offset(0);
+                LOG_DEBUG("Now fetching kmers unwindowed, uncanonicalized!\n");
+                min = cstr_lut[s_[pos_++]];
+                while(pos_ < sp_.k_) {
+                    min <<= 2;
+                    min |= cstr_lut[s_[pos_++]];
+                }
+                func(min);
+                while(pos_ < l_) {
+                    min <<= 2;
+                    min |= cstr_lut[s_[pos_++]];
+                    while(min == BF) {
+                        LOG_DEBUG("We hit a -1!\n");
+                        min = 0;
+                        while(pos_ < l_) {
+                            min <<= 2;
+                            min |= cstr_lut[s_[pos_++]];
+                        }
+                    }
+                    min &= mask;
+                    func(min);
+                }
+            } else {
+                LOG_DEBUG("Now fetching kmers windowed, uncanonicalized!\n");
+                while(has_next_kmer())
+                    if((min = next_minimizer()) != BF)
+                        func(min);
+            }
+        }
+    }
+    template<typename Functor>
+    INLINE void for_each(const Functor &func, kseq_t *ks) {
+        while(kseq_read(ks) >= 0) for_each<Functor>(func, ks->seq.s, ks->seq.l);
+    }
+    template<typename Functor>
+    void for_each(const Functor &func, gzFile fp) {
+        kseq_t *ks(kseq_init(fp));
+        for_each<Functor>(func, ks);
+        kseq_destroy(ks);
+    }
+    template<typename Functor>
+    void for_each(const Functor &func, const char *path) {
+        gzFile fp(gzopen(path, "rb"));
+        if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        for_each<Functor>(func, fp);
+        gzclose(fp);
+    }
+    template<typename Functor, typename ContainerType,
+             typename=std::enable_if_t<std::is_same_v<typename ContainerType::value_type::value_type, char>>>
+    void for_each(const Functor &func, const ContainerType &strcon) {
+        for(const auto &el: strcon) for_each<Functor>(func, get_cstr(el));
+    }
+
+    template<typename Target>
+    void add(hll::hll_t &hll, const Target &target) {
+        this->for_each([&](u64 min) {hll.addh(min);}, target);
+    }
+
+    template<typename Target>
+    void add(khash_t(all) *set, const Target &target) {
+        int khr;
+        this->for_each([&] (u64 min) {kh_put(all, set, min, &khr);}, target);
+    }
+
+    template<typename ContainerType>
+    void add(ContainerType &con, ContainerType &strcon) {
+        for(const auto &el: strcon) add(get_cstr(con, get_cstr(el)));
+    }
 
     // Encodes a kmer starting at `start` within string `s_`.
     INLINE u64 kmer(unsigned start) {
@@ -123,12 +217,8 @@ public:
             start += s;
             new_kmer |= cstr_lut[s_[start]];
         }
-        new_kmer = canonical_representation(new_kmer, sp_.k_) ^ XOR_MASK;
         return new_kmer;
     }
-    // When we encode kmers, we XOR it with this XOR_MASK for good key dispersion
-    // in spite of potential redundacies in the sequence.
-    INLINE u64 decode(u64 kmer) const {return kmer ^ XOR_MASK;}
     // Whether or not an additional kmer is present in the sequence being encoded.
     INLINE int has_next_kmer() const {
         static_assert(std::is_same_v<decltype((std::int64_t)l_ - sp_.c_ + 1), std::int64_t>, "is not same");
@@ -145,33 +235,8 @@ public:
         return kmer(pos_++);
     }
     INLINE u64 next_unspaced_kmer(u64 last_kmer) {
-        assert(has_next_kmer() && sp_.unspaced());
-        if(unlikely(last_kmer == BF)) {
-            if(likely((pos_ += sp_.k_) < l_ - sp_.c_)) {
-                is_rc_ = false;
-                last_kmer = UINT64_C(0);
-                for(unsigned i(0); i < sp_.k_; ++i) {
-                    last_kmer |= cstr_lut[s_[pos_++]];
-                    last_kmer <<= 2;
-                    ++i;
-                }
-            } else {
-                LOG_DEBUG("No more kmers, returning BF\n");
-                pos_ = l_ - sp_.c_ + 1;
-                return last_kmer = BF; // To signal to not use this kmer.
-            }
-        } else {
-            last_kmer ^= XOR_MASK; // Un-mask
-            if(is_rc_) {
-                static const uint8_t binrc[] {3,2,1,0};
-                last_kmer >>= 2, last_kmer |= ((u64)(binrc[cstr_lut[s_[pos_++ + sp_.k_]]])) << 62;
-            } else {
-                last_kmer <<= 2, last_kmer |= cstr_lut[s_[pos_++ + sp_.k_]];
-            }
-        }
-        if(canonicalize(last_kmer, sp_.k_)) is_rc_ = !is_rc_;
-        last_kmer ^= XOR_MASK;
-        return last_kmer;
+        LOG_WARNING("NotImplementedError.");
+        return next_kmer();
     }
     // This is the actual point of entry for fetching our minimizers.
     // It wraps encoding and scoring a kmer, updates qmap, and returns the minimizer
@@ -179,6 +244,11 @@ public:
     INLINE u64 next_minimizer() {
         if(unlikely(!has_next_kmer())) return BF;
         const u64 k(kmer(pos_++)), kscore(scorer_(k, data_));
+        return qmap_.next_value(k, kscore);
+    }
+    INLINE u64 next_canonicalized_minimizer() {
+        assert(has_next_kmer());
+        const u64 k(canonical_representation(kmer(pos_++), sp_.k_)), kscore(scorer_(k, data_));
         return qmap_.next_value(k, kscore);
     }
     elscore_t max_in_queue() const {
@@ -222,12 +292,8 @@ khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
                               void *data=nullptr) {
 
     Encoder<ScoreType> enc(nullptr, 0, space, data);
-    gzFile fp(gzopen(path.data(), "rb"));
-    kseq_t *ks(kseq_init(fp));
     khash_t(all) *ret(kh_init(all));
-    add_to_khash<ScoreType, khash_t(all)>(ret, enc, ks);
-    kseq_destroy(ks);
-    gzclose(fp);
+    enc.add(ret, path.data());
     return ret;
 }
 
@@ -265,13 +331,7 @@ void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &spac
                     void *data=nullptr) {
     hll.not_ready();
     Encoder<ScoreType> enc(nullptr, 0, space, data);
-    gzFile fp(gzopen(path.data(), "rb"));
-    if(fp == nullptr) LOG_EXIT("Could not open file at %s\n", path.data());
-    kseq_t *ks(kseq_init(fp));
-    LOG_DEBUG("I have initialized ks: %p, gzfp: %p, and am about to fill lmers.\n", (void *)ks, (void *)fp);
-    add_to_hll<ScoreType>(hll, ks, enc);
-    kseq_destroy(ks);
-    gzclose(fp);
+    enc.add(hll, path.data());
 }
 
 #define SUB_CALL \

@@ -58,7 +58,6 @@ static INLINE u64 reverse_complement(u64 kmer, uint8_t n) {
 
 // Very slightly modified from bowtie2. [https://github.com/BenLangmead/bowtie2/blob/f2857aae716a3447fa689536c6f9c8b193a05a12/bt2_idx.h#L1847-1895]
 inline static void countInU64Ex(uint64_t dw, uint32_t *arrs, unsigned k) {
-    dw ^= XOR_MASK;
     const uint64_t COUNT_MASK = (0xFFFFFFFFFFFFFFFF >> (64 - 2 * k));
     static const uint64_t c_table[4] = {
         0xffffffffffffffff,

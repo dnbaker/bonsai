@@ -100,27 +100,15 @@ struct is_specialization : std::false_type {};
 template<template<typename...> class Ref, typename... Args>
 struct is_specialization<Ref<Args...>, Ref>: std::true_type {};
 
-template<typename T, class Hash=std::hash<T>, typename SizeType=size_t>
+template<typename T, class Hash=std::hash<T>, typename SizeType=size_t, typename=std::enable_if_t<std::is_arithmetic_v<SizeType>>>
 class Counter {
-    SizeType                                                n_;
-    SizeType                                            nelem_;
-    std::unordered_map<T, SizeType, Hash>                 map_;
-    std::unordered_map<unsigned, unsigned>            *hist_;
+    SizeType                                     n_;
+    SizeType                                 nelem_;
+    std::unordered_map<T, SizeType, Hash>      map_;
+    std::unordered_map<unsigned, unsigned>   *hist_;
 
 public:
     Counter(): n_(0), nelem_(0), hist_(nullptr) {}
-#if 0
-    Counter(Counter<T, Hash> &&other) = default;
-    Counter(Counter<T, Hash> &other)  = default;
-    Counter(const Counter<T, Hash> &other)  = default;
-    Counter &operator=(Counter<T, Hash> &&other) {
-        n_ = other.n_;
-        nelem_ = other.nelem_;
-        map_ = std::move(other.map_);
-        hist_ = std::move(other.hist_);
-        return *this;
-    }
-#endif
     ~Counter() {if(hist_) delete hist_;}
 
     template<typename Q=T>
@@ -180,6 +168,8 @@ public:
 
     template<typename = std::enable_if<std::is_same_v<bitvec_t, T>>>
     std::unordered_map<unsigned, unsigned> *make_hist() {
+        if(hist_) delete hist_;
+        hist_ = new std::unordered_map<unsigned, unsigned>;
         std::unordered_map<unsigned, unsigned>::iterator m;
         LOG_DEBUG("map size: %zu\n", map_.size());
         for(auto &i: map_) {
@@ -191,7 +181,7 @@ public:
     }
 
     int print_hist(std::FILE *fp) {
-        if(hist_->empty()) make_hist();
+        if(hist_ == nullptr || hist_->empty()) make_hist();
         int ret(0);
         std::set<unsigned> countset;
         for(const auto &i: *hist_)
@@ -215,26 +205,36 @@ public:
                 const T *vec_;
                 SizeType count_;
                 vecc_t(const T *vec, const SizeType count): vec_(vec), count_(count) {}
+#if 0
                 inline bool operator<(const vecc_t &other) {
                     return count_ < other.count_;
                 }
+#endif
             };
             ks::string ks;
+            ks.resize(256);
             SizeType sum(0);
             std::vector<vecc_t> vc;
             vc.reserve(map_.size());
-            for(auto &i: map_) vc.emplace_back(&i.first, i.second);
-            SORT(std::begin(vc), std::end(vc));
-            ksprintf(static_cast<kstring_t*>(ks), "#Number of distinct patterns: %zu\n", vc.size());
-            ksprintf(static_cast<kstring_t*>(ks), "#Pattern\tCount\tNumber of bits set in pattern\n");
+            LOG_DEBUG("Size of map: %zu\n", map_.size());
+            for(const auto &i: map_) {
+                vc.emplace_back(&i.first, i.second);
+            }
+            std::sort(std::begin(vc), std::end(vc), [](const auto &x, const auto &y) {return x.count_ < y.count_;});
+            ks.sprintf("#Number of distinct patterns: %zu\n", vc.size());
+            ks.sprintf("#Pattern\tCount\tNumber of bits set in pattern\n");
+            if(map_.empty()) return;
             for(const auto &i: vc) {
                 SizeType n(0), pc(0);
+                std::fprintf(stderr, "Pointer: %p\n", (void *)i.vec_);
+                std::fprintf(stderr, "Size: %zu\n", i.vec_->size());
                 for(auto j: *i.vec_) {
+                    std::fprintf(stderr, "Element %" PRIu64 " in vector.\n", j);
                     sum += j;
                     for(u64 i(0); i < std::min(CHAR_BIT * sizeof(j), nelem_ - n); ++i)
-                        kputc_('0' + (j&1), ks), pc += j&1, j >>= 1;
+                        ks.putc_('0' + (j&1)), pc += j&1, j >>= 1;
                 }
-                ksprintf(ks, "\t%zu\t%zu\n", i.count_, pc);
+                ks.sprintf("\t%zu\t%zu\n", i.count_, pc);
             }
             if(ks.size()) std::fwrite(ks.data(), 1, ks.size(), fp);
         } else {
