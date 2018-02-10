@@ -85,7 +85,7 @@ private:
     void      *data_; // A void pointer for using with scoring. Needed for hash_score.
     qmap_t     qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
     const ScoreType  scorer_; // scoring struct
-    const bool canonicalize_;
+    bool canonicalize_;
 
 public:
     Encoder(char *s, size_t l, const Spacer &sp, void *data=nullptr,
@@ -135,10 +135,9 @@ public:
             }
         } else {
             // Note that an entropy-based score calculation can be sped up for this case.
-            // This will likely need a separate function.
+            // This will benefit from either a special function or an if constexpr
             if(sp_.unwindowed()) {
                 const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
-                unsigned offset(0);
                 LOG_DEBUG("Now fetching kmers unwindowed, uncanonicalized!\n");
                 min = cstr_lut[s_[pos_++]];
                 while(pos_ < sp_.k_) {
@@ -222,7 +221,7 @@ public:
     // Whether or not an additional kmer is present in the sequence being encoded.
     INLINE int has_next_kmer() const {
         static_assert(std::is_same_v<decltype((std::int64_t)l_ - sp_.c_ + 1), std::int64_t>, "is not same");
-#if !NDEBUG
+#if ENABLE_HAS_NEXT_KMER_LOGGING
         if((pos_ & ((1 << 16u) - 1)) == 0) LOG_DEBUG("pos %zu comb %u l %zu\n", pos_, sp_.c_, l_);
 #endif
         return (pos_ + sp_.c_ - 1) < l_;
@@ -235,7 +234,7 @@ public:
         return kmer(pos_++);
     }
     INLINE u64 next_unspaced_kmer(u64 last_kmer) {
-        LOG_WARNING("NotImplementedError.");
+        //LOG_WARNING("NotImplementedError.\n");
         return next_kmer();
     }
     // This is the actual point of entry for fetching our minimizers.
@@ -254,6 +253,8 @@ public:
     elscore_t max_in_queue() const {
         return qmap_.begin()->first;
     }
+    bool canonicalize() const {return canonicalize_;}
+    void set_canonicalize(bool value) {canonicalize_ = value;}
 };
 
 template<typename ScoreType, typename KhashType>
