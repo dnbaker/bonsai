@@ -134,6 +134,6 @@ def folder2hlashdict(paths):
                                          line[0] != "#"))}
 
 
-__all__ = ["mash2dict", "folder2dict", "get_flag",
+__all__ = ["mash2dict", "folder2mashdict", "get_flag",
            "folder2hlashdict", "folder2paths",
            "HlashData", "nk2sketchbytes", "canonname", "canonkey"]
