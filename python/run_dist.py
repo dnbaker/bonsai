@@ -108,6 +108,7 @@ def main():
         raise Exception("The files are NOT in the computer: %s" %
                         ' '.join(path for path in paths if
                                  os.path.isfile(path)))
+    Spooooool = multiprocessing.Pool(threads)
     if mashify:
         for ss in sketch_range:
             for ks in kmer_range:
@@ -117,7 +118,12 @@ def main():
                                  )
                 gen = ((path, sketch, ss, ks) for path, sketch in
                        zip(paths, sketchfns))
-                multiprocessing.Pool(threads).map(submit_sketch, gen)
+                while True:
+                    try:
+                        Spooooool.map(submit_sketch, gen)
+                        break
+                    except BlockingIOError:
+                        pass
                 sketchfns = [i + ".msh" for i in sketchfns]
                 fn = makefn(paths, ks, ss, mashify)
                 print("Now about to submit dist comparisons", file=sys.stderr)
@@ -137,10 +143,14 @@ def main():
                         thisfns.append(thisfn)
                 gen = ((ss, ks, sketchfns[i:], thisfn) for
                        i, thisfn in zip(todo, thisfns))
-                multiprocessing.Pool(threads).map(submit_mdist, gen)
+                while True:
+                    try:
+                        Spooooool.map(submit_mdist, gen)
+                        break
+                    except BlockingIOError:
+                        pass
     else:
-        multiprocessing.Pool(threads).map(submit_distcmp_call,
-                                          submission_sets)
+        Spooooool.map(submit_distcmp_call, submission_sets)
     return 0
 
 
