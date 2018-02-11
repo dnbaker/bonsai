@@ -136,6 +136,7 @@ public:
         } else {
             // Note that an entropy-based score calculation can be sped up for this case.
             // This will benefit from either a special function or an if constexpr
+#if EXPERIMENTAL_ACCELERATED_ENCODING
             if(sp_.unwindowed()) {
                 LOG_DEBUG("Now fetching kmers unwindowed, uncanonicalized!\n");
                 const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
@@ -162,10 +163,13 @@ public:
                 }
             } else {
                 LOG_DEBUG("Now fetching kmers windowed, uncanonicalized!\n");
+#endif
                 while(has_next_kmer())
                     if((min = next_minimizer()) != BF)
                         func(min);
+#if EXPERIMENTAL_ACCELERATED_ENCODING
             }
+#endif
         }
     }
     template<typename Functor>
