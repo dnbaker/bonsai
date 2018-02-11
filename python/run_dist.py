@@ -15,7 +15,7 @@ def submit_mdist(tup):
                           (" ".join(sketchfns), ofn), shell=True)
 
 
-def submit_sketch(tup):
+def submit_mash_sketch(tup):
     fa, fn, ss, ks = tup
     if not is_nonempty_file(fn + ".msh"):
         assert not os.path.isfile(fn + ".msh")
@@ -108,7 +108,7 @@ def main():
         raise Exception("The files are NOT in the computer: %s" %
                         ' '.join(path for path in paths if
                                  os.path.isfile(path)))
-    Spooooool = multiprocessing.Pool(threads)
+    Spooooool = multiprocessing.Pool(threads)  # With apologies to Beckett.
     if mashify:
         for ss in sketch_range:
             for ks in kmer_range:
@@ -119,8 +119,13 @@ def main():
                 gen = ((path, sketch, ss, ks) for path, sketch in
                        zip(paths, sketchfns))
                 while True:
+                    # DO IT
+                    #
+                    # JUST
+                    #
+                    # DO IT
                     try:
-                        Spooooool.map(submit_sketch, gen)
+                        Spooooool.map(submit_mash_sketch, gen)
                         break
                     except BlockingIOError:
                         pass
@@ -144,6 +149,13 @@ def main():
                 gen = ((ss, ks, sketchfns[i:], thisfn) for
                        i, thisfn in zip(todo, thisfns))
                 while True:
+                    # IF YOU'RE TIRED OF STARTING OVER
+                    #
+                    # STOP
+                    #
+                    # GIVING
+                    #
+                    # UP
                     try:
                         Spooooool.map(submit_mdist, gen)
                         break
