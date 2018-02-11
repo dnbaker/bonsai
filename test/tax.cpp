@@ -9,7 +9,7 @@ TEST_CASE("tax") {
     while(v.size() < 12) v.push_back(0);
     std::vector<std::string> paths;
     {
-        const char cmd[] {"ls ref/viral/ | grep fna.gz | head -n 40"};
+        const char cmd[] {"ls ec | grep fna.gz | head -n 40"};
         std::FILE *fp(popen(cmd, "r"));
         if(fp == nullptr) throw "a party";//throw std::system_error(1, std::string("Could not call command '") + cmd + "'\n");
         int c;
@@ -17,25 +17,25 @@ TEST_CASE("tax") {
         ssize_t len;
         size_t size;
         char *buf(nullptr);
-        const std::string prefix("ref/viral/");
+        const std::string prefix("ec/");
         while((len = getline(&buf, &size, fp)) >= 0) {
             buf[len - 1] = '\0';
             paths.emplace_back(prefix + buf);
+            if(!std::ifstream(paths.back()).good()) throw std::runtime_error(ks::sprintf("Could not open path at %s\n", paths.back().data()).data());
         }
         std::free(buf);
         std::fclose(fp);
     }
-    std::fprintf(stderr, "Parsed paths");
+    std::fprintf(stderr, "Parsed paths. Number of paths: %zu\n", paths.size());
     Spacer sp(13, 13, v);
     kgset_t set(paths, sp);
     REQUIRE(set.size() == paths.size());
     count::Counter<bitvec_t> counts(bitmap_t(set).to_counter());
     adjmap_t adj(counts);
     std::fprintf(stderr, "Made adjmap");
-    //LOG_DEBUG("Weight: %zu. Number of bit patterns: %zu. Total weight of all bit patterns: %zu\n", set.weight(), counts.size(), counts.total());
 
-    //counts.print_counts(stderr);
-    //counts.print_hist(stderr);
+    counts.print_counts(stderr);
+    counts.print_hist(stderr);
     bitvec_t thing;
     thing.reserve(1 << 16);
     for(size_t i(0); i < 1 << 16; ++i)
