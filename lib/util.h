@@ -84,9 +84,6 @@ void STLFREE(T &container) {
     std::swap(tmp, container);
 }
 
-#define XOR_MASK UINT64_C(0)
-
-// Turning off XOR_MASK for now
 #ifndef XOR_MASK
 #    define XOR_MASK 0xe37e28c4271b5a2dULL
 #endif
