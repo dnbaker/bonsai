@@ -125,12 +125,12 @@ public:
         if(canonicalize_) {
             if(sp_.unwindowed()) {
                 LOG_DEBUG("Now fetching kmers unwindowed, canonicalized!\n");
-                while(has_next_kmer())
+                while(likely(has_next_kmer()))
                     if((min = next_kmer()) != BF)
                         func(canonical_representation(min, sp_.k_));
             } else {
                 LOG_DEBUG("Now fetching kmers windowed, canonicalized!\n");
-                while(has_next_kmer())
+                while(likely(has_next_kmer()))
                     if((min = next_canonicalized_minimizer()) != BF)
                         func(min);
             }
@@ -144,10 +144,10 @@ public:
                 unsigned filled = min = 0;
                 loop_start:
                 while(likely(pos_ < l_)) {
-                    while(filled < sp_.k_ && likely(pos_ < l_)) {
+                    while(likely(filled < sp_.k_ && likely(pos_ < l_))) {
                         min <<= 2;
                         //std::fprintf(stderr, "Encoding character %c with value %u at last position.\n", s_[pos_], (unsigned)cstr_lut[s_[pos_]]);
-                        if((min |= cstr_lut[s_[pos_++]]) == BF) {
+                        if(unlikely(min |= cstr_lut[s_[pos_++]]) == BF) {
                             filled = min = 0;
                             goto loop_start;
                         }
@@ -155,7 +155,7 @@ public:
                     }
                     //std::fprintf(stderr, "character is %c. min is %u\n", s_[pos_ - 1], unsigned(min & 0x3u));
                     //assert(((min & 0x3u) == cstr_lut[s_[pos_ - 1]]));
-                    if(filled == sp_.k_) {
+                    if(likely(filled == sp_.k_)) {
                         min &= mask;
                         func(min);
                         --filled;
@@ -163,7 +163,7 @@ public:
                 }
             } else {
                 LOG_DEBUG("Now fetching kmers windowed, uncanonicalized!\n");
-                while(has_next_kmer())
+                while(likely(has_next_kmer()))
                     if((min = next_minimizer()) != BF)
                         func(min);
             }
