@@ -137,27 +137,28 @@ public:
             // Note that an entropy-based score calculation can be sped up for this case.
             // This will benefit from either a special function or an if constexpr
             if(sp_.unwindowed()) {
-                const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
                 LOG_DEBUG("Now fetching kmers unwindowed, uncanonicalized!\n");
-                min = cstr_lut[s_[pos_++]];
-                while(pos_ < sp_.k_) {
-                    min <<= 2;
-                    min |= cstr_lut[s_[pos_++]];
-                }
-                func(min);
-                while(pos_ < l_) {
-                    min <<= 2;
-                    min |= cstr_lut[s_[pos_++]];
-                    while(min == BF) {
-                        LOG_DEBUG("We hit a -1!\n");
-                        min = 0;
-                        while(pos_ < l_) {
-                            min <<= 2;
-                            min |= cstr_lut[s_[pos_++]];
+                const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
+                unsigned filled = min = 0;
+                loop_start:
+                while(likely(pos_ < l_)) {
+                    while(filled < sp_.k_ && likely(pos_ < l_)) {
+                        min <<= 2;
+                        //std::fprintf(stderr, "Encoding character %c with value %u at last position.\n", s_[pos_], (unsigned)cstr_lut[s_[pos_]]);
+                        min |= cstr_lut[s_[pos_++]];
+                        if(min == BF) {
+                            filled = min = 0;
+                            goto loop_start;
                         }
+                        ++filled;
                     }
-                    min &= mask;
-                    func(min);
+                    //std::fprintf(stderr, "character is %c. min is %u\n", s_[pos_ - 1], unsigned(min & 0x3u));
+                    //assert(((min & 0x3u) == cstr_lut[s_[pos_ - 1]]));
+                    if(filled == sp_.k_) {
+                        min &= mask;
+                        func(min);
+                        --filled;
+                    }
                 }
             } else {
                 LOG_DEBUG("Now fetching kmers windowed, uncanonicalized!\n");
@@ -214,7 +215,7 @@ public:
         for(const auto s: sp_.s_) {
             new_kmer <<= 2;
             start += s;
-            new_kmer |= cstr_lut[s_[start]];
+            if((new_kmer |= cstr_lut[s_[start]]) == BF) break;
         }
         return new_kmer;
     }
@@ -232,10 +233,6 @@ public:
     INLINE u64 next_kmer() {
         assert(has_next_kmer());
         return kmer(pos_++);
-    }
-    INLINE u64 next_unspaced_kmer(u64 last_kmer) {
-        //LOG_WARNING("NotImplementedError.\n");
-        return next_kmer();
     }
     // This is the actual point of entry for fetching our minimizers.
     // It wraps encoding and scoring a kmer, updates qmap, and returns the minimizer
@@ -255,6 +252,7 @@ public:
     }
     bool canonicalize() const {return canonicalize_;}
     void set_canonicalize(bool value) {canonicalize_ = value;}
+    auto pos() const {return pos_;}
 };
 
 template<typename ScoreType, typename KhashType>

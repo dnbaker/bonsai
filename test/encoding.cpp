@@ -94,8 +94,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
             while(enc.has_next_kmer()) {
-                if((k = enc.next_unspaced_kmer(k)) != BF)
-                    kmers.insert(k);
+                if((k = enc.next_kmer()) != BF) kmers.insert(k);
             }
         }
         LOG_DEBUG("Filled kmers\n");
@@ -120,34 +119,45 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
     }
 //#if 0
     SECTION("space_case_jump") {
-        const char *SPACED_FN = "test/phix.fa";
-        //const char *SPACED_FN = "ec/GCF_000007445.1_ASM744v1_genomic.fna.gz";
-        Spacer sp(31, 31);
-        Encoder<score::Entropy> enc(sp);
-        gzFile fp(gzopen(SPACED_FN, "rb"));
-        kseq_t *ks(kseq_init(fp));
-        std::unordered_set<u64> kmers, okmers;
-        u64 k(BF);
-        while(kseq_read(ks) >= 0) {
-            enc.assign(ks);
-            while(enc.has_next_kmer()) {
-                if((k = enc.next_unspaced_kmer(k)) != BF) {
-                    kmers.insert(canonical_representation(k, 31));
-                    //assert(canonical_representation(k, 31) == k ||);
+        for(const char *SPACED_FN: {"test/phix.fa", "ec/GCF_000007445.1_ASM744v1_genomic.fna.gz"}) {
+            Spacer sp(31, 31);
+            Encoder<score::Entropy> enc(sp);
+            gzFile fp(gzopen(SPACED_FN, "rb"));
+            kseq_t *ks(kseq_init(fp));
+            std::unordered_set<u64> kmers, okmers;
+            u64 k(BF);
+            while(kseq_read(ks) >= 0) {
+                enc.assign(ks);
+                while(enc.has_next_kmer()) {
+                    if((k = enc.next_kmer()) != BF) {
+                        const auto tmp(canonical_representation(k, 31));
+                        if(sp.to_string(tmp) == "CGATAAAAATGATTGGCGTATCCAACCTGCA") {
+                            std::fprintf(stderr, "I am at position %zu\n", enc.pos());
+                        }
+                        kmers.insert(canonical_representation(k, 31));
+                        //assert(canonical_representation(k, 31) == k ||);
+                    }
                 }
             }
+            kseq_rewind(ks);
+            gzrewind(fp);
+            enc.set_canonicalize(false);
+            enc.for_each([&](auto km) {okmers.insert(canonical_representation(km, 31));}, ks);
+            size_t olap(0);
+            for(const auto k: kmers) olap += (okmers.find(k) != okmers.end());
+            LOG_DEBUG("Size of each: kmers %zu, okmers %zu, olap %zu\n", kmers.size(), okmers.size(), olap);
+            if(olap != kmers.size()) {
+                if(okmers.size() != olap) throw std::runtime_error("I can't even try to help you this is so broken.");
+                for(const auto kmer: kmers)
+                    if(okmers.find(kmer) == okmers.end())
+                        std::fprintf(stderr, "Kmer: %s. RC: %s\n", sp.to_string(kmer).data(), sp.to_string(reverse_complement(kmer, 31)).data());
+                LOG_DEBUG("Number of missing kmers: %zu\n", size_t(kmers.size() - olap));
+            }
+            REQUIRE(olap == kmers.size());
+            REQUIRE(kmers.size() == okmers.size());
+            gzclose(fp);
+            kseq_destroy(ks);
         }
-        kseq_rewind(ks);
-        gzrewind(fp);
-        enc.set_canonicalize(false);
-        enc.for_each([&](auto km) {okmers.insert(canonical_representation(km, 31));}, ks);
-        size_t olap(0);
-        for(const auto k: kmers) olap += (okmers.find(k) != okmers.end());
-        LOG_DEBUG("Size of each: kmers %zu, okmers %zu, olap %zu\n", kmers.size(), okmers.size(), olap);
-        REQUIRE(olap == kmers.size());
-        REQUIRE(kmers.size() == okmers.size());
-        gzclose(fp);
-        kseq_destroy(ks);
     }
 //#endif
 }
