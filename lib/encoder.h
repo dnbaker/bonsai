@@ -137,28 +137,50 @@ public:
         } else {
             // Note that an entropy-based score calculation can be sped up for this case.
             // This will benefit from either a special function or an if constexpr
-            if(sp_.unwindowed() && sp_.unspaced()) {
-                LOG_DEBUG("Now fetching kmers unwindowed, uncanonicalized!\n");
-                // Next TODO: Add windowed but unspaced version.
+            if(sp_.unspaced()) {
                 const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
-                unsigned filled = min = 0;
-                loop_start:
-                while(likely(pos_ < l_)) {
-                    while(filled < sp_.k_ && likely(pos_ < l_)) {
-                        min <<= 2;
-                        //std::fprintf(stderr, "Encoding character %c with value %u at last position.\n", s_[pos_], (unsigned)cstr_lut[s_[pos_]]);
-                        if((min |= cstr_lut[s_[pos_++]]) == BF) {
-                            filled = min = 0;
-                            goto loop_start;
+                if(sp_.unwindowed()) {
+                    // Next TODO: Add windowed but unspaced version.
+                    unsigned filled = min = 0;
+                    loop_start:
+                    while(likely(pos_ < l_)) {
+                        while(filled < sp_.k_ && likely(pos_ < l_)) {
+                            min <<= 2;
+                            //std::fprintf(stderr, "Encoding character %c with value %u at last position.\n", s_[pos_], (unsigned)cstr_lut[s_[pos_]]);
+                            if((min |= cstr_lut[s_[pos_++]]) == BF) {
+                                filled = min = 0;
+                                goto loop_start;
+                            }
+                            ++filled;
                         }
-                        ++filled;
+                        //std::fprintf(stderr, "character is %c. min is %u\n", s_[pos_ - 1], unsigned(min & 0x3u));
+                        //assert(((min & 0x3u) == cstr_lut[s_[pos_ - 1]]));
+                        if(filled == sp_.k_) {
+                            min &= mask;
+                            func(min);
+                            --filled;
+                        }
                     }
-                    //std::fprintf(stderr, "character is %c. min is %u\n", s_[pos_ - 1], unsigned(min & 0x3u));
-                    //assert(((min & 0x3u) == cstr_lut[s_[pos_ - 1]]));
-                    if(filled == sp_.k_) {
-                        min &= mask;
-                        func(min);
-                        --filled;
+                } else {
+                    unsigned filled = min = 0;
+                    u64 kmer, score;
+                    windowed_loop_start:
+                    while(likely(pos_ < l_)) {
+                        while(filled < sp_.k_ && likely(pos_ < l_)) {
+                            min <<= 2;
+                            //std::fprintf(stderr, "Encoding character %c with value %u at last position.\n", s_[pos_], (unsigned)cstr_lut[s_[pos_]]);
+                            if((min |= cstr_lut[s_[pos_++]]) == BF) {
+                                filled = min = 0;
+                                goto windowed_loop_start;
+                            }
+                            ++filled;
+                        }
+                        if(filled == sp_.k_) {
+                            min &= mask;
+                            if((kmer = qmap_.next_value(min, scorer_(min, data_))) != BF)
+                                func(min);
+                            --filled;
+                        }
                     }
                 }
             } else {
@@ -237,7 +259,7 @@ public:
     // It wraps encoding and scoring a kmer, updates qmap, and returns the minimizer
     // for the next window.
     INLINE u64 next_minimizer() {
-        if(unlikely(!has_next_kmer())) return BF;
+        //if(unlikely(!has_next_kmer())) return BF;
         const u64 k(kmer(pos_++)), kscore(scorer_(k, data_));
         return qmap_.next_value(k, kscore);
     }
