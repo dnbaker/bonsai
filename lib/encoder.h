@@ -118,6 +118,7 @@ public:
     // Utility 'for-each'-like functions.
     template<typename Functor>
     INLINE void for_each(const Functor &func, const char *str, size_t l) {
+        LOG_DEBUG("Processing seq of length %zu\n", l);
         this->assign(str, l);
         if(!has_next_kmer()) return;
         u64 min(BF);
@@ -136,9 +137,9 @@ public:
         } else {
             // Note that an entropy-based score calculation can be sped up for this case.
             // This will benefit from either a special function or an if constexpr
-#if EXPERIMENTAL_ACCELERATED_ENCODING
-            if(sp_.unwindowed()) {
+            if(sp_.unwindowed() && sp_.unspaced()) {
                 LOG_DEBUG("Now fetching kmers unwindowed, uncanonicalized!\n");
+                // Next TODO: Add windowed but unspaced version.
                 const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
                 unsigned filled = min = 0;
                 loop_start:
@@ -146,8 +147,7 @@ public:
                     while(filled < sp_.k_ && likely(pos_ < l_)) {
                         min <<= 2;
                         //std::fprintf(stderr, "Encoding character %c with value %u at last position.\n", s_[pos_], (unsigned)cstr_lut[s_[pos_]]);
-                        min |= cstr_lut[s_[pos_++]];
-                        if(min == BF) {
+                        if((min |= cstr_lut[s_[pos_++]]) == BF) {
                             filled = min = 0;
                             goto loop_start;
                         }
@@ -163,13 +163,10 @@ public:
                 }
             } else {
                 LOG_DEBUG("Now fetching kmers windowed, uncanonicalized!\n");
-#endif
                 while(has_next_kmer())
                     if((min = next_minimizer()) != BF)
                         func(min);
-#if EXPERIMENTAL_ACCELERATED_ENCODING
             }
-#endif
         }
     }
     template<typename Functor>
@@ -214,8 +211,9 @@ public:
     // Encodes a kmer starting at `start` within string `s_`.
     INLINE u64 kmer(unsigned start) {
         assert(start <= l_ - sp_.c_ + 1);
-        if(l_ < sp_.c_) return BF;
+        if(l_ < sp_.c_)    return BF;
         u64 new_kmer(cstr_lut[s_[start]]);
+        if(new_kmer == BF) return BF;
         for(const auto s: sp_.s_) {
             new_kmer <<= 2;
             start += s;
@@ -226,9 +224,6 @@ public:
     // Whether or not an additional kmer is present in the sequence being encoded.
     INLINE int has_next_kmer() const {
         static_assert(std::is_same_v<decltype((std::int64_t)l_ - sp_.c_ + 1), std::int64_t>, "is not same");
-#if ENABLE_HAS_NEXT_KMER_LOGGING
-        if((pos_ & ((1 << 16u) - 1)) == 0) LOG_DEBUG("pos %zu comb %u l %zu\n", pos_, sp_.c_, l_);
-#endif
         return (pos_ + sp_.c_ - 1) < l_;
     }
     // This fetches our next kmer for our window. It is immediately placed in the qmap_t,

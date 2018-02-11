@@ -103,5 +103,6 @@ def main():
     return any(not x for x in ffqs)
     # Could be omitted by implicit return of None, which is coerced to 0
 
+
 if __name__ == "__main__":
     sys.exit(main())
