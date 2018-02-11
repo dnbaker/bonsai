@@ -177,7 +177,8 @@ public:
                         }
                         if(filled == sp_.k_) {
                             min &= mask;
-                            if((kmer = qmap_.next_value(min, scorer_(min, data_))) != BF)
+                            score = scorer_(min, data_);
+                            if((kmer = qmap_.next_value(min, score)) != BF)
                                 func(min);
                             --filled;
                         }
