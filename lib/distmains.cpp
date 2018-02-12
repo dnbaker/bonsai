@@ -79,7 +79,7 @@ int sketch_main(int argc, char *argv[]) {
     }
     return EXIT_SUCCESS;
 }
-
+        std::vector<std::vector<std::string>> scratch_vv;
 int dist_main(int argc, char *argv[]) {
     int wsz(-1), k(31), sketch_size(16), use_scientific(false), co, cache_sketch(false);
     std::string spacing, paths_file, suffix;

@@ -18,9 +18,6 @@ void usage(const char *arg) {
 
 #define NOTHREADING
 
-#ifndef NOTHREADING
-std::mutex output_lock;
-#endif
 
 #ifdef NOTHREADING
 #define EMIT_RESULTS(sketchval, exactval) do { \
@@ -51,6 +48,9 @@ int main(int argc, char *argv[]) {
             case 'm': lowmem    = true; break;
         }
     }
+    #ifndef NOTHREADING
+    std::mutex output_lock;
+    #endif
     omp_set_num_threads(1); // Only using one thread currently as multithreading has not been debugged.
     std::vector<char> buf(1 << 16);
     std::setvbuf(ofp, buf.data(), _IOFBF, buf.size());
