@@ -208,7 +208,10 @@ public:
         gzclose(fp);
     }
     template<typename Functor, typename ContainerType,
-             typename=std::enable_if_t<std::is_same_v<typename ContainerType::value_type::value_type, char>>>
+             typename=std::enable_if_t<std::is_same_v<typename ContainerType::value_type::value_type, char> ||
+                                       std::is_same_v<std::decay_t<typename ContainerType::value_type>, char *>
+                                      >
+            >
     void for_each(const Functor &func, const ContainerType &strcon) {
         for(const auto &el: strcon) for_each<Functor>(func, get_cstr(el));
     }
