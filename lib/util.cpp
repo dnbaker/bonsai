@@ -251,6 +251,7 @@ tax_t resolve_tree(const std::map<tax_t, tax_t> &hit_counts,
 
   return max_taxon;
 }
+
 tax_t resolve_tree(const linear::counter<tax_t, u16> &hit_counts,
                    const khash_t(p) *parent_map) noexcept
 {
@@ -260,18 +261,16 @@ tax_t resolve_tree(const linear::counter<tax_t, u16> &hit_counts,
   // Sum each taxon's LTR path
   for(unsigned i(0); i < hit_counts.size(); ++i) {
     tax_t taxon(hit_counts.keys()[i]), node(taxon), score(0);
-    khiter_t ki;
     // Instead of while node > 0
     while(node) {
-        score += hit_counts.get_count(node);
-        ki = kh_get(p, parent_map, node);
-        node = kh_val(parent_map, ki);
+        score += hit_counts.count(node);
+        node = kh_val(parent_map, kh_get(p, parent_map, node));
     }
+    // In C++20, we can use the spaceship operator!
     if(score > max_score) {
       max_taxa.clear();
       max_score = score;
       max_taxon = taxon;
-      //LOG_DEBUG("max score: %u. max taxon: %u\n", max_score, max_taxon);
     } else if(score == max_score) {
       if(max_taxa.empty()) // Is this check needed?
         max_taxa.insert(max_taxon);
