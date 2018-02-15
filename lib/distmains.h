@@ -6,6 +6,7 @@
 #include "lib/database.h"
 #include "lib/bitmap.h"
 #include "lib/setcmp.h"
+#include "klib/kthread.h"
 #include <sstream>
 
 namespace emp {
