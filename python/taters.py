@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 import sys
 import os
+from functools import reduce  # Oh, come on, Python 3. Reduce is awesome.
 if sys.version_info[0] < 3:
     raise ImportError("Cannot import %s. Python 3+ required. "
                       "[Make your life easier, take the plunge!]" %
                       os.path.basename(__file__))
-
 
 def nk2sketchbytes(sketchtype, n=0, k=0):
     if not (k and n):
@@ -16,7 +16,7 @@ def nk2sketchbytes(sketchtype, n=0, k=0):
     except KeyError:
         sys.stderr.write(
             ("Key error in nk2sketchbytes."
-             "key: %s. Expected mash or hlash" % sketchtype))
+             "key: %s. Expected mash or hlash\n" % sketchtype))
         raise
 
 
@@ -68,6 +68,12 @@ def canonkey(k1, k2=None, n=0, k=0):
     return tuple((*canonname(k1, k2), n, k))
 
 
+'''
+#Path1  Path2   Approximate jaccard index   Exact jaccard index Absolute difference %difference from exact value    Sketch size Kmer size
+
+'''
+
+
 def mash2dict(path):
     basename = os.path.basename
     with open(path) as ifp:
@@ -79,11 +85,10 @@ def mash2dict(path):
         n, k = get_nk(path)
         ret = {canonkey(k1, i.split()[0], nk2sketchbytes("mash", n, k), k):
                float(i.strip().split()[1]) for i in ifp}
-    print("Ret: %s" % ret, file=sys.stderr)
     return ret
 
 
-def folder2paths(paths):
+def folder2paths(paths, reqstr = ""):
     # This is a misnomer. It holds either a list of paths or a string
     # representing a folder from which we glob everything
     if isinstance(paths, str):
@@ -93,8 +98,7 @@ def folder2paths(paths):
     assert isinstance(paths, list)
     if len(paths) == 1:
         import glob
-        plist = glob.glob("%s/*" % paths[0])
-        paths = list(plist)
+        paths = list(glob.glob("%s/*" % paths[0]))
     fail = False
     for path in paths:
         if not os.path.isfile(path):
@@ -102,16 +106,15 @@ def folder2paths(paths):
             fail = True
     if fail:
         raise Exception("The files are NOT in the computer.")
+    if reqstr:
+        paths = [i for i in paths if reqstr in i]
     return paths
 
 
 def folder2mashdict(paths):
-    paths = folder2paths(paths)
-    ret = {}
-    for path in paths:
-        if "experim" in path:
-            ret.update(mash2dict(path))
-    return ret
+    return reduce(lambda x, y: {**x, **mash2dict(y)},
+                  folder2paths(paths, "experim"), {})
+
 
 
 class HlashData:
@@ -126,10 +129,9 @@ class HlashData:
 
 
 def folder2hlashdict(paths):
-    paths = folder2paths(paths)
+    paths = folder2paths(paths, "genome")
     return {canonkey(x): x for x in map(HlashData,
-                                        (line for path in paths if
-                                         "genome" in path and "out" in path
+                                        (line for path in paths
                                          for line in open(path) if
                                          line[0] != "#"))}
 

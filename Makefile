@@ -33,12 +33,14 @@ LIB=-lz #-lhll
 LD=-L. $(EXTRA_LD)
 
 OBJS=$(patsubst %.c,%.o,$(wildcard lib/*.c) klib/kthread.o) $(patsubst %.cpp,%.o,$(wildcard lib/*.cpp)) klib/kstring.o clhash.o
+DOBJS=$(patsubst %.c,%.o,$(wildcard lib/*.c) klib/kthread.o) $(patsubst %.cpp,%.do,$(wildcard lib/*.cpp)) klib/kstring.o clhash.o
 
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 
 EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/*.cpp))
 
 EX=$(patsubst src/%.cpp,%,$(wildcard src/*.cpp))
+DEX=$(patsubst d%,%,$(EX))
 
 HEADERS=lib/encoder.h lib/kmerutil.h lib/spacer.h lib/misc.h \
 		lib/kseq_declare.h lib/feature_min.h hll/hll.h lib/hash.h lib/db.h
@@ -50,7 +52,7 @@ all: $(OBJS) $(EX) unit
 #libhll.a:
 #	cd hll && make CXX=$(CXX) && cp libhll.a ..
 
-obj: $(OBJS)
+obj: $(OBJS) $(DOBJS)
 
 clhash.o: clhash/src/clhash.c
 	ls $@ 2>/dev/null || mv clhash/clhash.o . 2>/dev/null || (cd clhash $(CLHASH_CHECKOUT) && make && cd .. && ln -s clhash/clhash.o .)
@@ -62,10 +64,16 @@ test/%.o: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
+
+%.do: %.cpp
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG=0 -c $< -o $@ $(LIB)
 
 %: src/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) $< -o $@ $(LIB)
+
+d%: src/%.cpp $(DOBJS)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) -DNDEBUG=0 $< -o $@ $(LIB)
 
 fahist: src/fahist.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) klib/kthread.o $< -o $@ -lz
@@ -78,8 +86,8 @@ unit: $(OBJS) $(TEST_OBJS)
 
 
 clean:
-	rm -f $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o src/*o \
+	rm -f $(OBJS) $(DEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o \
 	&& cd hll && make clean && cd ..
 
 mostlyclean:
-	rm -f $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o src/*o
+	rm -f $(DEX) $(DOBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o src/*o
