@@ -619,16 +619,9 @@ lazy::vector<u64, size_t> load_binary_kmers(const char *path) {
 }
 
 std::vector<std::string> get_paths(const char *path) {
-    std::fprintf(stderr, "Reading from file %s\n", path);
-    gzFile fp(gzopen(path, "rb"));
-    if(fp == nullptr) LOG_EXIT("Could not open path at %s\n", path);
+    std::ifstream is(path);
     std::vector<std::string> ret;
-    char buf[2048], *line;
-    while((line = gzgets(fp, buf, sizeof buf))) {
-        ret.emplace_back(line);
-        ret[ret.size() - 1].pop_back();
-    }
-    gzclose(fp);
+    for(std::string line;std::getline(is, line);ret.emplace_back(std::move(line)));
     return ret;
 }
 

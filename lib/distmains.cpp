@@ -22,28 +22,63 @@ void dist_usage(const char *arg) {
     std::exit(EXIT_FAILURE);
 }
 
-std::string &extend_suffix(std::string &suffix, int wsz, const Spacer &sp, int k, const std::string &spacing) {
-    return suffix += ".w" + std::to_string(std::max((int)sp.c_, wsz)) + "." + std::to_string(k) + ".spacing" + spacing;
+std::string hll_fname(const char *path, size_t sketch_p, int wsz, int k, int csz, const std::string &spacing, const std::string &suffix="") {
+    std::string ret(get_cstr(path));
+    ret += ".w";
+    ret + std::to_string(std::max(csz, wsz));
+    ret += ".";
+    ret += std::to_string(k);
+    ret += ".spacing";
+    ret += spacing;
+    ret += '.';
+    if(suffix.size()) {
+        ret += "suf";
+        ret += suffix;
+        ret += '.';
+    }
+    ret += std::to_string(sketch_p);
+    ret += ".hll";
+    return ret;
 }
 
-ks::string hll_fname(const char *path, size_t sketch_p, const std::string &suffix) {
-    return ks::sprintf("%s.%s%zu.hll", get_cstr(path), (suffix.size() ? std::string(".")  + suffix + ".": std::string(".")).data(), sketch_p);
-}
 
-bool has_hll(const char *path, size_t sketch_p, const std::string &suffix) {
-    return isfile(hll_fname(path, sketch_p, suffix).data());
+namespace detail {
+
+struct kt_sketch_helper {
+    std::vector<hll::hll_t> &hlls_; // HyperLogLog scratch space
+    const int bs_, sketch_size_, kmer_size_, window_size_, csz_;
+    const spvec_t sv_;
+    std::vector<std::vector<std::string>> &ssvec_; // scratch string vector
+    const std::string &suffix_;
+    const std::string &spacing_;
+    const bool skip_cached_;
+};
+
+void kt_for_helper(void  *data_, long index, int tid) {
+    kt_sketch_helper &helper(*(kt_sketch_helper *)data_);
+    hll::hll_t &hll(helper.hlls_[tid]);
+    std::string fname;
+    for(size_t i(helper.bs_ * index); i < std::min((uint64_t)(helper.bs_ * (index + 1)), (uint64_t)(helper.ssvec_.size())); ++i) {
+        std::vector<std::string> &scratch_stringvec(helper.ssvec_[i]);
+        fname = hll_fname(scratch_stringvec[0].data(), helper.sketch_size_, helper.window_size_, helper.kmer_size_, helper.csz_, helper.spacing_, helper.suffix_);
+        if(helper.skip_cached_ && isfile(fname)) continue;
+        fill_hll(hll, scratch_stringvec, helper.kmer_size_, helper.window_size_, helper.sv_, nullptr, 1, helper.sketch_size_); // Avoid allocation fights.
+        hll.write(fname.data());
+        hll.clear();
+    }
+}
 }
 
 // Main functions
 int sketch_main(int argc, char *argv[]) {
-    int wsz(-1), k(31), sketch_size(16), skip_cached(false), co;
+    int wsz(-1), k(31), sketch_size(16), skip_cached(false), co, nthreads(1), bs(256);
     std::string spacing, paths_file, suffix;
-    omp_set_num_threads(1);
     while((co = getopt(argc, argv, "F:c:p:x:s:S:k:w:ceh?")) >= 0) {
         switch(co) {
+            case 'b': bs = std::atoi(optarg); break;
             case 'k': k = std::atoi(optarg); break;
             case 'x': suffix = optarg; break;
-            case 'p': omp_set_num_threads(std::atoi(optarg)); break;
+            case 'p': nthreads = std::atoi(optarg); break;
             case 's': spacing = optarg; break;
             case 'S': sketch_size = std::atoi(optarg); break;
             case 'w': wsz = std::atoi(optarg); break;
@@ -52,9 +87,9 @@ int sketch_main(int argc, char *argv[]) {
             case 'h': case '?': dist_usage(*argv);
         }
     }
+    omp_set_num_threads(nthreads);
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Spacer sp(k, wsz, sv);
-    extend_suffix(suffix, wsz, sp, k, spacing);
     std::vector<std::vector<std::string>> ivecs;
     {
         std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
@@ -62,26 +97,21 @@ int sketch_main(int argc, char *argv[]) {
         for(const auto &el: inpaths) ivecs.emplace_back(std::vector<std::string>{el});
     }
     std::vector<hll::hll_t> hlls;
-    while(hlls.size() < (unsigned)omp_get_num_threads()) hlls.emplace_back(sketch_size);
+    while(hlls.size() < (unsigned)nthreads) hlls.emplace_back(sketch_size);
     if(wsz < sp.c_) wsz = sp.c_;
     if(ivecs.size() == 0) {
         std::fprintf(stderr, "No paths. See usage.\n");
         dist_usage(*argv);
     }
-    #pragma omp parallel for
-    for(size_t i = 0; i < hlls.size(); ++i) {
-        const std::string &path(ivecs[i][0]);
-        if(skip_cached && has_hll(path.data(), sketch_size, suffix)) continue;
-        const auto tnum(omp_get_thread_num());
-        hlls[tnum] = make_hll(ivecs[i],
-                              k, wsz, sv, nullptr, 1, sketch_size);
-        hlls[tnum].write(hll_fname(path.data(), sketch_size, suffix).data());
-    }
+    LOG_DEBUG("Submitting jobs\n");
+    detail::kt_sketch_helper helper {hlls, bs, sketch_size, k, wsz, (int)sp.c_, sv, ivecs, suffix, spacing, skip_cached};
+    kt_for(nthreads, detail::kt_for_helper, &helper, ivecs.size() / bs + (ivecs.size() % bs != 0));
+    LOG_DEBUG("Finished sketching\n");
     return EXIT_SUCCESS;
 }
 
 int dist_main(int argc, char *argv[]) {
-    int wsz(-1), k(31), sketch_size(16), use_scientific(false), co, cache_sketch(false);
+    int wsz(-1), k(31), sketch_size(16), use_scientific(false), co, cache_sketch(false), nthreads(1);
     std::string spacing, paths_file, suffix;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
@@ -89,7 +119,7 @@ int dist_main(int argc, char *argv[]) {
         switch(co) {
             case 'k': k = std::atoi(optarg); break;
             case 'x': suffix = optarg; break;
-            case 'p': omp_set_num_threads(std::atoi(optarg)); break;
+            case 'p': nthreads = std::atoi(optarg); break;
             case 's': spacing = optarg; break;
             case 'S': sketch_size = std::atoi(optarg); break;
             case 'w': wsz = std::atoi(optarg); break;
@@ -103,14 +133,14 @@ int dist_main(int argc, char *argv[]) {
     }
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Spacer sp(k, wsz, sv);
-    extend_suffix(suffix, wsz, sp, k, spacing);
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind, argv + argc));
     std::vector<hll::hll_t> hlls;
     {
         // Scope to force deallocation of scratch_vv.
         std::vector<std::vector<std::string>> scratch_vv;
-        while(scratch_vv.size() < (unsigned)omp_get_num_threads()) scratch_vv.emplace_back(std::vector<std::string>{"empty"}), scratch_vv.back()[0].reserve(256);
+        while(scratch_vv.size() < (unsigned)nthreads)
+            scratch_vv.emplace_back(std::vector<std::string>{"empty"}), scratch_vv.back()[0].reserve(256);
         while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size);
         if(wsz < sp.c_) wsz = sp.c_;
         if(inpaths.size() == 0) {
@@ -120,14 +150,16 @@ int dist_main(int argc, char *argv[]) {
         #pragma omp parallel for
         for(size_t i = 0; i < hlls.size(); ++i) {
             const std::string &path(inpaths[i]);
-            if(cache_sketch && has_hll(path.data(), sketch_size, suffix)) hlls[i].read(path);
+            const std::string fpath(hll_fname(path.data(), sketch_size, wsz, k, sp.c_, spacing, suffix));
+            //const char *path, size_t sketch_p, int wsz, int k, const std::string &spacing, const std::string &suffix=" 
+            if(cache_sketch && isfile(fpath)) hlls[i].read(path);
             else {
-                // By reserving 256 character, we make it probably that no allocation is necessary in this loop.
+                // By reserving 256 character, we make it probably that no allocation is necessary in this section.
                 std::vector<std::string> &scratch_stringvec(scratch_vv[omp_get_thread_num()]);
                 scratch_stringvec[0] = inpaths[i];
                 fill_hll(hlls[i], scratch_stringvec, k, wsz, sv, nullptr, 1, sketch_size); // Avoid allocation fights.
             }
-            if(cache_sketch) hlls[i].write(hll_fname(path.data(), sketch_size, suffix).data());
+            if(cache_sketch) hlls[i].write(fpath);
         }
     }
     ks::string str("#Path\tSize (est.)\n");

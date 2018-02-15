@@ -1,4 +1,9 @@
 #pragma once
+#ifdef NDEBUG
+#  if NDEBUG == 0
+#    undef NDEBUG
+#  endif
+#endif
 #include "kspp/ks.h"
 #include <algorithm>
 #include <chrono>
@@ -59,6 +64,7 @@
 #else
 #define gzbuffer(fp, size) gzbuffer(fp, size)
 #endif
+
 
 #ifdef USE_PDQSORT
 # include "pdqsort/pdqsort.h"
