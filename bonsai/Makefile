@@ -1,0 +1,93 @@
+.PHONY=all tests clean obj
+CXX=g++
+CC=gcc
+
+GMATCH=$(findstring g++,$(CXX))
+
+CLHASH_CHECKOUT = "&& git checkout master"
+WARNINGS=-Wall -Wextra -Wno-char-subscripts \
+		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
+		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
+		 -pedantic -DUSE_PDQSORT -Wunused-variable \
+		-Wduplicated-branches -Wdangling-else  # -Wconversion
+ifndef EXTRA
+	EXTRA:=
+endif
+ifndef INCPLUS
+	INCPLUS:=
+endif
+ifndef EXTRA_LD
+	EXTRA_LD:=
+endif
+DBG:=
+OS:=$(shell uname)
+FLAGS=
+
+OPT:= -O3 -funroll-loops \
+	  -fopenmp \
+	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) $(EXTRA) -DHLL_HEADER_ONLY
+XXFLAGS=-fno-rtti
+CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS)
+CCFLAGS=$(OPT) $(CFLAGS) -std=c11 $(WARNINGS)
+LIB=-lz #-lhll
+LD=-L. $(EXTRA_LD)
+
+OBJS=$(patsubst %.c,%.o,$(wildcard src/*.c) ../klib/kthread.o) $(patsubst %.cpp,%.o,$(wildcard src/*.cpp)) ../klib/kstring.o clhash.o
+DOBJS=$(patsubst %.c,%.o,$(wildcard src/*.c) ../klib/kthread.o) $(patsubst %.cpp,%.do,$(wildcard lib/*.cpp)) ../klib/kstring.o clhash.o
+
+TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
+
+EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard bin/*.cpp))
+
+EX=$(patsubst bin/%.cpp,%,$(wildcard bin/*.cpp))
+DEX=$(patsubst %_d,%,$(EX))
+
+INCLUDE=-Iclhash/include -I. -I.. -Iinclude $(INCPLUS)
+
+all: $(OBJS) $(EX) unit lib/libbonsai.a
+
+#libhll.a:
+#	cd hll && make CXX=$(CXX) && cp libhll.a ..
+
+obj: $(OBJS) $(DOBJS)
+
+clhash.o: ../clhash/src/clhash.c
+	ls $@ 2>/dev/null || mv ../clhash/clhash.o . 2>/dev/null || (cd ../clhash $(CLHASH_CHECKOUT) && make && cd ../bonsai && ln -s ../clhash/clhash.o .)
+
+%.o: %.c
+	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB)
+
+test/%.o: test/%.cpp
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
+
+%.do: %.cpp
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG=0 -c $< -o $@ $(LIB)
+
+%: bin/%.cpp $(OBJS)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) -DNDEBUG $< -o $@ $(LIB)
+
+%_d: src/%.cpp $(DOBJS)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(DOBJS) -DNDEBUG=0 $< -o $@ $(LIB)
+
+bonsai/fahist: src/fahist.cpp $(OBJS)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) ../klib/kthread.o $< -o $@ -lz
+
+lib/libbonsai.a: $(OBJS)
+	ar cr $@ $(OBJS)
+
+tests: clean unit
+
+unit: $(OBJS) $(TEST_OBJS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
+	# $(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) test/hll.o test/main.o $(LD) $(OBJS) -o $@ $(LIB)
+
+
+clean:
+	rm -f $(OBJS) $(DEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o \
+	&& cd ../hll && make clean && cd ../bonsai
+
+mostlyclean:
+	rm -f $(DEX) $(DOBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o src/*o
