@@ -28,3 +28,6 @@
 [submodule "linear"]
 	path = linear
 	url = https://github.com/dnbaker/linear
+[submodule "zstd"]
+	path = zstd
+	url = https://github.com/facebook/zstd
