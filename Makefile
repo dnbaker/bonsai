@@ -37,10 +37,10 @@ DOBJS=$(patsubst %.c,%.o,$(wildcard lib/*.c) klib/kthread.o) $(patsubst %.cpp,%.
 
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 
-EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard src/*.cpp))
+EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard bin/*.cpp))
 
-EX=$(patsubst src/%.cpp,%,$(wildcard src/*.cpp))
-DEX=$(patsubst d%,%,$(EX))
+EX=$(patsubst bin/%.cpp,%,$(wildcard bin/*.cpp))
+DEX=$(patsubst %_d,%,$(EX))
 
 HEADERS=lib/encoder.h lib/kmerutil.h lib/spacer.h lib/misc.h \
 		lib/kseq_declare.h lib/feature_min.h hll/hll.h lib/hash.h lib/db.h
@@ -72,7 +72,7 @@ test/%.o: test/%.cpp
 %: src/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) -DNDEBUG $< -o $@ $(LIB)
 
-d%: src/%.cpp $(DOBJS)
+%_d: src/%.cpp $(DOBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(DOBJS) -DNDEBUG=0 $< -o $@ $(LIB)
 
 fahist: src/fahist.cpp $(OBJS)
