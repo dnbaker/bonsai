@@ -20,7 +20,8 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         test.resize(34); // Just long enough to encode a k-31 with 3 total spaces in it.
         while(v.size() < 30) v.push_back(0);
         Spacer sp(31, 31, v);
-        EncType enc(&test[0], 34, sp, nullptr);
+        EncType enc(&test[0], 34, sp, nullptr, true);
+        REQUIRE(enc.canonicalize());
         REQUIRE(sp.s_.size() == 30);
         REQUIRE(std::accumulate(sp.s_.begin(), sp.s_.end(), 0u) == sp.s_.size() + std::accumulate(v.begin(), v.end(), 0));
         std::string to_use = test;
@@ -34,7 +35,8 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         test.resize(34);
         while(v.size() < 30) v.push_back(0);
         Spacer sp(31, 31, v);
-        EncType enc(&test[0], 34, sp, nullptr);
+        EncType enc(&test[0], 34, sp, nullptr, true);
+        REQUIRE(enc.canonicalize());
         REQUIRE(sp.s_.size() == 30);
         REQUIRE(std::accumulate(sp.s_.begin(), sp.s_.end(), 0u) == sp.s_.size() + std::accumulate(v.begin(), v.end(), 0));
         std::string to_use = test;
@@ -46,7 +48,8 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         v = {1, 2, 18};
         while(v.size() < 30) v.push_back(0);
         Spacer sp(31, 31, v);
-        EncType enc(nullptr, 34, sp, nullptr);
+        EncType enc(nullptr, 34, sp, nullptr, true);
+        REQUIRE(enc.canonicalize());
         gzFile fp(gzopen("test/small_genome.fa", "rb"));
         kseq_t *ks(kseq_init(fp));
         kseq_read(ks);
@@ -69,7 +72,8 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
             while(v.size() < 30) v.push_back(0);
             Spacer sp(31, window_size, v);
             window_size = std::max(window_size, (int)sp.c_);
-            EncType enc(ks->seq.s, ks->seq.l, sp, nullptr);
+            EncType enc(ks->seq.s, ks->seq.l, sp, nullptr, true);
+            REQUIRE(enc.canonicalize());
             uint64_t km, n(0);
             while(enc.has_next_kmer()) {
                 ++n;
@@ -83,7 +87,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
     }
     SECTION("space_case", "[no ambiguous bases]") {
         Spacer sp(31, 31);
-        Encoder<score::Lex> enc(sp);
+        Encoder<score::Lex> enc(sp, true);
         gzFile fp(gzopen("test/phix.fa", "rb"));
         LOG_DEBUG("Opened fp\n");
         if(fp == nullptr) throw std::runtime_error("ZOMG fp is null for file at test/phix.fa");
@@ -121,7 +125,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
     SECTION("space_case_jump") {
         for(const char *SPACED_FN: {"test/phix.fa", "ec/GCF_000007445.1_ASM744v1_genomic.fna.gz"}) {
             Spacer sp(31, 31);
-            Encoder<score::Entropy> enc(sp);
+            Encoder<score::Entropy> enc(sp, true);
             gzFile fp(gzopen(SPACED_FN, "rb"));
             if(fp == nullptr) throw std::runtime_error("Could not open file at "s + SPACED_FN);
             kseq_t *ks(kseq_init(fp));

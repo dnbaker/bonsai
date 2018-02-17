@@ -47,7 +47,7 @@ void bitmap_filler_helper(void *data_, long index, int tid) {
     ba::MMapTaxonomyBitmap &map(data.bm_);
     const tax_t taxid(data.taxes_[index]);
     u64 val;
-    Encoder enc(data.sp_);
+    Encoder enc(data.sp_, data.canonicalize_);
     gzFile fp(gzopen(data.paths_[index].data(), "rb"));
     kseq_t *ks(kseq_init(fp));
     while(kseq_read(ks) >= 0) {
