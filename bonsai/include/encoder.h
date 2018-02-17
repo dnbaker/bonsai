@@ -128,18 +128,19 @@ public:
     }
     template<typename Functor>
     INLINE void for_each_canon_unwindowed(const Functor &func, const char *str, size_t l) {
-        u64 min(BF);
         if(sp_.unspaced()) {
             LOG_DEBUG("Encoding string of length %zu\n", l);
             for_each_uncanon_unspaced_unwindowed([&](u64 min) {return func(canonical_representation(min, sp_.k_));}, str, l);
-        } else
+        } else {
+            u64 min;
             while(likely(has_next_kmer()))
                 if((min = next_kmer()) != BF)
                     func(canonical_representation(min, sp_.k_));
+        }
     }
     template<typename Functor>
     INLINE void for_each_uncanon_spaced(const Functor &func, const char *str, size_t l) {
-        u64 min(BF);
+        u64 min;
         while(likely(has_next_kmer()))
             if((min = next_minimizer()) != BF)
                 func(min);
@@ -147,8 +148,8 @@ public:
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_unwindowed(const Functor &func, const char *str, size_t l) {
         const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
-        u64 min(BF);
-        unsigned filled = min = 0;
+        u64 min = 0;
+        unsigned filled = 0;
         loop_start:
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
@@ -170,8 +171,8 @@ public:
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_windowed(const Functor &func, const char *str, size_t l) {
         const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
-        u64 min(BF);
-        unsigned filled = min = 0;
+        u64 min = 0;
+        unsigned filled = 0;
         u64 kmer, score;
         windowed_loop_start:
         while(likely(pos_ < l_)) {
@@ -207,28 +208,28 @@ public:
             // Note that an entropy-based score calculation can be sped up for this case.
             // This will benefit from either a special function or an if constexpr
             if(sp_.unspaced()) {
-                if(sp_.unwindowed()) for_each_uncanon_unspaced_unwindowed(func, str, l);
-                else                 for_each_uncanon_unspaced_windowed(func, str, l);
+                if(sp_.unwindowed()) assign(ks), for_each_uncanon_unspaced_unwindowed(func, str, l);
+                else                 assign(ks), for_each_uncanon_unspaced_windowed(func, str, l);
             } else for_each_uncanon_spaced(func, str, l);
         }
     }
     template<typename Functor>
     INLINE void for_each(const Functor &func, kseq_t *ks) {
-        while(kseq_read(ks) >= 0) for_each<Functor>(func, ks->seq.s, ks->seq.l);
+        while(kseq_read(ks) >= 0) assign(ks), for_each<Functor>(func, ks->seq.s, ks->seq.l);
     }
     template<typename Functor>
     INLINE void for_each_canon(const Functor &func, kseq_t *ks) {
         if(sp_.unwindowed())
-            while(kseq_read(ks) >= 0) for_each_canon_unwindowed<Functor>(func, ks->seq.s, ks->seq.l);
+            while(kseq_read(ks) >= 0) assign(ks), for_each_canon_unwindowed<Functor>(func, ks->seq.s, ks->seq.l);
         else
-            while(kseq_read(ks) >= 0) for_each_canon_windowed<Functor>(func, ks->seq.s, ks->seq.l);
+            while(kseq_read(ks) >= 0) assign(ks), for_each_canon_windowed<Functor>(func, ks->seq.s, ks->seq.l);
     }
     template<typename Functor>
     INLINE void for_each_uncanon(const Functor &func, kseq_t *ks) {
         if(sp_.unspaced()) {
-            if(sp_.unwindowed()) while(kseq_read(ks) >= 0) for_each_uncanon_unspaced_unwindowed(func, ks->seq.s, ks->seq.l);
-            else                 while(kseq_read(ks) >= 0) for_each_uncanon_unspaced_windowed(func, ks->seq.s, ks->seq.l);
-        } else while(kseq_read(ks) >= 0) for_each_uncanon_spaced(func, ks->seq.s, ks->seq.l);
+            if(sp_.unwindowed()) while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_unspaced_unwindowed(func, ks->seq.s, ks->seq.l);
+            else                 while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_unspaced_windowed(func, ks->seq.s, ks->seq.l);
+        } else while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_spaced(func, ks->seq.s, ks->seq.l);
     }
     template<typename Functor>
     void for_each_canon(const Functor &func, gzFile fp) {
@@ -511,7 +512,7 @@ void fill_hll(hll::hll_t &ret, const std::vector<std::string> &paths,
     const Spacer space(k, w, spaces);
     if(num_threads <= 1) {
         LOG_DEBUG("Starting serial\n");
-        for(size_t i(0); i < paths.size(); hll_fill_lmers<ScoreType>(ret, paths[i++], space, data));
+        for(size_t i(0); i < paths.size(); hll_fill_lmers<ScoreType>(ret, paths[i++], space, canon, data));
     } else {
         LOG_DEBUG("Starting parallel\n");
         std::mutex m;
