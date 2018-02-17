@@ -130,7 +130,7 @@ public:
     INLINE void for_each_canon_unwindowed(const Functor &func, const char *str, size_t l) {
         u64 min(BF);
         if(sp_.unspaced())
-            for_each_uncanon_unwindowed([&](u64 min) {return func(canonical_representation(min));}, str, l);
+            for_each_uncanon_unspaced_unwindowed([&](u64 min) {return func(canonical_representation(min, sp_.k_));}, str, l);
         else
             while(likely(has_next_kmer()))
                 if((min = next_kmer()) != BF)

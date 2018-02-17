@@ -1,15 +1,9 @@
 #include "popcnt.h"
 
-namespace popcnt {
+namespace pop {
 
 unsigned vec_popcnt(const char *p, const size_t l) {
-    const uint64_t *arr(reinterpret_cast<const uint64_t *>(p));
-    uint64_t ret(0);
-    const uint64_t nloops(l >> 3);
-    for(size_t i(0); i < nloops; ++i)  ret += popcount(arr[i]);
-    for(const char *q(reinterpret_cast<const char *>(arr + nloops)), *e(p + l);
-        q != e; ++q) ret += popcount(*q);
-    return ret;
+    return ::popcnt((void *)p, l);
 }
 
 unsigned vec_popcnt(uint64_t *p, size_t l) {

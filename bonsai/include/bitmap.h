@@ -109,7 +109,7 @@ public:
 #endif
         // Only keeps kmers from kgset if they don't have 1 or set.size() bits set.
         for(auto &i: tmp) {
-            bitsum = popcnt::vec_popcnt(i.second);
+            bitsum = pop::vec_popcnt(i.second);
             if(bitsum != 1u && bitsum != set.size()) {
                 core_.emplace(i.first, i.second);
 #if !NDEBUG

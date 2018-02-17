@@ -71,7 +71,7 @@ inline static void countInU64Ex(uint64_t dw, uint32_t *arrs, unsigned k) {
     uint64_t x2 = x1 & UINT64_C(0x5555555555555555);
     uint64_t x3 = x0 & x2;
     x3 &= COUNT_MASK;
-    auto tmp = popcnt::popcount(x3); // because __builtin_popcountll returns a 32-bit element.
+    auto tmp = pop::popcount(x3); // because __builtin_popcountll returns a 32-bit element.
     arrs[0] += (uint32_t) tmp;
 
     c0 = c_table[1];
@@ -80,7 +80,7 @@ inline static void countInU64Ex(uint64_t dw, uint32_t *arrs, unsigned k) {
     x2 = x1 & UINT64_C(0x5555555555555555);
     x3 = x0 & x2;
     x3 &= COUNT_MASK;
-    tmp = popcnt::popcount(x3);
+    tmp = pop::popcount(x3);
     arrs[1] += (uint32_t) tmp;
 
     c0 = c_table[2];
@@ -89,7 +89,7 @@ inline static void countInU64Ex(uint64_t dw, uint32_t *arrs, unsigned k) {
     x2 = x1 & UINT64_C(0x5555555555555555);
     x3 = x0 & x2;
     x3 &= COUNT_MASK;
-    tmp = popcnt::popcount(x3);
+    tmp = pop::popcount(x3);
     arrs[2] += (uint32_t) tmp;
 
     c0 = c_table[3];
@@ -98,7 +98,7 @@ inline static void countInU64Ex(uint64_t dw, uint32_t *arrs, unsigned k) {
     x2 = x1 & UINT64_C(0x5555555555555555);
     x3 = x0 & x2;
     x3 &= COUNT_MASK;
-    arrs[3] += (tmp = popcnt::popcount(x3));
+    arrs[3] += (tmp = pop::popcount(x3));
 }
 
 static INLINE u64 canonical_representation(u64 kmer, uint8_t n) {
