@@ -11,7 +11,10 @@ Bonsai contains varied utilities for taxonomic analysis and classification using
   * Parallelized pairwise Jaccard Distance estimation using HyperLogLog sketches.
 * An unsupervised method for taxonomic structure discovery and correction.
 * A threadsafe, SIMD-accelerated HyperLogLog implementation.
+* A HyperLogLog-based sequence distance estimator which is more accurate and orders of magnitude faster than comparable tools.
 * Scripts for downloading reference genomes from new (post-2014) and old RefSeq.
+
+Tools can be built to work with zstd instead of gzip by being built with a '_z' suffix. (e.g., bonsai_z).
 
 All of these tools are experimental. Use at your own risk.
 
@@ -19,20 +22,11 @@ All of these tools are experimental. Use at your own risk.
 Build Instructions
 =================
 
-`make`
+`make bonsai`
 
 Unit Tests
 =================
 We use the Catch testing framework. You can build and run the tests by:
 
-`make unit && ./unit`
+`cd make && make unit && ./unit`
 
-
-Prior Work
-================
-
-We modified [khash](https://github.com/attractivechaos/klib) for our primary database,
-borrowed and modified code from [Kraken](https://github.com/DerrickWood/kraken) for
-kmer encoding, taxonomy tree building and querying, and classification.
-Extensions for spaced seeds and alternate minimization schemes, parallelized classification,
-bitmaps and tree extension facilities are our own.
