@@ -129,9 +129,10 @@ public:
     template<typename Functor>
     INLINE void for_each_canon_unwindowed(const Functor &func, const char *str, size_t l) {
         u64 min(BF);
-        if(sp_.unspaced())
+        if(sp_.unspaced()) {
+            LOG_DEBUG("Encoding string of length %zu\n", l);
             for_each_uncanon_unspaced_unwindowed([&](u64 min) {return func(canonical_representation(min, sp_.k_));}, str, l);
-        else
+        } else
             while(likely(has_next_kmer()))
                 if((min = next_kmer()) != BF)
                     func(canonical_representation(min, sp_.k_));
@@ -276,7 +277,10 @@ public:
                                       >
             >
     void for_each(const Functor &func, const ContainerType &strcon) {
-        for(const auto &el: strcon) for_each<Functor>(func, get_cstr(el));
+        for(const auto &el: strcon) {
+            LOG_DEBUG("Loading from file %s\n", get_cstr(el));
+            for_each<Functor>(func, get_cstr(el));
+        }
     }
 
     template<typename Target>
@@ -418,7 +422,11 @@ void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &spac
     LOG_DEBUG("Canonicalizing: %s\n", canonicalize ? "true": "false");
     hll.not_ready();
     Encoder<ScoreType> enc(nullptr, 0, space, data, canonicalize);
-    enc.for_each([&](u64 min) {hll.addh(min);}, path.data());
+    enc.for_each([&](u64 min) {
+        LOG_DEBUG("Calling function on minimizer %" PRIu64"\n", min);
+        hll.addh(min);
+    },
+    path.data());
 }
 
 #define SUB_CALL \
