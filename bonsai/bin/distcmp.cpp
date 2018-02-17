@@ -35,11 +35,12 @@ void usage(const char *arg) {
 
 int main(int argc, char *argv[]) {
     int c;
-    bool lowmem(false);
+    bool lowmem(false), canon(true);
     unsigned sketchsize(18), k(31);
     FILE *ofp(stdout);
-    while((c = getopt(argc, argv, "p:o:k:n:mh")) >= 0) {
+    while((c = getopt(argc, argv, "p:o:k:n:mCh")) >= 0) {
         switch(c) {
+            case 'C': canon = false; break;
             case 'n': sketchsize = std::atoi(optarg); LOG_DEBUG("Set sketch size to %u with string '%s'\n", sketchsize, optarg); break;
             case 'k':          k = std::atoi(optarg); break;
             case 'h': case '?': usage(argv[0]); break;
@@ -72,13 +73,13 @@ int main(int argc, char *argv[]) {
             assert(kh_size(s1) == 0);
             LOG_DEBUG("Filling hll\n");
             paths[0] = argv[optind + i];
-            fill_set_genome<score::Lex>(argv[optind + i], sp, s1, i, nullptr);
+            fill_set_genome<score::Lex>(argv[optind + i], sp, s1, i, nullptr, canon);
             hll_from_khash(h1, s1);
 #ifndef NOTHREADING
             #pragma omp parallel for
 #endif
             for(size_t j = i + 1; j < ngenomes; ++j) {
-                fill_set_genome<score::Lex>(argv[optind + j], sp, s2, j, nullptr);
+                fill_set_genome<score::Lex>(argv[optind + j], sp, s2, j, nullptr, canon);
                 hll_from_khash(h2, s2);
                 double sketchval = hll::jaccard_index(h1, h2);
                 double exactval  = emp::jaccard_index(s1, s2);
@@ -96,13 +97,13 @@ int main(int argc, char *argv[]) {
         while(sets.size() < ngenomes) sets.emplace_back(kh_init(all));
         #pragma omp parallel for
         for(unsigned i = 0; i < ngenomes; ++i) {
-            fill_set_genome<score::Lex>(argv[optind + i], sp, sets[i], i, nullptr);
+            fill_set_genome<score::Lex>(argv[optind + i], sp, sets[i], i, nullptr, canon);
         }
         std::vector<hll::hll_t> sketches;
         while(sketches.size() < ngenomes)
             sketches.emplace_back(
                 make_hll(std::vector<std::string>{argv[optind + sketches.size()]},
-                         k, k, sv, nullptr, 1, sketchsize));
+                         k, k, sv, canon, nullptr, 1, sketchsize));
         for(size_t i(0); i < ngenomes; ++i) {
             for(size_t j(i + 1); j < ngenomes; ++j) {
                 sketchval = hll::jaccard_index(sketches[i], sketches[j]);

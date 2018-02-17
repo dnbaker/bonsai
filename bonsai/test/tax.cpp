@@ -9,7 +9,7 @@ TEST_CASE("tax") {
     while(v.size() < 12) v.push_back(0);
     std::vector<std::string> paths;
     {
-        const char cmd[] {"ls ec | grep fna.gz | head -n 40"};
+        const char cmd[] {"ls test/ec | grep fna.gz | head -n 40"};
         std::FILE *fp(popen(cmd, "r"));
         if(fp == nullptr) throw "a party";//throw std::system_error(1, std::string("Could not call command '") + cmd + "'\n");
         int c;
@@ -17,7 +17,7 @@ TEST_CASE("tax") {
         ssize_t len;
         size_t size;
         char *buf(nullptr);
-        const std::string prefix("ec/");
+        const std::string prefix("test/ec/");
         while((len = getline(&buf, &size, fp)) >= 0) {
             buf[len - 1] = '\0';
             paths.emplace_back(prefix + buf);

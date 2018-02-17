@@ -51,7 +51,7 @@ TEST_CASE("phll") {
     static const size_t nps[] {23, 24, 18, 21};
     for(const auto np: nps) {
         const ssize_t exact(count_cardinality<score::Lex>(paths, 31, 31, vec, true, nullptr, 2));
-        const ssize_t inexact(estimate_cardinality<score::Lex>(paths, 31, 31, vec, nullptr, 2, np));
+        const ssize_t inexact(estimate_cardinality<score::Lex>(paths, 31, 31, vec, true, nullptr, 2, np));
         {
             hll::hll_t hll(np);
             Encoder enc(Spacer(31, 31, vec), true);

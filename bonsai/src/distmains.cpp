@@ -75,7 +75,7 @@ int sketch_main(int argc, char *argv[]) {
     int wsz(-1), k(31), sketch_size(16), skip_cached(false), co, nthreads(1), bs(256);
     bool canon(true);
     std::string spacing, paths_file, suffix;
-    while((co = getopt(argc, argv, "C:F:c:p:x:s:S:k:w:ceh?")) >= 0) {
+    while((co = getopt(argc, argv, "F:c:p:x:s:S:k:w:cCeh?")) >= 0) {
         switch(co) {
             case 'b': bs = std::atoi(optarg); break;
             case 'k': k = std::atoi(optarg); break;
@@ -121,7 +121,7 @@ int dist_main(int argc, char *argv[]) {
     std::string spacing, paths_file, suffix;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "C:x:F:c:p:o:s:w:O:S:k:Meh?")) >= 0) {
+    while((co = getopt(argc, argv, "x:F:c:p:o:s:w:O:S:k:CMeh?")) >= 0) {
         switch(co) {
             case 'C': canon = false; break;
             case 'k': k = std::atoi(optarg); break;
@@ -215,7 +215,7 @@ int setdist_main(int argc, char *argv[]) {
     std::string spacing, paths_file;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "C:F:c:p:o:O:S:B:k:Meh?")) >= 0) {
+    while((co = getopt(argc, argv, "F:c:p:o:O:S:B:k:CMeh?")) >= 0) {
         switch(co) {
             case 'B': std::stringstream(optarg) << bufsize; break;
             case 'k': k = std::atoi(optarg); break;

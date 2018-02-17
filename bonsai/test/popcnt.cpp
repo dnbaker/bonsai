@@ -4,7 +4,7 @@
 #include <vector>
 
 using namespace emp;
-using namespace popcnt;
+using namespace pop;
 
 TEST_CASE("popcnt") {
     std::vector<uint64_t> vals;

@@ -206,8 +206,8 @@ public:
             // Note that an entropy-based score calculation can be sped up for this case.
             // This will benefit from either a special function or an if constexpr
             if(sp_.unspaced()) {
-                if(sp_.unwindowed()) for_each_canon_unspaced_unwindowed(func, str, l);
-                else                 for_each_canon_unspaced_windowed(func, str, l);
+                if(sp_.unwindowed()) for_each_uncanon_unspaced_unwindowed(func, str, l);
+                else                 for_each_uncanon_unspaced_windowed(func, str, l);
             } else for_each_uncanon_spaced(func, str, l);
         }
     }
