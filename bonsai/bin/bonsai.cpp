@@ -42,7 +42,7 @@ int classify_main(int argc, char *argv[]) {
                  *argv, 1 << 14);
         std::exit(EXIT_FAILURE);
     }
-    while((co = getopt(argc, argv, "C:c:p:o:S:afFkKh?")) >= 0) {
+    while((co = getopt(argc, argv, "Cc:p:o:S:afFkKh?")) >= 0) {
         switch(co) {
             case 'h': case '?': goto usage;
             case 'C': canonicalize = false; break;
@@ -103,7 +103,7 @@ int phase2_main(int argc, char *argv[]) {
                      , *argv);
         std::exit(EXIT_FAILURE);
     }
-    while((c = getopt(argc, argv, "C:w:M:S:p:k:T:F:tefHh?")) >= 0) {
+    while((c = getopt(argc, argv, "Cw:M:S:p:k:T:F:tefHh?")) >= 0) {
         switch(c) {
             case 'C': canon = false; break;
             case 'h': case '?': goto usage;
@@ -173,7 +173,7 @@ int hll_main(int argc, char *argv[]) {
                         "-F:\tPath to file which contains one path per line\n"
                         , argv[0]);
     }
-    while((c = getopt(argc, argv, "C:w:s:S:p:k:tfh?")) >= 0) {
+    while((c = getopt(argc, argv, "Cw:s:S:p:k:tfh?")) >= 0) {
         switch(c) {
             case 'C': canon = false; break;
             case 'h': case '?': goto usage;
@@ -193,10 +193,6 @@ int hll_main(int argc, char *argv[]) {
     std::fprintf(stderr, "Estimated number of unique exact matches: %lf\n", est);
     return EXIT_SUCCESS;
 }
-
-#if !NDEBUG
-#pragma message("TODO: Update all of these usages to add the -C (don't canonicalize) option.")
-#endif
 
 int phase1_main(int argc, char *argv[]) {
     int c, taxmap_preparsed(0), use_hll(0), mode(score_scheme::LEX), wsz(-1), k(31), num_threads(-1), sketch_size(24);
@@ -226,7 +222,7 @@ int phase1_main(int argc, char *argv[]) {
     if("lca"s == argv[0])
         std::fprintf(stderr, "[W:%s] lca subcommand has been renamed phase1. "
                              "This has been deprecated and will be removed.\n", __func__);
-    while((c = getopt(argc, argv, "C:s:S:p:k:tfTHh?")) >= 0) {
+    while((c = getopt(argc, argv, "Cs:S:p:k:tfTHh?")) >= 0) {
         switch(c) {
             case 'C': canon = false; break;
             case 'h': case '?': goto usage;
