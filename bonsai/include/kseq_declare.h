@@ -1,6 +1,10 @@
 #ifndef _KSEQ_DECLARE__
 #define _KSEQ_DECLARE__
-#include <zlib.h>
+#if ZWRAP_USE_ZSTD
+#  include "zstd_zlibwrapper.h"
+#else
+#  include <zlib.h>
+#endif
 #include "klib/kseq.h"
 #include <stdlib.h>
 #include <stdint.h>

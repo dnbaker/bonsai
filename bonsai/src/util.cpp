@@ -2,7 +2,6 @@
 #include <set>
 #include <cassert>
 #include <cstring>
-#include <zlib.h>
 #include <sstream>
 #include <fstream>
 #include "kspp/ks.h"

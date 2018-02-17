@@ -2,7 +2,6 @@
 #include <map>
 #include <vector>
 #include <algorithm>
-#include <zlib.h>
 #include <stdint.h>
 #include <cassert>
 #include <string>
@@ -10,6 +9,11 @@
 #include <iostream>
 #include "klib/kseq.h"
 #include "klib/kthread.h"
+#if ZWRAP_USE_ZSTD
+#  include "zstd_zlibwrapper.h"
+#else
+#  include <zlib.h>
+#endif
 
 #ifdef USE_PDQSORT
 #include "pdqsort/pdqsort.h"
