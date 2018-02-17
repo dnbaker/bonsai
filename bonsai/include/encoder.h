@@ -126,9 +126,12 @@ public:
     template<typename Functor>
     INLINE void for_each_canon_unwindowed(const Functor &func, const char *str, size_t l) {
         u64 min(BF);
-        while(likely(has_next_kmer()))
-            if((min = next_kmer()) != BF)
-                func(canonical_representation(min, sp_.k_));
+        if(sp_.unspaced())
+            for_each_uncanon_unwindowed([&](u64 min) {return func(canonical_representation(min));}, str, l);
+        else
+            while(likely(has_next_kmer()))
+                if((min = next_kmer()) != BF)
+                    func(canonical_representation(min, sp_.k_));
     }
     template<typename Functor>
     INLINE void for_each_uncanon_spaced(const Functor &func, const char *str, size_t l) {
