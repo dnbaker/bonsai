@@ -187,7 +187,7 @@ public:
         for(const auto &i: *hist_)
             countset.insert(i.first);
         std::vector<unsigned> counts(countset.begin(), countset.end());
-        SORT(counts.begin(), counts.end());
+        SORT(counts.begin(), counts.end(), [](auto a, auto b) {return a < b;});
         std::fputs("#Count\tNumber of occurrences\n", fp);
         for(auto count: counts) ret += std::fprintf(fp, "%u\t%u\n", count, hist_->find(count)->second);
         return ret;

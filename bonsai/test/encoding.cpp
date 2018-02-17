@@ -123,7 +123,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         kseq_destroy(ks);
     }
     SECTION("space_case_jump") {
-        for(const char *SPACED_FN: {"test/phix.fa", "ec/GCF_000007445.1_ASM744v1_genomic.fna.gz"}) {
+        for(const char *SPACED_FN: {"test/phix.fa", "test/ec/GCF_000007445.1_ASM744v1_genomic.fna.gz"}) {
             Spacer sp(31, 31);
             Encoder<score::Entropy> enc(sp, true);
             gzFile fp(gzopen(SPACED_FN, "rb"));
