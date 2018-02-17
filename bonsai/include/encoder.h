@@ -129,7 +129,6 @@ public:
     template<typename Functor>
     INLINE void for_each_canon_unwindowed(const Functor &func, const char *str, size_t l) {
         if(sp_.unspaced()) {
-            LOG_DEBUG("Encoding string of length %zu\n", l);
             for_each_uncanon_unspaced_unwindowed([&](u64 min) {return func(canonical_representation(min, sp_.k_));}, str, l);
         } else {
             u64 min;
@@ -196,7 +195,6 @@ public:
     // Utility 'for-each'-like functions.
     template<typename Functor>
     INLINE void for_each(const Functor &func, const char *str, size_t l) {
-        LOG_DEBUG("Processing seq of length %zu\n", l);
         this->assign(str, l);
         if(!has_next_kmer()) return;
         if(canonicalize_) {
@@ -208,8 +206,8 @@ public:
             // Note that an entropy-based score calculation can be sped up for this case.
             // This will benefit from either a special function or an if constexpr
             if(sp_.unspaced()) {
-                if(sp_.unwindowed()) assign(ks), for_each_uncanon_unspaced_unwindowed(func, str, l);
-                else                 assign(ks), for_each_uncanon_unspaced_windowed(func, str, l);
+                if(sp_.unwindowed()) for_each_uncanon_unspaced_unwindowed(func, str, l);
+                else                 for_each_uncanon_unspaced_windowed(func, str, l);
             } else for_each_uncanon_spaced(func, str, l);
         }
     }
@@ -424,7 +422,6 @@ void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &spac
     hll.not_ready();
     Encoder<ScoreType> enc(nullptr, 0, space, data, canonicalize);
     enc.for_each([&](u64 min) {
-        LOG_DEBUG("Calling function on minimizer %" PRIu64"\n", min);
         hll.addh(min);
     },
     path.data());
