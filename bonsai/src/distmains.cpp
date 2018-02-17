@@ -52,6 +52,7 @@ struct kt_sketch_helper {
     const std::string &suffix_;
     const std::string &spacing_;
     const bool skip_cached_;
+    const bool canon_;
 };
 
 void kt_for_helper(void  *data_, long index, int tid) {
@@ -62,7 +63,7 @@ void kt_for_helper(void  *data_, long index, int tid) {
         std::vector<std::string> &scratch_stringvec(helper.ssvec_[i]);
         fname = hll_fname(scratch_stringvec[0].data(), helper.sketch_size_, helper.window_size_, helper.kmer_size_, helper.csz_, helper.spacing_, helper.suffix_);
         if(helper.skip_cached_ && isfile(fname)) continue;
-        fill_hll(hll, scratch_stringvec, helper.kmer_size_, helper.window_size_, helper.sv_, nullptr, 1, helper.sketch_size_); // Avoid allocation fights.
+        fill_hll(hll, scratch_stringvec, helper.kmer_size_, helper.window_size_, helper.sv_, helper.canon_, nullptr, 1, helper.sketch_size_); // Avoid allocation fights.
         hll.write(fname.data());
         hll.clear();
     }
@@ -72,8 +73,9 @@ void kt_for_helper(void  *data_, long index, int tid) {
 // Main functions
 int sketch_main(int argc, char *argv[]) {
     int wsz(-1), k(31), sketch_size(16), skip_cached(false), co, nthreads(1), bs(256);
+    bool canon(true);
     std::string spacing, paths_file, suffix;
-    while((co = getopt(argc, argv, "F:c:p:x:s:S:k:w:ceh?")) >= 0) {
+    while((co = getopt(argc, argv, "C:F:c:p:x:s:S:k:w:ceh?")) >= 0) {
         switch(co) {
             case 'b': bs = std::atoi(optarg); break;
             case 'k': k = std::atoi(optarg); break;
@@ -84,6 +86,7 @@ int sketch_main(int argc, char *argv[]) {
             case 'w': wsz = std::atoi(optarg); break;
             case 'c': skip_cached = true; break;
             case 'F': paths_file = optarg; break;
+            case 'C': canon = false; break;
             case 'h': case '?': dist_usage(*argv);
         }
     }
@@ -106,7 +109,7 @@ int sketch_main(int argc, char *argv[]) {
         dist_usage(*argv);
     }
     if(ivecs.size() / (unsigned)(nthreads) > (unsigned)bs) bs = (ivecs.size() / (nthreads) / 2);
-    detail::kt_sketch_helper helper {hlls, bs, sketch_size, k, wsz, (int)sp.c_, sv, ivecs, suffix, spacing, skip_cached};
+    detail::kt_sketch_helper helper {hlls, bs, sketch_size, k, wsz, (int)sp.c_, sv, ivecs, suffix, spacing, skip_cached, canon};
     kt_for(nthreads, detail::kt_for_helper, &helper, ivecs.size() / bs + (ivecs.size() % bs != 0));
     LOG_DEBUG("Finished sketching\n");
     return EXIT_SUCCESS;
@@ -114,11 +117,13 @@ int sketch_main(int argc, char *argv[]) {
 
 int dist_main(int argc, char *argv[]) {
     int wsz(-1), k(31), sketch_size(16), use_scientific(false), co, cache_sketch(false), nthreads(1);
+    bool canon(true);
     std::string spacing, paths_file, suffix;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "x:F:c:p:o:s:w:O:S:k:Meh?")) >= 0) {
+    while((co = getopt(argc, argv, "C:x:F:c:p:o:s:w:O:S:k:Meh?")) >= 0) {
         switch(co) {
+            case 'C': canon = false; break;
             case 'k': k = std::atoi(optarg); break;
             case 'x': suffix = optarg; break;
             case 'p': nthreads = std::atoi(optarg); break;
@@ -161,7 +166,7 @@ int dist_main(int argc, char *argv[]) {
                 // By reserving 256 character, we make it probably that no allocation is necessary in this section.
                 std::vector<std::string> &scratch_stringvec(scratch_vv[omp_get_thread_num()]);
                 scratch_stringvec[0] = inpaths[i];
-                fill_hll(hlls[i], scratch_stringvec, k, wsz, sv, nullptr, 1, sketch_size); // Avoid allocation fights.
+                fill_hll(hlls[i], scratch_stringvec, k, wsz, sv, canon, nullptr, 1, sketch_size); // Avoid allocation fights.
             }
             if(cache_sketch) hlls[i].write(fpath);
         }
@@ -205,16 +210,18 @@ int dist_main(int argc, char *argv[]) {
 
 int setdist_main(int argc, char *argv[]) {
     int wsz(-1), k(31), use_scientific(false), co;
+    bool canon(true);
     unsigned bufsize(1 << 18);
     std::string spacing, paths_file;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "F:c:p:o:O:S:B:k:Meh?")) >= 0) {
+    while((co = getopt(argc, argv, "C:F:c:p:o:O:S:B:k:Meh?")) >= 0) {
         switch(co) {
             case 'B': std::stringstream(optarg) << bufsize; break;
             case 'k': k = std::atoi(optarg); break;
             case 'p': omp_set_num_threads(std::atoi(optarg)); break;
             case 's': spacing = optarg; break;
+            case 'C': canon = false; break;
             case 'w': wsz = std::atoi(optarg); break;
             case 'F': paths_file = optarg; break;
             case 'o': ofp = fopen(optarg, "w"); break;
@@ -240,7 +247,7 @@ int setdist_main(int argc, char *argv[]) {
     for(size_t i = 0; i < hashes.size(); ++i) {
         const char *path(inpaths[i].data());
         khash_t(all) *hash(hashes[i]);
-        fill_set_genome<score::Lex>(path, sp, hash, i, nullptr);
+        fill_set_genome<score::Lex>(path, sp, hash, i, nullptr, canon);
     }
     LOG_DEBUG("Filled genomes. Now analyzing data.\n");
     ks::string str;

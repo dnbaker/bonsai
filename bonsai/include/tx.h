@@ -199,6 +199,7 @@ struct bf_helper_t {
     const std::vector<tax_t> &taxes_;
     const khash_t(64) *h_;
     ba::MMapTaxonomyBitmap &bm_;
+    const bool canonicalize_;
 };
 
 

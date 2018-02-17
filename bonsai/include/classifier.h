@@ -51,10 +51,10 @@ struct ClassifierGeneric {
     INLINE int get_emit_kraken() {return output_flag_ & output_format::KRAKEN;}
     INLINE int get_emit_fastq()  {return output_flag_ & output_format::FASTQ;}
     ClassifierGeneric(khash_t(c) *map, spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
-                      bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false):
+                      bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false, bool canonicalize=true):
         db_(map),
         sp_(k, wsz, spaces),
-        enc_(sp_),
+        enc_(sp_, canonicalize),
         nt_(num_threads > 0 ? num_threads: 16),
         classified_{0, 0}
     {
@@ -63,8 +63,8 @@ struct ClassifierGeneric {
         set_emit_kraken(emit_kraken);
     }
     ClassifierGeneric(const char *dbpath, spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
-                      bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false):
-        ClassifierGeneric(khash_load<khash_t(c)>(dbpath), spaces, k, wsz, num_threads, emit_all, emit_fastq, emit_kraken) {}
+                      bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false, bool canonicalize=true):
+        ClassifierGeneric(khash_load<khash_t(c)>(dbpath), spaces, k, wsz, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize) {}
     u64 n_classified()   const {return classified_[0];}
     u64 n_unclassified() const {return classified_[1];}
 };

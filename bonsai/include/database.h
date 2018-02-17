@@ -125,7 +125,7 @@ void val_helper(void *data_, long index, int tid) {
     LOG_DEBUG("Index %ld with tid %i starting\n", index, tid);
     std::unordered_set<u64> in;
     std::unordered_set<u64> failing_kmers;
-    Encoder<score::Lex> enc(nullptr, 0, *data.db_.sp_, nullptr);
+    Encoder<score::Lex> enc(nullptr, 0, *data.db_.sp_, nullptr, data.canonicalize);
     u64 passing_kmers(0);
     for(const auto &path: data.tx_.find(tax)->second) {
         LOG_DEBUG("Validator opening path at %s\n", path.data());
@@ -176,11 +176,11 @@ void val_helper(void *data_, long index, int tid) {
 
 
 template<typename T>
-void validate_db(const Database<T> &db, std::unordered_set<tax_t> &used_lcas, std::unordered_map<tax_t, std::forward_list<std::string>> &tx2g, int num_threads=-1) {
+void validate_db(const Database<T> &db, std::unordered_set<tax_t> &used_lcas, std::unordered_map<tax_t, std::forward_list<std::string>> &tx2g, int num_threads=-1, bool canonicalize=true) {
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
     std::unordered_set<u64> failing_kmers;
     std::vector<tax_t> lcas(used_lcas.begin(), used_lcas.end());
-    val_data_t<T> data{tx2g, lcas, db};
+    val_data_t<T> data{tx2g, lcas, db, canonicalize};
     LOG_DEBUG("lcas size: %zu\n", lcas.size());
     kt_for(num_threads, &val_helper<T>, &data, lcas.size());
 }

@@ -96,11 +96,13 @@ public:
       data_(data),
       qmap_(sp_.w_ - sp_.c_ + 1),
       scorer_{},
-      canonicalize_(canonicalize) {}
-    Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data) {}
-    Encoder(const Spacer &sp): Encoder(sp, nullptr) {}
+      canonicalize_(canonicalize) {
+        LOG_DEBUG("Canonicalizing: %s\n", canonicalize_ ? "True": "False");
+    }
+    Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data, canonicalize) {}
+    Encoder(const Spacer &sp, bool canonicalize=true): Encoder(sp, nullptr, canonicalize) {}
     Encoder(const Encoder &other): Encoder(other.sp_, other.data_) {}
-    Encoder(unsigned k): Encoder(nullptr, 0, Spacer(k), nullptr) {}
+    Encoder(unsigned k, bool canonicalize=true): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize) {}
 
     // Assign functions: These tell the encoder to fetch kmers from this string.
     // kstring and kseq are overloads which call assign(char *s, size_t l) on
@@ -114,79 +116,93 @@ public:
     INLINE void assign(kseq_t    *ks) {assign(&ks->seq);}
 
 
+    template<typename Functor>
+    INLINE void for_each_canon_windowed(const Functor &func, const char *str, size_t l) {
+        u64 min(BF);
+        while(likely(has_next_kmer()))
+            if((min = next_canonicalized_minimizer()) != BF)
+                func(min);
+    }
+    template<typename Functor>
+    INLINE void for_each_canon_unwindowed(const Functor &func, const char *str, size_t l) {
+        u64 min(BF);
+        while(likely(has_next_kmer()))
+            if((min = next_kmer()) != BF)
+                func(canonical_representation(min, sp_.k_));
+    }
+    template<typename Functor>
+    INLINE void for_each_uncanon_spaced(const Functor &func, const char *str, size_t l) {
+        u64 min(BF);
+        while(likely(has_next_kmer()))
+            if((min = next_minimizer()) != BF)
+                func(min);
+    }
+    template<typename Functor>
+    INLINE void for_each_uncanon_unspaced_unwindowed(const Functor &func, const char *str, size_t l) {
+        const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
+        u64 min(BF);
+        unsigned filled = min = 0;
+        loop_start:
+        while(likely(pos_ < l_)) {
+            while(filled < sp_.k_ && likely(pos_ < l_)) {
+                min <<= 2;
+                //std::fprintf(stderr, "Encoding character %c with value %u at last position.\n", s_[pos_], (unsigned)cstr_lut[s_[pos_]]);
+                if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF)) {
+                    filled = min = 0;
+                    goto loop_start;
+                }
+                ++filled;
+            }
+            if(likely(filled == sp_.k_)) {
+                min &= mask;
+                func(min);
+                --filled;
+            }
+        }
+    }
+    template<typename Functor>
+    INLINE void for_each_uncanon_unspaced_windowed(const Functor &func, const char *str, size_t l) {
+        const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
+        u64 min(BF);
+        unsigned filled = min = 0;
+        u64 kmer, score;
+        windowed_loop_start:
+        while(likely(pos_ < l_)) {
+            while(filled < sp_.k_ && likely(pos_ < l_)) {
+                min <<= 2;
+                if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF)) {
+                    filled = min = 0;
+                    goto windowed_loop_start;
+                }
+                ++filled;
+            }
+            if(likely(filled == sp_.k_)) {
+                min &= mask;
+                score = scorer_(min, data_);
+                if((kmer = qmap_.next_value(min, score)) != BF)
+                    func(min);
+                --filled;
+            }
+        }
+    }
     // Utility 'for-each'-like functions.
     template<typename Functor>
     INLINE void for_each(const Functor &func, const char *str, size_t l) {
         LOG_DEBUG("Processing seq of length %zu\n", l);
         this->assign(str, l);
         if(!has_next_kmer()) return;
-        u64 min(BF);
         if(canonicalize_) {
-            if(sp_.unwindowed()) {
-                LOG_DEBUG("Now fetching kmers unwindowed, canonicalized!\n");
-                while(likely(has_next_kmer()))
-                    if((min = next_kmer()) != BF)
-                        func(canonical_representation(min, sp_.k_));
-            } else {
-                LOG_DEBUG("Now fetching kmers windowed, canonicalized!\n");
-                while(likely(has_next_kmer()))
-                    if((min = next_canonicalized_minimizer()) != BF)
-                        func(min);
-            }
+            if(sp_.unwindowed())
+                for_each_canon_unwindowed(func, str, l);
+            else 
+                for_each_canon_windowed(func, str, l);
         } else {
             // Note that an entropy-based score calculation can be sped up for this case.
             // This will benefit from either a special function or an if constexpr
             if(sp_.unspaced()) {
-                const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
-                if(sp_.unwindowed()) {
-                    // Next TODO: Add windowed but unspaced version.
-                    unsigned filled = min = 0;
-                    loop_start:
-                    while(likely(pos_ < l_)) {
-                        while(filled < sp_.k_ && likely(pos_ < l_)) {
-                            min <<= 2;
-                            //std::fprintf(stderr, "Encoding character %c with value %u at last position.\n", s_[pos_], (unsigned)cstr_lut[s_[pos_]]);
-                            if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF)) {
-                                filled = min = 0;
-                                goto loop_start;
-                            }
-                            ++filled;
-                        }
-                        if(likely(filled == sp_.k_)) {
-                            min &= mask;
-                            func(min);
-                            --filled;
-                        }
-                    }
-                } else {
-                    unsigned filled = min = 0;
-                    u64 kmer, score;
-                    windowed_loop_start:
-                    while(likely(pos_ < l_)) {
-                        while(filled < sp_.k_ && likely(pos_ < l_)) {
-                            min <<= 2;
-                            //std::fprintf(stderr, "Encoding character %c with value %u at last position.\n", s_[pos_], (unsigned)cstr_lut[s_[pos_]]);
-                            if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF)) {
-                                filled = min = 0;
-                                goto windowed_loop_start;
-                            }
-                            ++filled;
-                        }
-                        if(likely(filled == sp_.k_)) {
-                            min &= mask;
-                            score = scorer_(min, data_);
-                            if((kmer = qmap_.next_value(min, score)) != BF)
-                                func(min);
-                            --filled;
-                        }
-                    }
-                }
-            } else {
-                LOG_DEBUG("Now fetching kmers windowed, uncanonicalized!\n");
-                while(likely(has_next_kmer()))
-                    if((min = next_minimizer()) != BF)
-                        func(min);
-            }
+                if(sp_.unwindowed()) for_each_canon_unspaced_unwindowed(func, str, l);
+                else                 for_each_canon_unspaced_windowed(func, str, l);
+            } else for_each_uncanon_spaced(func, str, l);
         }
     }
     template<typename Functor>
@@ -194,16 +210,58 @@ public:
         while(kseq_read(ks) >= 0) for_each<Functor>(func, ks->seq.s, ks->seq.l);
     }
     template<typename Functor>
+    INLINE void for_each_canon(const Functor &func, kseq_t *ks) {
+        if(sp_.unwindowed())
+            while(kseq_read(ks) >= 0) for_each_canon_unwindowed<Functor>(func, ks->seq.s, ks->seq.l);
+        else
+            while(kseq_read(ks) >= 0) for_each_canon_windowed<Functor>(func, ks->seq.s, ks->seq.l);
+    }
+    template<typename Functor>
+    INLINE void for_each_uncanon(const Functor &func, kseq_t *ks) {
+        if(sp_.unspaced()) {
+            if(sp_.unwindowed()) while(kseq_read(ks) >= 0) for_each_uncanon_unspaced_unwindowed(func, ks->seq.s, ks->seq.l);
+            else                 while(kseq_read(ks) >= 0) for_each_uncanon_unspaced_windowed(func, ks->seq.s, ks->seq.l);
+        } else while(kseq_read(ks) >= 0) for_each_uncanon_spaced(func, ks->seq.s, ks->seq.l);
+    }
+    template<typename Functor>
+    void for_each_canon(const Functor &func, gzFile fp) {
+        kseq_t *ks(kseq_init(fp));
+        for_each_canon<Functor>(func, ks);
+        kseq_destroy(ks);
+    }
+    template<typename Functor>
+    void for_each_uncanon(const Functor &func, gzFile fp) {
+        kseq_t *ks(kseq_init(fp));
+        for_each_uncanon<Functor>(func, ks);
+        kseq_destroy(ks);
+    }
+    template<typename Functor>
+    void for_each_canon(const Functor &func, const char *path) {
+        gzFile fp(gzopen(path, "rb"));
+        if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        for_each_canon<Functor>(func, fp);
+        gzclose(fp);
+    }
+    template<typename Functor>
+    void for_each_uncanon(const Functor &func, const char *path) {
+        gzFile fp(gzopen(path, "rb"));
+        if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        for_each_uncanon<Functor>(func, fp);
+        gzclose(fp);
+    }
+    template<typename Functor>
     void for_each(const Functor &func, gzFile fp) {
         kseq_t *ks(kseq_init(fp));
-        for_each<Functor>(func, ks);
+        if(canonicalize_) for_each_canon<Functor>(func, ks);
+        else              for_each_uncanon<Functor>(func, ks);
         kseq_destroy(ks);
     }
     template<typename Functor>
     void for_each(const Functor &func, const char *path) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
-        for_each<Functor>(func, fp);
+        if(canonicalize_) for_each_canon<Functor>(func, fp);
+        else              for_each_uncanon<Functor>(func, fp);
         gzclose(fp);
     }
     template<typename Functor, typename ContainerType,
@@ -275,6 +333,7 @@ public:
     bool canonicalize() const {return canonicalize_;}
     void set_canonicalize(bool value) {canonicalize_ = value;}
     auto pos() const {return pos_;}
+    uint32_t k() const {return sp_.k_;}
 };
 
 template<typename ScoreType, typename KhashType>
@@ -310,9 +369,9 @@ void add_to_khash(KhashType *kh, Encoder<ScoreType> &enc, kseq_t *ks) {
 
 template<typename ScoreType>
 khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
-                              void *data=nullptr) {
+                              bool canonicalize, void *data=nullptr) {
 
-    Encoder<ScoreType> enc(nullptr, 0, space, data);
+    Encoder<ScoreType> enc(nullptr, 0, space, data, canonicalize);
     khash_t(all) *ret(kh_init(all));
     enc.add(ret, path.data());
     return ret;
@@ -348,20 +407,22 @@ void add_to_hll(hll::hll_t &hll, kseq_t *ks, Encoder<ScoreType> &enc) {
 }
 
 template<typename ScoreType>
-void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &space,
+void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &space, bool canonicalize=true,
                     void *data=nullptr) {
+    LOG_DEBUG("Canonicalizing: %s\n", canonicalize ? "true": "false");
     hll.not_ready();
-    Encoder<ScoreType> enc(nullptr, 0, space, data);
-    enc.add(hll, path.data());
+    Encoder<ScoreType> enc(nullptr, 0, space, data, canonicalize);
+    enc.for_each([&](u64 min) {hll.addh(min);}, path.data());
 }
 
 #define SUB_CALL \
     std::async(std::launch::async,\
-               hashcount_lmers<ScoreType>, paths[submitted], space, data)
+               hashcount_lmers<ScoreType>, paths[submitted], space, canonicalize, data)
 
 template<typename ScoreType>
 size_t count_cardinality(const std::vector<std::string> paths,
                          unsigned k, uint16_t w, spvec_t spaces,
+                         bool canonicalize,
                          void *data=nullptr, int num_threads=-1) {
     // Default to using all available threads.
     if(num_threads < 0) num_threads = sysconf(_SC_NPROCESSORS_ONLN);
@@ -404,23 +465,24 @@ size_t count_cardinality(const std::vector<std::string> paths,
 }
 
 struct est_helper {
-    const Spacer                   &sp_;
+    const Spacer                      &sp_;
     const std::vector<std::string> &paths_;
-    std::mutex                     &m_;
-    const size_t               np_;
-    void                           *data_;
-    hll::hll_t                     &master_;
+    std::mutex                         &m_;
+    const size_t                       np_;
+    const bool                      canon_;
+    void                            *data_;
+    hll::hll_t                    &master_;
 };
 
 template<typename ScoreType=score::Lex>
 void est_helper_fn(void *data_, long index, int tid) {
     est_helper &h(*(est_helper *)(data_));
-    hll_fill_lmers<ScoreType>(h.master_, h.paths_[index], h.sp_, h.data_);
+    hll_fill_lmers<ScoreType>(h.master_, h.paths_[index], h.sp_, h.canon_, h.data_);
 }
 
 template<typename ScoreType=score::Lex>
 void fill_hll(hll::hll_t &ret, const std::vector<std::string> &paths,
-              unsigned k, uint16_t w, const spvec_t &spaces,
+              unsigned k, uint16_t w, const spvec_t &spaces, bool canon=true,
               void *data=nullptr, int num_threads=1, size_t np=23) {
     // Default to using all available threads if num_threads is negative.
 #if 0
@@ -439,7 +501,7 @@ void fill_hll(hll::hll_t &ret, const std::vector<std::string> &paths,
     } else {
         LOG_DEBUG("Starting parallel\n");
         std::mutex m;
-        est_helper helper{space, paths, m, np, data, ret};
+        est_helper helper{space, paths, m, np, canon, data, ret};
         kt_for(num_threads, &est_helper_fn<ScoreType>, &helper, paths.size());
     }
     
@@ -458,18 +520,18 @@ void hll_from_khash(hll::hll_t &ret, const T *kh, bool clear=true) {
 
 template<typename ScoreType=score::Lex>
 hll::hll_t make_hll(const std::vector<std::string> &paths,
-                unsigned k, uint16_t w, spvec_t spaces,
+                unsigned k, uint16_t w, spvec_t spaces, bool canon=true,
                 void *data=nullptr, int num_threads=1, size_t np=23) {
     hll::hll_t master(np);
-    fill_hll(master, paths, k, w, spaces, data, num_threads, np);
+    fill_hll(master, paths, k, w, spaces, canon, data, num_threads, np);
     return master;
 }
 
 template<typename ScoreType=score::Lex>
 size_t estimate_cardinality(const std::vector<std::string> &paths,
-                            unsigned k, uint16_t w, spvec_t spaces,
+                            unsigned k, uint16_t w, spvec_t spaces, bool canon,
                             void *data=nullptr, int num_threads=-1, size_t np=23) {
-    auto tmp(make_hll<ScoreType>(paths, k, w, spaces, data, num_threads, np));
+    auto tmp(make_hll<ScoreType>(paths, k, w, spaces, canon, data, num_threads, np));
     return tmp.report();
 }
 

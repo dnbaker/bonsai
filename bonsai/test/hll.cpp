@@ -50,11 +50,11 @@ TEST_CASE("phll") {
     spvec_t vec;
     static const size_t nps[] {23, 24, 18, 21};
     for(const auto np: nps) {
-        const ssize_t exact(count_cardinality<score::Lex>(paths, 31, 31, vec, nullptr, 2));
+        const ssize_t exact(count_cardinality<score::Lex>(paths, 31, 31, vec, true, nullptr, 2));
         const ssize_t inexact(estimate_cardinality<score::Lex>(paths, 31, 31, vec, nullptr, 2, np));
         {
             hll::hll_t hll(np);
-            Encoder enc(Spacer(31, 31, vec));
+            Encoder enc(Spacer(31, 31, vec), true);
             enc.add(hll, paths);
             std::fprintf(stderr, "The hll_add method returned an estimated quantity of %lf, compared to estimated %zd manually\n", hll.report(), inexact);
             ssize_t hll_rep(hll.report());
