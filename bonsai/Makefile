@@ -48,7 +48,7 @@ ZFLAGS=-DZWRAP_USE_ZSTD=1
 ZCOMPILE_FLAGS= $(ZFLAGS) -lzstd
 ALL_ZOBJS=$(ZOBJS) $(ZW_OBJS)
 
-INCLUDE=-Iclhash/include -I. -I.. -Iinclude -I../zstd/zlibWrapper -I../zstd/lib -I../zstd/lib/common $(INCPLUS)
+INCLUDE=-Iclhash/include -I. -I../libpopcnt -I.. -Iinclude -I../zstd/zlibWrapper -I../zstd/lib -I../zstd/lib/common $(INCPLUS)
 
 all: $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a
 

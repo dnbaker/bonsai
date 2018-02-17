@@ -31,3 +31,6 @@
 [submodule "zstd"]
 	path = zstd
 	url = https://github.com/facebook/zstd
+[submodule "libpopcnt"]
+	path = libpopcnt
+	url = https://github.com/kimwalisch/libpopcnt

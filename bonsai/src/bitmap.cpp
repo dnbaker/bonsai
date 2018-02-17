@@ -9,8 +9,8 @@ u64 score_node_addn(const bitvec_t &bitstring,
     const auto m(am.find(bitstring));
     const auto node(counts.find(bitstring));
     if(unlikely(m == am.end()) || node == counts.end()) return UINT64_C(-1);
-    u64 ret(node->second * (nelem - popcnt::vec_popcnt(node->first)));
-    for(const auto i: m->second) ret += counts.find(*i)->second * popcnt::vec_popcnt(*i);
+    u64 ret(node->second * (nelem - pop::vec_popcnt(node->first)));
+    for(const auto i: m->second) ret += counts.find(*i)->second * pop::vec_popcnt(*i);
     return ret;
 }
 
