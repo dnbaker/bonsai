@@ -9,8 +9,8 @@
 namespace emp {
 
 struct fnode_t;
-using popcnt::vec_bitdiff;
-using popcnt::vec_popcnt;
+using pop::vec_bitdiff;
+using pop::vec_popcnt;
 using NodeType = std::pair<const bitvec_t, fnode_t>;
 using namespace std::literals;
 
@@ -22,7 +22,7 @@ struct fnode_t {
     const u32      si_:31;  // subtree index
     u32          added_:1;  // Whether node has been added or been subsumed
     fnode_t(const bitvec_t &bits, u32 bc, u32 subtree_index, const u64 n=0):
-        n_{n}, desc_pts_{0}, pc_{static_cast<u32>(popcnt::vec_popcnt(bits))},
+        n_{n}, desc_pts_{0}, pc_{static_cast<u32>(pop::vec_popcnt(bits))},
         bc_{bc}, si_{subtree_index}, added_(false) {}
     ks::string str() const {
         return ks::sprintf("fnode_t[n:%zu,popcount:%u,familysize:%u", n_, pc_, bc_);

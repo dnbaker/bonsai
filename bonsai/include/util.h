@@ -69,9 +69,9 @@
 #ifdef USE_PDQSORT
 # include "pdqsort/pdqsort.h"
 # ifndef SORT
-#  define SORT ::pdq::sort
+#  define SORT pdqsort
 # endif
-# define SORT_BRANCHLESS ::pdq::sort_branchless
+# define SORT_BRANCHLESS ::pdqsort_branchless
 #else
 # ifndef SORT
 #  define SORT ::std::sort
@@ -115,7 +115,7 @@ using tax_t = u32;
 using std::forward_list;
 using strlist = forward_list<std::string>;
 using cpslist = forward_list<std::string*>;
-using popcnt::bitvec_t;
+using pop::bitvec_t;
 
 class Timer {
     using TpType = std::chrono::system_clock::time_point;
@@ -371,7 +371,7 @@ INLINE u32 nuccount(u64 kmer, unsigned k) {
     uint64_t x2 = x1 & UINT64_C(0x5555555555555555);
     uint64_t x3 = x0 & x2;
     x3 &= COUNT_MASK;
-    auto tmp = popcnt::popcount(x3); // because __builtin_popcountll returns a 32-bit element.
+    auto tmp = pop::popcount(x3); // because __builtin_popcountll returns a 32-bit element.
     ret |= (tmp <<= 24);
 
     c0 = c_table[1];
@@ -380,7 +380,7 @@ INLINE u32 nuccount(u64 kmer, unsigned k) {
     x2 = x1 & UINT64_C(0x5555555555555555);
     x3 = x0 & x2;
     x3 &= COUNT_MASK;
-    tmp = popcnt::popcount(x3);
+    tmp = pop::popcount(x3);
     ret |= (tmp <<= 16);
 
     c0 = c_table[2];
@@ -389,7 +389,7 @@ INLINE u32 nuccount(u64 kmer, unsigned k) {
     x2 = x1 & UINT64_C(0x5555555555555555);
     x3 = x0 & x2;
     x3 &= COUNT_MASK;
-    tmp = popcnt::popcount(x3);
+    tmp = pop::popcount(x3);
     ret |= (tmp <<= 8);
 
     c0 = c_table[3];
@@ -398,40 +398,8 @@ INLINE u32 nuccount(u64 kmer, unsigned k) {
     x2 = x1 & UINT64_C(0x5555555555555555);
     x3 = x0 & x2;
     x3 &= COUNT_MASK;
-    return ret |= (tmp = popcnt::popcount(x3));
+    return ret |= (tmp = pop::popcount(x3));
 }
-
-#if 0
-superkingdom
-kingdom
-subkingdom
-superphylum
-phylum
-subphylum
-superclass
-class
-subclass
-infraclass
-cohort
-superorder
-order
-suborder
-infraorder
-parvorder
-superfamily
-family
-subfamily
-tribe
-subtribe
-genus
-subgenus
-species
-subspecies
-group
-subgroup
-varitas
-forma
-#endif
 
 INLINE const char *get_lvlname(ClassLevel lvl) {return classlvl_arr[static_cast<int>(lvl) + LINE_LVL_OFFSET];}
 ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unordered_map<std::string, ClassLevel> &map);
