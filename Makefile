@@ -5,3 +5,6 @@ all:
 
 clean:
 	$(MAKE) clean -C bonsai
+
+unit:
+	$(MAKE) unit -C bonsai
