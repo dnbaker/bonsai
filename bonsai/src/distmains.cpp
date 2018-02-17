@@ -87,6 +87,7 @@ int sketch_main(int argc, char *argv[]) {
             case 'h': case '?': dist_usage(*argv);
         }
     }
+    LOG_DEBUG("Sketch size: %i\n", sketch_size);
     omp_set_num_threads(nthreads);
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Spacer sp(k, wsz, sv);
@@ -98,12 +99,13 @@ int sketch_main(int argc, char *argv[]) {
     }
     std::vector<hll::hll_t> hlls;
     while(hlls.size() < (unsigned)nthreads) hlls.emplace_back(sketch_size);
+    assert(hlls[0].size() == ((1ull << sketch_size)));
     if(wsz < sp.c_) wsz = sp.c_;
     if(ivecs.size() == 0) {
         std::fprintf(stderr, "No paths. See usage.\n");
         dist_usage(*argv);
     }
-    if(ivecs.size() / (unsigned)(nthreads > bs)) bs = (ivecs.size() / (nthreads) / 2);
+    if(ivecs.size() / (unsigned)(nthreads) > (unsigned)bs) bs = (ivecs.size() / (nthreads) / 2);
     detail::kt_sketch_helper helper {hlls, bs, sketch_size, k, wsz, (int)sp.c_, sv, ivecs, suffix, spacing, skip_cached};
     kt_for(nthreads, detail::kt_for_helper, &helper, ivecs.size() / bs + (ivecs.size() % bs != 0));
     LOG_DEBUG("Finished sketching\n");
@@ -152,8 +154,10 @@ int dist_main(int argc, char *argv[]) {
             const std::string &path(inpaths[i]);
             const std::string fpath(hll_fname(path.data(), sketch_size, wsz, k, sp.c_, spacing, suffix));
             //const char *path, size_t sketch_p, int wsz, int k, const std::string &spacing, const std::string &suffix=" 
-            if(cache_sketch && isfile(fpath)) hlls[i].read(path);
-            else {
+            if(cache_sketch && isfile(fpath)) {
+                LOG_DEBUG("Sketch found at %s with size %zu, %u\n", path.data(), size_t(1ull << sketch_size), sketch_size);
+                hlls[i].read(path);
+            } else {
                 // By reserving 256 character, we make it probably that no allocation is necessary in this section.
                 std::vector<std::string> &scratch_stringvec(scratch_vv[omp_get_thread_num()]);
                 scratch_stringvec[0] = inpaths[i];

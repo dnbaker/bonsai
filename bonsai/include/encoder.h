@@ -4,7 +4,6 @@
 #include <future>
 #include <limits>
 
-#include <zlib.h>
 #include <unistd.h>
 
 #include "klib/kstring.h"

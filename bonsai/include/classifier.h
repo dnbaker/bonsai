@@ -1,7 +1,6 @@
 #ifndef _DB_H__
 #define _DB_H__
 #include <atomic>
-#include <zlib.h>
 #include "kspp/ks.h"
 #include "encoder.h"
 #include "feature_min.h"
