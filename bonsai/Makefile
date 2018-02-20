@@ -28,7 +28,7 @@ OPT_MINUS_OPENMP= -O3 -funroll-loops \
 OPT=$(OPT_MINUS_OPENMP) -fopenmp
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS)
-CXXFLAGS_MINUS_OPENMP=$(OPT_MINUS_OPENMP) $(XXFLAGS) -std=c++1z $(WARNINGS)
+CXXFLAGS_MINUS_OPENMP=$(OPT_MINUS_OPENMP) $(XXFLAGS) -std=c++1z $(WARNINGS) -Wno-cast-align -Wno-gnu-zero-variadic-macro-arguments
 CCFLAGS=$(OPT) $(CFLAGS) -std=c11 $(WARNINGS)
 LIB=-lz
 LD=-L. $(EXTRA_LD)

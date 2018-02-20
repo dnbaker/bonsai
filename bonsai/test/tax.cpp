@@ -32,8 +32,10 @@ TEST_CASE("tax") {
     REQUIRE(set.size() == paths.size());
     count::Counter<bitvec_t> counts(bitmap_t(set).to_counter());
     LOG_INFO("Made counter\n");
+#if 0
     adjmap_t adj(counts);
     std::fprintf(stderr, "Made adjmap");
+#endif
 
     //counts.print_counts(stderr);
     //counts.print_hist(stderr);
