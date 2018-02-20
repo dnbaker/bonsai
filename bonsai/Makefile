@@ -23,14 +23,25 @@ DBG:=
 OS:=$(shell uname)
 FLAGS=
 
-OPT:= -O3 -funroll-loops \
-	  -fopenmp \
+OPT_MINUS_OPENMP= -O3 -funroll-loops \
 	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) $(EXTRA) -DHLL_HEADER_ONLY
+OPT=$(OPT_MINUS_OPENMP) -fopenmp
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS)
+CXXFLAGS_MINUS_OPENMP=$(OPT_MINUS_OPENMP) $(XXFLAGS) -std=c++1z $(WARNINGS)
 CCFLAGS=$(OPT) $(CFLAGS) -std=c11 $(WARNINGS)
 LIB=-lz
 LD=-L. $(EXTRA_LD)
+
+ifneq (,$(findstring g++,$(CXX)))
+	ifeq ($(shell uname),Darwin)
+		ifeq (,$(findstring clang,$(CXX)))
+            POPCNT_CXX:=clang
+		else
+            POPCNT_CXX:=$(CXX)
+		endif
+	endif
+endif
 
 OBJS=$(patsubst %.c,%.o,$(wildcard src/*.c) ../klib/kthread.o) $(patsubst %.cpp,%.o,$(wildcard src/*.cpp)) ../klib/kstring.o clhash.o libzstd.a
 DOBJS=$(patsubst %.c,%.do,$(wildcard src/*.c) ../klib/kthread.o) $(patsubst %.cpp,%.do,$(wildcard src/*.cpp)) ../klib/kstring.o clhash.o
@@ -83,6 +94,15 @@ test/%.o: test/%.cpp
 
 %.zo: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ZFLAGS) -DNDEBUG=0 -c $< -o $@ $(LIB)
+
+src/popcnt.o: src/popcnt.cpp
+	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
+
+src/popcnt.do: src/popcnt.cpp
+	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD) -DNDEBUG=0 -c $< -o $@ $(LIB)
+
+src/popcnt.zo: src/popcnt.cpp
+	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD) -DNDEBUG=0 -c $< -o $@ $(LIB)
 
 %: bin/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) -DNDEBUG $< -o $@ $(LIB)

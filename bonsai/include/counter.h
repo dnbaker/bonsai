@@ -164,7 +164,7 @@ public:
     auto cend()               const {return map_.cend();}
     auto find(const T &elem)  const {return map_.find(elem);}
 
-    const std::unordered_map<T, SizeType, Hash> &get_map() { return map_;}
+    const std::unordered_map<T, SizeType, Hash> &get_map() const { return map_;}
 
     template<typename = std::enable_if<std::is_same_v<bitvec_t, T>>>
     std::unordered_map<unsigned, unsigned> *make_hist() {
