@@ -357,13 +357,14 @@ inline bool has_key(const Key &key, const Map &map) {
 }
 
 INLINE u32 nuccount(u64 kmer, unsigned k) {
-    u32 ret(0);
+    // Modified from Bowtie2.
+    // Returns counts in the 4 different 8-bit registers of a 32-bit integer.
     const uint64_t COUNT_MASK = (0xFFFFFFFFFFFFFFFF >> (64 - 2 * k));
     static const uint64_t c_table[4] = {
-        0xffffffffffffffff,
-        0xaaaaaaaaaaaaaaaa,
-        0x5555555555555555,
-        0x0000000000000000
+        0xffffffffffffffff, // b1111111111111111111111111111111111111111111111111111111111111111
+        0xaaaaaaaaaaaaaaaa, // b1010101010101010101010101010101010101010101010101010101010101010
+        0x5555555555555555, // b0101010101010101010101010101010101010101010101010101010101010101
+        0x0000000000000000  // b0000000000000000000000000000000000000000000000000000000000000000
     };
     uint64_t c0 = c_table[0];
     uint64_t x0 = kmer ^ c0;
@@ -372,7 +373,7 @@ INLINE u32 nuccount(u64 kmer, unsigned k) {
     uint64_t x3 = x0 & x2;
     x3 &= COUNT_MASK;
     auto tmp = pop::popcount(x3); // because __builtin_popcountll returns a 32-bit element.
-    ret |= (tmp <<= 24);
+    u32 ret = (tmp <<= 24);
 
     c0 = c_table[1];
     x0 = kmer ^ c0;
@@ -508,6 +509,18 @@ namespace detail {
         {Z_VERSION_ERROR, "Z_VERSION_ERROR"}
     };
 }
+
+#define DO_DUFF(len, ITER)\
+    if(len) {\
+        std::uint64_t loop = (len + 7) >> 3;\
+        switch(len & 7) {\
+            case 0: do {\
+                ITER;\
+                case 7: ITER; case 6: ITER; case 5: ITER;\
+                case 4: ITER; case 3: ITER; case 2: ITER;  case 1: ITER;\
+            } while (--loop);\
+        }\
+    }
 
 class zlib_error: public std::runtime_error {
 public:

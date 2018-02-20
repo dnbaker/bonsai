@@ -96,20 +96,12 @@ static INLINE int X31_hash_string(const char *s)
 static INLINE unsigned
 dbm_hash(const char *str, size_t len)
 {
-    unsigned n = 0;
+    unsigned n = *str++;
+    len--;
 
 #define HASHC  (n = *str++ + (n << 16) + (n << 6) - n)
-#ifdef DUFF
-    if(len) {
-        size_t loop = (len + 7) >> 3;
-        switch(len & 7) {
-            case 0: do {
-                HASHC;
-                case 7: HASHC; case 6: HASHC; case 5: HASHC;
-                case 4: HASHC; case 3: HASHC; case 2: HASHC;  case 1: HASHC;
-            } while (--loop);
-        }
-    }
+#ifndef NO_USE_DUFF
+    DO_DUFF(len, HASHC);
 #else
     while (len--) HASHC;
 #endif
