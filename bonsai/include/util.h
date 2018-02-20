@@ -510,15 +510,17 @@ namespace detail {
     };
 }
 
-#define DO_DUFF(len, ITER) do { \
-    if(len) {\
-        std::uint64_t loop = (len + 7) >> 3;\
-        switch(len & 7) {\
-            case 0: do {\
-                ITER;\
-                case 7: ITER; case 6: ITER; case 5: ITER;\
-                case 4: ITER; case 3: ITER; case 2: ITER;  case 1: ITER;\
-            } while (--loop);\
+#define DO_DUFF(len, ITER) \
+    do { \
+        if(len) {\
+            std::uint64_t loop = (len + 7) >> 3;\
+            switch(len & 7) {\
+                case 0: do {\
+                    ITER; [[fallthrough]]\
+                    case 7: ITER; [[fallthrough]] case 6: ITER; [[fallthrough]] case 5: ITER; [[fallthrough]]\
+                    case 4: ITER; [[fallthrough]] case 3: ITER; [[fallthrough]] case 2: [[fallthrough]] ITER;  case 1: ITER;\
+                } while (--loop);\
+            }\
         }\
     } while(0)
 
