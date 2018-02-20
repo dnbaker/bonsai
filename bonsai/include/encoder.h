@@ -306,11 +306,11 @@ public:
         if(l_ < sp_.c_)    return BF;
         u64 new_kmer(cstr_lut[s_[start]]);
         if(new_kmer == BF) return BF;
-        for(const auto s: sp_.s_) {
-            new_kmer <<= 2;
-            start += s;
-            if((new_kmer |= cstr_lut[s_[start]]) == BF) break;
-        }
+        u64 len(sp_.s_.size());
+        const u8 *spaces(sp_.s_.data());
+#define ITER do {new_kmer <<= 2, start += *spaces++; if((new_kmer |= cstr_lut[s_[start]]) == BF) return new_kmer;} while(0);
+        DO_DUFF(len, ITER);
+#undef ITER
         return new_kmer;
     }
     // Whether or not an additional kmer is present in the sequence being encoded.
