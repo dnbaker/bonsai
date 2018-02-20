@@ -97,7 +97,7 @@ static INLINE unsigned
 dbm_hash(const char *str, size_t len)
 {
     unsigned n = *str++;
-#define HASHC  do {(n = *str++ + (n << 16) + (n << 6) - n)} while(0)
+#define HASHC  do {(n = *str++ + (n << 16) + (n << 6) - n);} while(0)
     DO_DUFF(len, HASHC);
 #undef HASHC
     return n;
