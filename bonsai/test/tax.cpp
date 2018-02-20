@@ -31,11 +31,12 @@ TEST_CASE("tax") {
     kgset_t set(paths, sp);
     REQUIRE(set.size() == paths.size());
     count::Counter<bitvec_t> counts(bitmap_t(set).to_counter());
+    LOG_INFO("Made counter\n");
     adjmap_t adj(counts);
     std::fprintf(stderr, "Made adjmap");
 
-    counts.print_counts(stderr);
-    counts.print_hist(stderr);
+    //counts.print_counts(stderr);
+    //counts.print_hist(stderr);
     bitvec_t thing;
     thing.reserve(1 << 16);
     for(size_t i(0); i < 1 << 16; ++i)
