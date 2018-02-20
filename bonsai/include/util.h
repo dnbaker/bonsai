@@ -510,7 +510,7 @@ namespace detail {
     };
 }
 
-#define DO_DUFF(len, ITER)\
+#define DO_DUFF(len, ITER) do { \
     if(len) {\
         std::uint64_t loop = (len + 7) >> 3;\
         switch(len & 7) {\
@@ -520,7 +520,7 @@ namespace detail {
                 case 4: ITER; case 3: ITER; case 2: ITER;  case 1: ITER;\
             } while (--loop);\
         }\
-    }
+    } while(0)
 
 class zlib_error: public std::runtime_error {
 public:

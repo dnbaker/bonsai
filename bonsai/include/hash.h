@@ -100,14 +100,10 @@ dbm_hash(const char *str, size_t len)
     len--;
 
 #define HASHC  (n = *str++ + (n << 16) + (n << 6) - n)
-#ifndef NO_USE_DUFF
     DO_DUFF(len, HASHC);
-#else
-    while (len--) HASHC;
-#endif
+#undef HASHC
     return n;
 }
-#undef HASHC
 
 static INLINE unsigned dbm_hash(const char *str)
 {
