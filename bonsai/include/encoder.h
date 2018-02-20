@@ -306,7 +306,7 @@ public:
         if(new_kmer == BF) return BF;
         u64 len(sp_.s_.size());
         const u8 *spaces(sp_.s_.data());
-#define ITER do {new_kmer <<= 2; start += *spaces++; if((new_kmer |= cstr_lut[s_[start]]) == BF) break;} while(0)
+#define ITER do {new_kmer <<= 2, start += *spaces++; if((new_kmer |= cstr_lut[s_[start]]) == BF) return new_kmer;} while(0);
         DO_DUFF(len, ITER);
 #undef ITER
         return new_kmer;
