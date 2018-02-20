@@ -36,9 +36,9 @@ LD=-L. $(EXTRA_LD)
 ifneq (,$(findstring g++,$(CXX)))
 	ifeq ($(shell uname),Darwin)
 		ifeq (,$(findstring clang,$(CXX)))
-            POPCNT_CXX:=clang
+			POPCNT_CXX:=clang
 		else
-            POPCNT_CXX:=$(CXX)
+			POPCNT_CXX:=$(CXX)
 		endif
 	endif
 endif
@@ -48,6 +48,7 @@ DOBJS=$(patsubst %.c,%.do,$(wildcard src/*.c) ../klib/kthread.o) $(patsubst %.cp
 ZOBJS=$(patsubst %.c,%.zo,$(wildcard src/*.c) ../klib/kthread.o) $(patsubst %.cpp,%.zo,$(wildcard src/*.cpp)) ../klib/kstring.o clhash.o
 
 TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
+ZTEST_OBJS=$(patsubst %.cpp,%.zo,$(wildcard test/*.cpp))
 
 EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard bin/*.cpp))
 ZW_OBJS=$(patsubst %.c,%.o,$(wildcard ../zstd/zlibWrapper/*.c))
@@ -86,6 +87,9 @@ clhash.o: ../clhash/src/clhash.c
 test/%.o: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
+test/%.zo: test/%.cpp
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ZFLAGS)  -c $< -o $@ $(LIB)
+
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
 
@@ -93,7 +97,7 @@ test/%.o: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG=0 -c $< -o $@ $(LIB)
 
 %.zo: %.cpp
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ZFLAGS) -DNDEBUG=0 -c $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ZFLAGS)  -c $< -o $@ $(LIB)
 
 src/popcnt.o: src/popcnt.cpp
 	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
@@ -102,7 +106,7 @@ src/popcnt.do: src/popcnt.cpp
 	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD) -DNDEBUG=0 -c $< -o $@ $(LIB)
 
 src/popcnt.zo: src/popcnt.cpp
-	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD) -DNDEBUG=0 -c $< -o $@ $(LIB)
+	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD)  -c $< -o $@ $(LIB)
 
 %: bin/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) -DNDEBUG $< -o $@ $(LIB)
@@ -124,6 +128,9 @@ tests: clean unit
 unit: $(OBJS) $(TEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
 	# $(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) test/hll.o test/main.o $(LD) $(OBJS) -o $@ $(LIB)
+
+zunit: $(ZOBJS) $(ZTEST_OBJS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE) $(ZTEST_OBJS) $(LD) $(ALL_ZOBJS) -o $@ $(LIB) $(ZCOMPILE_FLAGS)
 
 
 clean:
