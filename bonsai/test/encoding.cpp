@@ -119,6 +119,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         LOG_DEBUG("Size of each: kmers %zu, okmers %zu\n", kmers.size(), okmers.size());
         REQUIRE(kmers.size() == okmers.size());
         REQUIRE(olap == kmers.size());
+        REQUIRE(kmers.size() == 5356);
         gzclose(fp);
         kseq_destroy(ks);
     }

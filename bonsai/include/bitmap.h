@@ -26,11 +26,11 @@ public:
     AdjacencyList(AdjacencyList<T> &&other)      = default;
 #endif
 
-    AdjacencyList(count::Counter<T> &counts, bool reverse=false):
+    AdjacencyList(const count::Counter<T> &counts, bool reverse=false):
         m_(0), nelem_(counts.get_nelem()), is_reverse_(reverse) {
         // O(n^2)
         std::set<T*> ptrs;
-        auto &map(counts.get_map());
+        const auto &map(counts.get_map());
         if(reverse == false) {
             for(auto i(map.cbegin()), ie(map.cend()); i != ie; ++i) {
                 ++m_;

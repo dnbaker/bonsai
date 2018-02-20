@@ -58,8 +58,7 @@ TEST_CASE("phll") {
             enc.add(hll, paths);
             std::fprintf(stderr, "The hll_add method returned an estimated quantity of %lf, compared to estimated %zd manually\n", hll.report(), inexact);
             ssize_t hll_rep(hll.report());
-            if(hll_rep == inexact)
-                std::fprintf(stderr, "YAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY\n");
+            REQUIRE(hll_rep == size_t(inexact));
         }
         fprintf(stderr, "For np %zu, we have %lf for expected and %lf for measured as correct as we expect to be, theoretically for %zu and %zu.\n",
                 np, (1.03896 / std::sqrt(1ull << np)), (std::abs((double)exact - inexact) / inexact), exact, inexact);
