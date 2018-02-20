@@ -10,6 +10,9 @@ enum BitCmp {
     INCOMPARABLE
 };
 
+#if !NDEBUG
+inline int veccmp_naive(const void *a, const void *b, size_t nbytes);
+#endif
 
 inline int veccmp(const void *a, const void *b, size_t nbytes) {
 #if __AVX2__
@@ -36,7 +39,7 @@ inline int veccmp(const void *a, const void *b, size_t nbytes) {
         bentry = _mm_loadu_si128(pb++);
         bparent &= _mm_testz_si128(aentry, ~bentry);
         aparent &= _mm_testz_si128(bentry, ~aentry);
-        if((aparent | bparent) == 0) return BitCmp::INCOMPARABLE;
+        if((aparent == 0) & (bparent == 0)) return BitCmp::INCOMPARABLE;
     }
 #else
     size_t n64(nbytes >> 3), nlo(nbytes & 7u);
@@ -44,7 +47,7 @@ inline int veccmp(const void *a, const void *b, size_t nbytes) {
     while(n64--) {
         bparent &= !(*pa & (~*pb));
         aparent &= !(*pb & (~*pa));
-        if((aparent | bparent) == 0) return BitCmp::INCOMPARABLE;
+        if((aparent == 0) & (bparent == 0)) return BitCmp::INCOMPARABLE;
         ++pa, ++pb;
     }
 #endif
@@ -52,12 +55,33 @@ inline int veccmp(const void *a, const void *b, size_t nbytes) {
     while(nlo--) {
         bparent &= !(*eba & (~*ebb));
         aparent &= !(*ebb & (~*eba));
-        if((aparent | bparent) == 0) return BitCmp::INCOMPARABLE;
+        if((aparent == 0) & (bparent == 0)) return BitCmp::INCOMPARABLE;
         ++eba, ++ebb;
+    }
+    static const u8 retcodes[] {BitCmp::INCOMPARABLE, BitCmp::SECOND_PARENT, BitCmp::FIRST_PARENT, BitCmp::EQUAL};
+    assert(retcodes[(aparent << 1) | bparent] == veccmp_naive(a, b, nbytes));
+    return retcodes[(aparent << 1) | bparent];
+}
+#if !NDEBUG
+inline int veccmp_naive(const void *a, const void *b, size_t nbytes) {
+    const uint64_t *pa((const uint64_t *)a), *pb((const uint64_t *)b);
+    int aparent = 1, bparent = 1;
+    uint64_t va, vb;
+    nbytes >>= 3;
+    while(nbytes--) {
+        va = *pa++, vb = *pb++;
+        if(va & ~vb) {
+            bparent = 0;
+        }
+        if(vb & ~va) {
+            aparent = 0;
+        }
+        if(aparent == bparent && aparent == 0) return BitCmp::INCOMPARABLE;
     }
     static const u8 retcodes[] {BitCmp::INCOMPARABLE, BitCmp::SECOND_PARENT, BitCmp::FIRST_PARENT, BitCmp::EQUAL};
     return retcodes[(aparent << 1) | bparent];
 }
+#endif
 
 // Vector comparison function
 template<typename Container1, typename Container2>

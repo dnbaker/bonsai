@@ -31,11 +31,13 @@ public:
         // O(n^2)
         std::set<T*> ptrs;
         const auto &map(counts.get_map());
+        LOG_INFO("Trying to do stuff.\n");
         if(reverse == false) {
             for(auto i(map.cbegin()), ie(map.cend()); i != ie; ++i) {
                 ++m_;
                 auto j(i);
                 while(++j != map.end()) {
+                    LOG_DEBUG("Calling veccmp in forward\n");
                     switch(veccmp(i->first, j->first)) {
                         case 1:
                             map_[&i->first].push_back(&j->first); // i is a strict parent of j.
@@ -44,6 +46,7 @@ public:
                             map_[&j->first].push_back(&i->first); // j is a strict parent of i.
                             break;
                     }
+                    LOG_DEBUG("Called veccmp in forward\n");
                 }
             }
         } else {
@@ -51,6 +54,7 @@ public:
                 ++m_;
                 auto j(i);
                 while(++j != map.end()) {
+                    LOG_DEBUG("Calling veccmp in reverse\n");
                     switch(veccmp(i->first, j->first)) {
                         case 1:
                             map_[&j->first].push_back(&i->first); // j is a strict parent of i.
@@ -59,12 +63,15 @@ public:
                             map_[&i->first].push_back(&j->first); // i is a strict parent of j.
                             break;
                     }
+                    LOG_DEBUG("Called veccmp in reverse\n");
                 }
             }
         }
+        LOG_DEBUG("About to shrink_to_fit.\n");
         for(auto &el: map_) {
             el.second.shrink_to_fit();
         }
+        LOG_DEBUG("Finished constructor.");
     }
 };
 
