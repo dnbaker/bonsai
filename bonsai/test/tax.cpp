@@ -28,14 +28,12 @@ TEST_CASE("tax") {
     }
     std::fprintf(stderr, "Parsed paths. Number of paths: %zu\n", paths.size());
     Spacer sp(13, 13, v);
-    kgset_t set(paths, sp);
+    kgset_t set(paths, sp, 8);
     REQUIRE(set.size() == paths.size());
     count::Counter<bitvec_t> counts(bitmap_t(set).to_counter());
     LOG_INFO("Made counter\n");
-#if 0
     adjmap_t adj(counts);
     std::fprintf(stderr, "Made adjmap");
-#endif
 
     //counts.print_counts(stderr);
     //counts.print_hist(stderr);
@@ -43,7 +41,6 @@ TEST_CASE("tax") {
     thing.reserve(1 << 16);
     for(size_t i(0); i < 1 << 16; ++i)
         thing.emplace_back(((uint64_t)rand() << 32) | rand());
-    std::fprintf(stderr, "Made thing");
 }
 
 TEST_CASE("bitstrings") {
