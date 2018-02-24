@@ -98,7 +98,7 @@ public:
         else ++match->second.n_;
         ++n_;
     }
-    void fill(const std::unordered_map<tax_t, strlist> &list, const Spacer &sp, int num_threads=-1,
+    void fill(const std::unordered_map<tax_t, strlist> &list, const Spacer &sp, bool canonicalize=true, int num_threads=-1,
               khash_t(all) *acc=nullptr) {
         if(tax_.size()) tax_.clear();
         for(const auto &pair: list) {
@@ -106,12 +106,12 @@ public:
             tax_.push_back(pair.first);
         }
 #if !NDEBUG
-        bitmap_t tmp_bitmap(kgset_t(list, sp, num_threads, acc));
+        bitmap_t tmp_bitmap(kgset_t(list, sp, canonicalize, num_threads, acc));
         auto &map(tmp_bitmap.get_map());
         LOG_DEBUG("Map size: %zu\n", map.size());
         for(auto &&pair: map) add(std::move(pair.second));
 #else
-        for(auto &&pair: bitmap_t(kgset_t(list, sp, num_threads, acc)).get_map()) add(std::move(pair.second));
+        for(auto &&pair: bitmap_t(kgset_t(list, sp, canonicalize, num_threads, acc)).get_map()) add(std::move(pair.second));
 #endif
     }
 };
@@ -127,6 +127,7 @@ class FMEmitter {
     const TaxPathType          &tpm_;
     const size_t         max_heapsz_;
     unsigned            left_to_add_;
+    const bool                canon_;
 
 
     /*
@@ -172,11 +173,12 @@ class FMEmitter {
     }
 public:
     // Also need a map of taxid to tax level.
-    FMEmitter(khash_t(p) *tax, const std::unordered_map<tax_t, strlist> &taxpathmap,
+    FMEmitter(khash_t(p) *tax, const std::unordered_map<tax_t, strlist> &taxpathmap, bool canonicalize=true,
               size_t max_heapsz=1<<8, size_t to_add=0):
         tax_{tax}, tpm_{taxpathmap}, max_heapsz_{max_heapsz},
         left_to_add_((to_add ? to_add
-                             : roundup64(kh_size(tax_))) - kh_size(tax_))
+                             : roundup64(kh_size(tax_))) - kh_size(tax_)),
+        canon_{canonicalize}
     {
     }
     void run_collapse(tax_t maxtax, std::FILE* fp=stdout) {
@@ -293,7 +295,7 @@ public:
         }
         if(emplace_subtree(parent, tmpmap.size())) {
             auto &ref(subtrees_.back());
-            ref.fill(tmpmap, sp, num_threads, acc);
+            ref.fill(tmpmap, sp, canon_, num_threads, acc);
         }
     }
 };
