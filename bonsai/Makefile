@@ -40,6 +40,8 @@ ifneq (,$(findstring g++,$(CXX)))
 		else
 			POPCNT_CXX:=$(CXX)
 		endif
+	else
+		POPCNT_CXX:=$(CXX)
 	endif
 endif
 

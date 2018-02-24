@@ -117,6 +117,20 @@ def folder2mashdict(paths):
 
 
 
+def mashdict2tsv(md, path):
+    with open(path, "w") as fp:
+        fw = fp.write
+        fw("#Path1\tPath2\tNumber of elements\tKmer size"
+           "\tNumber of bytes in sketch\tEstimated Jaccard Index\n")
+        for k, v in md.items():
+            nelem = k[2]
+            ks    = k[3]
+            nb    = nelem * (8 if ks > 16 else 4)
+            fw("%s\t%s\t%i\t%i\t%i\t%f\n" % (k[0], k[1], nelem, ks, nb, v))
+            
+
+
+
 class HlashData:
     def __init__(self, line):
         toks = line.strip().split()
@@ -134,6 +148,17 @@ def folder2hlashdict(paths):
                                         (line for path in paths
                                          for line in open(path) if
                                          line[0] != "#"))}
+
+
+if __name__ == "__main__":
+    import sys
+    if sys.argv[1] == "mash":
+        path = sys.argv[2]
+        outpath = sys.argv[3]
+        mashdict2tsv(folder2mashdict(path), outpath)
+        sys.exit(0)
+    raise NotImplementedError("Only mash executable created.")
+    
 
 
 __all__ = ["mash2dict", "folder2mashdict", "get_flag",

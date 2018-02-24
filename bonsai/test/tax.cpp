@@ -28,7 +28,8 @@ TEST_CASE("tax") {
     }
     std::fprintf(stderr, "Parsed paths. Number of paths: %zu\n", paths.size());
     Spacer sp(13, 13, v);
-    kgset_t set(paths, sp, 8);
+    kgset_t set(paths, sp);
+    set.print_weights();
     REQUIRE(set.size() == paths.size());
     count::Counter<bitvec_t> counts(bitmap_t(set).to_counter());
     LOG_INFO("Made counter\n");
