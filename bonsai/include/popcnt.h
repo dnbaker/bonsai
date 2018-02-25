@@ -44,7 +44,7 @@ inline unsigned popcount(unsigned long long val) noexcept {
 
 template<>
 inline unsigned popcount(unsigned long val) noexcept {
-    return __builtin_popcountl(val);
+    return popcount(static_cast<unsigned long long>(val));
 }
 
 template<typename T>
@@ -116,18 +116,12 @@ inline unsigned byte_bitdiff(const uint8_t *a, const uint8_t *b, size_t nelem) {
 }
 
 inline unsigned unrolled_bitdiff(const uint64_t *a, const uint64_t *b, size_t nbytes) {
-#define ITER ret += popcount(*a++ ^ *b++)
     unsigned ret(popcount(*a++ ^ *b++));
     nbytes -= 8;
     const size_t len(nbytes >> 3); // Num 64-bit integers.
-    size_t loop((len + 7) >> 3);
-    switch(len & 7) {
-        case 0: do {
-            ITER;
-            case 7: ITER; case 6: ITER; case 5: ITER;
-            case 4: ITER; case 3: ITER; case 2: ITER;  case 1: ITER;
-        } while (--loop);
-    }
+#define ITER ret += popcount(*a++ ^ *b++)
+    DO_DUFF(len, ITER);
+#undef ITER
     if(__builtin_expect(nbytes &= 0x7u, 0)) {
         // I still haven't finished testing if this is correct or makes a big/little-endian mistake.
         // But, at worst, it's a matter of switching the right-shift for a left-shift.
@@ -137,7 +131,6 @@ inline unsigned unrolled_bitdiff(const uint64_t *a, const uint64_t *b, size_t nb
         ret += popcount((*a ^ *b) & ((0xFFFFFFFFFFFFFFFF >> ((8u - nbytes) * 8))));
     }
     return ret;
-#undef ITER
 }
 } // namespace detail
     
