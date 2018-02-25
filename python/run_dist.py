@@ -1,5 +1,6 @@
 import sys
 import shlex
+import pysam
 import subprocess
 import multiprocessing
 import os
@@ -78,30 +79,88 @@ def main():
     import argparse
     argv = sys.argv
     # Handle args
-    p = argparse.ArgumentParser(
-        description="This calculates all pairwise distances between "
-                    "genomes for all  combinations of parameters."
-                    "This does take a while.")
-    p.add_argument("--no-redo", "-n", action="store_true")
-    p.add_argument("--threads", "-p",
-                   default=multiprocessing.cpu_count(), type=int)
-    p.add_argument("--use-mash", "-M", action="store_true",
-                   help=("Use Mash to calculate distances "
-                         "rather than 'bonsai dist'"))
-    p.add_argument('genomes', metavar='paths', type=str, nargs='+',
-                   help=('paths to genomes or a path to a file'
-                         ' with one genome per line.'))
-    p.add_argument("--range-start", default=24, type=int)
-    p.add_argument("--range-end", default=32, type=int)
-    args = p.parse_args()
+    superparser = argparse.ArgumentParser(
+        description=("This calculates all pairwise distances between "
+                     "genomes for all  combinations of parameters."
+                     "This does take a while."))
+    sp = superparser.add_subparsers()
+    shell_parser = sp.add_parser("sketch")
+    shell_parser.add_argument("--no-redo", "-n", action="store_true")
+    shell_parser.add_argument("--threads", "-p",
+                              default=multiprocessing.cpu_count(), type=int)
+    shell_parser.add_argument("--use-mash", "-M", action="store_true",
+                              help=("Use Mash to calculate distances "
+                                    "rather than 'bonsai dist'"))
+    shell_parser.add_argument('genomes', metavar='paths', type=str, nargs='+',
+                              help=('paths to genomes or a path to a file'
+                                    ' with one genome per line.'))
+    shell_parser.add_argument("--range-start", default=24, type=int)
+    shell_parser.add_argument("--range-end", default=32, type=int)
+    py_parser = sp.add_parser(
+        "exact",
+        description=("Calculates distances natively in Python "
+                     "slowly but with obviously no errors"))
+    py_parser.add_argument('genomes', metavar='paths', type=str, nargs='+',
+                           help=('paths to genomes or a path to a file'
+                                 ' with one genome per line.'))
+    py_parser.add_argument("--threads", "-p",
+                           default=multiprocessing.cpu_count(), type=int)
+    py_parser.add_argument("--range-start", default=24, type=int)
+    py_parser.add_argument("--range-end", default=32, type=int)
+    py_parser.add_argument("--outfile", "-o", default="-")
+    args = superparser.parse_args()
+    if hasattr(args, "sketch"):
+        return sketch_main(args)
+    else:
+        return exact_main(args)
 
+
+def jaccard_index(set1, set2):
+    return len(set1 & set2) / float(len(set1 | set2))
+
+
+def build_kmer_set(tup):
+    ks, path = tup
+    return {read.sequence[i:i + ks] for read in pysam.FastxFile(path)
+            for i in range(len(read.sequence) - ks + 1) if
+            all(nuc in 'acgtACGT' for nuc in read.sequence[i:i + ks])}
+
+
+def exact_main(args):
+    kmer_range = range(args.range_start, args.range_end + 1)
+    threads = args.threads
+    paths = genomes = args.genomes
+    if len(genomes) == 1 and os.path.isfile(next(open(genomes[0])).strip()):
+        paths = [i.strip() for i in open(genomes[0])]
+    Spooooool = multiprocessing.Pool(threads)  # With apologies to Beckett.
+    ofp = sys.stdout if args.outfile in ["-", "stdout", "/dev/stdout"] \
+        else open(args.outfile, "w")
+    ofw = ofp.write  # Cache to reduce the number of lookups
+
+    def pair2tup(path1, path2, *, ks):
+        return tuple(sorted([path1, path2]) + [ks])
+    ofw("#Path1\tPath2\tKmer Size\tExact Jaccard\n")
+
+    for ks in kmer_range:
+        genome_sets = Spooooool.map(build_kmer_set,
+                                    ((ks, path) for path in paths))
+        kdict = {}
+        for i in range(len(genome_sets)):
+            for j in range(start=i+1, stop=len(genome_sets)):
+                kdict[pair2tup(paths[i], paths[j], ks=ks)] = \
+                    jaccard_index(genome_sets[i], genome_sets[j])
+        assert len(kdict) == len(genome_sets) * (len(genome_sets) - 1)
+        set(ofw("%s\t%s\t%i\t%f\n" % (*k, v) for k, v in kdict.items()))
+
+
+def sketch_main(args):
     kmer_range = range(args.range_start, args.range_end + 1)
     threads = args.threads
     redo = not args.no_redo
     paths = genomes = args.genomes
-    mashify = args.use_mash
     if len(genomes) == 1 and os.path.isfile(next(open(genomes[0])).strip()):
         paths = [i.strip() for i in open(genomes[0])]
+    mashify = args.use_mash
     submission_sets = ((ks, ss, makefn(paths, ks, ss, mashify), paths, redo)
                        for ss in sketch_range for ks in kmer_range)
     if any(not os.path.isfile(path) for path in paths):
