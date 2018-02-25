@@ -45,7 +45,7 @@ ifneq (,$(findstring g++,$(CXX)))
 	endif
 endif
 
-OBJS=$(patsubst %.c,%.o,$(wildcard src/*.c) ../klib/kthread.o) $(patsubst %.cpp,%.o,$(wildcard src/*.cpp)) ../klib/kstring.o clhash.o libzstd.a
+OBJS=$(patsubst %.c,%.o,$(wildcard src/*.c) ../klib/kthread.o) $(patsubst %.cpp,%.o,$(wildcard src/*.cpp)) ../klib/kstring.o clhash.o
 DOBJS=$(patsubst %.c,%.do,$(wildcard src/*.c) ../klib/kthread.o) $(patsubst %.cpp,%.do,$(wildcard src/*.cpp)) ../klib/kstring.o clhash.o
 ZOBJS=$(patsubst %.c,%.zo,$(wildcard src/*.c) ../klib/kthread.o) $(patsubst %.cpp,%.zo,$(wildcard src/*.cpp)) ../klib/kstring.o clhash.o
 
@@ -53,7 +53,7 @@ TEST_OBJS=$(patsubst %.cpp,%.o,$(wildcard test/*.cpp))
 ZTEST_OBJS=$(patsubst %.cpp,%.zo,$(wildcard test/*.cpp))
 
 EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard bin/*.cpp))
-ZW_OBJS=$(patsubst %.c,%.o,$(wildcard ../zstd/zlibWrapper/*.c))
+ZW_OBJS=$(patsubst %.c,%.o,$(wildcard ../zstd/zlibWrapper/*.c)) libzstd.a
 
 EX=$(patsubst bin/%.cpp,%,$(wildcard bin/*.cpp))
 DEX=$(patsubst %_d,%,$(EX))
@@ -113,7 +113,7 @@ src/popcnt.zo: src/popcnt.cpp
 %: bin/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) -DNDEBUG $< -o $@ $(LIB)
 
-%_z: bin/%.cpp $(OBJS)
+%_z: bin/%.cpp $(ALL_ZOBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) $(LIB)
 
 %_d: bin/%.cpp $(DOBJS)

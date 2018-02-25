@@ -98,9 +98,8 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         u64 k(BF);
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
-            while(enc.has_next_kmer()) {
+            while(enc.has_next_kmer())
                 if((k = enc.next_kmer()) != BF) kmers.insert(k);
-            }
         }
         LOG_DEBUG("Filled kmers\n");
         kseq_rewind(ks);
