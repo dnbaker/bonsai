@@ -22,8 +22,15 @@ void dist_usage(const char *arg) {
     std::exit(EXIT_FAILURE);
 }
 
-std::string hll_fname(const char *path, size_t sketch_p, int wsz, int k, int csz, const std::string &spacing, const std::string &suffix="") {
-    std::string ret(get_cstr(path));
+std::string hll_fname(const char *path, size_t sketch_p, int wsz, int k, int csz, const std::string &spacing, const std::string &suffix="", const std::string &prefix="") {
+    std::string ret(prefix);
+    {
+        const char *p;
+        if(ret.size() && (p = strrchr(get_cstr(path), '/')))
+            ret += std::string(p);
+        else
+            ret += get_cstr(path);
+    }
     ret += ".w";
     ret + std::to_string(std::max(csz, wsz));
     ret += ".";
@@ -50,6 +57,7 @@ struct kt_sketch_helper {
     const spvec_t sv_;
     std::vector<std::vector<std::string>> &ssvec_; // scratch string vector
     const std::string &suffix_;
+    const std::string &prefix_;
     const std::string &spacing_;
     const bool skip_cached_;
     const bool canon_;
@@ -61,7 +69,7 @@ void kt_for_helper(void  *data_, long index, int tid) {
     std::string fname;
     for(size_t i(helper.bs_ * index); i < std::min((uint64_t)(helper.bs_ * (index + 1)), (uint64_t)(helper.ssvec_.size())); ++i) {
         std::vector<std::string> &scratch_stringvec(helper.ssvec_[i]);
-        fname = hll_fname(scratch_stringvec[0].data(), helper.sketch_size_, helper.window_size_, helper.kmer_size_, helper.csz_, helper.spacing_, helper.suffix_);
+        fname = hll_fname(scratch_stringvec[0].data(), helper.sketch_size_, helper.window_size_, helper.kmer_size_, helper.csz_, helper.spacing_, helper.suffix_, helper.prefix_);
         if(helper.skip_cached_ && isfile(fname)) continue;
         fill_hll(hll, scratch_stringvec, helper.kmer_size_, helper.window_size_, helper.sv_, helper.canon_, nullptr, 1, helper.sketch_size_); // Avoid allocation fights.
         hll.write(fname.data());
@@ -74,13 +82,14 @@ void kt_for_helper(void  *data_, long index, int tid) {
 int sketch_main(int argc, char *argv[]) {
     int wsz(-1), k(31), sketch_size(16), skip_cached(false), co, nthreads(1), bs(256);
     bool canon(true);
-    std::string spacing, paths_file, suffix;
-    while((co = getopt(argc, argv, "F:c:p:x:s:S:k:w:cCeh?")) >= 0) {
+    std::string spacing, paths_file, suffix, prefix;
+    while((co = getopt(argc, argv, "P:F:c:p:x:s:S:k:w:cCeh?")) >= 0) {
         switch(co) {
             case 'b': bs = std::atoi(optarg); break;
             case 'k': k = std::atoi(optarg); break;
             case 'x': suffix = optarg; break;
             case 'p': nthreads = std::atoi(optarg); break;
+            case 'P': prefix = optarg; break;
             case 's': spacing = optarg; break;
             case 'S': sketch_size = std::atoi(optarg); break;
             case 'w': wsz = std::atoi(optarg); break;
@@ -109,7 +118,7 @@ int sketch_main(int argc, char *argv[]) {
         dist_usage(*argv);
     }
     if(ivecs.size() / (unsigned)(nthreads) > (unsigned)bs) bs = (ivecs.size() / (nthreads) / 2);
-    detail::kt_sketch_helper helper {hlls, bs, sketch_size, k, wsz, (int)sp.c_, sv, ivecs, suffix, spacing, skip_cached, canon};
+    detail::kt_sketch_helper helper {hlls, bs, sketch_size, k, wsz, (int)sp.c_, sv, ivecs, suffix, prefix, spacing, skip_cached, canon};
     kt_for(nthreads, detail::kt_for_helper, &helper, ivecs.size() / bs + (ivecs.size() % bs != 0));
     LOG_DEBUG("Finished sketching\n");
     return EXIT_SUCCESS;
@@ -118,10 +127,10 @@ int sketch_main(int argc, char *argv[]) {
 int dist_main(int argc, char *argv[]) {
     int wsz(-1), k(31), sketch_size(16), use_scientific(false), co, cache_sketch(false), nthreads(1);
     bool canon(true);
-    std::string spacing, paths_file, suffix;
+    std::string spacing, paths_file, suffix, prefix;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "x:F:c:p:o:s:w:O:S:k:CMeh?")) >= 0) {
+    while((co = getopt(argc, argv, "P:x:F:c:p:o:s:w:O:S:k:CMeh?")) >= 0) {
         switch(co) {
             case 'C': canon = false; break;
             case 'k': k = std::atoi(optarg); break;
@@ -133,6 +142,7 @@ int dist_main(int argc, char *argv[]) {
             case 'F': paths_file = optarg; break;
             case 'o': ofp = fopen(optarg, "w"); if(ofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
             case 'O': pairofp = fopen(optarg, "w"); if(pairofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
+            case 'P': prefix = optarg; break;
             case 'e': use_scientific = true; break;
             case 'W': cache_sketch = true;  break;
             case 'h': case '?': dist_usage(*argv);
@@ -157,7 +167,7 @@ int dist_main(int argc, char *argv[]) {
         #pragma omp parallel for
         for(size_t i = 0; i < hlls.size(); ++i) {
             const std::string &path(inpaths[i]);
-            const std::string fpath(hll_fname(path.data(), sketch_size, wsz, k, sp.c_, spacing, suffix));
+            const std::string fpath(hll_fname(path.data(), sketch_size, wsz, k, sp.c_, spacing, suffix, prefix));
             //const char *path, size_t sketch_p, int wsz, int k, const std::string &spacing, const std::string &suffix=" 
             if(cache_sketch && isfile(fpath)) {
                 LOG_DEBUG("Sketch found at %s with size %zu, %u\n", path.data(), size_t(1ull << sketch_size), sketch_size);
