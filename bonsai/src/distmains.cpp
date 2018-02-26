@@ -126,11 +126,11 @@ int sketch_main(int argc, char *argv[]) {
 
 int dist_main(int argc, char *argv[]) {
     int wsz(-1), k(31), sketch_size(16), use_scientific(false), co, cache_sketch(false), nthreads(1);
-    bool canon(true);
+    bool canon(true), presketched_only(false), write_binary(false);
     std::string spacing, paths_file, suffix, prefix;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "P:x:F:c:p:o:s:w:O:S:k:CMeh?")) >= 0) {
+    while((co = getopt(argc, argv, "P:x:F:c:p:o:s:w:O:S:k:CMeHh?")) >= 0) {
         switch(co) {
             case 'C': canon = false; break;
             case 'k': k = std::atoi(optarg); break;
@@ -141,13 +141,16 @@ int dist_main(int argc, char *argv[]) {
             case 'w': wsz = std::atoi(optarg); break;
             case 'F': paths_file = optarg; break;
             case 'o': ofp = fopen(optarg, "w"); if(ofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
-            case 'O': pairofp = fopen(optarg, "w"); if(pairofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
+            case 'O': pairofp = fopen(optarg, "wb"); if(pairofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
             case 'P': prefix = optarg; break;
             case 'e': use_scientific = true; break;
             case 'W': cache_sketch = true;  break;
+            case 'H': presketched_only = true; break;
+            case 'b': write_binary = true; break;
             case 'h': case '?': dist_usage(*argv);
         }
     }
+#pragma message("TODO: Update these usage menus!")
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Spacer sp(k, wsz, sv);
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
@@ -167,18 +170,22 @@ int dist_main(int argc, char *argv[]) {
         #pragma omp parallel for
         for(size_t i = 0; i < hlls.size(); ++i) {
             const std::string &path(inpaths[i]);
-            const std::string fpath(hll_fname(path.data(), sketch_size, wsz, k, sp.c_, spacing, suffix, prefix));
-            //const char *path, size_t sketch_p, int wsz, int k, const std::string &spacing, const std::string &suffix=" 
-            if(cache_sketch && isfile(fpath)) {
-                LOG_DEBUG("Sketch found at %s with size %zu, %u\n", path.data(), size_t(1ull << sketch_size), sketch_size);
+            if(presketched_only) {
                 hlls[i].read(path);
             } else {
-                // By reserving 256 character, we make it probably that no allocation is necessary in this section.
-                std::vector<std::string> &scratch_stringvec(scratch_vv[omp_get_thread_num()]);
-                scratch_stringvec[0] = inpaths[i];
-                fill_hll(hlls[i], scratch_stringvec, k, wsz, sv, canon, nullptr, 1, sketch_size); // Avoid allocation fights.
+                const std::string fpath(hll_fname(path.data(), sketch_size, wsz, k, sp.c_, spacing, suffix, prefix));
+                //const char *path, size_t sketch_p, int wsz, int k, const std::string &spacing, const std::string &suffix=" 
+                if(cache_sketch && isfile(fpath)) {
+                    LOG_DEBUG("Sketch found at %s with size %zu, %u\n", fpath.data(), size_t(1ull << sketch_size), sketch_size);
+                    hlls[i].read(fpath);
+                } else {
+                    // By reserving 256 character, we make it probably that no allocation is necessary in this section.
+                    std::vector<std::string> &scratch_stringvec(scratch_vv[omp_get_thread_num()]);
+                    scratch_stringvec[0] = inpaths[i];
+                    fill_hll(hlls[i], scratch_stringvec, k, wsz, sv, canon, nullptr, 1, sketch_size); // Avoid allocation fights.
+                    if(cache_sketch) hlls[i].write(fpath);
+                }
             }
-            if(cache_sketch) hlls[i].write(fpath);
         }
     }
     ks::string str("#Path\tSize (est.)\n");
@@ -196,10 +203,15 @@ int dist_main(int argc, char *argv[]) {
     if(ofp != stdout) std::fclose(ofp);
     std::vector<double> dists(hlls.size() - 1);
     str.clear();
-    str.sprintf("##Names \t");
-    for(const auto &path: inpaths) str.sprintf("%s\t", path.data());
-    str.back() = '\n';
-    str.write(fileno(pairofp)); str.free();
+    if(write_binary) {
+        const size_t hs(hlls.size());
+        std::fwrite(&hs, sizeof(hs), 1, pairofp);
+    } else {
+        str.sprintf("##Names \t");
+        for(const auto &path: inpaths) str.sprintf("%s\t", path.data());
+        str.back() = '\n';
+        str.write(fileno(pairofp)); str.free();
+    }
     for(auto &el: hlls) el.sum();
     const char *fmt(use_scientific ? "\t%e": "\t%f");
     for(size_t i = 0; i < hlls.size(); ++i) {
@@ -207,13 +219,17 @@ int dist_main(int argc, char *argv[]) {
         #pragma omp parallel for
         for(size_t j = i + 1; j < hlls.size(); ++j) dists[j - i - 1] = jaccard_index(hlls[j], h1);
         h1.free();
-        str += inpaths[i];
-        for(size_t k(0); k < i + 1; ++k) str.putc_('\t'), str.putc_('-');
-        for(size_t k(0); k < hlls.size() - i - 1; ++k) str.sprintf(fmt, dists[k]);
-        str.putc_('\n');
-        if(str.size() >= 1 << 18) str.write(fileno(pairofp)), str.clear();
+        if(write_binary) {
+            std::fwrite(dists.data(), sizeof(double), hlls.size() - i - i, pairofp);
+        } else {
+            str += inpaths[i];
+            for(size_t k(0); k < i + 1; ++k) str.putc_('\t'), str.putc_('-');
+            for(size_t k(0); k < hlls.size() - i - 1; ++k) str.sprintf(fmt, dists[k]);
+            str.putc_('\n');
+            if(str.size() >= 1 << 18) str.write(fileno(pairofp)), str.clear();
+        }
     }
-    str.write(fileno(pairofp)); str.clear();
+    if(!write_binary) str.write(fileno(pairofp)), str.clear();
     if(pairofp != stdout) fclose(pairofp);
     return EXIT_SUCCESS;
 }
