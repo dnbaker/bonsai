@@ -130,7 +130,7 @@ int dist_main(int argc, char *argv[]) {
     std::string spacing, paths_file, suffix, prefix;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "P:x:F:c:p:o:s:w:O:S:k:CMeHh?")) >= 0) {
+    while((co = getopt(argc, argv, "P:x:F:c:p:o:s:w:O:S:k:CbMeHh?")) >= 0) {
         switch(co) {
             case 'C': canon = false; break;
             case 'k': k = std::atoi(optarg); break;
@@ -212,6 +212,7 @@ int dist_main(int argc, char *argv[]) {
         str.back() = '\n';
         str.write(fileno(pairofp)); str.free();
     }
+    const int pairfi = fileno(pairofp);
     for(auto &el: hlls) el.sum();
     const char *fmt(use_scientific ? "\t%e": "\t%f");
     for(size_t i = 0; i < hlls.size(); ++i) {
@@ -220,7 +221,7 @@ int dist_main(int argc, char *argv[]) {
         for(size_t j = i + 1; j < hlls.size(); ++j) dists[j - i - 1] = jaccard_index(hlls[j], h1);
         h1.free();
         if(write_binary) {
-            std::fwrite(dists.data(), sizeof(double), hlls.size() - i - i, pairofp);
+            write(pairfi, dists.data(), sizeof(double) * (hlls.size() - i - i));
         } else {
             str += inpaths[i];
             for(size_t k(0); k < i + 1; ++k) str.putc_('\t'), str.putc_('-');
