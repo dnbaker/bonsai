@@ -7,6 +7,23 @@
 #include "libpopcnt.h"
 #include "hll/hll.h"
 
+
+#ifndef DO_DUFF
+#define DO_DUFF(len, ITER) \
+    do { \
+        if(len) {\
+            std::uint64_t loop = (len + 7) >> 3;\
+            switch(len & 7) {\
+                case 0: do {\
+                    ITER; [[fallthrough]];\
+                    case 7: ITER; [[fallthrough]]; case 6: ITER; [[fallthrough]]; case 5: ITER; [[fallthrough]];\
+                    case 4: ITER; [[fallthrough]]; case 3: ITER; [[fallthrough]]; case 2: ITER; [[fallthrough]]; case 1: ITER;\
+                } while (--loop);\
+            }\
+        }\
+    } while(0)
+#endif
+
 namespace pop {
 using bitvec_t = std::vector<uint64_t>;
 
