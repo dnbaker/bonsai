@@ -510,6 +510,7 @@ namespace detail {
     };
 }
 
+#ifndef DO_DUFF
 #define DO_DUFF(len, ITER) \
     do { \
         if(len) {\
@@ -523,6 +524,7 @@ namespace detail {
             }\
         }\
     } while(0)
+#endif
 
 class zlib_error: public std::runtime_error {
 public:

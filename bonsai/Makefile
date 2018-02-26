@@ -57,6 +57,7 @@ ZW_OBJS=$(patsubst %.c,%.o,$(wildcard ../zstd/zlibWrapper/*.c)) libzstd.a
 
 EX=$(patsubst bin/%.cpp,%,$(wildcard bin/*.cpp))
 DEX=$(patsubst %_d,%,$(EX))
+ZEX=$(patsubst %_z,%,$(EX))
 
 ZFLAGS=-DZWRAP_USE_ZSTD=1
 ZCOMPILE_FLAGS= $(ZFLAGS) -lzstd
@@ -64,7 +65,7 @@ ALL_ZOBJS=$(ZOBJS) $(ZW_OBJS)
 
 INCLUDE=-Iclhash/include -I. -I../libpopcnt -I.. -Iinclude -I../zstd/zlibWrapper -I../zstd/lib -I../zstd/lib/common $(INCPLUS)
 
-all: $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a
+all: $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX) $(ZEX)
 
 #libhll.a:
 #	cd hll && make CXX=$(CXX) && cp libhll.a ..
