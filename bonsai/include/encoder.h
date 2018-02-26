@@ -156,7 +156,7 @@ public:
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 min <<= 2;
                 //std::fprintf(stderr, "Encoding character %c with value %u at last position.\n", s_[pos_], (unsigned)cstr_lut[s_[pos_]]);
-                if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF)) {
+                if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF) && (sp_.k_ < 31 || cstr_lut[s_[pos_ - 1]] != 'T')) {
                     filled = min = 0;
                     goto loop_start;
                 }
@@ -179,7 +179,7 @@ public:
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 min <<= 2;
-                if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF)) {
+                if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF) && likely(sp_.k_ < 31 || cstr_lut[s_[pos_ - 1]] != 'T')) {
                     filled = min = 0;
                     goto windowed_loop_start;
                 }
