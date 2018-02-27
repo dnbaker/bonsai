@@ -1,4 +1,4 @@
-.PHONY=all tests clean
+.PHONY=all tests clean bonsai
 
 all:
 	$(MAKE) -C bonsai
