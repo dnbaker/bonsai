@@ -155,6 +155,7 @@ int dist_main(int argc, char *argv[]) {
     Spacer sp(k, wsz, sv);
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind, argv + argc));
+    omp_set_num_threads(nthreads);
     std::vector<hll::hll_t> hlls;
     {
         // Scope to force deallocation of scratch_vv.
@@ -217,8 +218,11 @@ int dist_main(int argc, char *argv[]) {
     const char *fmt(use_scientific ? "\t%e": "\t%f");
     for(size_t i = 0; i < hlls.size(); ++i) {
         hll::hll_t &h1(hlls[i]);
-        #pragma omp parallel for
-        for(size_t j = i + 1; j < hlls.size(); ++j) dists[j - i - 1] = jaccard_index(hlls[j], h1);
+        #pragma omp parallel for schedule(dynamic)
+        for(size_t j = i + 1; j < hlls.size(); ++j) {
+            dists[j - i - 1] = jaccard_index(hlls[j], h1);
+        }
+        //LOG_INFO("Finished chunk %zu of %zu\n", i, hlls.size());
         h1.free();
         if(write_binary) {
             write(pairfi, dists.data(), sizeof(double) * (hlls.size() - i - i));
