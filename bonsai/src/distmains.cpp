@@ -61,6 +61,7 @@ struct kt_sketch_helper {
     const std::string &spacing_;
     const bool skip_cached_;
     const bool canon_;
+    const bool use_ertl_;
 };
 
 void kt_for_helper(void  *data_, long index, int tid) {
@@ -72,6 +73,7 @@ void kt_for_helper(void  *data_, long index, int tid) {
         fname = hll_fname(scratch_stringvec[0].data(), helper.sketch_size_, helper.window_size_, helper.kmer_size_, helper.csz_, helper.spacing_, helper.suffix_, helper.prefix_);
         if(helper.skip_cached_ && isfile(fname)) continue;
         fill_hll(hll, scratch_stringvec, helper.kmer_size_, helper.window_size_, helper.sv_, helper.canon_, nullptr, 1, helper.sketch_size_); // Avoid allocation fights.
+        hll.set_use_ertl(helper.use_ertl_);
         hll.write(fname.data());
         hll.clear();
     }
@@ -81,7 +83,7 @@ void kt_for_helper(void  *data_, long index, int tid) {
 // Main functions
 int sketch_main(int argc, char *argv[]) {
     int wsz(-1), k(31), sketch_size(16), skip_cached(false), co, nthreads(1), bs(256);
-    bool canon(true);
+    bool canon(true), use_ertl(true);
     std::string spacing, paths_file, suffix, prefix;
     while((co = getopt(argc, argv, "P:F:c:p:x:s:S:k:w:cCeh?")) >= 0) {
         switch(co) {
@@ -91,6 +93,7 @@ int sketch_main(int argc, char *argv[]) {
             case 'p': nthreads = std::atoi(optarg); break;
             case 'P': prefix = optarg; break;
             case 's': spacing = optarg; break;
+            case 'E': use_ertl = false; break;
             case 'S': sketch_size = std::atoi(optarg); break;
             case 'w': wsz = std::atoi(optarg); break;
             case 'c': skip_cached = true; break;
@@ -118,20 +121,21 @@ int sketch_main(int argc, char *argv[]) {
         dist_usage(*argv);
     }
     if(ivecs.size() / (unsigned)(nthreads) > (unsigned)bs) bs = (ivecs.size() / (nthreads) / 2);
-    detail::kt_sketch_helper helper {hlls, bs, sketch_size, k, wsz, (int)sp.c_, sv, ivecs, suffix, prefix, spacing, skip_cached, canon};
+    detail::kt_sketch_helper helper {hlls, bs, sketch_size, k, wsz, (int)sp.c_, sv, ivecs, suffix, prefix, spacing, skip_cached, canon, use_ertl};
     kt_for(nthreads, detail::kt_for_helper, &helper, ivecs.size() / bs + (ivecs.size() % bs != 0));
     LOG_DEBUG("Finished sketching\n");
     return EXIT_SUCCESS;
 }
 
 int dist_main(int argc, char *argv[]) {
-    int wsz(-1), k(31), sketch_size(16), use_scientific(false), co, cache_sketch(false), nthreads(1);
+    int wsz(-1), k(31), sketch_size(16), use_scientific(false), co, cache_sketch(false), nthreads(1), use_ertl(true);
     bool canon(true), presketched_only(false), write_binary(false);
     std::string spacing, paths_file, suffix, prefix;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "P:x:F:c:p:o:s:w:O:S:k:CbMeHh?")) >= 0) {
+    while((co = getopt(argc, argv, "P:x:F:c:p:o:s:w:O:S:k:CbMEeHh?")) >= 0) {
         switch(co) {
+            case 'E': use_ertl = false; break;
             case 'C': canon = false; break;
             case 'k': k = std::atoi(optarg); break;
             case 'x': suffix = optarg; break;
@@ -162,7 +166,7 @@ int dist_main(int argc, char *argv[]) {
         std::vector<std::vector<std::string>> scratch_vv;
         while(scratch_vv.size() < (unsigned)nthreads)
             scratch_vv.emplace_back(std::vector<std::string>{"empty"}), scratch_vv.back()[0].reserve(256);
-        while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size);
+        while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size, use_ertl);
         if(wsz < sp.c_) wsz = sp.c_;
         if(inpaths.size() == 0) {
             std::fprintf(stderr, "No paths. See usage.\n");
