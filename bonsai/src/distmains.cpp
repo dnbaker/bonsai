@@ -13,11 +13,38 @@ void dist_usage(const char *arg) {
                          "between bases repeated the second integer number of times\n"
                          "-w\tSet window size [max(size of spaced kmer, [parameter])]\n"
                          "-S\tSet sketch size [16, for 2**16 bytes each]\n"
+                         "-c:\tCache sketches/use cached sketches\n"
+                         "-H:\tTreat provided paths as pre-made sketches.\n"
+                         "-C:\tDo not canonicalize. [Default: canonicalize]\n"
+                         "-P\tSet prefix for sketch file locations [empty]\n"
+                         "-x\tSet suffix in sketch file names [empty]\n"
                          "-o\tOutput for genome size estimates [stdout]\n"
                          "-O\tOutput for genome distance matrix [stdout]\n"
                          "-e\tEmit in scientific notation\n"
                          "-F\tGet paths to genomes from file rather than positional arguments\n"
-                         "TODO: Add separate sketch_usage.\n"
+                , arg);
+    std::exit(EXIT_FAILURE);
+}
+
+// Usage, utilities
+void sketch_usage(const char *arg) {
+    std::fprintf(stderr, "Usage: %s <opts> [genomes if not provided from a file with -F]\n"
+                         "Flags:\n"
+                         "-h/-?:\tUsage\n"
+                         "-k\tSet kmer size [31]\n"
+                         "-p\tSet number of threads [1]\n"
+                         "-s\tadd a spacer of the format <int>x<int>,<int>x<int>,"
+                         "..., where the first integer corresponds to the space "
+                         "between bases repeated the second integer number of times\n"
+                         "-w\tSet window size [max(size of spaced kmer, [parameter])]\n"
+                         "-S\tSet sketch size [16, for 2**16 bytes each]\n"
+                         "-F\tGet paths to genomes from file rather than positional arguments\n"
+                         "-b:\tBatch size [16 genomes]\n"
+                         "-c:\tCache sketches/use cached sketches\n"
+                         "-C:\tDo not canonicalize. [Default: canonicalize]\n"
+                         "-P\tSet prefix for sketch file locations [empty]\n"
+                         "-x\tSet suffix in sketch file names [empty]\n"
+                         "-E\tUse Flajolet, not Ertl, quantitation method for hll. [Default: Ertl]\n"
                 , arg);
     std::exit(EXIT_FAILURE);
 }
@@ -78,11 +105,12 @@ void kt_for_helper(void  *data_, long index, int tid) {
         hll.clear();
     }
 }
+
 }
 
 // Main functions
 int sketch_main(int argc, char *argv[]) {
-    int wsz(-1), k(31), sketch_size(16), skip_cached(false), co, nthreads(1), bs(256);
+    int wsz(-1), k(31), sketch_size(16), skip_cached(false), co, nthreads(1), bs(16);
     bool canon(true), use_ertl(true);
     std::string spacing, paths_file, suffix, prefix;
     while((co = getopt(argc, argv, "P:F:c:p:x:s:S:k:w:cCeh?")) >= 0) {
@@ -99,7 +127,7 @@ int sketch_main(int argc, char *argv[]) {
             case 'c': skip_cached = true; break;
             case 'F': paths_file = optarg; break;
             case 'C': canon = false; break;
-            case 'h': case '?': dist_usage(*argv);
+            case 'h': case '?': sketch_usage(*argv);
         }
     }
     LOG_DEBUG("Sketch size: %i\n", sketch_size);
@@ -118,7 +146,7 @@ int sketch_main(int argc, char *argv[]) {
     if(wsz < sp.c_) wsz = sp.c_;
     if(ivecs.size() == 0) {
         std::fprintf(stderr, "No paths. See usage.\n");
-        dist_usage(*argv);
+        sketch_usage(*argv);
     }
     if(ivecs.size() / (unsigned)(nthreads) > (unsigned)bs) bs = (ivecs.size() / (nthreads) / 2);
     detail::kt_sketch_helper helper {hlls, bs, sketch_size, k, wsz, (int)sp.c_, sv, ivecs, suffix, prefix, spacing, skip_cached, canon, use_ertl};
@@ -154,24 +182,20 @@ int dist_main(int argc, char *argv[]) {
             case 'h': case '?': dist_usage(*argv);
         }
     }
-#pragma message("TODO: Update these usage menus!")
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Spacer sp(k, wsz, sv);
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind, argv + argc));
+    if(inpaths.size() == 0) {
+        std::fprintf(stderr, "No paths. See usage.\n");
+        dist_usage(*argv);
+    }
     omp_set_num_threads(nthreads);
-    std::vector<hll::hll_t> hlls;
+    std::vector<hll::hll_t> hlls(inpaths.size(), presketched_only ? hll::hll_t(): hll::hll_t(sketch_size, use_ertl));
     {
         // Scope to force deallocation of scratch_vv.
-        std::vector<std::vector<std::string>> scratch_vv;
-        while(scratch_vv.size() < (unsigned)nthreads)
-            scratch_vv.emplace_back(std::vector<std::string>{"empty"}), scratch_vv.back()[0].reserve(256);
-        while(hlls.size() < inpaths.size()) hlls.emplace_back(sketch_size, use_ertl);
+        std::vector<std::vector<std::string>> scratch_vv(nthreads, std::vector<std::string>{"empty"});
         if(wsz < sp.c_) wsz = sp.c_;
-        if(inpaths.size() == 0) {
-            std::fprintf(stderr, "No paths. See usage.\n");
-            dist_usage(*argv);
-        }
         #pragma omp parallel for
         for(size_t i = 0; i < hlls.size(); ++i) {
             const std::string &path(inpaths[i]);

@@ -100,7 +100,7 @@ def parse_assembly(fn, fnidmap):
                 (("Complete Genome" not in line and
                   "GRCh" not in line and s[13] != "Full")) or
                 any(i in line.lower() for
-                    i in ["chromosome", "supercontig", "scaffold"])):
+                    i in ["chromosome", "supercontig"])):
             continue
         fn = "%s_genomic.fna.gz" % ([i for i in s[19].split("/") if i][-1])
         fnidmap[fn] = int(s[5])
