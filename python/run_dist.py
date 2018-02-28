@@ -12,7 +12,7 @@ def is_nonempty_file(path):
 
 def submit_mdist(tup):
     ss, ks, sketchfns, ofn = tup
-    subprocess.check_call("mash dist -t -p 1 %s > %s" %
+    subprocess.check_call("mash dist -p 1 %s > %s" %
                           (" ".join(sketchfns), ofn), shell=True)
 
 
@@ -109,10 +109,12 @@ def main():
     py_parser.add_argument("--range-end", default=32, type=int)
     py_parser.add_argument("--outfile", "-o", default="-")
     args = superparser.parse_args()
-    if hasattr(args, "sketch"):
+    if sys.argv[1] == "sketch":
         return sketch_main(args)
-    else:
+    elif sys.argv[1] == "exact":
         return exact_main(args)
+    else:
+       raise Exception("Subcommand required. sketch or exact supported, for sketching or exact calculation.")
 
 
 def jaccard_index(set1, set2):
@@ -154,6 +156,7 @@ def exact_main(args):
 
 
 def sketch_main(args):
+    sketch_range = range(10, 24, 1)
     kmer_range = range(args.range_start, args.range_end + 1)
     threads = args.threads
     redo = not args.no_redo
