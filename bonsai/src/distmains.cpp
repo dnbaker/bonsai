@@ -1,4 +1,5 @@
 #include "distmains.h"
+#include "tinythreadpp/source/fast_mutex.h"
 
 namespace emp {
 // Usage, utilities
@@ -21,6 +22,7 @@ void dist_usage(const char *arg) {
                          "-o\tOutput for genome size estimates [stdout]\n"
                          "-O\tOutput for genome distance matrix [stdout]\n"
                          "-e\tEmit in scientific notation\n"
+                         "-f\tReport results as float. (Only important for binary format.) This halves the memory footprint at the cost of precision loss.\n"
                          "-F\tGet paths to genomes from file rather than positional arguments\n"
                 , arg);
     std::exit(EXIT_FAILURE);
@@ -155,30 +157,104 @@ int sketch_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
+struct LockSmith {
+    // Simple lock-holder to avoid writing to the same file twice.
+    tthread::fast_mutex &m_;
+    LockSmith(tthread::fast_mutex &m): m_(m) {
+        m_.lock();
+    }
+    ~LockSmith() {
+        m_.unlock();
+    }
+};
+
+//submit_emit_dists<FType>(pairfi, dists.data(), hlls.size(), index, std::ref(str), std::ref(output_lock), write_binary, use_scientific, buffer_flush_size);
+template<typename FType, typename=std::enable_if_t<std::is_floating_point_v<FType>>>
+size_t submit_emit_dists(const int pairfi, const FType *ptr, u64 hs, size_t index, ks::string &str, const std::vector<std::string> &inpaths, tthread::fast_mutex &output_lock, bool write_binary, bool use_scientific, const size_t buffer_flush_size=1ull<<18) {
+    LockSmith ls(output_lock);
+    if(write_binary) {
+       ::write(pairfi, ptr, sizeof(FType) * hs);
+    } else {
+        const char *const fmt(use_scientific ? "%e\t": "%f\t");
+        str += inpaths[index];
+        str.putc_('\t');
+        {
+            u64 k;
+            for(k = 0; k < index + 1;  ++k, str.putsn("-\t", 2));
+            for(k = 0; k < hs; str.sprintf(fmt, ptr[k++]));
+        }
+        str.back() = '\n';
+        if(str.size() >= 1 << 18) str.write(pairfi), str.clear();
+    }
+    return index;
+}
+
+template<typename FType1, typename FType2,
+         typename=std::enable_if_t<std::is_floating_point_v<FType1> && std::is_floating_point_v<FType2>>>
+FType2 dist_index(FType1 ji, FType2 ksinv) {
+    // Adapter from Mash https://github.com/Marbl/Mash
+    return -std::log(2. * ji / (1. + ji)) * ksinv;
+}
+
+template<typename FType, typename=std::enable_if_t<std::is_floating_point_v<FType>>>
+void dist_loop(const int pairfi, std::vector<hll::hll_t> &hlls, const std::vector<std::string> &inpaths, const bool use_scientific, const unsigned k, const bool emit_jaccard, bool write_binary, const size_t buffer_flush_size=1ull<<18) {
+    std::array<std::vector<FType>, 2> dps;
+    dps[0].resize(hlls.size() - 1);
+    dps[1].resize(hlls.size() - 2);
+    ks::string str;
+    tthread::fast_mutex output_lock;
+    const FType ksinv = 1./ k;
+    for(size_t i = 0; i < hlls.size(); ++i) {
+        hll::hll_t &h1(hlls[i]); // TODO: consider working backwards and pop_back'ing.
+        std::vector<FType> &dists = dps[i & 1];
+        if(emit_jaccard) {
+            #pragma omp parallel for schedule(dynamic)
+            for(size_t j = i + 1; j < hlls.size(); ++j) {
+                dists[j - i - 1] = jaccard_index(hlls[j], h1);
+            }
+        } else {
+            #pragma omp parallel for schedule(dynamic)
+            for(size_t j = i + 1; j < hlls.size(); ++j) {
+                dists[j - i - 1] = dist_index(jaccard_index(hlls[j], h1), ksinv);
+            }
+        }
+        h1.free();
+        LOG_DEBUG("Finished chunk %zu of %zu\n", i + 1, hlls.size());
+        // Make sure that the output lock is not taken.
+        while(!output_lock.try_lock());
+        // Unlock it.
+        output_lock.unlock();
+        std::async(std::launch::async, submit_emit_dists<FType>, pairfi, dists.data(), hlls.size(), i, std::ref(str), std::ref(inpaths), std::ref(output_lock), write_binary, use_scientific, buffer_flush_size);
+    }
+    if(!write_binary) str.write(pairfi), str.clear();
+}
+
 int dist_main(int argc, char *argv[]) {
     int wsz(-1), k(31), sketch_size(16), use_scientific(false), co, cache_sketch(false), nthreads(1), use_ertl(true);
-    bool canon(true), presketched_only(false), write_binary(false);
+    bool canon(true), presketched_only(false), write_binary(false), emit_jaccard(true), emit_float(false);
     std::string spacing, paths_file, suffix, prefix;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "P:x:F:c:p:o:s:w:O:S:k:CbMEeHh?")) >= 0) {
+    while((co = getopt(argc, argv, "P:x:F:c:p:o:s:w:O:S:k:fJCbMEeHh?")) >= 0) {
         switch(co) {
-            case 'E': use_ertl = false; break;
             case 'C': canon = false; break;
-            case 'k': k = std::atoi(optarg); break;
-            case 'x': suffix = optarg; break;
-            case 'p': nthreads = std::atoi(optarg); break;
-            case 's': spacing = optarg; break;
-            case 'S': sketch_size = std::atoi(optarg); break;
-            case 'w': wsz = std::atoi(optarg); break;
+            case 'E': use_ertl = false; break;
             case 'F': paths_file = optarg; break;
-            case 'o': ofp = fopen(optarg, "w"); if(ofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
+            case 'H': presketched_only = true; break;
+            case 'J': emit_jaccard = false; break;
             case 'O': pairofp = fopen(optarg, "wb"); if(pairofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
             case 'P': prefix = optarg; break;
-            case 'e': use_scientific = true; break;
+            case 'S': sketch_size = std::atoi(optarg); break;
             case 'W': cache_sketch = true;  break;
-            case 'H': presketched_only = true; break;
             case 'b': write_binary = true; break;
+            case 'e': use_scientific = true; break;
+            case 'f': emit_float = true; break;
+            case 'k': k = std::atoi(optarg); break;
+            case 'o': ofp = fopen(optarg, "w"); if(ofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
+            case 'p': nthreads = std::atoi(optarg); break;
+            case 's': spacing = optarg; break;
+            case 'w': wsz = std::atoi(optarg); break;
+            case 'x': suffix = optarg; break;
             case 'h': case '?': dist_usage(*argv);
         }
     }
@@ -203,7 +279,6 @@ int dist_main(int argc, char *argv[]) {
                 hlls[i].read(path);
             } else {
                 const std::string fpath(hll_fname(path.data(), sketch_size, wsz, k, sp.c_, spacing, suffix, prefix));
-                //const char *path, size_t sketch_p, int wsz, int k, const std::string &spacing, const std::string &suffix=" 
                 if(cache_sketch && isfile(fpath)) {
                     LOG_DEBUG("Sketch found at %s with size %zu, %u\n", fpath.data(), size_t(1ull << sketch_size), sketch_size);
                     hlls[i].read(fpath);
@@ -230,7 +305,6 @@ int dist_main(int argc, char *argv[]) {
     }
     // TODO: Emit overlaps and symmetric differences.
     if(ofp != stdout) std::fclose(ofp);
-    std::vector<double> dists(hlls.size() - 1);
     str.clear();
     if(write_binary) {
         const size_t hs(hlls.size());
@@ -241,29 +315,11 @@ int dist_main(int argc, char *argv[]) {
         str.back() = '\n';
         str.write(fileno(pairofp)); str.free();
     }
-    const int pairfi = fileno(pairofp);
-    for(auto &el: hlls) el.sum();
-    const char *fmt(use_scientific ? "\t%e": "\t%f");
-    for(size_t i = 0; i < hlls.size(); ++i) {
-        hll::hll_t &h1(hlls[i]);
-        #pragma omp parallel for schedule(dynamic)
-        for(size_t j = i + 1; j < hlls.size(); ++j) {
-            dists[j - i - 1] = jaccard_index(hlls[j], h1);
-        }
-        //LOG_INFO("Finished chunk %zu of %zu\n", i, hlls.size());
-        h1.free();
-        if(write_binary) {
-            write(pairfi, dists.data(), sizeof(double) * (hlls.size() - i - i));
-        } else {
-            str += inpaths[i];
-            for(size_t k(0); k < i + 1; ++k) str.putc_('\t'), str.putc_('-');
-            for(size_t k(0); k < hlls.size() - i - 1; ++k) str.sprintf(fmt, dists[k]);
-            str.putc_('\n');
-            if(str.size() >= 1 << 18) str.write(fileno(pairofp)), str.clear();
-        }
-    }
-    if(!write_binary) str.write(fileno(pairofp)), str.clear();
-    if(pairofp != stdout) fclose(pairofp);
+    if(emit_float)
+        dist_loop<float>(fileno(pairofp), hlls, inpaths, k, use_scientific, emit_jaccard, write_binary);
+    else
+        dist_loop<double>(fileno(pairofp), hlls, inpaths, k, use_scientific, emit_jaccard, write_binary);
+    if(pairofp != stdout) std::fclose(pairofp);
     return EXIT_SUCCESS;
 }
 

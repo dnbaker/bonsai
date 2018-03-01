@@ -18,6 +18,8 @@ def submit_mdist(tup):
 
 def submit_mash_sketch(tup):
     fa, fn, ss, ks = tup
+    assert ss < 32
+    ss = 1 << ss
     if not is_nonempty_file(fn + ".msh"):
         assert not os.path.isfile(fn + ".msh")
         print("%s does not exist" % fn, file=sys.stderr)
@@ -149,7 +151,7 @@ def exact_main(args):
         kdict = {}
         for i in range(len(genome_sets)):
             for j in range(i+1, len(genome_sets)):
-                kdict[pair2tup(paths[i], paths[j], ks=ks)] = \
+                kdict[tuple(sorted((paths[i], paths[j])) + [ks])] = \
                     jaccard_index(genome_sets[i], genome_sets[j])
         assert len(kdict) == (len(genome_sets) * (len(genome_sets) - 1)) >> 1
         set(not ofw("%s\t%s\t%i\t%f\n" % (*k, v)) for k, v in kdict.items())

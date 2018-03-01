@@ -1,7 +1,7 @@
 #ifndef _EMP_RAND_H__
 #define _EMP_RAND_H__
 #include <random>
-#include "fast_mutex.h"
+#include "tinythreadpp/source/fast_mutex.h"
 
 namespace rng {
 
