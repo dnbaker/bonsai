@@ -75,16 +75,12 @@ def canonkey(k1, k2=None, n=0, k=0):
 
 
 def mash2dict(path):
-    basename = os.path.basename
     with open(path) as ifp:
-        try:
-            k1 = basename(next(ifp).strip().split()[1])
-        except StopIteration:
-            print("StopIteration from file with path %s" % path)
-            raise
         n, k = get_nk(path)
-        ret = {canonkey(k1, i.split()[0], nk2sketchbytes("mash", n, k), k):
-               float(i.strip().split()[1]) for i in ifp}
+        ret = {}
+        for line  in ifp:
+            toks = line.split()
+            ret[canonkey(toks[0], toks[1], nk2sketchbytes("mash", n, k), k)] = float(toks[2])
     return ret
 
 
@@ -127,8 +123,14 @@ def mashdict2tsv(md, path):
             ks    = k[3]
             nb    = nelem * (8 if ks > 16 else 4)
             fw("%s\t%s\t%i\t%i\t%i\t%f\n" % (k[0], k[1], nelem, ks, nb, v))
-            
 
+
+def hlashdict2tsv(hd, path):
+    with open(path, "w") as fp:
+        fw = fp.write
+        fw("#Path1\tPath2\tSketch p\tKmer size"
+           "\tNumber of bytes in sketch\tEstimated Jaccard Index\tExact Jaccard Index\n")
+        set(map(lambda v: not fw(str(v)), hd.values()))
 
 
 class HlashData:
@@ -140,6 +142,9 @@ class HlashData:
         self.nbytes = 1 << self.n
         self.key = canonkey(self.paths[0], self.paths[1],
                             n=self.nbytes, k=self.k)
+
+    def __str__(self):
+        return "%s\t%s\t%i\t%i\t%i\t%f\t%f\n" % (*self.paths, self.n, self.k, self.nbytes, self.est, self.exact)
 
 
 def folder2hlashdict(paths):
@@ -157,7 +162,12 @@ if __name__ == "__main__":
         outpath = sys.argv[3]
         mashdict2tsv(folder2mashdict(path), outpath)
         sys.exit(0)
-    raise NotImplementedError("Only mash executable created.")
+    elif sys.argv[1] == "hlash":
+        path = sys.argv[2]
+        outpath = sys.argv[3]
+        hlashdict2tsv(folder2hlashdict(path), outpath)
+        sys.exit(0)
+    raise NotImplementedError("Only mash/hlash supported.")
     
 
 

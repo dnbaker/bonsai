@@ -38,7 +38,7 @@ void update_minimized_map(const khash_t(all) *set, const khash_t(64) *full_map, 
 template<typename ScoreType>
 size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon) {
     LOG_ASSERT(ret);
-    LOG_INFO("Filling from genome at path %s\n", path);
+    LOG_DEBUG("Filling from genome at path %s\n", path);
 
     unsigned k(sp.k_);
     if constexpr(std::is_same_v<ScoreType, score::Entropy>)
@@ -46,7 +46,7 @@ size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, si
 
     Encoder<ScoreType> enc(0, 0, sp, data);
     enc.add(ret, path);
-    LOG_INFO("Set of size %lu filled from genome at path %s\n", kh_size(ret), path);
+    LOG_DEBUG("Set of size %lu filled from genome at path %s\n", kh_size(ret), path);
     return index;
 }
 
