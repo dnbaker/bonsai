@@ -160,12 +160,8 @@ int sketch_main(int argc, char *argv[]) {
 struct LockSmith {
     // Simple lock-holder to avoid writing to the same file twice.
     tthread::fast_mutex &m_;
-    LockSmith(tthread::fast_mutex &m): m_(m) {
-        m_.lock();
-    }
-    ~LockSmith() {
-        m_.unlock();
-    }
+    LockSmith(tthread::fast_mutex &m): m_(m) {m_.lock();}
+    ~LockSmith() {m_.unlock();}
 };
 
 //submit_emit_dists<FType>(pairfi, dists.data(), hlls.size(), index, std::ref(str), std::ref(output_lock), write_binary, use_scientific, buffer_flush_size);
@@ -180,7 +176,7 @@ size_t submit_emit_dists(const int pairfi, const FType *ptr, u64 hs, size_t inde
         str.putc_('\t');
         {
             u64 k;
-            for(k = 0; k < index + 1;  ++k, str.putsn("-\t", 2));
+            for(k = 0; k < index + 1;  ++k, str.putsn_("-\t", 2));
             for(k = 0; k < hs; str.sprintf(fmt, ptr[k++]));
         }
         str.back() = '\n';
@@ -204,6 +200,7 @@ void dist_loop(const int pairfi, std::vector<hll::hll_t> &hlls, const std::vecto
     ks::string str;
     tthread::fast_mutex output_lock;
     const FType ksinv = 1./ k;
+    std::future<size_t> submitter;
     for(size_t i = 0; i < hlls.size(); ++i) {
         hll::hll_t &h1(hlls[i]); // TODO: consider working backwards and pop_back'ing.
         std::vector<FType> &dists = dps[i & 1];
@@ -224,7 +221,7 @@ void dist_loop(const int pairfi, std::vector<hll::hll_t> &hlls, const std::vecto
         while(!output_lock.try_lock());
         // Unlock it.
         output_lock.unlock();
-        std::async(std::launch::async, submit_emit_dists<FType>, pairfi, dists.data(), hlls.size(), i, std::ref(str), std::ref(inpaths), std::ref(output_lock), write_binary, use_scientific, buffer_flush_size);
+        submitter = std::async(std::launch::async, submit_emit_dists<FType>, pairfi, dists.data(), hlls.size(), i, std::ref(str), std::ref(inpaths), std::ref(output_lock), write_binary, use_scientific, buffer_flush_size);
     }
     if(!write_binary) str.write(pairfi), str.clear();
 }
