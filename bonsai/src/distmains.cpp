@@ -164,10 +164,8 @@ struct LockSmith {
     ~LockSmith() {m_.unlock();}
 };
 
-//submit_emit_dists<FType>(pairfi, dists.data(), hlls.size(), index, std::ref(str), std::ref(output_lock), write_binary, use_scientific, buffer_flush_size);
 template<typename FType, typename=std::enable_if_t<std::is_floating_point_v<FType>>>
-size_t submit_emit_dists(const int pairfi, const FType *ptr, u64 hs, size_t index, ks::string &str, const std::vector<std::string> &inpaths, tthread::fast_mutex &output_lock, bool write_binary, bool use_scientific, const size_t buffer_flush_size=1ull<<18) {
-    LockSmith ls(output_lock);
+size_t submit_emit_dists(const int pairfi, const FType *ptr, u64 hs, size_t index, ks::string &str, const std::vector<std::string> &inpaths, bool write_binary, bool use_scientific, const size_t buffer_flush_size=1ull<<18) {
     if(write_binary) {
        ::write(pairfi, ptr, sizeof(FType) * hs);
     } else {
@@ -177,7 +175,7 @@ size_t submit_emit_dists(const int pairfi, const FType *ptr, u64 hs, size_t inde
         {
             u64 k;
             for(k = 0; k < index + 1;  ++k, str.putsn_("-\t", 2));
-            for(k = 0; k < hs; str.sprintf(fmt, ptr[k++]));
+            for(k = 0; k < hs - index - 1; str.sprintf(fmt, ptr[k++]));
         }
         str.back() = '\n';
         if(str.size() >= 1 << 18) str.write(pairfi), str.clear();
@@ -198,7 +196,6 @@ void dist_loop(const int pairfi, std::vector<hll::hll_t> &hlls, const std::vecto
     dps[0].resize(hlls.size() - 1);
     dps[1].resize(hlls.size() - 2);
     ks::string str;
-    tthread::fast_mutex output_lock;
     const FType ksinv = 1./ k;
     std::future<size_t> submitter;
     for(size_t i = 0; i < hlls.size(); ++i) {
@@ -217,12 +214,14 @@ void dist_loop(const int pairfi, std::vector<hll::hll_t> &hlls, const std::vecto
         }
         h1.free();
         LOG_DEBUG("Finished chunk %zu of %zu\n", i + 1, hlls.size());
-        // Make sure that the output lock is not taken.
-        while(!output_lock.try_lock());
-        // Unlock it.
-        output_lock.unlock();
-        submitter = std::async(std::launch::async, submit_emit_dists<FType>, pairfi, dists.data(), hlls.size(), i, std::ref(str), std::ref(inpaths), std::ref(output_lock), write_binary, use_scientific, buffer_flush_size);
+#if !NDEBUG
+        if(i) LOG_DEBUG("Finished writing row %zu\n", submitter.get());
+#else
+        if(i) submitter.get();
+#endif
+        submitter = std::async(std::launch::async, submit_emit_dists<FType>, pairfi, dists.data(), hlls.size(), i, std::ref(str), std::ref(inpaths), write_binary, use_scientific, buffer_flush_size);
     }
+    submitter.get();
     if(!write_binary) str.write(pairfi), str.clear();
 }
 
