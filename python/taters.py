@@ -7,6 +7,7 @@ if sys.version_info[0] < 3:
                       "[Make your life easier, take the plunge!]" %
                       os.path.basename(__file__))
 
+
 def nk2sketchbytes(sketchtype, n=0, k=0):
     if not (k and n):
         raise Exception("Set n, k kwargs for nk2sketchbytes pls")
@@ -68,23 +69,18 @@ def canonkey(k1, k2=None, n=0, k=0):
     return tuple((*canonname(k1, k2), n, k))
 
 
-'''
-#Path1  Path2   Approximate jaccard index   Exact jaccard index Absolute difference %difference from exact value    Sketch size Kmer size
-
-'''
-
-
 def mash2dict(path):
     with open(path) as ifp:
         n, k = get_nk(path)
         ret = {}
-        for line  in ifp:
+        for line in ifp:
             toks = line.split()
-            ret[canonkey(toks[0], toks[1], nk2sketchbytes("mash", n, k), k)] = float(toks[2])
+            ret[canonkey(toks[0], toks[1], nk2sketchbytes("mash", n, k), k)] \
+                = float(toks[2])
     return ret
 
 
-def folder2paths(paths, reqstr = ""):
+def folder2paths(paths, reqstr=""):
     # This is a misnomer. It holds either a list of paths or a string
     # representing a folder from which we glob everything
     if isinstance(paths, str):
@@ -112,25 +108,28 @@ def folder2mashdict(paths):
                   folder2paths(paths, "experim"), {})
 
 
-
 def mashdict2tsv(md, path):
-    with open(path, "w") as fp:
-        fw = fp.write
-        fw("#Path1\tPath2\tNumber of elements\tKmer size"
-           "\tNumber of bytes in sketch\tEstimated Jaccard Index\n")
-        for k, v in md.items():
-            nelem = k[2]
-            ks    = k[3]
-            nb    = nelem * (8 if ks > 16 else 4)
-            fw("%s\t%s\t%i\t%i\t%i\t%f\n" % (k[0], k[1], nelem, ks, nb, v))
+    fp = path if hasattr(path, 'write') else open(path, "w")
+    fw = fp.write
+    fw("#Path1\tPath2\tNumber of elements\tKmer size"
+       "\tNumber of bytes in sketch\tEstimated Jaccard Index\n")
+    set(map(lambda k, v: not fw("%s\t%s\t%i\t%i\t%i\t%f\n" %
+                                (k[0], k[1], k[2], k[3],
+                                 k[2] * (8 if k[3] > 16 else 4), v)),
+            md.items()))
+    if fp != sys.stdout:
+        fp.close()
 
 
 def hlashdict2tsv(hd, path):
-    with open(path, "w") as fp:
-        fw = fp.write
-        fw("#Path1\tPath2\tSketch p\tKmer size"
-           "\tNumber of bytes in sketch\tEstimated Jaccard Index\tExact Jaccard Index\n")
-        set(map(lambda v: not fw(str(v)), hd.values()))
+    fp = path if hasattr(path, 'write') else open(path, "w")
+    fw = fp.write
+    fw("#Path1\tPath2\tSketch p\tKmer size"
+       "\tNumber of bytes in sketch\tEstimated Jaccard Index"
+       "\tExact Jaccard Index\n")
+    set(map(lambda v: not fw(str(v)), hd.values()))
+    if fp != sys.stdout:
+        fp.close()
 
 
 class HlashData:
@@ -144,7 +143,9 @@ class HlashData:
                             n=self.nbytes, k=self.k)
 
     def __str__(self):
-        return "%s\t%s\t%i\t%i\t%i\t%f\t%f\n" % (*self.paths, self.n, self.k, self.nbytes, self.est, self.exact)
+        return "%s\t%s\t%i\t%i\t%i\t%f\t%f\n" % (*self.paths, self.n, self.k,
+                                                 self.nbytes, self.est,
+                                                 self.exact)
 
 
 def folder2hlashdict(paths):
@@ -156,19 +157,24 @@ def folder2hlashdict(paths):
 
 
 if __name__ == "__main__":
+    import argparse
     import sys
-    if sys.argv[1] == "mash":
-        path = sys.argv[2]
-        outpath = sys.argv[3]
+    p = argparse.ArgumentParser()
+    p.add_argument('subcommand', choices=('mash', 'hlash'),
+                   help="Whether the parsed experiment is mash or hlash.")
+    p.add_argument("path", help="Path to folder to parse files from.")
+    p.add_argument("outpath", help="Path to folder to write.",
+                   type=argparse.FileType('w'), default=sys.stdout)
+    args = p.parse_args()
+    path, outpath = args.path, args.outpath
+    if args.subcommand == "mash":
         mashdict2tsv(folder2mashdict(path), outpath)
-        sys.exit(0)
-    elif sys.argv[1] == "hlash":
-        path = sys.argv[2]
-        outpath = sys.argv[3]
+    elif args.subcommand == "hlash":
         hlashdict2tsv(folder2hlashdict(path), outpath)
-        sys.exit(0)
-    raise NotImplementedError("Only mash/hlash supported.")
-    
+    else:
+        raise NotImplementedError("This never happens because choice "
+                                  "is an illusion.")
+    sys.exit(0)
 
 
 __all__ = ["mash2dict", "folder2mashdict", "get_flag",
