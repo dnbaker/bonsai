@@ -23,7 +23,7 @@ DBG:=
 OS:=$(shell uname)
 FLAGS=
 
-OPT_MINUS_OPENMP= -O3 -funroll-loops -flto\
+OPT_MINUS_OPENMP= -O3 -funroll-loops\
 	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) $(EXTRA) -DHLL_HEADER_ONLY
 OPT=$(OPT_MINUS_OPENMP) -fopenmp
 XXFLAGS=-fno-rtti
@@ -90,10 +90,10 @@ clhash.o: ../clhash/src/clhash.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB) $(ZCOMPILE_FLAGS)
 
 test/%.o: test/%.cpp
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG=0 -c $< -o $@ $(LIB)
 
 test/%.zo: test/%.cpp
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(ZCOMPILE_FLAGS)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG=0 -c $< -o $@ $(ZCOMPILE_FLAGS)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
@@ -131,11 +131,11 @@ lib/libbonsai.a: $(OBJS)
 tests: clean unit
 
 unit: $(OBJS) $(TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -DNDEBUG=0 -o $@ $(LIB)
 	# $(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) test/hll.o test/main.o $(LD) $(OBJS) -o $@ $(LIB)
 
 zunit: $(ZOBJS) $(ZTEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(INCLUDE) $(ZTEST_OBJS) $(LD) $(ALL_ZOBJS) -o $@ $(LIB) $(ZCOMPILE_FLAGS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE) $(ZTEST_OBJS) $(LD) $(ALL_ZOBJS) -DNDEBUG=0 -o $@ $(LIB) $(ZCOMPILE_FLAGS)
 
 
 clean:

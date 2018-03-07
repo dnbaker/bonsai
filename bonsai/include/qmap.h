@@ -44,7 +44,7 @@ class QueueMap {
     std::map<ElScore<T, ScoreType>, u32> map_;
     const size_t                         wsz_;  // window size to keep
     public:
-    QueueMap(size_t wsz): list_(wsz + 1), wsz_(wsz) {}
+    QueueMap(size_t wsz): list_(wsz), wsz_(wsz) {}
     INLINE void add(const PairType &el) {
         if(auto it(map_.lower_bound(el)); it != map_.end()) {
             if(it->first == el) ++it->second;
