@@ -120,18 +120,18 @@ public:
 #pragma message("Don't forget to add a specialized Entropy calculation scheme for the unspaced, unwindowed case.")
 #endif
     template<typename Functor>
-    INLINE void for_each_canon_windowed(const Functor &func, const char *str, u64 l) {
+    INLINE void for_each_canon_windowed(const Functor &func) {
         u64 min(BF);
         while(likely(has_next_kmer()))
             if((min = next_canonicalized_minimizer()) != BF)
                 func(min);
     }
     template<typename Functor>
-    INLINE void for_each_canon_unwindowed(const Functor &func, const char *str, u64 l) {
+    INLINE void for_each_canon_unwindowed(const Functor &func) {
         if(sp_.unspaced()) {
             for_each_uncanon_unspaced_unwindowed([&](u64 min) {
                 return func(canonical_representation(min, sp_.k_));
-            }, str, l);
+            });
         } else {
             u64 min;
             while(likely(has_next_kmer()))
@@ -140,14 +140,14 @@ public:
         }
     }
     template<typename Functor>
-    INLINE void for_each_uncanon_spaced(const Functor &func, const char *str, u64 l) {
+    INLINE void for_each_uncanon_spaced(const Functor &func) {
         u64 min;
         while(likely(has_next_kmer()))
             if((min = next_minimizer()) != BF)
                 func(min);
     }
     template<typename Functor>
-    INLINE void for_each_uncanon_unspaced_unwindowed(const Functor &func, const char *str, u64 l) {
+    INLINE void for_each_uncanon_unspaced_unwindowed(const Functor &func) {
         const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
         u64 min = 0;
         unsigned filled = 0;
@@ -170,7 +170,7 @@ public:
         }
     }
     template<typename Functor>
-    INLINE void for_each_uncanon_unspaced_windowed(const Functor &func, const char *str, u64 l) {
+    INLINE void for_each_uncanon_unspaced_windowed(const Functor &func) {
         const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
         u64 min = 0;
         unsigned filled = 0;
@@ -201,16 +201,16 @@ public:
         if(!has_next_kmer()) return;
         if(canonicalize_) {
             if(sp_.unwindowed())
-                for_each_canon_unwindowed(func, str, l);
+                for_each_canon_unwindowed(func);
             else 
-                for_each_canon_windowed(func, str, l);
+                for_each_canon_windowed(func);
         } else {
             // Note that an entropy-based score calculation can be sped up for this case.
             // This will benefit from either a special function or an if constexpr
             if(sp_.unspaced()) {
-                if(sp_.unwindowed()) for_each_uncanon_unspaced_unwindowed(func, str, l);
-                else                 for_each_uncanon_unspaced_windowed(func, str, l);
-            } else for_each_uncanon_spaced(func, str, l);
+                if(sp_.unwindowed()) for_each_uncanon_unspaced_unwindowed(func);
+                else                 for_each_uncanon_unspaced_windowed(func);
+            } else for_each_uncanon_spaced(func);
         }
     }
     template<typename Functor>
@@ -220,16 +220,16 @@ public:
     template<typename Functor>
     INLINE void for_each_canon(const Functor &func, kseq_t *ks) {
         if(sp_.unwindowed())
-            while(kseq_read(ks) >= 0) assign(ks), for_each_canon_unwindowed<Functor>(func, ks->seq.s, ks->seq.l);
+            while(kseq_read(ks) >= 0) assign(ks), for_each_canon_unwindowed<Functor>(func);
         else
-            while(kseq_read(ks) >= 0) assign(ks), for_each_canon_windowed<Functor>(func, ks->seq.s, ks->seq.l);
+            while(kseq_read(ks) >= 0) assign(ks), for_each_canon_windowed<Functor>(func);
     }
     template<typename Functor>
     INLINE void for_each_uncanon(const Functor &func, kseq_t *ks) {
         if(sp_.unspaced()) {
-            if(sp_.unwindowed()) while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_unspaced_unwindowed(func, ks->seq.s, ks->seq.l);
-            else                 while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_unspaced_windowed(func, ks->seq.s, ks->seq.l);
-        } else while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_spaced(func, ks->seq.s, ks->seq.l);
+            if(sp_.unwindowed()) while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_unspaced_unwindowed(func);
+            else                 while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_unspaced_windowed(func);
+        } else while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_spaced(func);
     }
     template<typename Functor>
     void for_each_canon(const Functor &func, gzFile fp) {

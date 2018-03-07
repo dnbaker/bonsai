@@ -91,6 +91,7 @@ struct kt_sketch_helper {
     const bool skip_cached_;
     const bool canon_;
     const bool use_ertl_;
+    const bool write_to_dev_null_;
 };
 
 void kt_for_helper(void  *data_, long index, int tid) {
@@ -103,7 +104,7 @@ void kt_for_helper(void  *data_, long index, int tid) {
         if(helper.skip_cached_ && isfile(fname)) continue;
         fill_hll(hll, scratch_stringvec, helper.kmer_size_, helper.window_size_, helper.sv_, helper.canon_, nullptr, 1, helper.sketch_size_); // Avoid allocation fights.
         hll.set_use_ertl(helper.use_ertl_);
-        hll.write(fname.data());
+        hll.write(helper.write_to_dev_null_ ? "/dev/null": fname.data());
         hll.clear();
     }
 }
@@ -113,9 +114,9 @@ void kt_for_helper(void  *data_, long index, int tid) {
 // Main functions
 int sketch_main(int argc, char *argv[]) {
     int wsz(-1), k(31), sketch_size(16), skip_cached(false), co, nthreads(1), bs(16);
-    bool canon(true), use_ertl(true);
+    bool canon(true), use_ertl(true), write_to_dev_null(false);
     std::string spacing, paths_file, suffix, prefix;
-    while((co = getopt(argc, argv, "P:F:c:p:x:s:S:k:w:cCeh?")) >= 0) {
+    while((co = getopt(argc, argv, "P:F:c:p:x:s:S:k:w:EDcCeh?")) >= 0) {
         switch(co) {
             case 'b': bs = std::atoi(optarg); break;
             case 'k': k = std::atoi(optarg); break;
@@ -129,10 +130,12 @@ int sketch_main(int argc, char *argv[]) {
             case 'c': skip_cached = true; break;
             case 'F': paths_file = optarg; break;
             case 'C': canon = false; break;
+            case 'D': write_to_dev_null = true; break;
             case 'h': case '?': sketch_usage(*argv);
         }
     }
     LOG_DEBUG("Sketch size: %i\n", sketch_size);
+    LOG_DEBUG("Using %zu threads\n", nthreads);
     omp_set_num_threads(nthreads);
     spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
     Spacer sp(k, wsz, sv);
@@ -151,7 +154,7 @@ int sketch_main(int argc, char *argv[]) {
         sketch_usage(*argv);
     }
     if(ivecs.size() / (unsigned)(nthreads) > (unsigned)bs) bs = (ivecs.size() / (nthreads) / 2);
-    detail::kt_sketch_helper helper {hlls, bs, sketch_size, k, wsz, (int)sp.c_, sv, ivecs, suffix, prefix, spacing, skip_cached, canon, use_ertl};
+    detail::kt_sketch_helper helper {hlls, bs, sketch_size, k, wsz, (int)sp.c_, sv, ivecs, suffix, prefix, spacing, skip_cached, canon, use_ertl, write_to_dev_null};
     kt_for(nthreads, detail::kt_for_helper, &helper, ivecs.size() / bs + (ivecs.size() % bs != 0));
     LOG_DEBUG("Finished sketching\n");
     return EXIT_SUCCESS;

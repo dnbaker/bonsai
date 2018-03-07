@@ -23,7 +23,7 @@ DBG:=
 OS:=$(shell uname)
 FLAGS=
 
-OPT_MINUS_OPENMP= -O3 -funroll-loops \
+OPT_MINUS_OPENMP= -O3 -funroll-loops -flto\
 	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) $(EXTRA) -DHLL_HEADER_ONLY
 OPT=$(OPT_MINUS_OPENMP) -fopenmp
 XXFLAGS=-fno-rtti
