@@ -6,6 +6,7 @@
 #include <stdexcept>   // For std::bad_alloc
 #include <string>      // for std::string [for exception handling]
 #include <type_traits> // For std::enable_if_t/std::is_unsigned_v
+#include <cstring>     // For std::memcpy
 
 namespace circ {
 using std::size_t;
@@ -31,16 +32,17 @@ static inline uint8_t roundup(uint8_t x) {
     return ++x;
 }
 
-template<typename T, typename SizeType=uint32_t, typename=std::enable_if_t<std::is_unsigned_v<T>>>
+template<typename T, typename SizeType=uint32_t>
 class FastCircularQueue {
     // A circular queue in which extra memory has been allocated up to a power of two.
     // This allows us to use bitmasks instead of modulus operations.
     // This circular queue is NOT threadsafe. Its purpose is creating a double-ended queue without
     // the overhead of a doubly-linked list.
-    const SizeType mask_;
-    SizeType      start_;
-    SizeType       stop_;
-    T             *data_;
+    SizeType  mask_;
+    SizeType start_;
+    SizeType  stop_;
+    T        *data_;
+    static_assert(std::is_unsigned_v<SizeType>, "Must be unsigned");
 
 public:
     using size_type = SizeType;
@@ -79,8 +81,8 @@ public:
         bool operator<=(const iterator &other) const noexcept {
             return pos_ <= other.pos_;
         }
-        bool operator<(const iterator &other) const noexcept {
-            return pos_ < other.pos_;
+        bool operator>(const iterator &other) const noexcept {
+            return pos_ > other.pos_;
         }
         bool operator>=(const iterator &other) const noexcept {
             return pos_ >= other.pos_;
@@ -137,19 +139,62 @@ public:
         return const_iterator(*this, stop_);
     }
     FastCircularQueue(SizeType size):
-            mask_(roundup(size) - 1),
+            mask_(roundup(size + 1) - 1),
             start_(0), stop_(0),
-            data_(static_cast<T *>(std::malloc(sizeof(T) * capacity())))
+            data_(static_cast<T *>(std::malloc((mask_ + 1) * sizeof(T))))
     {
-        assert((mask_ & (mask_ - 1)) == 0);
-        if(data_ == nullptr) throw std::bad_alloc();
+        assert((mask_ & (mask_ + 1)) == 0);
+        if(data_ == nullptr) {
+            //LOG_EXIT("pointer is null after calling malloc with %zu bytes\n", size_t((mask_ + 1) * sizeof(T)));
+            throw std::bad_alloc();
+        }
     }
+    void resize(size_type new_size) {
+        LOG_DEBUG("resizing from %zu to new_size %zu\n", size_t(mask_ + 1), size_t(new_size));
+        if(__builtin_expect(new_size < mask_, 0)) throw std::runtime_error("Attempting to resize to value smaller than queue's size, either from user error or overflowing the size_type. Abort!");
+        new_size = roundup(new_size);
+        auto tmp = std::realloc(data_, new_size * sizeof(T));
+        if(tmp == nullptr) throw std::bad_alloc();
+        data_ = static_cast<T *>(tmp);
+        if(start_ == stop_) {
+            if(start_) {
+                stop_ = mask_ + 1;
+                LOG_DEBUG("Reallocating with %zu bytes of scratch\n",  stop_ * sizeof(T));
+                auto tmp = static_cast<T *>(std::malloc((stop_) * sizeof(T)));
+                if(tmp == nullptr) throw std::bad_alloc();
+                std::memcpy(tmp, data_ + start_, (stop_ - start_) * sizeof(T));
+                std::memcpy(tmp + (stop_ - start_), data_, stop_ * sizeof(T));
+                std::memcpy(data_, tmp, (stop_) * sizeof(T));
+                std::free(tmp);
+                start_ = 0;
+            }
+        } else if(stop_ < start_) {
+            LOG_DEBUG("Reallocating with %zu bytes of scratch bc stop < start\n", (mask_ + 1) * sizeof(T));
+            auto tmp = static_cast<T *>(std::malloc((mask_ + 1) * sizeof(T)));
+            if(tmp == nullptr) throw std::bad_alloc();
+            std::memcpy(tmp, data_ + start_, ((mask_ + 1) - start_) * sizeof(T));
+            std::memcpy(tmp + ((mask_ + 1) - start_), data_, stop_ * sizeof(T));
+            auto sz = (stop_ - start_) & mask_;
+            std::memcpy(data_, tmp, sz);
+            std::free(tmp);
+            start_ = 0;
+            stop_ = sz;
+        }
+        mask_ = ((mask_ + 1) << 1) - 1;
+    }
+    // Does not yet implement push_front.
     template<typename... Args>
-    T &push(Args &&... args) {
+    T &push_back(Args &&... args) {
         size_type ind = stop_;
         ++stop_; stop_ &= mask_;
-        if(__builtin_expect(stop_ == start_, 0)) throw std::runtime_error(std::string("Overfull buffer of size ") + std::to_string(capacity()) + ". Abort!");
+        if(__builtin_expect(stop_ == start_, 0)) {
+            resize((mask_ + 1) << 1);
+        }
         return *(new(data_ + ind) T(std::forward<Args>(args)...));
+    }
+    template<typename... Args>
+    T &emplace_back(Args &&... args) {
+        return push_back(std::forward<Args>(args)...); // Interface compatibility.
     }
     T pop() {
         if(__builtin_expect(stop_ == start_, 0)) throw std::runtime_error("Popping item from empty buffer. Abort!");
@@ -157,19 +202,50 @@ public:
         start_ &= mask_;
         return ret; // If unused, the std::move causes it to leave scope and therefore be destroyed.
     }
+    T pop_back() {
+        if(__builtin_expect(stop_ == start_, 0)) throw std::runtime_error("Popping item from empty buffer. Abort!");
+        T ret(std::move(data_[--stop_]));
+        start_ &= mask_;
+        return ret; // If unused, the std::move causes it to leave scope and therefore be destroyed.
+    }
+    T pop_front() {
+        return pop(); // Interface compatibility with std::list.
+    }
     template<typename... Args>
     T push_pop(Args &&... args) {
         T ret(pop());
         push(std::forward<Args>(args)...);
         return ret;
     }
-    ~FastCircularQueue() noexcept {
-        for(size_type i(start_); i != stop_; data_[i++].~T(), i &= mask_);
+    T &back() {
+        return data_[stop_ - 1];
+    }
+    const T &back() const {
+        return data_[stop_ - 1];
+    }
+    T &front() {
+        return data_[start_];
+    }
+    const T &front() const {
+        return data_[start_];
+    }
+    ~FastCircularQueue() {
+        if constexpr(std::is_destructible_v<T>) {
+            for(size_type i(start_); i != stop_; data_[i++].~T(), i &= mask_);
+        }
         std::free(data_);
     }
-    size_type capacity() const noexcept {return mask_ + 1;}
+    size_type capacity() const noexcept {return mask_;}
     size_type size()     const noexcept {return (stop_ - start_) & mask_;}
-    
-} // FastCircularQueue
+    void clear() {
+        if constexpr(std::is_destructible_v<T>) {
+            for(size_type i(start_); i != stop_; data_[i++].~T(), i &= mask_);
+        }
+        start_ = stop_ = 0;
+    }
+
+}; // FastCircularQueue
+template<typename T, typename SizeType>
+using deque = FastCircularQueue<T, SizeType>;
 
 } // namespace circ
