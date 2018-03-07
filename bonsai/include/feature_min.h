@@ -225,6 +225,8 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
 
     // Daemon -- check the status of currently running jobs, submit new ones when available.
     while(submitted < todo) {
+        // Consider saving these temporary hashmaps to reduce allocations.
+        // Also use templates to store the three methods in one generic application.
         LOG_DEBUG("Submitted %zu, todo %zu\n", submitted, todo);
         tax_t taxid;
         for(auto &f: futures) {
@@ -243,7 +245,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
                 LOG_INFO("Submitted for %zu. Updating map for %zu. Total completed/all: %zu/%zu. Total size: %zu\n",
                          submitted, index, completed, todo, kh_size(ret));
                 ++submitted, ++completed;
-                if((taxid = get_taxid(fns[index].data(), name_hash)) == UINT32_C(-1)) {
+                if(unlikely((taxid = get_taxid(fns[index].data(), name_hash)) == UINT32_C(-1))) {
                     LOG_WARNING("Taxid for %s not listed in summary.txt. Not including.\n", fns[index].data());
                 } else update_lca_map(ret, counters[index], tax_map, taxid, m);
                 kh_destroy(all, counters[index]); // Destroy set once we're done with it.
@@ -283,6 +285,7 @@ khash_t(64) *feature_count_map(const std::vector<std::string> fns, khash_t(p) *t
     for(size_t i(0), end(fns.size()); i != end; ++i) counters[i] = kh_init(all);
     std::vector<std::future<size_t>> futures;
     // Mkae the future return the kseq pointer and then use it for resubmission.
+    // TODO: Also use a fixed st of kh_all sets to reduce memory allocations.
     std::vector<kseq_t> kseqs;
     std::vector<kseq_t *> ksmap;
     while(kseqs.size() < (unsigned)num_threads) kseqs.emplace_back(kseq_init_stack());
