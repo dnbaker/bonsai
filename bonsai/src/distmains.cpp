@@ -81,7 +81,8 @@ std::string hll_fname(const char *path, size_t sketch_p, int wsz, int k, int csz
 namespace detail {
 
 struct kt_sketch_helper {
-    std::vector<hll::hll_t> &hlls_; // HyperLogLog scratch space
+    std::vector<hll::hll_t>  &hlls_; // HyperLogLog scratch space
+    std::vector<kseq_t>     &kseqs_;
     const int bs_, sketch_size_, kmer_size_, window_size_, csz_;
     const spvec_t sv_;
     std::vector<std::vector<std::string>> &ssvec_; // scratch string vector
@@ -102,7 +103,7 @@ void kt_for_helper(void  *data_, long index, int tid) {
         std::vector<std::string> &scratch_stringvec(helper.ssvec_[i]);
         fname = hll_fname(scratch_stringvec[0].data(), helper.sketch_size_, helper.window_size_, helper.kmer_size_, helper.csz_, helper.spacing_, helper.suffix_, helper.prefix_);
         if(helper.skip_cached_ && isfile(fname)) continue;
-        fill_hll(hll, scratch_stringvec, helper.kmer_size_, helper.window_size_, helper.sv_, helper.canon_, nullptr, 1, helper.sketch_size_); // Avoid allocation fights.
+        fill_hll(hll, scratch_stringvec, helper.kmer_size_, helper.window_size_, helper.sv_, helper.canon_, nullptr, 1, helper.sketch_size_, &helper.kseqs_[tid]); // Avoid allocation fights.
         hll.set_use_ertl(helper.use_ertl_);
         hll.write(helper.write_to_dev_null_ ? "/dev/null": fname.data());
         hll.clear();
@@ -146,7 +147,8 @@ int sketch_main(int argc, char *argv[]) {
         for(const auto &el: inpaths) ivecs.emplace_back(std::vector<std::string>{el});
     }
     std::vector<hll::hll_t> hlls;
-    while(hlls.size() < (unsigned)nthreads) hlls.emplace_back(sketch_size);
+    std::vector<kseq_t>    kseqs;
+    while(hlls.size() < (unsigned)nthreads) hlls.emplace_back(sketch_size), kseqs.emplace_back(kseq_init_stack());
     assert(hlls[0].size() == ((1ull << sketch_size)));
     if(wsz < sp.c_) wsz = sp.c_;
     if(ivecs.size() == 0) {
@@ -154,8 +156,11 @@ int sketch_main(int argc, char *argv[]) {
         sketch_usage(*argv);
     }
     if(ivecs.size() / (unsigned)(nthreads) > (unsigned)bs) bs = (ivecs.size() / (nthreads) / 2);
-    detail::kt_sketch_helper helper {hlls, bs, sketch_size, k, wsz, (int)sp.c_, sv, ivecs, suffix, prefix, spacing, skip_cached, canon, use_ertl, write_to_dev_null};
+    detail::kt_sketch_helper helper {hlls, kseqs, bs, sketch_size, k, wsz, (int)sp.c_, sv, ivecs, suffix, prefix, spacing, skip_cached, canon, use_ertl, write_to_dev_null};
     kt_for(nthreads, detail::kt_for_helper, &helper, ivecs.size() / bs + (ivecs.size() % bs != 0));
+    for(auto &kseq: kseqs) {
+        kseq_destroy_stack(kseq);
+    }
     LOG_DEBUG("Finished sketching\n");
     return EXIT_SUCCESS;
 }

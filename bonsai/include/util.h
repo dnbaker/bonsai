@@ -20,6 +20,7 @@
 #include <zlib.h>
 #include <functional>
 #include "klib/kstring.h"
+#include <kseq_declare.h>
 #include "linear/linear.h"
 #include "khash64.h"
 #include "logutil.h"
@@ -475,6 +476,22 @@ inline constexpr int log2_64(uint64_t value)
     // This could be replaced with a __builtin_clz
     return tab64[((uint64_t)((value - (value >> 1))*0x07EDD5E59A4E28C2)) >> 58];
 }
+
+static inline void kseq_assign(kseq_t *ks, gzFile fp) {
+    kseq_rewind(ks); ks->f->f = fp;
+}
+
+static inline kseq_t kseq_init_stack() {
+    kseq_t ret;
+    std::memset(&ret, 0, sizeof(ret));
+    return ret;
+}
+static inline void kseq_destroy_stack(kseq_t &ks) {
+    free(ks.name.s); free(ks.comment.s); free(ks.seq.s); free(ks.qual.s);
+    ks_destroy(ks.f);
+}
+
+
 
 INLINE double kmer_entropy(uint64_t kmer, unsigned k) {
     const u32 counts(nuccount(kmer, k));
