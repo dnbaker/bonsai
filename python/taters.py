@@ -113,9 +113,9 @@ def mashdict2tsv(md, path):
     fw = fp.write
     fw("#Path1\tPath2\tNumber of elements\tKmer size"
        "\tNumber of bytes in sketch\tEstimated Jaccard Index\n")
-    set(map(lambda k, v: not fw("%s\t%s\t%i\t%i\t%i\t%f\n" %
-                                (k[0], k[1], k[2], k[3],
-                                 k[2] * (8 if k[3] > 16 else 4), v)),
+    set(map(lambda k: not fw("%s\t%s\t%i\t%i\t%i\t%f\n" %
+                                (k[0][0], k[0][1], k[0][2], k[0][3],
+                                 k[0][2] * (8 if k[0][3] > 16 else 4), k[1])),
             md.items()))
     if fp != sys.stdout:
         fp.close()
