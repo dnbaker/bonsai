@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <cinttypes>
 #include <map>
-#include <list>
+#include "circular_buffer.h"
 #include <vector>
 
 #include "util.h"
@@ -38,12 +38,13 @@ class QueueMap {
     using PairType           = ElScore<T, ScoreType>;
     using map_iterator       = typename std::map<ElScore<T, ScoreType>, unsigned>::iterator;
     using const_map_iterator = typename std::map<ElScore<T, ScoreType>, unsigned>::const_iterator;
+    using list_type = circ::deque<ElScore<T, ScoreType>, u32>;
 
-    std::list<ElScore<T, ScoreType>>         list_;
-    std::map<ElScore<T, ScoreType>, unsigned> map_;
+    list_type list_;
+    std::map<ElScore<T, ScoreType>, u32> map_;
     const size_t                         wsz_;  // window size to keep
     public:
-    QueueMap(size_t wsz): wsz_(wsz) {}
+    QueueMap(size_t wsz): list_(wsz), wsz_(wsz) {}
     INLINE void add(const PairType &el) {
         if(auto it(map_.lower_bound(el)); it != map_.end()) {
             if(it->first == el) ++it->second;
@@ -67,13 +68,11 @@ class QueueMap {
     }
     // Do a std::enable_if that involves moving the element if it's by reference?
     u64 next_value(const T el, const u64 score) {
-        list_.emplace_back(el, score);
-        add(list_.back());
+        add(list_.emplace_back(el, score));
         if(list_.size() > wsz_) {
             //fprintf(stderr, "list size: %zu. wsz: %zu\n", list_.size(), wsz_);
             //map_.del(list_.front());
-            del(list_.front());
-            list_.pop_front();
+            del(list_.pop_front());
         }
         return list_.size() == wsz_ ? map_.begin()->first.el_: BF;
         // Signal a window that is not filled by 0xFFFFFFFFFFFFFFFF
