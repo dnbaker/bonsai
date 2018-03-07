@@ -1,4 +1,5 @@
 #pragma once
+#include <new>         // For placement new
 #include <cassert>     // For assert
 #include <cstdlib>     // For std::size_t
 #include <cstdint>     // For std::size_t
@@ -111,10 +112,10 @@ public:
     }
     template<typename... Args>
     T &push(Args &&... args) {
+        size_type ind = stop_;
         ++stop_; stop_ &= mask_;
         if(__builtin_expect(stop_ == start_, 0)) throw std::runtime_error(std::string("Overfull buffer of size ") + std::to_string(capacity()) + ". Abort!");
-        new(data_ + (stop_ - 1)) T(std::forward<Args>(args)...);
-        return data_[stop_ - 1];
+        return *(new(data_ + ind) T(std::forward<Args>(args)...));
     }
     T pop() {
         if(__builtin_expect(stop_ == start_, 0)) throw std::runtime_error("Popping item from empty buffer. Abort!");
