@@ -49,28 +49,57 @@ public:
         T &operator*() {
             return ref_.data_[pos_];
         }
-        const T &operator*() const {
+        const T &operator*() const noexcept {
             return ref_.data_[pos_];
         }
-        iterator &operator++() {
+        iterator &operator++() noexcept {
             ++pos_;
             pos_ &= ref_.mask_;
             return *this;
         }
-        iterator operator++(int) {
+        iterator operator++(int) noexcept {
             iterator copy(*this);
-            ++copy;
+            this->operator++();
             return copy;
         }
-        bool operator==(const iterator &other) {
+        bool operator==(const iterator &other) const noexcept {
             return pos_ == other.pos_;
         }
     };
-    iterator begin() {
+    class const_iterator {
+        const FastCircularQueue &ref_;
+        SizeType                 pos_;
+    public:
+        const_iterator(const FastCircularQueue &ref, SizeType pos): ref_(ref), pos_(pos) {}
+        const_iterator(const const_iterator &other): ref_(other.ref_), pos_(other.pos_) {}
+        const T &operator*() const noexcept {
+            return ref_.data_[pos_];
+        }
+        const_iterator &operator++() noexcept {
+            ++pos_;
+            pos_ &= ref_.mask_;
+            return *this;
+        }
+        const_iterator operator++(int) noexcept {
+            const_iterator copy(*this);
+            this->operator++();
+            return copy;
+        }
+        bool operator==(const const_iterator &other) const noexcept {
+            return pos_ == other.pos_;
+        }
+    };
+    iterator begin() noexcept {
         return iterator(*this, start_);
     }
-    iterator end() {
+    iterator end() noexcept {
         return iterator(*this, stop_);
+    }
+    const_iterator cbegin() const noexcept {
+        return const_iterator(*this, start_);
+    }
+    const_iterator cend()   const noexcept {
+        return const_iterator(*this, stop_);
     }
     FastCircularQueue(SizeType size):
             mask_(roundup(size) - 1),
@@ -99,11 +128,11 @@ public:
         push(std::forward<Args>(args)...);
         return ret;
     }
-    ~FastCircularQueue() {
+    ~FastCircularQueue() noexcept {
         std::free(data_);
     }
-    size_type capacity() const {return mask_ + 1;}
-    size_type size()     const {return (stop_ - start_) & mask_;}
+    size_type capacity() const noexcept {return mask_ + 1;}
+    size_type size()     const noexcept {return (stop_ - start_) & mask_;}
     
 } // FastCircularQueue
 
