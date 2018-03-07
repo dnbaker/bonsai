@@ -59,11 +59,13 @@ EX=$(patsubst bin/%.cpp,%,$(wildcard bin/*.cpp))
 DEX=$(patsubst %_d,%,$(EX))
 ZEX=$(patsubst %_z,%,$(EX))
 
-ZFLAGS=-DZWRAP_USE_ZSTD=1
-ZCOMPILE_FLAGS= $(ZFLAGS) -lzstd
-ALL_ZOBJS=$(ZOBJS) $(ZW_OBJS)
 
-INCLUDE=-Iclhash/include -I. -I../libpopcnt -I.. -Iinclude -I../zstd/zlibWrapper -I../zstd/lib -I../zstd/lib/common $(INCPLUS)
+ZSTD_INCLUDE_DIRS=../zstd/zlibWrapper ../zstd/lib ../zstd/lib/common
+ZSTD_INCLUDE=$(patsubst %,-I%,$(ZSTD_INCLUDE_DIRS))
+ZFLAGS=-DZWRAP_USE_ZSTD=1
+ZCOMPILE_FLAGS= $(ZFLAGS) -lzstd $(ZSTD_INCLUDE)
+ALL_ZOBJS=$(ZOBJS) $(ZW_OBJS)
+INCLUDE=-Iclhash/include -I. -I../libpopcnt -I.. -Iinclude $(INCPLUS)
 
 all: $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX) $(ZEX)
 
@@ -85,13 +87,13 @@ clhash.o: ../clhash/src/clhash.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB)
 
 %.zo: %.c
-	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB)
+	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB) $(ZCOMPILE_FLAGS)
 
 test/%.o: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 test/%.zo: test/%.cpp
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ZFLAGS)  -c $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(ZCOMPILE_FLAGS)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
@@ -100,7 +102,7 @@ test/%.zo: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG=0 -c $< -o $@ $(LIB)
 
 %.zo: %.cpp
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ZFLAGS)  -c $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD)  -c $< -o $@ $(LIB) $(ZCOMPILE_FLAGS)
 
 src/popcnt.o: src/popcnt.cpp
 	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
