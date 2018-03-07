@@ -32,7 +32,7 @@ static inline uint8_t roundup(uint8_t x) {
     return ++x;
 }
 
-template<typename T, typename SizeType=uint32_t, typename=std::enable_if_t<std::is_unsigned_v<T>>>
+template<typename T, typename SizeType=uint32_t>
 class FastCircularQueue {
     // A circular queue in which extra memory has been allocated up to a power of two.
     // This allows us to use bitmasks instead of modulus operations.
@@ -42,6 +42,7 @@ class FastCircularQueue {
     SizeType start_;
     SizeType  stop_;
     T        *data_;
+    static_assert(std::is_unsigned_v<SizeType>, "Must be unsigned");
 
 public:
     using size_type = SizeType;
@@ -80,8 +81,8 @@ public:
         bool operator<=(const iterator &other) const noexcept {
             return pos_ <= other.pos_;
         }
-        bool operator<(const iterator &other) const noexcept {
-            return pos_ < other.pos_;
+        bool operator>(const iterator &other) const noexcept {
+            return pos_ > other.pos_;
         }
         bool operator>=(const iterator &other) const noexcept {
             return pos_ >= other.pos_;
@@ -150,7 +151,7 @@ public:
         new_size = roundup(new_size);
         auto tmp = std::realloc(data_, new_size);
         if(tmp == nullptr) throw std::bad_alloc();
-        data_ = tmp;
+        data_ = static_cast<T *>(tmp);
         if(start_ == stop_) {
             if(start_) {
                 stop_ = mask_ + 1;
@@ -239,6 +240,6 @@ public:
 
 }; // FastCircularQueue
 template<typename T, typename SizeType=uint32_t>
-using deque = FastCircularQueue<T, Sizetype>;
+using deque = FastCircularQueue<T, SizeType>;
 
 } // namespace circ
