@@ -232,44 +232,65 @@ public:
         } else while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_spaced(func);
     }
     template<typename Functor>
-    void for_each_canon(const Functor &func, gzFile fp) {
-        kseq_t *ks(kseq_init(fp));
+    void for_each_canon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+        bool destroy;
+        if(ks == nullptr) {
+            ks = kseq_init(fp);
+            destroy = true;
+        } else {
+            kseq_assign(ks, fp);
+            destroy = false;
+        }
         for_each_canon<Functor>(func, ks);
-        kseq_destroy(ks);
+        if(destroy) kseq_destroy(ks);
     }
     template<typename Functor>
-    void for_each_uncanon(const Functor &func, gzFile fp) {
-        kseq_t *ks(kseq_init(fp));
+    void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+        bool destroy;
+        if(ks == nullptr) {
+            ks = kseq_init(fp);
+            destroy = true;
+        } else {
+            kseq_assign(ks, fp);
+            destroy = false;
+        }
         for_each_uncanon<Functor>(func, ks);
-        kseq_destroy(ks);
+        if(destroy) kseq_destroy(ks);
     }
     template<typename Functor>
-    void for_each_canon(const Functor &func, const char *path) {
+    void for_each_canon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
-        for_each_canon<Functor>(func, fp);
+        for_each_canon<Functor>(func, fp, ks);
         gzclose(fp);
     }
     template<typename Functor>
-    void for_each_uncanon(const Functor &func, const char *path) {
+    void for_each_uncanon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
-        for_each_uncanon<Functor>(func, fp);
+        for_each_uncanon<Functor>(func, fp, ks);
         gzclose(fp);
     }
     template<typename Functor>
-    void for_each(const Functor &func, gzFile fp) {
-        kseq_t *ks(kseq_init(fp));
+    void for_each(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+        bool destroy;
+        if(ks == nullptr) {
+            ks = kseq_init(fp);
+            destroy = true;
+        } else {
+            kseq_assign(ks, fp);
+            destroy = false;
+        }
         if(canonicalize_) for_each_canon<Functor>(func, ks);
         else              for_each_uncanon<Functor>(func, ks);
-        kseq_destroy(ks);
+        if(destroy) kseq_destroy(ks);
     }
     template<typename Functor>
-    void for_each(const Functor &func, const char *path) {
+    void for_each(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
-        if(canonicalize_) for_each_canon<Functor>(func, fp);
-        else              for_each_uncanon<Functor>(func, fp);
+        if(canonicalize_) for_each_canon<Functor>(func, fp, ks);
+        else              for_each_uncanon<Functor>(func, fp, ks);
         gzclose(fp);
     }
     template<typename Functor, typename ContainerType,
@@ -277,27 +298,27 @@ public:
                                        std::is_same_v<std::decay_t<typename ContainerType::value_type>, char *>
                                       >
             >
-    void for_each(const Functor &func, const ContainerType &strcon) {
+    void for_each(const Functor &func, const ContainerType &strcon, kseq_t *ks=nullptr) {
         for(const auto &el: strcon) {
             LOG_DEBUG("Loading from file %s\n", get_cstr(el));
-            for_each<Functor>(func, get_cstr(el));
+            for_each<Functor>(func, get_cstr(el), ks);
         }
     }
 
     template<typename Target>
-    void add(hll::hll_t &hll, const Target &target) {
-        this->for_each([&](u64 min) {hll.addh(min);}, target);
+    void add(hll::hll_t &hll, const Target &target, kseq_t *ks=nullptr) {
+        this->for_each([&](u64 min) {hll.addh(min);}, target, ks);
     }
 
     template<typename Target>
-    void add(khash_t(all) *set, const Target &target) {
+    void add(khash_t(all) *set, const Target &target, kseq_t *ks=nullptr) {
         int khr;
-        this->for_each([&] (u64 min) {kh_put(all, set, min, &khr);}, target);
+        this->for_each([&] (u64 min) {kh_put(all, set, min, &khr);}, target, ks);
     }
 
     template<typename ContainerType>
-    void add(ContainerType &con, ContainerType &strcon) {
-        for(const auto &el: strcon) add(get_cstr(con, get_cstr(el)));
+    void add(ContainerType &con, ContainerType &strcon, kseq_t *ks=nullptr) {
+        for(const auto &el: strcon) add(get_cstr(con, get_cstr(el), ks));
     }
 
     // Encodes a kmer starting at `start` within string `s_`.
@@ -419,14 +440,11 @@ void add_to_hll(hll::hll_t &hll, kseq_t *ks, Encoder<ScoreType> &enc) {
 
 template<typename ScoreType>
 void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &space, bool canonicalize=true,
-                    void *data=nullptr) {
+                    void *data=nullptr, kseq_t *ks=nullptr) {
     LOG_DEBUG("Canonicalizing: %s\n", canonicalize ? "true": "false");
     hll.not_ready();
     Encoder<ScoreType> enc(nullptr, 0, space, data, canonicalize);
-    enc.for_each([&](u64 min) {
-        hll.addh(min);
-    },
-    path.data());
+    enc.for_each([&](u64 min) {hll.addh(min);}, path.data(), ks);
 }
 
 #define SUB_CALL \
@@ -486,18 +504,19 @@ struct est_helper {
     const bool                      canon_;
     void                            *data_;
     hll::hll_t                    &master_;
+    kseq_t                            *ks_;
 };
 
 template<typename ScoreType=score::Lex>
 void est_helper_fn(void *data_, long index, int tid) {
     est_helper &h(*(est_helper *)(data_));
-    hll_fill_lmers<ScoreType>(h.master_, h.paths_[index], h.sp_, h.canon_, h.data_);
+    hll_fill_lmers<ScoreType>(h.master_, h.paths_[index], h.sp_, h.canon_, h.data_, h.ks_);
 }
 
 template<typename ScoreType=score::Lex>
 void fill_hll(hll::hll_t &ret, const std::vector<std::string> &paths,
               unsigned k, uint16_t w, const spvec_t &spaces, bool canon=true,
-              void *data=nullptr, int num_threads=1, u64 np=23) {
+              void *data=nullptr, int num_threads=1, u64 np=23, kseq_t *ks=nullptr) {
     // Default to using all available threads if num_threads is negative.
 #if 0
     LOG_DEBUG("Filling hll of %zu/%zu size, %zu paths, k%u, w%u, data %p, nt %u, sketch size %zu",
@@ -511,11 +530,11 @@ void fill_hll(hll::hll_t &ret, const std::vector<std::string> &paths,
     const Spacer space(k, w, spaces);
     if(num_threads <= 1) {
         LOG_DEBUG("Starting serial\n");
-        for(u64 i(0); i < paths.size(); hll_fill_lmers<ScoreType>(ret, paths[i++], space, canon, data));
+        for(u64 i(0); i < paths.size(); hll_fill_lmers<ScoreType>(ret, paths[i++], space, canon, data, ks));
     } else {
         LOG_DEBUG("Starting parallel\n");
         std::mutex m;
-        est_helper helper{space, paths, m, np, canon, data, ret};
+        est_helper helper{space, paths, m, np, canon, data, ret, ks};
         kt_for(num_threads, &est_helper_fn<ScoreType>, &helper, paths.size());
     }
     

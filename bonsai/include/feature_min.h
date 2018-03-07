@@ -36,7 +36,7 @@ void update_feature_counter(khash_t(64) *kc, const khash_t(all) *set, const khas
 void update_minimized_map(const khash_t(all) *set, const khash_t(64) *full_map, khash_t(c) *ret);
 
 template<typename ScoreType>
-size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon) {
+size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks=nullptr) {
     LOG_ASSERT(ret);
     LOG_DEBUG("Filling from genome at path %s\n", path);
 
@@ -44,14 +44,15 @@ size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, si
     if constexpr(std::is_same_v<ScoreType, score::Entropy>)
         data = &k;
 
-    Encoder<ScoreType> enc(0, 0, sp, data);
-    enc.add(ret, path);
+    Encoder<ScoreType> enc(0, 0, sp, data, canon);
+    enc.add(ret, path, ks);
     LOG_DEBUG("Set of size %lu filled from genome at path %s\n", kh_size(ret), path);
     return index;
 }
 
 template<typename Container, typename ScoreType>
-size_t fill_set_genome_container(Container &container, const Spacer &sp, khash_t(all) *ret, void *data, bool canon) {
+size_t fill_set_genome_container(Container &container, const Spacer &sp, khash_t(all) *ret, void *data, bool canon, kseq_t *ks=nullptr) {
+    bool destroy;
     size_t sz(0);
     for(std::string &str: container)
         sz += fill_set_genome<ScoreType>(str.data(), sp, ret, 0, data, canon);
