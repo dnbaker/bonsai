@@ -137,10 +137,9 @@ unit: $(OBJS) $(TEST_OBJS)
 zunit: $(ZOBJS) $(ZTEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(ZTEST_OBJS) $(LD) $(ALL_ZOBJS) -DNDEBUG=0 -o $@ $(LIB) $(ZCOMPILE_FLAGS)
 
-
 clean:
-	rm -f $(OBJS) $(DEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o \
+	rm -f $(ZOBJS) $(ZTEST_OBJS) $(ZW_OBJS) $(OBJS) $(DEX) $(ZEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o \
 	&& cd ../hll && make clean && cd ../bonsai
 
 mostlyclean:
-	rm -f $(DEX) $(DOBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o src/*o
+	rm -f $(ZOBJS) $(ZTEST_OBJS) $(ZW_OBJS) $(OBJS) $(DEX) $(ZEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o
