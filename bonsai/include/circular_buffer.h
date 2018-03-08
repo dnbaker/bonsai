@@ -224,7 +224,7 @@ public:
     const T &front() const {
         return data_[start_];
     }
-    ~FastCircularQueue() {clear();}
+    ~FastCircularQueue() {clear(); std::free(data_);}
     size_type capacity() const noexcept {return mask_;}
     size_type size()     const noexcept {return (stop_ - start_) & mask_;}
     std::vector<T> to_vector() const {
@@ -237,7 +237,6 @@ public:
         if constexpr(std::is_destructible_v<T>) {
             for(size_type i(start_); i != stop_; data_[i++].~T(), i &= mask_);
         }
-        std::free(data_);
         start_ = stop_ = 0;
     }
 }; // FastCircularQueue
