@@ -93,6 +93,7 @@ struct kt_sketch_helper {
     const bool canon_;
     const bool use_ertl_;
     const bool write_to_dev_null_;
+    const bool write_gz_;
 };
 
 void kt_for_helper(void  *data_, long index, int tid) {
@@ -102,10 +103,11 @@ void kt_for_helper(void  *data_, long index, int tid) {
     for(size_t i(helper.bs_ * index); i < std::min((uint64_t)(helper.bs_ * (index + 1)), (uint64_t)(helper.ssvec_.size())); ++i) {
         std::vector<std::string> &scratch_stringvec(helper.ssvec_[i]);
         fname = hll_fname(scratch_stringvec[0].data(), helper.sketch_size_, helper.window_size_, helper.kmer_size_, helper.csz_, helper.spacing_, helper.suffix_, helper.prefix_);
+        if(helper.write_gz_) fname += ".gz";
         if(helper.skip_cached_ && isfile(fname)) continue;
         fill_hll(hll, scratch_stringvec, helper.kmer_size_, helper.window_size_, helper.sv_, helper.canon_, nullptr, 1, helper.sketch_size_, &helper.kseqs_[tid]); // Avoid allocation fights.
         hll.set_use_ertl(helper.use_ertl_);
-        hll.write(helper.write_to_dev_null_ ? "/dev/null": fname.data());
+        hll.write(helper.write_to_dev_null_ ? "/dev/null": fname.data(), helper.write_gz_);
         hll.clear();
     }
 }
@@ -115,9 +117,9 @@ void kt_for_helper(void  *data_, long index, int tid) {
 // Main functions
 int sketch_main(int argc, char *argv[]) {
     int wsz(-1), k(31), sketch_size(16), skip_cached(false), co, nthreads(1), bs(16);
-    bool canon(true), use_ertl(true), write_to_dev_null(false);
+    bool canon(true), use_ertl(true), write_to_dev_null(false), write_gz(false);
     std::string spacing, paths_file, suffix, prefix;
-    while((co = getopt(argc, argv, "P:F:c:p:x:s:S:k:w:EDcCeh?")) >= 0) {
+    while((co = getopt(argc, argv, "P:F:c:p:x:s:S:k:w:zEDcCeh?")) >= 0) {
         switch(co) {
             case 'b': bs = std::atoi(optarg); break;
             case 'k': k = std::atoi(optarg); break;
@@ -132,6 +134,7 @@ int sketch_main(int argc, char *argv[]) {
             case 'F': paths_file = optarg; break;
             case 'C': canon = false; break;
             case 'D': write_to_dev_null = true; break;
+            case 'z': write_gz = true; break;
             case 'h': case '?': sketch_usage(*argv);
         }
     }
@@ -156,7 +159,7 @@ int sketch_main(int argc, char *argv[]) {
         sketch_usage(*argv);
     }
     if(ivecs.size() / (unsigned)(nthreads) > (unsigned)bs) bs = (ivecs.size() / (nthreads) / 2);
-    detail::kt_sketch_helper helper {hlls, kseqs, bs, sketch_size, k, wsz, (int)sp.c_, sv, ivecs, suffix, prefix, spacing, skip_cached, canon, use_ertl, write_to_dev_null};
+    detail::kt_sketch_helper helper {hlls, kseqs, bs, sketch_size, k, wsz, (int)sp.c_, sv, ivecs, suffix, prefix, spacing, skip_cached, canon, use_ertl, write_to_dev_null, write_gz};
     kt_for(nthreads, detail::kt_for_helper, &helper, ivecs.size() / bs + (ivecs.size() % bs != 0));
     for(auto &kseq: kseqs) {
         kseq_destroy_stack(kseq);
@@ -233,14 +236,22 @@ void dist_loop(const int pairfi, std::vector<hll::hll_t> &hlls, const std::vecto
     if(!write_binary) str.write(pairfi), str.clear();
 }
 
+enum CompReading: unsigned {
+    UNCOMPRESSED,
+    GZ,
+    AUTODETECT
+};
 int dist_main(int argc, char *argv[]) {
     int wsz(-1), k(31), sketch_size(16), use_scientific(false), co, cache_sketch(false), nthreads(1), use_ertl(true);
     bool canon(true), presketched_only(false), write_binary(false), emit_jaccard(true), emit_float(false);
     std::string spacing, paths_file, suffix, prefix;
+    CompReading reading_type = UNCOMPRESSED;
     FILE *ofp(stdout), *pairofp(stdout);
     omp_set_num_threads(1);
-    while((co = getopt(argc, argv, "P:x:F:c:p:o:s:w:O:S:k:fJCbMEeHh?")) >= 0) {
+    while((co = getopt(argc, argv, "P:x:F:c:p:o:s:w:O:S:k:azfJCbMEeHh?")) >= 0) {
         switch(co) {
+            case 'z': reading_type = GZ; break;
+            case 'a': reading_type = AUTODETECT; break;
             case 'C': canon = false; break;
             case 'E': use_ertl = false; break;
             case 'F': paths_file = optarg; break;
@@ -279,19 +290,35 @@ int dist_main(int argc, char *argv[]) {
         #pragma omp parallel for
         for(size_t i = 0; i < hlls.size(); ++i) {
             const std::string &path(inpaths[i]);
+            static const std::string suf = ".gz";
             if(presketched_only) {
-                hlls[i].read(path);
+                switch(reading_type) {
+                    case GZ:
+                        hlls[i].read(path, true); break;
+                    case UNCOMPRESSED:
+                        hlls[i].read(path, false); break;
+                    default:
+                        hlls[i].read(path, std::equal(suf.rbegin(), suf.rend(), path.rbegin())); break;
+                }
             } else {
                 const std::string fpath(hll_fname(path.data(), sketch_size, wsz, k, sp.c_, spacing, suffix, prefix));
                 if(cache_sketch && isfile(fpath)) {
                     LOG_DEBUG("Sketch found at %s with size %zu, %u\n", fpath.data(), size_t(1ull << sketch_size), sketch_size);
                     hlls[i].read(fpath);
+                    switch(reading_type) {
+                        case GZ:
+                            hlls[i].read(fpath, true); break;
+                        case UNCOMPRESSED:
+                            hlls[i].read(fpath, false); break;
+                        default:
+                            hlls[i].read(fpath, std::equal(suf.rbegin(), suf.rend(), fpath.rbegin())); break;
+                    }
                 } else {
                     // By reserving 256 character, we make it probably that no allocation is necessary in this section.
                     std::vector<std::string> &scratch_stringvec(scratch_vv[omp_get_thread_num()]);
                     scratch_stringvec[0] = inpaths[i];
                     fill_hll(hlls[i], scratch_stringvec, k, wsz, sv, canon, nullptr, 1, sketch_size); // Avoid allocation fights.
-                    if(cache_sketch) hlls[i].write(fpath);
+                    if(cache_sketch) hlls[i].write(fpath, (reading_type == GZ ? 1: reading_type == AUTODETECT ? std::equal(suf.rbegin(), suf.rend(), fpath.rbegin()): false));
                 }
             }
         }
