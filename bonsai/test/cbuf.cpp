@@ -36,6 +36,12 @@ TEST_CASE("circdebuff") {
         buf.pop();
         buf.push_back(buf.front());
         REQUIRE(buf.back() == buf.front());
+        auto save_front = buf.front();
         REQUIRE(buf.size() == 30);
+        buf.push_back(13);
+        buf.push_back(14);
+        REQUIRE(buf.capacity() == 63);
+        REQUIRE(buf.back() == 14);
+        REQUIRE(buf.front() == save_front);
     }
 }
