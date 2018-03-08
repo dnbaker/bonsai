@@ -478,7 +478,12 @@ inline constexpr int log2_64(uint64_t value)
 }
 
 static inline void kseq_assign(kseq_t *ks, gzFile fp) {
-    kseq_rewind(ks); ks->f->f = fp;
+    if(!ks->f) {
+        ks->f = (kstream_t*)calloc(1, sizeof(kstream_t));
+        ks->f->buf = (unsigned char*)malloc(KSTREAM_SIZE);
+    }
+    ks->f->is_eof = ks->f->begin = ks->f->end = 0;
+    ks->f->f = fp;
 }
 
 static inline kseq_t kseq_init_stack() {
