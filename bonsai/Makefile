@@ -65,7 +65,7 @@ ZSTD_INCLUDE=$(patsubst %,-I%,$(ZSTD_INCLUDE_DIRS))
 ZFLAGS=-DZWRAP_USE_ZSTD=1
 ZCOMPILE_FLAGS= $(ZFLAGS) -lzstd $(ZSTD_INCLUDE)
 ALL_ZOBJS=$(ZOBJS) $(ZW_OBJS)
-INCLUDE=-Iclhash/include -I. -I../libpopcnt -I.. -Iinclude $(INCPLUS)
+INCLUDE=-Iclhash/include -I. -I../libpopcnt -I.. -Iinclude -I../CircularQueue $(INCPLUS)
 
 all: $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX) $(ZEX)
 
@@ -137,10 +137,9 @@ unit: $(OBJS) $(TEST_OBJS)
 zunit: $(ZOBJS) $(ZTEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(ZTEST_OBJS) $(LD) $(ALL_ZOBJS) -DNDEBUG=0 -o $@ $(LIB) $(ZCOMPILE_FLAGS)
 
-
 clean:
-	rm -f $(OBJS) $(DEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o \
+	rm -f $(ZOBJS) $(ZTEST_OBJS) $(ZW_OBJS) $(OBJS) $(DEX) $(ZEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o \
 	&& cd ../hll && make clean && cd ../bonsai
 
 mostlyclean:
-	rm -f $(DEX) $(DOBJS) $(OBJS) $(EX) $(TEST_OBJS) unit lib/*o src/*o
+	rm -f $(ZOBJS) $(ZTEST_OBJS) $(ZW_OBJS) $(OBJS) $(DEX) $(ZEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o
