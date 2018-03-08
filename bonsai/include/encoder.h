@@ -241,6 +241,7 @@ public:
             kseq_assign(ks, fp);
             destroy = false;
         }
+        LOG_DEBUG("Destroy is %s. I have just assigned kseq's f->f field to the pointer %p\n", destroy ? "true": "false", fp);
         for_each_canon<Functor>(func, ks);
         if(destroy) kseq_destroy(ks);
     }
