@@ -35,11 +35,12 @@ void usage(const char *arg) {
 
 int main(int argc, char *argv[]) {
     int c;
-    bool lowmem(false), canon(true);
+    bool lowmem(false), canon(true), use_ertl(true);
     unsigned sketchsize(18), k(31);
     FILE *ofp(stdout);
-    while((c = getopt(argc, argv, "p:o:k:n:mCh")) >= 0) {
+    while((c = getopt(argc, argv, "p:o:k:n:mECh")) >= 0) {
         switch(c) {
+            case 'E': use_ertl = false; break;
             case 'C': canon = false; break;
             case 'n': sketchsize = std::atoi(optarg); LOG_DEBUG("Set sketch size to %u with string '%s'\n", sketchsize, optarg); break;
             case 'k':          k = std::atoi(optarg); break;
@@ -67,7 +68,7 @@ int main(int argc, char *argv[]) {
     if(lowmem) {
         khash_t(all) *s1(kh_init(all)), *s2(kh_init(all));
         kh_resize(all, s1, 1 << 16), kh_resize(all, s2, 1 << 16);
-        hll::hll_t h1(sketchsize), h2(sketchsize);
+        hll::hll_t h1(sketchsize, use_ertl), h2(sketchsize, use_ertl);
         std::vector<std::string> paths{"ZOMG"};
         for(size_t i(0); i < ngenomes; ++i) {
             assert(kh_size(s1) == 0);
@@ -103,7 +104,7 @@ int main(int argc, char *argv[]) {
         while(sketches.size() < ngenomes)
             sketches.emplace_back(
                 make_hll(std::vector<std::string>{argv[optind + sketches.size()]},
-                         k, k, sv, canon, nullptr, 1, sketchsize));
+                         k, k, sv, canon, nullptr, 1, sketchsize, nullptr /*kseq */, use_ertl));
         for(size_t i(0); i < ngenomes; ++i) {
             for(size_t j(i + 1); j < ngenomes; ++j) {
                 sketchval = hll::jaccard_index(sketches[i], sketches[j]);
