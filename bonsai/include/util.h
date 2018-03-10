@@ -60,10 +60,12 @@
 #  define PACKED
 #  endif
 #endif
-#if ZLIB_VERNUM < 0x1235
-#define gzbuffer(fp, size)
-#else
-#define gzbuffer(fp, size) gzbuffer(fp, size)
+#ifndef gzbuffer
+#  if ZLIB_VERNUM < 0x1235
+#    define gzbuffer(fp, size)
+#  else
+#    define gzbuffer(fp, size) gzbuffer(fp, size)
+#  endif
 #endif
 
 
