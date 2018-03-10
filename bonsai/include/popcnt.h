@@ -153,7 +153,7 @@ inline unsigned unrolled_bitdiff(const uint64_t *a, const uint64_t *b, size_t nb
     
 template<typename T>
 inline auto vec_bitdiff(const T &a, const T &b) {
-#if USE_UNROLLED_BITDIFF
+#if defined(USE_UNROLLED_BITDIFF)
     return detail::unrolled_bitdiff((const uint64_t *)&a[0], (const uint64_t *)&b[0], a.size() * sizeof(a[0]));
 #else
     return detail::byte_bitdiff(&a[0], &b[0], a.size() * sizeof(a[0]));

@@ -31,7 +31,7 @@ def submit_mash_sketch(tup):
 
 
 def submit_distcmp_call(tup):
-    k, n, opath, paths, redo = tup
+    k, n, opath, paths, redo, use_ertl = tup
     print("Redo is: %s" % redo, file=sys.stderr)
     if any(not os.path.isfile(path) for path in paths):
         raise Exception("The files are NOT in the computer! %s" %
@@ -44,7 +44,7 @@ def submit_distcmp_call(tup):
             else:
                 print("%s has run, but the file is empty."
                       " Redoing!" % opath, file=sys.stderr)
-    cstr = "distcmp -o%s -mn%i -k%i %s" % (opath, n, k, ' '.join(paths))
+    cstr = "distcmp %s -o%s -mn%i -k%i %s" % ("" if use_ertl else "-E", opath, n, k, ' '.join(paths))
     print("Calling '%s'" % cstr, file=sys.stderr)
     subprocess.check_call(shlex.split(cstr))
 
@@ -98,6 +98,7 @@ def main():
                                     ' with one genome per line.'))
     shell_parser.add_argument("--range-start", default=24, type=int)
     shell_parser.add_argument("--range-end", default=32, type=int)
+    shell_parser.add_argument("--no-use-ertl", action='store_true')
     py_parser = sp.add_parser(
         "exact",
         description=("Calculates distances natively in Python "
@@ -110,10 +111,11 @@ def main():
     py_parser.add_argument("--range-start", default=24, type=int)
     py_parser.add_argument("--range-end", default=32, type=int)
     py_parser.add_argument("--outfile", "-o", default="-")
+    if not sys.argv[1:]: sys.argv.append("-h")
     args = superparser.parse_args()
-    if sys.argv[1] == "sketch":
+    if argv[1] == "sketch":
         return sketch_main(args)
-    elif sys.argv[1] == "exact":
+    elif argv[1] == "exact":
         return exact_main(args)
     else:
        raise Exception("Subcommand required. sketch or exact supported, for sketching or exact calculation.")
@@ -159,6 +161,7 @@ def exact_main(args):
 
 def sketch_main(args):
     sketch_range = range(10, 24, 1)
+    use_ertl = not args.no_use_ertl
     kmer_range = range(args.range_start, args.range_end + 1)
     threads = args.threads
     redo = not args.no_redo
@@ -166,7 +169,7 @@ def sketch_main(args):
     if len(genomes) == 1 and os.path.isfile(next(open(genomes[0])).strip()):
         paths = [i.strip() for i in open(genomes[0])]
     mashify = args.use_mash
-    submission_sets = ((ks, ss, makefn(paths, ks, ss, mashify), paths, redo)
+    submission_sets = ((ks, ss, makefn(paths, ks, ss, mashify), paths, redo, use_ertl)
                        for ss in sketch_range for ks in kmer_range)
     if any(not os.path.isfile(path) for path in paths):
         raise Exception("The files are NOT in the computer: %s" %

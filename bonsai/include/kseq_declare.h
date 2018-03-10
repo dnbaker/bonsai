@@ -10,7 +10,19 @@
 #include <stdint.h>
 #include <stdio.h>
 
-KSEQ_INIT(gzFile, gzread)
+#define KSEQ_INIT3(SCOPE, type_t, __read, SIZE)		\
+	KSTREAM_INIT(type_t, __read, 16384)			\
+	__KSEQ_TYPE(type_t)							\
+	__KSEQ_BASIC(SCOPE, type_t)					\
+	__KSEQ_READ(SCOPE)
+
+#define KSEQ_INIT_SIZE(type_t, __read, SIZE) KSEQ_INIT3(static, type_t, __read, SIZE)
+
+#ifndef KSTREAM_SIZE
+#  define KSTREAM_SIZE (65536u)
+#endif
+
+KSEQ_INIT_SIZE(gzFile, gzread, KSTREAM_SIZE)
 
 #ifndef INLINE
 #  if __GNUC__ || __clang__
@@ -44,7 +56,7 @@ static inline void kseq2bseq1(const kseq_t *ks, bseq1_t *s) // one chunk
     memcpy(s->name, ks->name.s, ks->name.l + 1);
     char *start = s->name + ks->name.l + 2;
     if(ks->comment.l == 0) s->comment = NULL;
-    if(ks->comment.l) {
+    else {
         s->comment = start;
         memcpy(s->comment, ks->comment.s, ks->comment.l + 1);
         start += ks->comment.l + 1;
@@ -52,7 +64,7 @@ static inline void kseq2bseq1(const kseq_t *ks, bseq1_t *s) // one chunk
     s->seq = start;
     memcpy(s->seq, ks->seq.s, ks->seq.l + 1);
     start += ks->seq.l + 1;
-    if(ks->qual.l == 0)   s->qual = NULL;
+    if(ks->qual.l == 0) s->qual = NULL;
     else s->qual = start, memcpy(s->qual, ks->qual.s, ks->qual.l + 1);
     s->l_seq   = ks->seq.l;
     s->sam     = NULL;
