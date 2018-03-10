@@ -34,3 +34,6 @@
 [submodule "libpopcnt"]
 	path = libpopcnt
 	url = https://github.com/kimwalisch/libpopcnt
+[submodule "CircularQueue"]
+	path = CircularQueue
+	url = https://github.com/dnbaker/CircularQueue
