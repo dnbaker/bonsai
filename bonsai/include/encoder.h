@@ -618,7 +618,7 @@ hll::hll_t make_hll(const std::vector<std::string> &paths,
 template<typename ScoreType=score::Lex>
 u64 estimate_cardinality(const std::vector<std::string> &paths,
                             unsigned k, uint16_t w, spvec_t spaces, bool canon,
-                            void *data=nullptr, int num_threads=-1, u64 np=23, kseq_t *ks=false, bool use_ertl=true) {
+                            void *data=nullptr, int num_threads=-1, u64 np=23, kseq_t *ks=nullptr, bool use_ertl=true) {
     auto tmp(make_hll<ScoreType>(paths, k, w, spaces, canon, data, num_threads, np, ks, use_ertl));
     return tmp.report();
 }
