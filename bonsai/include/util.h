@@ -481,8 +481,7 @@ static inline void kseq_assign(kseq_t *ks, gzFile fp) {
     if(!ks->f) {
         ks->f = (kstream_t*)calloc(1, sizeof(kstream_t));
         ks->f->buf = (unsigned char*)malloc(KSTREAM_SIZE);
-    }
-    ks->f->is_eof = ks->f->begin = ks->f->end = 0;
+    } else ks->f->is_eof = ks->f->begin = ks->f->end = 0;
     ks->f->f = fp;
 }
 
