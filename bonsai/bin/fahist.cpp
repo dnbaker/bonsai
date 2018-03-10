@@ -18,9 +18,9 @@
 #ifdef USE_PDQSORT
 #include "pdqsort/pdqsort.h"
 #ifndef SORT
-#define SORT ::pdq::sort
+#define SORT pdqsort
 #endif
-#define SORT_BRANCHLESS ::pdq::sort_branchless
+#define SORT_BRANCHLESS pdqsort_branchless
 #else
 #ifndef SORT
 #define SORT ::std::sort
