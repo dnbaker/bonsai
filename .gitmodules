@@ -34,3 +34,6 @@
 [submodule "circularqueue"]
 	path = circularqueue
 	url = git@github.com:dnbaker/circularqueue
+[submodule "pdqsort"]
+	path = pdqsort
+	url = git@github.com:orlp/pdqsort

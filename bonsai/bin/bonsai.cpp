@@ -134,7 +134,6 @@ int phase2_main(int argc, char *argv[]) {
 #pragma message("Add cached/high water-point kseq buffers.")
         std::size_t hash_size(estimate_cardinality<score::Lex>(inpaths, k, k, sp.s_, canon, nullptr, num_threads, 24));
         LOG_DEBUG("Estimated cardinality: %zu\n", hash_size);
-#endif
         LOG_DEBUG("Parent map bulding from %s\n", argv[optind]);
         khash_t(p) *taxmap(build_parent_map(argv[optind]));
         phase2_map.db_ = score_scheme::LEX == mode ? lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size)
