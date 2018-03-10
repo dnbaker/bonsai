@@ -10,6 +10,7 @@
 
 #include "hash.h"
 #include "hll/hll.h"
+#include "entropy.h"
 #include "kseq_declare.h"
 #include "qmap.h"
 #include "spacer.h"
@@ -98,6 +99,10 @@ public:
       scorer_{},
       canonicalize_(canonicalize) {
         LOG_DEBUG("Canonicalizing: %s\n", canonicalize_ ? "True": "False");
+        if(std::is_same_v<ScoreType, score::Entropy> && sp_.unspaced() && !sp_.unwindowed()) {
+            if(data_) throw std::runtime_error("No data pointer must be provided for lex::Entropy minimization.");
+            data_ = static_cast<void *>(new CircusEnt(sp_.k_));
+        }
     }
     Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data, canonicalize) {}
     Encoder(const Spacer &sp, bool canonicalize=true): Encoder(sp, nullptr, canonicalize) {}
@@ -188,11 +193,44 @@ public:
             if(likely(filled == sp_.k_)) {
                 min &= mask;
                 score = scorer_(min, data_);
-                if((kmer = qmap_.next_value(min, score)) != BF)
-                    func(min);
+                if((kmer = qmap_.next_value(min, score)) != BF) func(kmer);
                 --filled;
             }
         }
+    }
+    template<typename Functor>
+    INLINE void for_each_uncanon_unspaced_windowed_entropy_(const Functor &func) {
+        // NEVER CALL THIS DIRECTLY.
+        // This contains instructions for generating uncanonicalized but windowed entropy-minimized kmers.
+        const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
+        u64 min = 0;
+        unsigned filled = 0;
+        u64 kmer, score;
+        CircusEnt &ent = *(static_cast<CircusEnt *>(data_));
+        windowed_loop_start:
+        while(likely(pos_ < l_)) {
+            while(filled < sp_.k_ && likely(pos_ < l_)) {
+                min <<= 2;
+                if(unlikely((min |= cstr_lut[s_[pos_]]) == BF) && likely(sp_.k_ < 31 || cstr_lut[s_[pos_]] != 'T')) {
+                    ++pos_;
+                    filled = min = 0;
+                    goto windowed_loop_start;
+                }
+                ent.push(s_[pos_]);
+                ++pos_;
+                ++filled;
+            }
+            if(likely(filled == sp_.k_)) {
+                min &= mask;
+                score = UINT64_C(-1) - static_cast<u64>(UINT64_C(7958933093282078720) * ent.value());
+                if((kmer = qmap_.next_value(min, score)) != BF) func(kmer);
+                --filled;
+            }
+        }
+    }
+    template<typename Functor>
+    INLINE void for_each_canon_unspaced_windowed_entropy_(const Functor &func) {
+        this->for_each_uncanon_unspaced_windowed_entropy_([&](u64 &min) {return func(canonical_representation(min, sp_.k_));});
     }
     // Utility 'for-each'-like functions.
     template<typename Functor>
@@ -200,16 +238,27 @@ public:
         this->assign(str, l);
         if(!has_next_kmer()) return;
         if(canonicalize_) {
-            if(sp_.unwindowed())
-                for_each_canon_unwindowed(func);
-            else 
-                for_each_canon_windowed(func);
+            if(sp_.unwindowed()) {
+                 for_each_canon_unwindowed(func);
+            } else {
+                if constexpr(std::is_same_v<ScoreType, score::Entropy>) {
+                    if(sp_.unspaced()) {
+                        for_each_canon_unspaced_windowed_entropy_(func);
+                    } else for_each_canon_windowed(func);
+                } else {
+                    for_each_canon_windowed(func);
+                }
+            }
         } else {
             // Note that an entropy-based score calculation can be sped up for this case.
             // This will benefit from either a special function or an if constexpr
             if(sp_.unspaced()) {
                 if(sp_.unwindowed()) for_each_uncanon_unspaced_unwindowed(func);
-                else                 for_each_uncanon_unspaced_windowed(func);
+                else {
+                    if constexpr(std::is_same_v<ScoreType, score::Entropy>) {
+                        for_each_uncanon_unspaced_windowed_entropy_(func);
+                    } else for_each_uncanon_unspaced_windowed(func);
+                }
             } else for_each_uncanon_spaced(func);
         }
     }
@@ -367,6 +416,11 @@ public:
     void set_canonicalize(bool value) {canonicalize_ = value;}
     auto pos() const {return pos_;}
     uint32_t k() const {return sp_.k_;}
+    ~Encoder() {
+        if(std::is_same_v<ScoreType, score::Entropy> && sp_.unspaced() && !sp_.unwindowed()) {
+            delete static_cast<CircusEnt *>(data_);
+        }
+    }
 };
 
 template<typename ScoreType, typename KhashType>
@@ -564,8 +618,8 @@ hll::hll_t make_hll(const std::vector<std::string> &paths,
 template<typename ScoreType=score::Lex>
 u64 estimate_cardinality(const std::vector<std::string> &paths,
                             unsigned k, uint16_t w, spvec_t spaces, bool canon,
-                            void *data=nullptr, int num_threads=-1, u64 np=23) {
-    auto tmp(make_hll<ScoreType>(paths, k, w, spaces, canon, data, num_threads, np));
+                            void *data=nullptr, int num_threads=-1, u64 np=23, kseq_t *ks=false, bool use_ertl=true) {
+    auto tmp(make_hll<ScoreType>(paths, k, w, spaces, canon, data, num_threads, np, ks, use_ertl));
     return tmp.report();
 }
 

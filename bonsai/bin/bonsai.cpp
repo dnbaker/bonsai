@@ -130,10 +130,8 @@ int phase2_main(int argc, char *argv[]) {
         if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for lexicographic mode for final database generation.");
         Spacer sp(k, wsz, sv);
         Database<khash_t(c)>  phase2_map(sp);
-#if 0
-        std::size_t hash_size(use_hll ? estimate_cardinality<score::Lex>(inpaths, k, k, sp.s_, nullptr, num_threads, 24): 1 << 16);
-#else
         // Force using hll so that we can use __sync_bool_compare_and_swap to parallelize.
+#pragma message("Add cached/high water-point kseq buffers.")
         std::size_t hash_size(estimate_cardinality<score::Lex>(inpaths, k, k, sp.s_, canon, nullptr, num_threads, 24));
         LOG_DEBUG("Estimated cardinality: %zu\n", hash_size);
 #endif
@@ -189,6 +187,7 @@ int hll_main(int argc, char *argv[]) {
     std::vector<std::string> inpaths(paths_file.empty() ? get_paths(paths_file.data())
                                                         : std::vector<std::string>(argv + optind, argv + argc));
     spvec_t sv(spacing.empty() ? spvec_t(k - 1, 0): parse_spacing(spacing.data(), k));
+#pragma message("Add cached/high water-point kseq buffers.")
     const double est(estimate_cardinality<score::Lex>(inpaths, k, wsz, sv, canon, nullptr, num_threads, sketch_size));
     std::fprintf(stderr, "Estimated number of unique exact matches: %lf\n", est);
     return EXIT_SUCCESS;
@@ -243,6 +242,7 @@ int phase1_main(int argc, char *argv[]) {
     spvec_t sv(parse_spacing(spacing.data(), k));
     Spacer sp(k, wsz, sv);
     std::vector<std::string> inpaths(argv + optind + 3, argv + argc);
+#pragma message("Add cached/high water-point kseq buffers.")
     std::size_t hash_size(use_hll ? estimate_cardinality<score::Lex>(inpaths, k, k, sv, canon, nullptr, num_threads, sketch_size): 1 << 16);
     if(use_hll) LOG_INFO("Estimated number of elements: %zu\n", hash_size);
 
@@ -292,32 +292,6 @@ int zomg_main(int argc, char *argv[]) {
     TaxonomyReformation tr("Foobar", paths, nullptr);
     return EXIT_FAILURE;
 }
-
-int mmap_bitmap_main(int argc, char *argv[]) {
-    // Handle parsing
-#if 0
-    const double cardinality(estimate_cardinality<score::Lex>(paths, k, w, vec, nullptr, 2, np));
-    throw "I should be checking what the next to last argument for this function is.";
-    const u64 nkmers_allocated(cardinality + (cardinality * 1.04 / (1ull << ((np -1) >> 1))) + 0.5);
-    // Make kmer to id map.
-    // Make minimized taxonomy
-    unsigned nkmers_allocated(0), ntax(0);
-    ba::MMapTaxonomyBitmap(nkmers_allocated, ntax);
-#endif
-    KHR(p) tax;
-    // Now multithreaded update presence for all kmers
-#if 0
-    1. HLL -> estimate total number of kmers in data.
-    2. Round up to upper bound of expected size.
-    3. Make ba::DiskArray
-    4. Update from all genomes in threadsafe way.
-    5. ???
-    6. Profit
-#endif
-    return EXIT_SUCCESS;
-}
-
-
 
 
 int main(int argc, char *argv[]) {

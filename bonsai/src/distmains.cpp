@@ -292,27 +292,12 @@ int dist_main(int argc, char *argv[]) {
             const std::string &path(inpaths[i]);
             static const std::string suf = ".gz";
             if(presketched_only) {
-                switch(reading_type) {
-                    case GZ:
-                        hlls[i].read(path, true); break;
-                    case UNCOMPRESSED:
-                        hlls[i].read(path, false); break;
-                    default:
-                        hlls[i].read(path, std::equal(suf.rbegin(), suf.rend(), path.rbegin())); break;
-                }
+                hlls[i].read(path);
             } else {
                 const std::string fpath(hll_fname(path.data(), sketch_size, wsz, k, sp.c_, spacing, suffix, prefix));
                 if(cache_sketch && isfile(fpath)) {
                     LOG_DEBUG("Sketch found at %s with size %zu, %u\n", fpath.data(), size_t(1ull << sketch_size), sketch_size);
                     hlls[i].read(fpath);
-                    switch(reading_type) {
-                        case GZ:
-                            hlls[i].read(fpath, true); break;
-                        case UNCOMPRESSED:
-                            hlls[i].read(fpath, false); break;
-                        default:
-                            hlls[i].read(fpath, std::equal(suf.rbegin(), suf.rend(), fpath.rbegin())); break;
-                    }
                 } else {
                     // By reserving 256 character, we make it probably that no allocation is necessary in this section.
                     std::vector<std::string> &scratch_stringvec(scratch_vv[omp_get_thread_num()]);

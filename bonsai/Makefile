@@ -60,12 +60,12 @@ DEX=$(patsubst %_d,%,$(EX))
 ZEX=$(patsubst %_z,%,$(EX))
 
 
-ZSTD_INCLUDE_DIRS=../zstd/zlibWrapper ../zstd/lib ../zstd/lib/common
+ZSTD_INCLUDE_DIRS=../zstd/zlibWrapper ../zstd/lib/common ../zstd/lib
 ZSTD_INCLUDE=$(patsubst %,-I%,$(ZSTD_INCLUDE_DIRS))
 ZFLAGS=-DZWRAP_USE_ZSTD=1
-ZCOMPILE_FLAGS= $(ZFLAGS) -lzstd $(ZSTD_INCLUDE)
+ZCOMPILE_FLAGS= $(ZFLAGS) -lzstd
 ALL_ZOBJS=$(ZOBJS) $(ZW_OBJS)
-INCLUDE=-Iclhash/include -I. -I../libpopcnt -I.. -Iinclude -I../CircularQueue $(INCPLUS)
+INCLUDE=-Iclhash/include -I. -I../libpopcnt -I.. -Iinclude -I../circularqueue $(ZSTD_INCLUDE) $(INCPLUS)
 
 all: $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX) $(ZEX)
 

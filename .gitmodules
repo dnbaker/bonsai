@@ -16,9 +16,6 @@
 [submodule "kraken"]
 	path = kraken
 	url = https://github.com/derrickwood/kraken
-[submodule "pdqsort"]
-	path = pdqsort
-	url = https://github.com/orlp/pdqsort
 [submodule "tinythreadpp"]
 	path = tinythreadpp
 	url = https://github.com/aseprite/tinythreadpp
@@ -34,6 +31,6 @@
 [submodule "libpopcnt"]
 	path = libpopcnt
 	url = https://github.com/kimwalisch/libpopcnt
-[submodule "CircularQueue"]
-	path = CircularQueue
-	url = https://github.com/dnbaker/CircularQueue
+[submodule "circularqueue"]
+	path = circularqueue
+	url = git@github.com:dnbaker/circularqueue
