@@ -8,7 +8,7 @@ Bonsai contains varied utilities for taxonomic analysis and classification using
   * Arbitrary, user-defined spaced-seed encoding.
     * *Reference compression* by windowing/minimization schemes.
     * *Generic minimization* including by taxonomic depth, lexicographic value, subsequence specificity, or Shannon entropy.
-  * Parallelized pairwise Jaccard Distance estimation using HyperLogLog sketches and is dramatically more accurate than comparable tools while also significantly outperforming them in speed.
+  * Parallelized pairwise Jaccard Distance estimation using HyperLogLog sketches and is dozens of times faster, sketch to result, than competing tools at reduced accuracy, which we are actively working to improve.
 * An unsupervised method for taxonomic structure discovery and correction.
 * A threadsafe, SIMD-accelerated HyperLogLog implementation.
 * Scripts for downloading reference genomes from new (post-2014) and old RefSeq.
