@@ -1,4 +1,4 @@
-.PHONY=all tests clean obj
+.PHONY=all tests clean obj update
 CXX=g++
 CC=gcc
 
@@ -67,10 +67,17 @@ ZCOMPILE_FLAGS= $(ZFLAGS) -lzstd
 ALL_ZOBJS=$(ZOBJS) $(ZW_OBJS)
 INCLUDE=-Iclhash/include -I. -I../libpopcnt -I.. -Iinclude -I../circularqueue $(ZSTD_INCLUDE) $(INCPLUS)
 
-all: $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX) $(ZEX)
+
+
+all: update $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX) $(ZEX)
 
 #libhll.a:
 #	cd hll && make CXX=$(CXX) && cp libhll.a ..
+
+update:
+	for i in circularqueue clhash cppitertools hll klib kraken kspp libpopcnt linear pdqsort tinythreadpp zstd; \
+        do cd ../$$i && git checkout master && cd ../bonsai; \
+    done
 
 obj: $(OBJS) $(DOBJS) $(ZOBJS) $(ZW_OBJS)
 
