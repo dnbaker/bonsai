@@ -1,4 +1,4 @@
-.PHONY=all tests clean bonsai
+.PHONY=all tests clean bonsai update
 
 all:
 	$(MAKE) -C bonsai
@@ -23,3 +23,6 @@ distcmp_z:
 
 distcmp:
 	$(MAKE) update distcmp -C bonsai
+
+update:
+	$(MAKE) update -C bonsai
