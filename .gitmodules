@@ -33,7 +33,7 @@
 	url = https://github.com/kimwalisch/libpopcnt
 [submodule "circularqueue"]
 	path = circularqueue
-	url = git@github.com:dnbaker/circularqueue
+	url = https://github.com/dnbaker/circularqueue
 [submodule "pdqsort"]
 	path = pdqsort
-	url = git@github.com:orlp/pdqsort
+	url = https://github.com/orlp/pdqsort
