@@ -21,7 +21,9 @@ All of these tools are experimental. Use at your own risk.
 Build Instructions
 =================
 
-`make bonsai`
+`cd bonsai && make bonsai`
+Alternatively, if you wish to use zstd-compressed files or uncompressed files instead of zlib-compressed:
+`make bonsai_z`
 
 Unit Tests
 =================
