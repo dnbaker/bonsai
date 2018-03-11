@@ -4,22 +4,22 @@ all:
 	$(MAKE) -C bonsai
 
 clean:
-	$(MAKE) clean -C bonsai
+	$(MAKE) update clean -C bonsai
 
 unit:
-	$(MAKE) unit -C bonsai
+	$(MAKE) update unit -C bonsai
 
 zunit:
-	$(MAKE) zunit -C bonsai
+	$(MAKE) update zunit -C bonsai
 
 bonsai:
-	$(MAKE) bonsai -C bonsai
+	$(MAKE) update bonsai -C bonsai
 
 bonsai_z:
-	$(MAKE) bonsai_z -C bonsai
+	$(MAKE) update bonsai_z -C bonsai
 
 distcmp_z:
-	$(MAKE) distcmp_z -C bonsai
+	$(MAKE) update distcmp_z -C bonsai
 
 distcmp:
-	$(MAKE) distcmp -C bonsai
+	$(MAKE) update distcmp -C bonsai
