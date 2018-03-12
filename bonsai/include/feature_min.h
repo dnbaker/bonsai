@@ -29,11 +29,39 @@ khash_t(64) *feature_count_map(const std::vector<std::string> fns, khash_t(p) *t
 khash_t(c) *make_depth_hash(khash_t(c) *lca_map, khash_t(p) *tax_map);
 void lca2depth(khash_t(c) *lca_map, khash_t(p) *tax_map);
 
-void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid, std::shared_mutex &m);
-void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid);
 khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, const khash_t(p) *tax);
-void update_feature_counter(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, const tax_t taxid);
+
+
+void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid);
+void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid);
+void update_feature_counter(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid);
 void update_minimized_map(const khash_t(all) *set, const khash_t(64) *full_map, khash_t(c) *ret);
+
+// Wrap these in structs so that downstream code can be managed as a set, not updated one-by-one.
+struct LcaMap {
+    using ReturnType = khash_t(c) *;
+    static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *d64, khash_t(c) *r32, khash_t(64) *r64, tax_t taxid) {
+        update_lca_map(r32, set, tax, taxid);
+    }
+};
+struct TdMap {
+    using ReturnType = khash_t(64) *;
+    static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *d64, khash_t(c) *r32, khash_t(64) *r64, tax_t taxid) {
+        update_lca_map(r32, set, tax, taxid);
+    }
+};
+struct FcMap {
+    using ReturnType = khash_t(64) *;
+    static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *d64, khash_t(c) *r32, khash_t(64) *r64, tax_t taxid) {
+        update_feature_counter(r64, set, tax, taxid);
+    }
+};
+struct MinMap {
+    using ReturnType = khash_t(c) *;
+    static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *d64, khash_t(c) *r32, khash_t(64) *r64, tax_t taxid) {
+        update_feature_counter(r64, set, tax, taxid);
+    }
+};
 
 template<typename ScoreType>
 size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks=nullptr) {
@@ -203,7 +231,6 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
     counters.reserve(todo);
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
     std::vector<std::future<size_t>> futures;
-    std::shared_mutex m;
 
     for(size_t i(0), end(fns.size()); i != end; ++i) counters.emplace_back(kh_init(all));
 
@@ -243,7 +270,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
                 ++submitted, ++completed;
                 if(unlikely((taxid = get_taxid(fns[index].data(), name_hash)) == UINT32_C(-1))) {
                     LOG_WARNING("Taxid for %s not listed in summary.txt. Not including.\n", fns[index].data());
-                } else update_lca_map(ret, counters[index], tax_map, taxid, m);
+                } else update_lca_map(ret, counters[index], tax_map, taxid);
                 kh_destroy(all, counters[index]); // Destroy set once we're done with it.
             }
         }
@@ -257,7 +284,7 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
         tax_t taxid(get_taxid(fns[index].data(), name_hash));
         if(taxid == UINT32_C(-1)) {
             LOG_WARNING("Taxid for %s not listed in summary.txt. Not including.", fns[index].data());
-        } else update_lca_map(ret, counters[index], tax_map, taxid, m);
+        } else update_lca_map(ret, counters[index], tax_map, taxid);
         kh_destroy(all, counters[index]);
         ++completed;
         LOG_DEBUG("Number left to do: %zu\n", todo - completed);
@@ -270,20 +297,28 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, khash_t(p) *tax_map,
     return ret;
 }
 
+#if 0
+struct FcMap {
+    using ReturnType = khash_t(64) *;
+    static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *d64, khash_t(c) *r32, khash_t(64) *r64, tax_t taxid) {
+        update_feature_counter(r64, set, tax, taxid);
+    }
+};
+#endif
 template<typename ScoreType>
 khash_t(64) *feature_count_map(const std::vector<std::string> fns, khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon, size_t start_size) {
     // Update this to include tax ids in the hash map.
     size_t submitted(0), completed(0), todo(fns.size());
-    std::vector<khash_t(all) *> counters(todo, nullptr);
+    std::vector<khash_t(all)> counters(num_threads);
     khash_t(64) *ret(kh_init(64));
     kh_resize(64, ret, start_size);
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
-    for(size_t i(0), end(fns.size()); i != end; ++i) counters[i] = kh_init(all);
     std::vector<std::future<size_t>> futures;
     // Mkae the future return the kseq pointer and then use it for resubmission.
     // TODO: Also use a fixed st of kh_all sets to reduce memory allocations.
     std::vector<kseq_t> kseqs;
     std::vector<kseq_t *> ksmap;
+    std::vector<uint32_t> counter_map;
     while(kseqs.size() < (unsigned)num_threads) kseqs.emplace_back(kseq_init_stack());
     fprintf(stderr, "Will use tax_map (%p) and seq2tax_map (%s) to assign "
                     "feature-minimized values to all kmers.\n", (void *)tax_map, seq2tax_path);
@@ -292,8 +327,9 @@ khash_t(64) *feature_count_map(const std::vector<std::string> fns, khash_t(p) *t
     std::set<size_t> used;
     for(size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
         futures.emplace_back(std::async(
-          std::launch::async, fill_set_genome<ScoreType>, fns[i].data(), sp, counters[i], i, nullptr, canon, &kseqs[submitted]));
+          std::launch::async, fill_set_genome<ScoreType>, fns[i].data(), sp, counters.data() + i, i, nullptr, canon, &kseqs[submitted]));
         ksmap.emplace_back(&kseqs[submitted]);
+        counter_map.emplace_back(submitted);
         LOG_DEBUG("Submitted for %zu.\n", submitted);
         ++submitted;
     }
@@ -308,13 +344,15 @@ khash_t(64) *feature_count_map(const std::vector<std::string> fns, khash_t(p) *t
             used.insert(index);
             LOG_DEBUG("Submitted for %zu.\n", submitted);
             kseq_t *ks_to_submit = ksmap.at(index);
+            auto coffset = counter_map.at(index);
+            khash_t(all) *counter = counters.data() + coffset; // Pointer to the counter to use
             f = std::async(
               std::launch::async, fill_set_genome<ScoreType>, fns[submitted].data(),
-              sp, counters[submitted], submitted, nullptr, canon, ks_to_submit);
+              sp, counter, submitted, nullptr, canon, ks_to_submit);
+            counter_map.emplace_back(coffset);
             ++submitted, ++completed;
             const tax_t taxid(get_taxid(fns[index].data(), name_hash));
-            update_feature_counter(ret, counters[index], tax_map, taxid);
-            kh_destroy(all, counters[index]); // Destroy set once we're done with it.
+            update_feature_counter(ret, counter, tax_map, taxid);
         }
     }
 
@@ -322,13 +360,16 @@ khash_t(64) *feature_count_map(const std::vector<std::string> fns, khash_t(p) *t
     for(auto &f: futures) if(f.valid()) {
         const size_t index(f.get());
         const tax_t taxid(get_taxid(fns[index].data(), name_hash));
-        update_feature_counter(ret, counters[index], tax_map, taxid);
-        kh_destroy(all, counters[index]);
+        update_feature_counter(ret, counters.data() + index, tax_map, taxid);
         ++completed;
     }
 
     // Clean up
     for(auto &ks: kseqs) kseq_destroy_stack(ks);
+    for(auto &counter: counters) {
+        std::free(counter.flags);
+        std::free(counter.keys);
+    }
     kh_destroy(name, name_hash);
     return ret;
 }

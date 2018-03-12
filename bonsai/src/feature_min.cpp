@@ -69,8 +69,7 @@ khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, const khash_t(p) *tax) {
 }
 
 
-void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid, std::shared_mutex &m) {
-    std::unique_lock<std::shared_mutex> lock(m);
+void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid) {
     int khr;
     khint_t k2;
     LOG_DEBUG("Adding set of size %zu t total set of current size %zu.\n", kh_size(set), kh_size(kc));
