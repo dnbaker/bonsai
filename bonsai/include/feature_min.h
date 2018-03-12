@@ -305,19 +305,26 @@ struct FcMap {
     }
 };
 #endif
-template<typename ScoreType>
-khash_t(64) *feature_count_map(const std::vector<std::string> fns, khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon, size_t start_size) {
+template<typename ScoreType, typename MapUpdater>
+typename MapUpdater::ReturnType
+make_map(const std::vector<std::string> fns, khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon, size_t start_size) {
+    MapUpdater mu;
+    void *data = nullptr;
+    khash_t(c) *r32 = nullptr;
     // Update this to include tax ids in the hash map.
     size_t submitted(0), completed(0), todo(fns.size());
     std::vector<khash_t(all)> counters(num_threads);
-    khash_t(64) *ret(kh_init(64));
-    kh_resize(64, ret, start_size);
+    typename MapUpdater::ReturnType ret = static_cast<typename MapUpdater::ReturnType>(std::calloc(sizeof(typename MapUpdater::ReturnType), 1));
+    if constexpr(sizeof(*ret->keys) == 8) {
+        kh_resize(64, ret, start_size);
+    } else {
+        kh_resize(c, ret, start_size);
+    }
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
     std::vector<std::future<size_t>> futures;
     // Mkae the future return the kseq pointer and then use it for resubmission.
     // TODO: Also use a fixed st of kh_all sets to reduce memory allocations.
     std::vector<kseq_t> kseqs;
-    std::vector<kseq_t *> ksmap;
     std::vector<uint32_t> counter_map;
     while(kseqs.size() < (unsigned)num_threads) kseqs.emplace_back(kseq_init_stack());
     fprintf(stderr, "Will use tax_map (%p) and seq2tax_map (%s) to assign "
@@ -327,8 +334,7 @@ khash_t(64) *feature_count_map(const std::vector<std::string> fns, khash_t(p) *t
     std::set<size_t> used;
     for(size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
         futures.emplace_back(std::async(
-          std::launch::async, fill_set_genome<ScoreType>, fns[i].data(), sp, counters.data() + i, i, nullptr, canon, &kseqs[submitted]));
-        ksmap.emplace_back(&kseqs[submitted]);
+          std::launch::async, fill_set_genome<ScoreType>, fns[i].data(), sp, counters.data() + i, i, data, canon, &kseqs[submitted]));
         counter_map.emplace_back(submitted);
         LOG_DEBUG("Submitted for %zu.\n", submitted);
         ++submitted;
@@ -343,16 +349,16 @@ khash_t(64) *feature_count_map(const std::vector<std::string> fns, khash_t(p) *t
             if(used.find(index) != used.end()) continue;
             used.insert(index);
             LOG_DEBUG("Submitted for %zu.\n", submitted);
-            kseq_t *ks_to_submit = ksmap.at(index);
             auto coffset = counter_map.at(index);
             khash_t(all) *counter = counters.data() + coffset; // Pointer to the counter to use
+            kseq_t *ks_to_submit = kseqs.data() + coffset;
             f = std::async(
               std::launch::async, fill_set_genome<ScoreType>, fns[submitted].data(),
-              sp, counter, submitted, nullptr, canon, ks_to_submit);
+              sp, counter, submitted, data, canon, ks_to_submit);
             counter_map.emplace_back(coffset);
             ++submitted, ++completed;
             const tax_t taxid(get_taxid(fns[index].data(), name_hash));
-            update_feature_counter(ret, counter, tax_map, taxid);
+            mu.update(tax_map, counter, data, r32, ret, taxid);
         }
     }
 
@@ -360,7 +366,7 @@ khash_t(64) *feature_count_map(const std::vector<std::string> fns, khash_t(p) *t
     for(auto &f: futures) if(f.valid()) {
         const size_t index(f.get());
         const tax_t taxid(get_taxid(fns[index].data(), name_hash));
-        update_feature_counter(ret, counters.data() + index, tax_map, taxid);
+        mu.update(tax_map, counters.data() + index, data, r32, ret, taxid);
         ++completed;
     }
 
@@ -373,6 +379,11 @@ khash_t(64) *feature_count_map(const std::vector<std::string> fns, khash_t(p) *t
     kh_destroy(name, name_hash);
     return ret;
 }
+template<typename ScoreType>
+auto feature_count_map(const std::vector<std::string> fns, khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon, size_t start_size) {
+    return make_map<ScoreType, FcMap>(fns, tax_map, seq2tax_path, sp, num_threads, canon, start_size);
+}
+
 
 
 } // namespace emp
