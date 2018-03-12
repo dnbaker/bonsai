@@ -76,7 +76,7 @@ all: update $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX) $(ZEX)
 
 update:
 	for i in circularqueue clhash cppitertools hll klib kraken kspp libpopcnt linear pdqsort tinythreadpp zstd; \
-        do cd ../$$i && git checkout master && cd ../bonsai; \
+        do cd ../$$i && git checkout master && git pull && cd ../bonsai; \
     done
 
 obj: $(OBJS) $(DOBJS) $(ZOBJS) $(ZW_OBJS)
