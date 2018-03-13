@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <assert.h>
 
 #define KSEQ_INIT3(SCOPE, type_t, __read, SIZE)		\
 	KSTREAM_INIT(type_t, __read, 16384)			\
@@ -51,7 +52,7 @@ static INLINE char *ksdup(const kstring_t *ks) {
 
 // From bwa -- batch parsing.
 static inline void kseq2bseq1(const kseq_t *ks, bseq1_t *s) // one chunk
-{ // TODONE: it would be better to allocate one chunk of memory.
+{
     s->name = (char *)malloc(ks->name.l + ks->comment.l + ks->seq.l + ks->qual.l + 4);
     memcpy(s->name, ks->name.s, ks->name.l + 1);
     char *start = s->name + ks->name.l + 2;
@@ -71,12 +72,39 @@ static inline void kseq2bseq1(const kseq_t *ks, bseq1_t *s) // one chunk
     s->l_sam   = s->id = 0;
 }
 
+static inline void rekseq2bseq1(const kseq_t *ks, bseq1_t *s) // one chunk
+{
+    if(s->name == NULL) {
+        assert(!s->sam && !s->l_sam);
+        kseq2bseq1(ks, s);
+        return;
+    }
+    s->name = (char *)realloc(s->name, ks->name.l + ks->comment.l + ks->seq.l + ks->qual.l + 4);
+    memcpy(s->name, ks->name.s, ks->name.l + 1);
+    char *start = s->name + ks->name.l + 2;
+    if(ks->comment.l == 0) s->comment = NULL;
+    else {
+        s->comment = start;
+        memcpy(s->comment, ks->comment.s, ks->comment.l + 1);
+        start += ks->comment.l + 1;
+    }
+    s->seq = start;
+    memcpy(s->seq, ks->seq.s, ks->seq.l + 1);
+    start += ks->seq.l + 1;
+    if(ks->qual.l == 0) s->qual = NULL;
+    else s->qual = start, memcpy(s->qual, ks->qual.s, ks->qual.l + 1);
+    s->l_seq   = ks->seq.l;
+    //s->sam     = NULL;
+    //s->l_sam   = s->id = 0;
+}
+
 static inline void bseq_destroy(bseq1_t *bs) {
     free(bs->name);
     free(bs->sam);
 }
 
 bseq1_t *bseq_read(int chunk_size, int *n_, void *ks1_, void *ks2_);
+bseq1_t *bseq_realloc_read(int chunk_size, int *n_, void *ks1_, void *ks2_, bseq1_t *ret);
 
 #ifdef __cplusplus
 }

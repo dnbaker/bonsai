@@ -81,7 +81,7 @@ INLINE void append_taxa_run(const tax_t last_taxa,
         default:           kputuw_(last_taxa, bks); break;
     }
 
-    kputc_(':', bks); kputuw_(taxa_run, bks); kputc('\t', bks);
+    kputc_(':', bks); kputuw_(taxa_run, bks); kputc_('\t', bks);
 }
 
 
@@ -90,7 +90,7 @@ INLINE void append_counts(u32 count, const char character, kstring_t *ks) {
         kputc_(character, ks);
         kputc_(':', ks);
         kputuw_(count, ks);
-        kputc('\t', ks);
+        kputc_('\t', ks);
     }
 }
 
@@ -104,7 +104,8 @@ unsigned classify_seq(ClassifierGeneric<ScoreType> &c,
     linear::counter<tax_t, u16> hit_counts;
     u32 ambig_count(0), missing_count(0);
     tax_t taxon(0);
-    ks::string bks(bs->sam);
+    ks::string bks(bs->sam, bs->l_sam);
+    bks.clear();
     taxa.clear();
 
     enc.assign(bs->seq, bs->l_seq);
@@ -200,18 +201,23 @@ inline void process_dataset(Classifier &c, khash_t(p) *taxmap, const char *fq1, 
     kseq_t *ks1(kseq_init(ifp1)), *ks2(ifp2 ? kseq_init(ifp2): nullptr);
     del_data dd{nullptr, per_set, chunk_size};
     ks::string cks(256u);
-    const int is_paired(!!fq2);
-    while((dd.seqs_ = bseq_read(chunk_size, &nseq, (void *)ks1, (void *)ks2))) {
+    const int is_paired(fq2 != 0);
+    if((dd.seqs_ = bseq_read(chunk_size, &nseq, (void *)ks1, (void *)ks2)) == nullptr) {
+        LOG_WARNING("Could not get any sequences from file, fyi.\n");
+        goto fail; // Wheeeeee
+    }
+    while((dd.seqs_ = bseq_realloc_read(chunk_size, &nseq, (void *)ks1, (void *)ks2, dd.seqs_))) {
         LOG_INFO("Read %i seqs with chunk size %u\n", nseq, chunk_size);
         // Classify
         classify_seqs(c, taxmap, dd.seqs_, kspp2ks(cks), nseq, per_set, is_paired);
         // Write out
-        std::fwrite(cks.data(), 1, cks.size(), out);
+        ::write(fileno(out), cks.data(), cks.size()); // Already buffered.
         // Delete
-        kt_for(c.nt_, &kt_del_helper, (void *)&dd, nseq / per_set + 1);
         cks.clear();
-        free(dd.seqs_);
     }
+    kt_for(c.nt_, &kt_del_helper, (void *)&dd, nseq / per_set + 1);
+    free(dd.seqs_);
+    fail:
     // Clean up.
     gzclose(ifp1); gzclose(ifp2);
     kseq_destroy(ks1); kseq_destroy(ks2);

@@ -46,6 +46,35 @@ bseq1_t *bseq_read(int chunk_size, int *n_, void *ks1_, void *ks2_)
     return seqs;
 }
 
+bseq1_t *bseq_realloc_read(int chunk_size, int *n_, void *ks1_, void *ks2_, bseq1_t *seqs) {
+    if(!seqs) return bseq_read(chunk_size, n_, ks1_, ks2_);
+    int n = 0, size = 0;
+    kseq_t *ks = (kseq_t *)ks1_, *ks2 = (kseq_t *)ks2_;
+    while (kseq_read(ks) >= 0) {
+        if (ks2 && kseq_read(ks2) < 0) { // the 2nd file has fewer reads
+            fprintf(stderr, "[W::%s] the 2nd file has fewer sequences.\n", __func__);
+            break;
+        }
+        trim_readno(&ks->name);
+        rekseq2bseq1(ks, seqs + n);
+        seqs[n].id = n;
+        size += seqs[n++].l_seq;
+        if (ks2) {
+            trim_readno(&ks2->name);
+            rekseq2bseq1(ks2, seqs + n);
+            seqs[n].id = n;
+            size += seqs[n++].l_seq;
+        }
+        if (size >= chunk_size && (n&1) == 0) break;
+    }
+    if (size == 0) { // test if the 2nd file is finished
+        if (ks2 && kseq_read(ks2) >= 0)
+            fprintf(stderr, "[W::%s] the 1st file has fewer sequences.\n", __func__);
+    }
+    *n_ = n;
+    return seqs;
+}
+
 #ifdef __cplusplus
 }
 #endif
