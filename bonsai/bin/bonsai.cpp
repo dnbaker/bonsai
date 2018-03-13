@@ -126,12 +126,11 @@ int phase2_main(int argc, char *argv[]) {
                                                        : std::vector<std::string>(argv + optind + 2, argv + argc));
     if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
     LOG_DEBUG("Got paths\n");
+    if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for final database generation.");
     if(score_scheme::LEX == mode || score_scheme::ENTROPY) {
-        if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for lexicographic mode for final database generation.");
         Spacer sp(k, wsz, sv);
         Database<khash_t(c)>  phase2_map(sp);
         // Force using hll so that we can use __sync_bool_compare_and_swap to parallelize.
-#pragma message("Add cached/high water-point kseq buffers.")
         std::size_t hash_size(estimate_cardinality<score::Lex>(inpaths, k, k, sp.s_, canon, nullptr, num_threads, 24));
         LOG_DEBUG("Estimated cardinality: %zu\n", hash_size);
         LOG_DEBUG("Parent map bulding from %s\n", argv[optind]);
@@ -143,10 +142,10 @@ int phase2_main(int argc, char *argv[]) {
         return EXIT_SUCCESS;
     }
     Database<khash_t(64)> phase1_map{Database<khash_t(64)>(argv[optind])};
-    Spacer sp(k, wsz, phase1_map.s_);
     Database<khash_t(c)>  phase2_map{phase1_map};
+    Spacer sp(k, wsz, phase1_map.s_);
     khash_t(p) *taxmap(tax_path.empty() ? nullptr: build_parent_map(tax_path.data()));
-    phase2_map.db_ = minimized_map<score::Hash>(inpaths, phase1_map.db_, sp, num_threads, start_size, canon);
+    phase2_map.db_ = minimized_map<score::Hash>(inpaths, phase1_map.db_, seq2taxpath.data(), taxmap, sp, num_threads, start_size, canon);
     // Write minimized map
     phase2_map.write(argv[optind + 1]);
     if(taxmap) kh_destroy(p, taxmap);
@@ -186,7 +185,6 @@ int hll_main(int argc, char *argv[]) {
     std::vector<std::string> inpaths(paths_file.empty() ? get_paths(paths_file.data())
                                                         : std::vector<std::string>(argv + optind, argv + argc));
     spvec_t sv(spacing.empty() ? spvec_t(k - 1, 0): parse_spacing(spacing.data(), k));
-#pragma message("Add cached/high water-point kseq buffers.")
     const double est(estimate_cardinality<score::Lex>(inpaths, k, wsz, sv, canon, nullptr, num_threads, sketch_size));
     std::fprintf(stderr, "Estimated number of unique exact matches: %lf\n", est);
     return EXIT_SUCCESS;
@@ -241,7 +239,6 @@ int phase1_main(int argc, char *argv[]) {
     spvec_t sv(parse_spacing(spacing.data(), k));
     Spacer sp(k, wsz, sv);
     std::vector<std::string> inpaths(argv + optind + 3, argv + argc);
-#pragma message("Add cached/high water-point kseq buffers.")
     std::size_t hash_size(use_hll ? estimate_cardinality<score::Lex>(inpaths, k, k, sv, canon, nullptr, num_threads, sketch_size): 1 << 16);
     if(use_hll) LOG_INFO("Estimated number of elements: %zu\n", hash_size);
 
