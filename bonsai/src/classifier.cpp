@@ -24,7 +24,8 @@ void append_fastq_classification(const tax_counter &hit_counts,
     kputs(bs->name, bks);
     kputc_(' ', bks);
     cms = bks->s + bks->l;
-    kputc_((taxon == 0) * ('U' - 'C') + 'C', bks);
+    static const char lut[] {'C', 'U'};
+    kputc_(lut[taxon == 0], bks);
     kputc_('\t', bks);
     kputuw_(taxon, bks);
     kputc_('\t', bks);
@@ -57,7 +58,7 @@ void append_kraken_classification(const tax_counter &hit_counts,
                                   const std::vector<tax_t> &taxa,
                                   const tax_t taxon, const u32 ambig_count, const u32 missing_count,
                                   bseq1_t *bs, kstring_t *bks) {
-    const char tbl[]{'C', 'U'};
+    static const char tbl[]{'C', 'U'};
     kputc_(tbl[!taxon], bks);
     kputc_('\t', bks);
     kputs(bs->name, bks);
@@ -65,10 +66,11 @@ void append_kraken_classification(const tax_counter &hit_counts,
     kputuw_(taxon, bks);
     kputc_('\t', bks);
     kputw(bs->l_seq, bks);
-    kputc('\t', bks);
+    kputc_('\t', bks);
     append_counts(missing_count, 'M', bks);
     append_counts(ambig_count,   'A', bks);
     append_taxa_runs(taxon, taxa, bks);
+    bks->s[bks->l] = '\0';
 }
 
 void append_taxa_runs(tax_t taxon, const std::vector<tax_t> &taxa, kstring_t *bks) {
@@ -85,6 +87,7 @@ void append_taxa_runs(tax_t taxon, const std::vector<tax_t> &taxa, kstring_t *bk
         }
         append_taxa_run(last_taxa, taxa_run, bks); // Add last run.
         bks->s[bks->l - 1] = '\n'; // We add an extra tab. Replace  that with a newline.
+        bks->s[bks->l] = '\0';
     } else kputsn("0:0\n", 4, bks);
 }
 
