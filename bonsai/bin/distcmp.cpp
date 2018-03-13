@@ -16,43 +16,52 @@ void usage(const char *arg) {
     std::exit(EXIT_FAILURE);
 }
 
-#define NOTHREADING
+//#define NOTHREADING
 
+void print_results(ks::string &ks, double sketchval, double exactval, const hll::hll_t &h1, const khash_t(set) *s1, const hll::hll_t &h2, const khash_t(set) *s2, size_t i, size_t j) {
+    ks.sprintf("%s\t%s\t%lf\t%lf\t%lf\t%lf\t%u\t%u\t%f\t%zu", argv[optind + i], argv[optind + j], sketchval, exactval, std::abs(sketchval - exactval), std::abs(sketchval - exactval) / exactval * 100., sketchsize, k, h1.report(), kh_size(s1), h2.report(), kh_size(s2));
+}
 
-#ifdef NOTHREADING
-#define EMIT_RESULTS(sketchval, exactval) do { \
-    ks.sprintf("%s\t%s\t%lf\t%lf\t%lf\t%lf\t%u\t%u\n", \
-               argv[optind + i], argv[optind + j], \
-               sketchval, exactval, std::abs(sketchval - exactval), \
-               std::abs(sketchval - exactval) / exactval * 100., sketchsize, k); } while(0)
-#else
-#define EMIT_RESULTS(sketchval, exactval) do { std::lock_guard<std::mutex> lock(output_lock);\
-    ks.sprintf(ofp, "%s\t%s\t%lf\t%lf\t%lf\t%lf\t%u\t%u\n", \
-               argv[optind + i], argv[optind + j], \
-               sketchval, exactval, std::abs(sketchval - exactval), \
-               std::abs(sketchval - exactval) / exactval * 100., sketchsize, k); } while(0)
-#endif
+class cmp_accumulonimbus {
+    size_t iherrs_;
+    double herrs_;
+    double herrsqs_;
+    size_t iherrsqs_;
+    double uerrs_;
+    size_t iuerrs_;
+    double uerrsqs_;
+    size_t iuerrsqs_;
+    double jerrs_;
+    double jerrsqs_;
+    size_t nadded_;
+    cmp_accumulonimbus() {
+        std::memset(this, 0, sizeof(*this));
+    }
+    void add(const hll::hll_t &h1, const khash_t(set) *s1, const hll::hll_t &h2, const khash_t(set) *s2, double sketchval, double exactval) {
+        ++nadded_;
+        throw std::runtime_error("NotImplemenetd.");
+    }
+};
 
 int main(int argc, char *argv[]) {
     int c;
     bool lowmem(false), canon(true), use_ertl(true);
     unsigned sketchsize(18), k(31);
     FILE *ofp(stdout);
+    cmp_accumulonimbus accum;
     while((c = getopt(argc, argv, "p:o:k:n:mECh")) >= 0) {
         switch(c) {
-            case 'E': use_ertl = false; break;
-            case 'C': canon = false; break;
+            case 'E': use_ertl   = false; break;
+            case 'C': canon      = false; break;
             case 'n': sketchsize = std::atoi(optarg); LOG_DEBUG("Set sketch size to %u with string '%s'\n", sketchsize, optarg); break;
-            case 'k':          k = std::atoi(optarg); break;
-            case 'h': case '?': usage(argv[0]); break;
-            case 'o':       ofp = std::fopen(optarg, "w"); break;
+            case 'k': k          = std::atoi(optarg); break;
+            case 'o': ofp        = std::fopen(optarg, "w"); break;
             case 'p': omp_set_num_threads(std::atoi(optarg)); break;
-            case 'm': lowmem    = true; break;
+            case 'm': lowmem     = true; break;
+            case 'h': case '?': usage(argv[0]); break;
         }
     }
-    #ifndef NOTHREADING
     std::mutex output_lock;
-    #endif
     omp_set_num_threads(1); // Only using one thread currently as multithreading has not been debugged.
     std::vector<char> buf(1 << 16);
     std::setvbuf(ofp, buf.data(), _IOFBF, buf.size());
@@ -84,10 +93,17 @@ int main(int argc, char *argv[]) {
                 hll_from_khash(h2, s2);
                 double sketchval = hll::jaccard_index(h1, h2);
                 double exactval  = emp::jaccard_index(s1, s2);
-                EMIT_RESULTS(sketchval, exactval);
+                {
+                    #pragma omp critical 
+                    print_results(ks, sketchval, exactval, h1, s1, h2, s2, i, j);
+                }
                 kh_clear(all, s2);
                 h2.clear();
-                if(ks.size() >= 1 << 16) ks.write(fn), ks.clear();
+                if(ks.size() >= 1 << 16)
+                {
+                    #pragma omp critical 
+                    ks.write(fn), ks.clear();
+                }
             }
             kh_clear(all, s1);
             h1.clear();
@@ -105,12 +121,16 @@ int main(int argc, char *argv[]) {
             sketches.emplace_back(
                 make_hll(std::vector<std::string>{argv[optind + sketches.size()]},
                          k, k, sv, canon, nullptr, 1, sketchsize, nullptr /*kseq */, use_ertl));
+        #pragma omp parallel for
         for(size_t i(0); i < ngenomes; ++i) {
             for(size_t j(i + 1); j < ngenomes; ++j) {
                 sketchval = hll::jaccard_index(sketches[i], sketches[j]);
                 exactval  = emp::jaccard_index(sets[i], sets[j]);
-                EMIT_RESULTS(sketchval, exactval);
-                if(ks.size() >= 1 << 16) ks.write(fn), ks.clear();
+                {
+                    #pragma omp critical
+                    print_results(ks, sketchval, exactval, sets[i], sketches[i], sets[j], sketches[j], i, j);
+                    if(ks.size() >= 1 << 16) ks.write(fn), ks.clear();
+                }
             }
         }
     }
