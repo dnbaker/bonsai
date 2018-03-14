@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
             case 'k': k          = std::atoi(optarg); break;
             case 'o': ofp        = std::fopen(optarg, "w"); break;
             case 's': sumfp      = std::fopen(optarg, "w"); break;
-            case 'S': same_stream = true;
+            case 'S': same_stream = true; break;
             case 'p': omp_set_num_threads(std::atoi(optarg)); break;
             case 'm': lowmem     = true; break;
             case 'h': case '?': usage(argv[0]); break;
