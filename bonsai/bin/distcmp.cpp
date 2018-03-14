@@ -72,11 +72,11 @@ public:
 
 int main(int argc, char *argv[]) {
     int c;
-    bool lowmem(false), canon(true), use_ertl(true);
+    bool lowmem(false), canon(true), use_ertl(true), same_stream(false);
     unsigned sketchsize(18), k(31);
     FILE *ofp(stdout), *sumfp(stdout);
     cmp_accumulonimbus accum;
-    while((c = getopt(argc, argv, "s:p:o:k:n:mECh")) >= 0) {
+    while((c = getopt(argc, argv, "s:p:o:k:n:mEChS")) >= 0) {
         switch(c) {
             case 'E': use_ertl   = false; break;
             case 'C': canon      = false; break;
@@ -84,11 +84,13 @@ int main(int argc, char *argv[]) {
             case 'k': k          = std::atoi(optarg); break;
             case 'o': ofp        = std::fopen(optarg, "w"); break;
             case 's': sumfp      = std::fopen(optarg, "w"); break;
+            case 'S': same_stream = true;
             case 'p': omp_set_num_threads(std::atoi(optarg)); break;
             case 'm': lowmem     = true; break;
             case 'h': case '?': usage(argv[0]); break;
         }
     }
+    if(same_stream) sumfp = ofp;
     std::mutex output_lock;
     omp_set_num_threads(1); // Only using one thread currently as multithreading has not been debugged.
     std::vector<char> buf(1 << 16);
@@ -113,6 +115,7 @@ int main(int argc, char *argv[]) {
             paths[0] = argv[optind + i];
             fill_set_genome<score::Lex>(argv[optind + i], sp, s1, i, nullptr, canon);
             hll_from_khash(h1, s1);
+            h1.sum();
             accum.add(h1, s1);
 #ifndef NOTHREADING
             #pragma omp parallel for
@@ -122,6 +125,7 @@ int main(int argc, char *argv[]) {
                 hll_from_khash(h2, s2);
                 double sketchval = hll::jaccard_index(h1, h2);
                 double exactval  = emp::jaccard_index(s1, s2);
+                h2.sum();
                 accum.add(h1, s1, h2, s2);
                 {
                     #pragma omp critical 
