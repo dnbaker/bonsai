@@ -63,7 +63,7 @@ class AesCtr {
         void add_store(__m128i *work, AesCtr &state) const {
           state.ctr_[ind] =
               _mm_add_epi64(state.ctr_[ind], _mm_set_epi64x(0, UNROLL_COUNT));
-              _mm_storeu_si128(
+              _mm_store_si128(
                   (__m128i *)&state.state_[16 * ind],
                   _mm_aesenclast_si128(work[ind], state.seed_[AESCTR_ROUNDS]));
           aes_unroll_impl<ind + 1, todo - 1>().add_store(work, state);
@@ -127,10 +127,8 @@ public:
         result_type ret[DIV];
         count /= DIV;
         __m128i tmp(_mm_xor_si128(_mm_set_epi64x(0, count), seed_[0]));
-        for (unsigned r = 1; r <= AESCTR_ROUNDS - 1; ++r) {
-            tmp = _mm_aesenc_si128(tmp, seed_[r]);
-        }
-        _mm_storeu_si128((__m128i *)ret, _mm_aesenclast_si128(tmp, seed_[AESCTR_ROUNDS]));
+        for (unsigned r = 1; r <= AESCTR_ROUNDS - 1; tmp = _mm_aesenc_si128(tmp, seed_[r++]));
+        _mm_store_si128((__m128i *)ret, _mm_aesenclast_si128(tmp, seed_[AESCTR_ROUNDS]));
         return ret[offset_];
     }
 };

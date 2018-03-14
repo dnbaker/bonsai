@@ -65,7 +65,7 @@ public:
         jerrsqs_ += diff;
     }
     auto report(std::FILE *fp=stdout) {
-        auto ret = std::fprintf(fp, "##total hll errors\tMSE hll\ttotal union errors\tMSE hll\ttotal ji errors\tSE ji\nNum sketches\tNum pairs\n");
+        auto ret = std::fprintf(fp, "##total hll errors\tMSE hll\ttotal union errors\tMSE hll\ttotal ji errors\tSE ji\tNum sketches\tNum pairs\n");
         ret     += std::fprintf(fp, "%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%zu\t%zu\n", herrs_, herrsqs_ / nadded_, uerrs_, uerrsqs_ / npadded_, jerrs_, jerrsqs_, nadded_, npadded_);
     }
 };
@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
     unsigned sketchsize(18), k(31);
     FILE *ofp(stdout), *sumfp(stdout);
     cmp_accumulonimbus accum;
-    while((c = getopt(argc, argv, "s:p:o:k:n:mEChS")) >= 0) {
+    while((c = getopt(argc, argv, "s:p:o:k:n:SmECh")) >= 0) {
         switch(c) {
             case 'E': use_ertl   = false; break;
             case 'C': canon      = false; break;
