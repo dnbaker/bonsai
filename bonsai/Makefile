@@ -97,16 +97,16 @@ clhash.o: ../clhash/src/clhash.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB) $(ZCOMPILE_FLAGS)
 
 test/%.o: test/%.cpp
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG=0 -c $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 test/%.zo: test/%.cpp
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG=0 -c $< -o $@ $(ZCOMPILE_FLAGS)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(ZCOMPILE_FLAGS)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
 
 %.do: %.cpp
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG=0 -c $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 %.zo: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD)  -c $< -o $@ -DNDEBUG $(LIB) $(ZCOMPILE_FLAGS)
@@ -115,7 +115,7 @@ src/popcnt.o: src/popcnt.cpp
 	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
 
 src/popcnt.do: src/popcnt.cpp
-	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD) -DNDEBUG=0 -c $< -o $@ $(LIB)
+	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
 
 src/popcnt.zo: src/popcnt.cpp
 	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD)  -c $< -o $@ $(LIB)
@@ -127,7 +127,7 @@ src/popcnt.zo: src/popcnt.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) $(LIB)
 
 %_d: bin/%.cpp $(DOBJS)
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(DOBJS) -DNDEBUG=0 $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(DOBJS) $< -o $@ $(LIB)
 
 bonsai/fahist: src/fahist.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) ../klib/kthread.o $< -o $@ -lz
@@ -137,12 +137,11 @@ lib/libbonsai.a: $(OBJS)
 
 tests: clean unit
 
-unit: $(OBJS) $(TEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(OBJS) -DNDEBUG=0 -o $@ $(LIB)
-	# $(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) test/hll.o test/main.o $(LD) $(OBJS) -o $@ $(LIB)
+unit: $(DOBJS) $(TEST_OBJS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE) $(TEST_OBJS) $(LD) $(DOBJS) -o $@ $(LIB)
 
 zunit: $(ZOBJS) $(ZTEST_OBJS)
-	$(CXX) $(CXXFLAGS) $(INCLUDE) $(ZTEST_OBJS) $(LD) $(ALL_ZOBJS) -DNDEBUG=0 -o $@ $(LIB) $(ZCOMPILE_FLAGS)
+	$(CXX) $(CXXFLAGS) $(INCLUDE) $(ZTEST_OBJS) $(LD) $(ALL_ZOBJS) -o $@ $(LIB) $(ZCOMPILE_FLAGS)
 
 clean:
 	rm -f $(ZOBJS) $(ZTEST_OBJS) $(ZW_OBJS) $(OBJS) $(DEX) $(ZEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o \
