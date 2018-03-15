@@ -26,24 +26,89 @@ std::vector<std::string> paths {
 
 TEST_CASE("hll") {
     std::vector<std::pair<uint64_t, uint64_t>> pairs {
-        //{24, 40},
-        {22, 26},
+        {10, 14},
+        {10, 16},
+        {10, 18},
+        {10, 20},
+        {10, 22},
+        {10, 24},
+        {10, 26},
+        {12, 14},
+        {12, 16},
+        {12, 18},
+        {12, 20},
+        {12, 22},
+        {12, 24},
+        {12, 26},
+        {12, 20},
+        {15, 21},
         {19, 24},
-        {15, 21}
+        {22, 26}
     };
+    double diffsumsum = 0.;
+    int numpass = 0;
     //for(auto x: {8, 12, 16, 20, 24, 28, 32, 36, 42}) {
+    std::mt19937_64 mt;
+    const size_t niter = 50;
+    const double div = niter;
+    std::fprintf(stdout, "#Sketch size\tNumber of elements\tDifference\tRMSE\tAbsDiffMean\tNumber underestimated\tNumber overestimated\tNumber of sketches with difference above expected\n");
     for(const auto &pair: pairs) {
-        const size_t val(1ull << pair.second), hsz(pair.first);
-        hll::hll_t hll(hsz);
-        for(size_t i(0); i < val; ++i) {
-            hll.add(wang_hash(((uint64_t)rand() << 32) | rand()));
+        double diffsum = 0., absdiffsum = 0.;
+        std::vector<double> diffs;
+        size_t numlessmore[] {0, 0};
+        int localnp = 0;
+        for(size_t j(0); j < niter; ++j) {
+            const size_t val(1ull << pair.second), hsz(pair.first);
+            hll::hll_t hll(hsz);
+            for(size_t i(0); i < val; ++i) {
+                hll.addh(mt());
+            }
+            hll.sum();
+            if(std::abs(hll.report() - val) > hll.est_err()) {
+                fprintf(stderr, "Warning: Above expected variance for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
+            }
+            auto diff = hll.report() - val; // For maximally mixed metaphors
+            diffs.push_back(diff);
+            diffsum += diff;
+            ++numlessmore[diff > 0];
+            absdiffsum += std::abs(diff);
+            diff *= diff;
+            localnp += (std::abs(hll.report() - val) <= hll.est_err());
         }
-        hll.sum();
-        if(std::abs(hll.report() - val) > hll.est_err()) {
-            fprintf(stderr, "Warning: Above expected variance for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
-        }
-        REQUIRE(std::abs(hll.report() - val) <= hll.est_err() * 2);
+        auto sqvar = std::sqrt(std::accumulate(std::begin(diffs), std::end(diffs), 0., [div](auto x, auto y) {return x + y / div * y;}));
+        std::fprintf(stdout, "%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\n", (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1], (int)niter - localnp);
+        diffsumsum += diffsum;
+        numpass += localnp;
     }
+    for(const auto &pair: pairs) {
+        double diffsum = 0., absdiffsum = 0.;
+        std::vector<double> diffs;
+        size_t numlessmore[] {0, 0};
+        int localnp = 0;
+        for(size_t j(0); j < niter; ++j) {
+            const size_t val(1ull << pair.second), hsz(pair.first);
+            hll::hll_t hll(hsz);
+            for(size_t i(0); i < val; ++i) {
+                hll.addh(mt());
+            }
+            hll.sum();
+            if(std::abs(hll.report() - val) > hll.est_err()) {
+                fprintf(stderr, "Warning: Above expected variance for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
+            }
+            auto diff = hll.report() - val; // For maximally mixed metaphors
+            diffs.push_back(diff);
+            diffsum += diff;
+            ++numlessmore[diff > 0];
+            absdiffsum += std::abs(diff);
+            diff *= diff;
+            localnp += (std::abs(hll.report() - val) <= hll.est_err());
+        }
+        auto sqvar = std::sqrt(std::accumulate(std::begin(diffs), std::end(diffs), 0., [div](auto x, auto y) {return x + y / div * y;}));
+        std::fprintf(stdout, "%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\n", (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1], (int)niter - localnp);
+        diffsumsum += diffsum;
+        numpass += localnp;
+    }
+    REQUIRE(numpass >= (niter * pairs.size()));
 }
 
 TEST_CASE("phll") {
@@ -62,7 +127,7 @@ TEST_CASE("phll") {
         }
         fprintf(stderr, "For np %zu, we have %lf for expected and %lf for measured as correct as we expect to be, theoretically for %zu and %zu.\n",
                 np, (1.03896 / std::sqrt(1ull << np)), (std::abs((double)exact - inexact) / inexact), exact, inexact);
-        REQUIRE(std::abs((double)exact - inexact) < (1.03896 * inexact / std::sqrt(1uLL << np) * 2));
+        REQUIRE(std::abs((double)exact - inexact) < (1.03896 * inexact / std::sqrt(1uLL << np)));
     }
 }
 
