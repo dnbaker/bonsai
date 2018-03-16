@@ -49,13 +49,14 @@ TEST_CASE("hll") {
     int numpass = 0;
     //for(auto x: {8, 12, 16, 20, 24, 28, 32, 36, 42}) {
     std::mt19937_64 mt;
-    const size_t niter = 50;
+    const size_t niter = 100;
     const double div = niter;
-    std::fprintf(stdout, "#Sketch size\tNumber of elements\tDifference\tRMSE\tAbsDiffMean\tNumber underestimated\tNumber overestimated\tNumber of sketches with difference above expected\n");
+    std::fprintf(stdout, "#Structure Type\tSketch size\tNumber of elements\tDifference\tRMSE\tAbsDiffMean\tNumber underestimated\tNumber overestimated\tNumber of sketches with difference above expected\n");
     for(const auto &pair: pairs) {
         double diffsum = 0., absdiffsum = 0.;
         std::vector<double> diffs;
         size_t numlessmore[] {0, 0};
+        double sumlessmore[] {0, 0};
         int localnp = 0;
         for(size_t j(0); j < niter; ++j) {
             const size_t val(1ull << pair.second), hsz(pair.first);
@@ -71,12 +72,15 @@ TEST_CASE("hll") {
             diffs.push_back(diff);
             diffsum += diff;
             ++numlessmore[diff > 0];
+            sumlessmore[diff > 0] += std::abs(diff);
             absdiffsum += std::abs(diff);
             diff *= diff;
             localnp += (std::abs(hll.report() - val) <= hll.est_err());
         }
         auto sqvar = std::sqrt(std::accumulate(std::begin(diffs), std::end(diffs), 0., [div](auto x, auto y) {return x + y / div * y;}));
-        std::fprintf(stdout, "%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\n", (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1], (int)niter - localnp);
+        std::fprintf(stdout, "HLL\t%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\t%f\t%f\n",
+                     (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1],
+                     (int)niter - localnp, sumlessmore[0] / div, sumlessmore[1] / div);
         diffsumsum += diffsum;
         numpass += localnp;
     }
@@ -84,27 +88,31 @@ TEST_CASE("hll") {
         double diffsum = 0., absdiffsum = 0.;
         std::vector<double> diffs;
         size_t numlessmore[] {0, 0};
+        double sumlessmore[] {0, 0};
         int localnp = 0;
         for(size_t j(0); j < niter; ++j) {
             const size_t val(1ull << pair.second), hsz(pair.first);
-            hll::hll_t hll(hsz);
+#if ENABLE_HLL_DEVELOP
+            hll::hlf_t hlf(16, mt(), hsz - 4);
+#else
+            hll::dev::hlf_t hlf(16, mt(), hsz - 4);
+#endif
             for(size_t i(0); i < val; ++i) {
-                hll.addh(mt());
+                hlf.add(mt());
             }
-            hll.sum();
-            if(std::abs(hll.report() - val) > hll.est_err()) {
+            if(std::abs(hlf.report() - val) > (1.03896 / std::sqrt(1ull << pair.first) * val)) {
                 fprintf(stderr, "Warning: Above expected variance for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
             }
-            auto diff = hll.report() - val; // For maximally mixed metaphors
+            auto diff = hlf.report() - val; // For maximally mixed metaphors
             diffs.push_back(diff);
             diffsum += diff;
             ++numlessmore[diff > 0];
             absdiffsum += std::abs(diff);
             diff *= diff;
-            localnp += (std::abs(hll.report() - val) <= hll.est_err());
+            localnp += (std::abs(hlf.report() - val) <= (1.03896 / std::sqrt(1ull << pair.first) * val));
         }
         auto sqvar = std::sqrt(std::accumulate(std::begin(diffs), std::end(diffs), 0., [div](auto x, auto y) {return x + y / div * y;}));
-        std::fprintf(stdout, "%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\n", (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1], (int)niter - localnp);
+        std::fprintf(stdout, "HLF\t%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\t%lf\t%lf\n", (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1], (int)niter - localnp, sumlessmore[0] / div, sumlessmore[1] / div);
         diffsumsum += diffsum;
         numpass += localnp;
     }
