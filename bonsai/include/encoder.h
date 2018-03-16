@@ -120,10 +120,6 @@ public:
     INLINE void assign(kstring_t *ks) {assign(ks->s, ks->l);}
     INLINE void assign(kseq_t    *ks) {assign(&ks->seq);}
 
-
-#if !NDEBUG
-#pragma message("Don't forget to add a specialized Entropy calculation scheme for the unspaced, unwindowed case.")
-#endif
     template<typename Functor>
     INLINE void for_each_canon_windowed(const Functor &func) {
         u64 min(BF);
