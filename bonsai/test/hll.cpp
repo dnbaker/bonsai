@@ -4,8 +4,11 @@
 #include <cmath>
 #include <string>
 #include <unordered_set>
+#include <thread>
 #include "hll/hll.h"
 #include "encoder.h"
+#include "omp.h"
+#include "aesctr.h"
 
 using namespace emp;
 
@@ -26,94 +29,170 @@ std::vector<std::string> paths {
 
 TEST_CASE("hll") {
     std::vector<std::pair<uint64_t, uint64_t>> pairs {
+        {9, 14},
+        {9, 15},
+        {9, 16},
+        {9, 17},
+        {9, 18},
+        {9, 19},
+        {9, 20},
         {10, 14},
+        {10, 15},
         {10, 16},
+        {10, 17},
         {10, 18},
+        {10, 19},
         {10, 20},
-        {10, 22},
-        {10, 24},
-        {10, 26},
+        {11, 14},
+        {11, 15},
+        {11, 16},
+        {11, 17},
+        {11, 18},
+        {11, 19},
+        {11, 20},
         {12, 14},
+        {12, 15},
         {12, 16},
+        {12, 17},
         {12, 18},
+        {12, 19},
         {12, 20},
-        {12, 22},
-        {12, 24},
-        {12, 26},
-        {12, 20},
-        {15, 21},
-        {19, 24},
-        {22, 26}
+        {13, 14},
+        {13, 15},
+        {13, 16},
+        {13, 17},
+        {13, 18},
+        {13, 19},
+        {13, 20},
+        {14, 14},
+        {14, 15},
+        {14, 16},
+        {14, 17},
+        {14, 18},
+        {14, 19},
+        {14, 20},
+        {15, 14},
+        {15, 15},
+        {15, 16},
+        {15, 17},
+        {15, 18},
+        {15, 19},
+        {15, 20},
+        {16, 14},
+        {16, 15},
+        {16, 16},
+        {16, 17},
+        {16, 18},
+        {16, 19},
+        {16, 20},
+        {17, 14},
+        {17, 15},
+        {17, 16},
+        {17, 17},
+        {17, 18},
+        {17, 19},
+        {17, 20},
+        {18, 14},
+        {18, 15},
+        {18, 16},
+        {18, 17},
+        {18, 18},
+        {18, 19},
+        {18, 20},
+        {19, 14},
+        {19, 15},
+        {19, 16},
+        {19, 17},
+        {19, 18},
+        {19, 19},
+        {19, 20},
     };
     double diffsumsum = 0.;
-    int numpass = 0;
+    std::atomic<int> numpass = 0;
     //for(auto x: {8, 12, 16, 20, 24, 28, 32, 36, 42}) {
     std::mt19937_64 mt;
     const size_t niter = 100;
     const double div = niter;
     std::fprintf(stdout, "#Structure Type\tSketch size\tNumber of elements\tDifference\tRMSE\tAbsDiffMean\tNumber underestimated\tNumber overestimated\tNumber of sketches with difference above expected\n");
-    for(const auto &pair: pairs) {
+    const auto npairs = pairs.size();
+    omp_set_num_threads(std::thread::hardware_concurrency());
+    for(size_t ind = 0; ind < npairs; ++ind) {
+        const auto pair(pairs[ind]);
         double diffsum = 0., absdiffsum = 0.;
-        std::vector<double> diffs;
+        std::vector<double> diffs(niter);
         size_t numlessmore[] {0, 0};
         double sumlessmore[] {0, 0};
         int localnp = 0;
-        for(size_t j(0); j < niter; ++j) {
+        #pragma omp parallel for
+        for(size_t j = 0; j < niter; ++j) {
+            aes::AesCtr<uint64_t, 8> gen(mt() + j * (j + 1)); // I'm okay with a race condition, because I'm salting with the value of j
             const size_t val(1ull << pair.second), hsz(pair.first);
             hll::hll_t hll(hsz);
             for(size_t i(0); i < val; ++i) {
-                hll.addh(mt());
+                hll.addh(gen());
             }
             hll.sum();
             if(std::abs(hll.report() - val) > hll.est_err()) {
                 fprintf(stderr, "Warning: Above expected variance for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
             }
             auto diff = hll.report() - val; // For maximally mixed metaphors
-            diffs.push_back(diff);
-            diffsum += diff;
-            ++numlessmore[diff > 0];
-            sumlessmore[diff > 0] += std::abs(diff);
-            absdiffsum += std::abs(diff);
-            diff *= diff;
-            localnp += (std::abs(hll.report() - val) <= hll.est_err());
+            diffs[j] = diff;
+            {
+                #pragma omp critical
+                diffsum += diff;
+                ++numlessmore[diff > 0];
+                sumlessmore[diff > 0] += std::abs(diff);
+                absdiffsum += std::abs(diff);
+                diff *= diff;
+                localnp += (std::abs(hll.report() - val) <= hll.est_err());
+            }
         }
         auto sqvar = std::sqrt(std::accumulate(std::begin(diffs), std::end(diffs), 0., [div](auto x, auto y) {return x + y / div * y;}));
-        std::fprintf(stdout, "HLL\t%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\t%f\t%f\n",
-                     (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1],
-                     (int)niter - localnp, sumlessmore[0] / div, sumlessmore[1] / div);
-        diffsumsum += diffsum;
+        {
+            std::fprintf(stdout, "HLL\t%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\t%f\t%f\n",
+                         (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1],
+                         (int)niter - localnp, sumlessmore[0] / div, sumlessmore[1] / div);
+            diffsumsum += diffsum;
+        }
         numpass += localnp;
     }
-    for(const auto &pair: pairs) {
+    for(size_t ind = 0; ind < npairs; ++ind) {
+        const auto pair(pairs[ind]);
         double diffsum = 0., absdiffsum = 0.;
-        std::vector<double> diffs;
+        std::vector<double> diffs(niter);
         size_t numlessmore[] {0, 0};
         double sumlessmore[] {0, 0};
         int localnp = 0;
-        for(size_t j(0); j < niter; ++j) {
+        #pragma omp parallel for
+        for(size_t j = 0; j < niter; ++j) {
             const size_t val(1ull << pair.second), hsz(pair.first);
+            aes::AesCtr<uint64_t, 8> gen(mt() + j * (j + 1));
 #if ENABLE_HLL_DEVELOP
-            hll::hlf_t hlf(16, mt(), hsz - 4);
+            hll::hlf_t hlf(16, gen(), hsz - 4);
 #else
-            hll::dev::hlf_t hlf(16, mt(), hsz - 4);
+            hll::dev::hlf_t hlf(16, gen(), hsz - 4);
 #endif
-            for(size_t i(0); i < val; ++i) {
-                hlf.add(mt());
-            }
+            for(size_t i(0); i < val; ++i) hlf.add(gen());
             if(std::abs(hlf.report() - val) > (1.03896 / std::sqrt(1ull << pair.first) * val)) {
                 fprintf(stderr, "Warning: Above expected variance for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
             }
             auto diff = hlf.report() - val; // For maximally mixed metaphors
-            diffs.push_back(diff);
-            diffsum += diff;
-            ++numlessmore[diff > 0];
-            absdiffsum += std::abs(diff);
-            diff *= diff;
-            localnp += (std::abs(hlf.report() - val) <= (1.03896 / std::sqrt(1ull << pair.first) * val));
+            diffs[j] = diff;
+            {
+                #pragma omp critical
+                diffsum += diff;
+                ++numlessmore[diff > 0];
+                absdiffsum += std::abs(diff);
+                sumlessmore[diff > 0] += absdiffsum;
+                diff *= diff;
+                localnp += (std::abs(hlf.report() - val) <= (1.03896 / std::sqrt(1ull << pair.first) * val));
+            }
         }
         auto sqvar = std::sqrt(std::accumulate(std::begin(diffs), std::end(diffs), 0., [div](auto x, auto y) {return x + y / div * y;}));
-        std::fprintf(stdout, "HLF\t%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\t%lf\t%lf\n", (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1], (int)niter - localnp, sumlessmore[0] / div, sumlessmore[1] / div);
-        diffsumsum += diffsum;
+        {
+            std::fprintf(stdout, "HLF\t%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\t%lf\t%lf\n", (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1], (int)niter - localnp, sumlessmore[0] / div, sumlessmore[1] / div);
+            diffsumsum += diffsum;
+        }
         numpass += localnp;
     }
     REQUIRE(numpass >= (niter * pairs.size()));
@@ -121,7 +200,7 @@ TEST_CASE("hll") {
 
 TEST_CASE("phll") {
     spvec_t vec;
-    static const size_t nps[] {23, 24, 18, 21};
+    std::vector<size_t> nps {10, 11, 14, 18};
     for(const auto np: nps) {
         const ssize_t exact(count_cardinality<score::Lex>(paths, 31, 31, vec, true, nullptr, 2));
         const ssize_t inexact(estimate_cardinality<score::Lex>(paths, 31, 31, vec, true, nullptr, 2, np));
