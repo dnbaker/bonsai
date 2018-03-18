@@ -24,7 +24,7 @@ OS:=$(shell uname)
 FLAGS=
 
 OPT_MINUS_OPENMP= -O3 -funroll-loops\
-	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) $(EXTRA) -DHLL_HEADER_ONLY
+	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) $(EXTRA)
 OPT=$(OPT_MINUS_OPENMP) -fopenmp
 XXFLAGS=-fno-rtti
 CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS)
