@@ -8,13 +8,13 @@ using namespace emp;
 using namespace hll;
 
 
-ks::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nelem) {
+std::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nelem) {
     uint64_t val;
     std::mt19937_64 mt((ss + 1) * (nfiltl2 + 3) * (niter + 7) * (nelem + 63));
     std::array<double,8> mdiffs {0.,0.,0.,0.,0.,0.};
     if((int)ss - (int)nfiltl2 < 6) {
         std::fprintf(stderr, "Can't do this many.\n");
-        return ks::string();
+        return std::string();
     }
     hlf_t hlf(1 << nfiltl2, 137, ss - nfiltl2);
     hll_t hll(ss);
@@ -40,11 +40,18 @@ ks::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nele
     frac /= niter;
     fracborrow /= niter;
     for(auto &md: mdiffs) md *= 1./niter;
-    return ks::sprintf("%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%zu\t%zu\t%zu\n", mdiffs[0], mdiffs[1], mdiffs[2], mdiffs[3],
-                       mdiffs[4], mdiffs[5], mdiffs[6], mdiffs[7], frac, fracborrow, ss, size_t(1ull << nfiltl2), nelem);
+    auto tmp = ks::sprintf("%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%zu\t%zu\t%zu\n", mdiffs[0], mdiffs[1], mdiffs[2], mdiffs[3],
+                           mdiffs[4], mdiffs[5], mdiffs[6], mdiffs[7], frac, fracborrow, ss, size_t(1ull << nfiltl2), nelem);
+    return std::string(tmp.begin(), tmp.end());
 }
 
-int main() {
+struct comb_t {
+    size_t size; size_t nelem; size_t nfiltl2;
+};
+
+int main(int argc, char *argv[]) {
+    unsigned nthreads = argc > 1 ? std::strtoul(argv[1], nullptr, 10): 8;
+    size_t niter      = argc > 2 ? std::strtoull(argv[2], nullptr, 10): 1000;
     std::vector<size_t> sizes    {12, 14, 16, 18, 20};
     std::vector<size_t> nelems   {1 << 18, 1 << 20, 1 << 14, 1 << 12, 1 << 24};
     std::vector<size_t> nfiltl2s {1, 2, 4, 6};
@@ -52,18 +59,24 @@ int main() {
                           "Mean diffs hlf\tMean diffs hll\tMean diffs hlf med\tMean diffs strength borrowing\t"
                           "Mean fraction off (hll)\tmean frac off (hlf borrow)\tsketch size l2\tNumber of subfilters\tnelem\n");
     std::fflush(stdout);
-    omp_set_num_threads(std::thread::hardware_concurrency());
-    for(const auto size: sizes) {
-        #pragma omp parallel for
-        for(unsigned i = 0; i < nelems.size(); ++i) {
-            for(const auto nfiltl2: nfiltl2s) {
-                auto ks = calculate_errors(size, nfiltl2, 1000, nelems[i]);
-                {
-                    #pragma omp critical
-                    ks.write(fileno(stdout));
-                }
+    omp_set_num_threads(nthreads);
+    std::string ret;
+    ret.reserve(30 * sizes.size() * nelems.size() * nfiltl2s.size());
+    std::vector<comb_t> combs;
+    for(auto size: sizes) {
+        for(auto nelem: nelems) {
+            for(auto nfiltl2: nfiltl2s) {
+                combs.emplace_back(comb_t{size, nelem, nfiltl2});
             }
         }
     }
-    
+    #pragma omp parallel for
+    for(unsigned i = 0; i < combs.size(); ++i) {
+       auto str = calculate_errors(combs[i].size, combs[i].nfiltl2, niter, combs[i].nelem);
+       {
+            #pragma omp critical
+            ret += str;
+       }
+    }
+    ::write(fileno(stdout), ret.data(), ret.size());
 }
