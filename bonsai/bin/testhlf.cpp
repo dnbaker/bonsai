@@ -1,6 +1,7 @@
 #define ENABLE_HLL_DEVELOP 1
 #include <array>
 #include "hll/hll.h"
+#include "aesctr.h"
 #include "omp.h"
 #include "util.h"
 #include <thread>
@@ -11,7 +12,7 @@ using namespace hll::detail;
 
 std::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nelem) {
     uint64_t val;
-    std::mt19937_64 mt((ss + 1) * (nfiltl2 + 3) * (niter + 7) * (nelem + 63));
+    aes::AesCtr<std::uint64_t, 8> gen((ss + 1) * (nfiltl2 + 3) * (niter + 7) * (nelem + 63));
     std::array<double,8> mdiffs {0.,0.,0.,0.,0.,0.};
     if((int)ss - (int)nfiltl2 < 6) {
         std::fprintf(stderr, "Can't do this many.\n");
@@ -23,8 +24,8 @@ std::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nel
     double ediff = 0., eabsdiff = 0., oabsdiff = 0;
     for(size_t i(0); i < niter; ++i) {
         for(auto c(nelem); c--;) {
-            val = mt();
-            hlf.add(val), hll.addh(val);
+            val = gen();
+            hlf.addh(val), hll.addh(val);
         }
         mdiffs[0] += std::abs(nelem - hlf.report());
         mdiffs[1] += std::abs(nelem - hll.report());
