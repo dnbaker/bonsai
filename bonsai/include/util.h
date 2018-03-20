@@ -162,8 +162,6 @@ std::vector<tax_t> get_all_descendents(const std::unordered_map<tax_t, std::vect
 std::vector<tax_t> get_desc_lca(tax_t a, tax_t, const std::unordered_map<tax_t, std::vector<tax_t>> &parent_map);
 // Resolve_tree is modified from Kraken 1 source code, which
 // is MIT-licensed. https://github.com/derrickwood/kraken
-tax_t resolve_tree(const std::map<tax_t, tax_t> &hit_counts,
-                   const khash_t(p) *parent_map) noexcept;
 tax_t resolve_tree(const linear::counter<tax_t, u16> &hit_counts,
                    const khash_t(p) *parent_map) noexcept;
 
