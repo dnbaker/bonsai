@@ -57,12 +57,13 @@ std::vector<tax_t> get_all_descendents(const std::unordered_map<tax_t, std::vect
 // aren't that deep.
 // I don't think we'd gain anything practical with that.
 tax_t lca(const khash_t(p) *map, tax_t a, tax_t b) noexcept {
-    // Use std::set to use RB trees for small set rather than hash table.
+    // Use linear::set to use a flat map trees for this (very) small set rather than hash table.
+    // linear sets will be faster up to ~100 elements, and the taxonomic tree isn't that deep.
     if(unlikely(map == nullptr)) {
         std::fprintf(stderr, "null taxonomy.\n");
         std::exit(EXIT_FAILURE);
     }
-    std::set<tax_t> nodes;
+    linear::set<tax_t> nodes;
     if(a == b) return a;
     if(b == 0) return a;
     if(a == 0) return b;
@@ -175,10 +176,9 @@ std::map<tax_t, tax_t> build_kraken_tax(const std::string &fname) {
 
 tax_t lca(const std::map<tax_t, tax_t> &parent_map, tax_t a, tax_t b)
 {
-  std::map<tax_t, tax_t>::const_iterator m;
   if(a == 0 || b == 0) return a ? a : b;
 
-  std::set<uint32_t> a_path;
+  linear::set<uint32_t> a_path;
   while (a) a_path.insert(a), a = parent_map.find(a)->second;
   while (b) {
     if(a_path.find(b) != a_path.end())
@@ -219,6 +219,7 @@ void kset_union(khash_t(all) *a, khash_t(all) *b) noexcept {
  // Tree resolution: take all hit taxa (plus ancestors), then
  // return leaf of highest weighted leaf-to-root path.
  // Taken, modified from Kraken with new, faster containers.
+#if !NDEBUG
 tax_t resolve_tree(const std::map<tax_t, tax_t> &hit_counts,
                    const khash_t(p) *parent_map) noexcept
 {
@@ -250,6 +251,7 @@ tax_t resolve_tree(const std::map<tax_t, tax_t> &hit_counts,
 
   return max_taxon;
 }
+#endif
 
 tax_t resolve_tree(const linear::counter<tax_t, u16> &hit_counts,
                    const khash_t(p) *parent_map) noexcept
@@ -281,7 +283,13 @@ tax_t resolve_tree(const linear::counter<tax_t, u16> &hit_counts,
     auto sit(max_taxa.begin());
     for(max_taxon = *sit++;sit != max_taxa.end(); max_taxon = lca(parent_map, max_taxon, *sit++));
   }
-
+#if !NDEBUG
+  std::map<tax_t, tax_t> cpy;
+  for(size_t i(0); i < hit_counts.keys().size(); ++i) {
+    std::map.emplace(hit_counts.keys()[i], hit_counts.values()[i]);
+  }
+  assert(max_taxon == resolve_tree(cpy, parent_map));
+#endif
   return max_taxon;
 }
 

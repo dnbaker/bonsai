@@ -72,13 +72,15 @@ public:
 
 int main(int argc, char *argv[]) {
     int c;
-    bool lowmem(false), canon(true), use_ertl(true), same_stream(false);
+    bool lowmem(false), canon(true), same_stream(false);
+    hll::EstimationMethod estim = hll::EstimationMethod::ERTL_MLE;
     unsigned sketchsize(18), k(31);
     FILE *ofp(stdout), *sumfp(stdout);
     cmp_accumulonimbus accum;
-    while((c = getopt(argc, argv, "s:p:o:k:n:SmECh")) >= 0) {
+    while((c = getopt(argc, argv, "s:p:o:k:n:SmEChI")) >= 0) {
         switch(c) {
-            case 'E': use_ertl   = false; break;
+            case 'E': estim      = hll::ORIGINAL; break;
+            case 'I': estim      = hll::ERTL_IMPROVED; break;
             case 'C': canon      = false; break;
             case 'n': sketchsize = std::atoi(optarg); LOG_DEBUG("Set sketch size to %u with string '%s'\n", sketchsize, optarg); break;
             case 'k': k          = std::atoi(optarg); break;
@@ -107,7 +109,7 @@ int main(int argc, char *argv[]) {
     if(lowmem) {
         khash_t(all) *s1(kh_init(all)), *s2(kh_init(all));
         kh_resize(all, s1, 1 << 16), kh_resize(all, s2, 1 << 16);
-        hll::hll_t h1(sketchsize, use_ertl), h2(sketchsize, use_ertl);
+        hll::hll_t h1(sketchsize, estim), h2(sketchsize, estim);
         std::vector<std::string> paths{"ZOMG"};
         for(size_t i(0); i < ngenomes; ++i) {
             assert(kh_size(s1) == 0);
@@ -154,7 +156,7 @@ int main(int argc, char *argv[]) {
         while(sketches.size() < ngenomes)
             sketches.emplace_back(
                 make_hll(std::vector<std::string>{argv[optind + sketches.size()]},
-                         k, k, sv, canon, nullptr, 1, sketchsize, nullptr /*kseq */, use_ertl));
+                         k, k, sv, canon, nullptr, 1, sketchsize, nullptr /*kseq */, estim));
         
         for(unsigned i = 0; i < ngenomes; ++i) {
             accum.add(sketches[i], sets[i]);
