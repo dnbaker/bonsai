@@ -19,6 +19,7 @@
 #include <type_traits>
 #include <zlib.h>
 #include <functional>
+#include "clhash/include/clhash.h"
 #include "klib/kstring.h"
 #include <kseq_declare.h>
 #include "linear/linear.h"

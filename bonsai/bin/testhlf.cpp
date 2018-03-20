@@ -10,6 +10,7 @@ using namespace hll;
 using namespace hll::detail;
 
 
+template<typename Hasher>
 std::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nelem) {
     uint64_t val;
     aes::AesCtr<std::uint64_t, 8> gen((ss + 1) * (nfiltl2 + 3) * (niter + 7) * (nelem + 63));
@@ -18,8 +19,8 @@ std::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nel
         std::fprintf(stderr, "Can't do this many.\n");
         return std::string();
     }
-    hlf_t hlf(1 << nfiltl2, 137, ss - nfiltl2);
-    hll_t hll(ss);
+    hlfbase_t<seedhllbase_t<Hasher>> hlf(1 << nfiltl2, 137, ss - nfiltl2);
+    hllbase_t<Hasher> hll(ss);
     double frac = 0., fracborrow = 0.;
     double ediff = 0., eabsdiff = 0., oabsdiff = 0;
     for(size_t i(0); i < niter; ++i) {
@@ -81,7 +82,27 @@ int main(int argc, char *argv[]) {
     }
     #pragma omp parallel for
     for(unsigned i = 0; i < combs.size(); ++i) {
-       auto str = calculate_errors(combs[i].size, combs[i].nfiltl2, niter, combs[i].nelem);
+       auto str = calculate_errors<WangHash>(combs[i].size, combs[i].nfiltl2, niter, combs[i].nelem);
+       {
+            #pragma omp critical
+            ::write(STDOUT_FILENO, str.data(), str.size());
+       }
+    }
+    std::fprintf(stdout, "#####Now using murmurfinalizer");
+    std::fflush(stdout);
+    #pragma omp parallel for
+    for(unsigned i = 0; i < combs.size(); ++i) {
+       auto str = calculate_errors<MurmurFinHash>(combs[i].size, combs[i].nfiltl2, niter, combs[i].nelem);
+       {
+            #pragma omp critical
+            ::write(STDOUT_FILENO, str.data(), str.size());
+       }
+    }
+    std::fprintf(stdout, "#####Now using clhash");
+    std::fflush(stdout);
+    #pragma omp parallel for
+    for(unsigned i = 0; i < combs.size(); ++i) {
+       auto str = calculate_errors<clhasher>(combs[i].size, combs[i].nfiltl2, niter, combs[i].nelem);
        {
             #pragma omp critical
             ::write(STDOUT_FILENO, str.data(), str.size());

@@ -11,7 +11,7 @@
 #include <vector>
 #include "util.h"
 #include "kspp/ks.h"
-#include "clhash/include/clhash.h"
+#include "hash.h"
 
 namespace emp {
 
