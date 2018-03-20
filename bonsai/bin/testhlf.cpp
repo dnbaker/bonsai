@@ -6,6 +6,7 @@
 #include <thread>
 using namespace emp;
 using namespace hll;
+using namespace hll::detail;
 
 
 std::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nelem) {
@@ -19,6 +20,7 @@ std::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nel
     hlf_t hlf(1 << nfiltl2, 137, ss - nfiltl2);
     hll_t hll(ss);
     double frac = 0., fracborrow = 0.;
+    double ediff = 0., eabsdiff = 0., oabsdiff = 0;
     for(size_t i(0); i < niter; ++i) {
         for(auto c(nelem); c--;) {
             val = mt();
@@ -34,14 +36,21 @@ std::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nel
         mdiffs[7] += nelem - hlf.chunk_report();
         frac += nelem / hll.report();
         fracborrow += nelem / hlf.chunk_report();
+        ediff += nelem - ertl_ml_estimate(hll);
+        eabsdiff += std::abs(nelem - ertl_ml_estimate(hll));
+        double omidd = (ertl_ml_estimate(hll) + hll.report()) * 0.5;
+        oabsdiff += std::abs(nelem - omidd);
         hlf.clear();
         hll.clear();
     }
     frac /= niter;
     fracborrow /= niter;
+    ediff /= niter;
+    eabsdiff /= niter;
+    oabsdiff /= niter;
     for(auto &md: mdiffs) md *= 1./niter;
-    auto tmp = ks::sprintf("%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%zu\t%zu\t%zu\n", mdiffs[0], mdiffs[1], mdiffs[2], mdiffs[3],
-                           mdiffs[4], mdiffs[5], mdiffs[6], mdiffs[7], frac, fracborrow, ss, size_t(1ull << nfiltl2), nelem);
+    auto tmp = ks::sprintf("%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%zu\t%zu\t%zu\t%lf\n", mdiffs[0], mdiffs[1], mdiffs[2], mdiffs[3],
+                           mdiffs[4], mdiffs[5], mdiffs[6], mdiffs[7], frac, fracborrow, ediff, eabsdiff, ss, size_t(1ull << nfiltl2), nelem, oabsdiff);
     return std::string(tmp.begin(), tmp.end());
 }
 
@@ -51,17 +60,16 @@ struct comb_t {
 
 int main(int argc, char *argv[]) {
     unsigned nthreads = argc > 1 ? std::strtoul(argv[1], nullptr, 10): 8;
-    size_t niter      = argc > 2 ? std::strtoull(argv[2], nullptr, 10): 1000;
+    size_t niter      = argc > 2 ? std::strtoull(argv[2], nullptr, 10): 50;
     std::vector<size_t> sizes    {12, 14, 16, 18, 20};
     std::vector<size_t> nelems   {1 << 18, 1 << 20, 1 << 14, 1 << 12, 1 << 24};
     std::vector<size_t> nfiltl2s {1, 2, 4, 6};
     std::fprintf(stdout, "#Mean error hlf\tMean error hll\tMean error hlf median\t""Mean error strength borrowing\t"
                           "Mean diffs hlf\tMean diffs hll\tMean diffs hlf med\tMean diffs strength borrowing\t"
-                          "Mean fraction off (hll)\tmean frac off (hlf borrow)\tsketch size l2\tNumber of subfilters\tnelem\n");
+                          "Mean fraction off (hll)\tmean frac off (hlf borrow)\tMean Ertl ML diff\tMean Ertl ML error\t"
+                          "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\n");
     std::fflush(stdout);
     omp_set_num_threads(nthreads);
-    std::string ret;
-    ret.reserve(30 * sizes.size() * nelems.size() * nfiltl2s.size());
     std::vector<comb_t> combs;
     for(auto size: sizes) {
         for(auto nelem: nelems) {
@@ -75,8 +83,7 @@ int main(int argc, char *argv[]) {
        auto str = calculate_errors(combs[i].size, combs[i].nfiltl2, niter, combs[i].nelem);
        {
             #pragma omp critical
-            ret += str;
+            ::write(STDOUT_FILENO, str.data(), str.size());
        }
     }
-    ::write(fileno(stdout), ret.data(), ret.size());
 }
