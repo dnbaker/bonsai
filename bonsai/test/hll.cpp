@@ -28,92 +28,22 @@ std::vector<std::string> paths {
 };
 
 TEST_CASE("hll") {
-    std::vector<std::pair<uint64_t, uint64_t>> pairs {
-        {9, 14},
-        {9, 15},
-        {9, 16},
-        {9, 17},
-        {9, 18},
-        {9, 19},
-        {9, 20},
-        {10, 14},
-        {10, 15},
-        {10, 16},
-        {10, 17},
-        {10, 18},
-        {10, 19},
-        {10, 20},
-        {11, 14},
-        {11, 15},
-        {11, 16},
-        {11, 17},
-        {11, 18},
-        {11, 19},
-        {11, 20},
-        {12, 14},
-        {12, 15},
-        {12, 16},
-        {12, 17},
-        {12, 18},
-        {12, 19},
-        {12, 20},
-        {13, 14},
-        {13, 15},
-        {13, 16},
-        {13, 17},
-        {13, 18},
-        {13, 19},
-        {13, 20},
-        {14, 14},
-        {14, 15},
-        {14, 16},
-        {14, 17},
-        {14, 18},
-        {14, 19},
-        {14, 20},
-        {15, 14},
-        {15, 15},
-        {15, 16},
-        {15, 17},
-        {15, 18},
-        {15, 19},
-        {15, 20},
-        {16, 14},
-        {16, 15},
-        {16, 16},
-        {16, 17},
-        {16, 18},
-        {16, 19},
-        {16, 20},
-        {17, 14},
-        {17, 15},
-        {17, 16},
-        {17, 17},
-        {17, 18},
-        {17, 19},
-        {17, 20},
-        {18, 14},
-        {18, 15},
-        {18, 16},
-        {18, 17},
-        {18, 18},
-        {18, 19},
-        {18, 20},
-        {19, 14},
-        {19, 15},
-        {19, 16},
-        {19, 17},
-        {19, 18},
-        {19, 19},
-        {19, 20},
-    };
+    std::vector<std::pair<uint64_t, uint64_t>> pairs;
+    {
+        size_t sz_start /* = 9 */ = 12;
+        size_t sz_end /* = 20 */ = 18;
+        size_t nel_start = /* = 14 */ 18;
+        size_t nel_stop = /* = 22 */ 21;
+        for(size_t ss(sz_start); ss < sz_end; ++ss)
+            for(size_t nel(nel_start); nel <= nel_stop; ++nel)
+                pairs.emplace_back(std::pair<uint64_t, uint64_t>(ss, nel));
+    }
     double diffsumsum = 0.;
     std::atomic<int> numpass = 0;
-    //for(auto x: {8, 12, 16, 20, 24, 28, 32, 36, 42}) {
     std::mt19937_64 mt;
     const size_t niter = 100;
     const double div = niter;
-    std::fprintf(stdout, "#Structure Type\tSketch size\tNumber of elements\tDifference\tRMSE\tAbsDiffMean\tNumber underestimated\tNumber overestimated\tNumber of sketches with difference above expected\n");
+    //std::fprintf(stdout, "#Structure Type\tSketch size\tNumber of elements\tDifference\tRMSE\tAbsDiffMean\tNumber underestimated\tNumber overestimated\tNumber of sketches with difference above expected\n");
     const auto npairs = pairs.size();
     omp_set_num_threads(std::thread::hardware_concurrency());
     for(size_t ind = 0; ind < npairs; ++ind) {
@@ -149,9 +79,9 @@ TEST_CASE("hll") {
         }
         auto sqvar = std::sqrt(std::accumulate(std::begin(diffs), std::end(diffs), 0., [div](auto x, auto y) {return x + y / div * y;}));
         {
-            std::fprintf(stdout, "HLL\t%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\t%f\t%f\n",
-                         (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1],
-                         (int)niter - localnp, sumlessmore[0] / div, sumlessmore[1] / div);
+//            std::fprintf(stdout, "HLL\t%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\t%f\t%f\n",
+//                         (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1],
+//                         (int)niter - localnp, sumlessmore[0] / div, sumlessmore[1] / div);
             diffsumsum += diffsum;
         }
         numpass += localnp;
@@ -190,7 +120,7 @@ TEST_CASE("hll") {
         }
         auto sqvar = std::sqrt(std::accumulate(std::begin(diffs), std::end(diffs), 0., [div](auto x, auto y) {return x + y / div * y;}));
         {
-            std::fprintf(stdout, "HLF\t%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\t%lf\t%lf\n", (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1], (int)niter - localnp, sumlessmore[0] / div, sumlessmore[1] / div);
+            //std::fprintf(stdout, "HLF\t%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\t%lf\t%lf\n", (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1], (int)niter - localnp, sumlessmore[0] / div, sumlessmore[1] / div);
             diffsumsum += diffsum;
         }
         numpass += localnp;

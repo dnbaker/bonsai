@@ -5,9 +5,7 @@
 #include <limits>
 
 #include <unistd.h>
-
 #include "klib/kstring.h"
-
 #include "hash.h"
 #include "hll/hll.h"
 #include "entropy.h"
