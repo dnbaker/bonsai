@@ -54,6 +54,26 @@ def submit_distcmp_call(tup):
     subprocess.check_call(shlex.split(cstr))
 
 
+def submit_call(cstr):
+    subprocess.check_call(cstr, shell=True)
+
+
+def perform_sourmash(krange, ss, opath, paths, nthreads):
+    assert isinstance(paths, list)
+    assert isinstance(opath, str)
+    Spooooool = multiprocessing.Pool(nthreads)
+    cstrs = ("sourmash compute -n %i -k %s %s" % (
+        ss, ",".join(map(str, krange)), path) for path in paths)
+    Spooooool.map(submit_call, cstrs)
+    sigpaths = [path.split("/")[-1] + ".sig" for path in paths]
+    tmppaths = ["%s.%i" % (opath, k) for k in krange]
+    cstrs = ("sourmash compare -o %s -k %i %s" % (tp, k, " ".join(sigpaths))
+             for tp, k in zip(tmppaths, krange))
+    Spooooool.map(submit_call, cstrs)
+    subprocess.check_call(f"cat {' '.join(tmppaths)} > {opath}", shell=True)
+    subprocess.check_call(f"rm {' '.join(tmppaths)}", shell=True)
+    
+
 def make_sketch_fn(fn):
     return fn + ".mash"
 
@@ -73,12 +93,16 @@ def make_hash(x):
     return reduce(xor, map(x31_hash, x))
 
 
-def makefn(x, y, z, mashify):
+def makefn(x, y, z, sketcher, estim):
     hashval = make_hash(x)
-    if not mashify:
-        return "experiment_%i_%x_genomes.k%i.n%i.out" % (len(x), hashval, y, z)
+    if sketcher == "flashdans":
+        return "experiment_%s_%i_%x_genomes.k%i.n%i.out" % (
+            estim, len(x), hashval, y, z)
+    elif sketcher == "sourmash":
+        return "sourmashed_experiment_%i_%x_genomes.k_all.n%i.out" % (
+            len(x), hashval, z)
     return "mashed_experiment_%i_%x_genomes.k%i.n%i." % (
-        len(x), hashval,  y, z)
+        len(x), hashval, y, z)
 
 
 def main():
@@ -95,9 +119,11 @@ def main():
     shell_parser.add_argument("--no-redo", "-n", action="store_true")
     shell_parser.add_argument("--threads", "-p",
                               default=multiprocessing.cpu_count(), type=int)
-    shell_parser.add_argument("--use-mash", "-M", action="store_true",
+    shell_parser.add_argument("--sketcher", "-S",
                               help=("Use Mash to calculate distances "
-                                    "rather than 'bonsai dist'"))
+                                    "rather than 'bonsai dist'"),
+                              choices=("mash", "flashdans", "sourmash"),
+                              default="flashdans")
     shell_parser.add_argument('genomes', metavar='paths', type=str, nargs='+',
                               help=('paths to genomes or a path to a file'
                                     ' with one genome per line.'))
@@ -172,13 +198,13 @@ def sketch_main(args):
     paths = genomes = args.genomes
     if len(genomes) == 1 and os.path.isfile(next(open(genomes[0])).strip()):
         paths = [i.strip() for i in open(genomes[0])]
-    mashify = args.use_mash
+    sketcher = args.sketcher
     if any(not os.path.isfile(path) for path in paths):
         raise Exception("The files are NOT in the computer: %s" %
                         ' '.join(path for path in paths if
                                  os.path.isfile(path)))
     Spooooool = multiprocessing.Pool(threads)  # With apologies to Beckett.
-    if mashify:
+    if sketcher == "mash":
         for ss in sketch_range:
             for ks in kmer_range:
                 sketchfns = list(map(lambda x: "%s.k%i.n%i" %
@@ -199,7 +225,7 @@ def sketch_main(args):
                     except BlockingIOError:
                         pass
                 sketchfns = [i + ".msh" for i in sketchfns]
-                fn = makefn(paths, ks, ss, mashify)
+                fn = makefn(paths, ks, ss, sketcher, None)
                 print("Now about to submit dist comparisons", file=sys.stderr)
                 todo = []
                 thisfns = []
@@ -230,12 +256,18 @@ def sketch_main(args):
                         break
                     except BlockingIOError:
                         pass
-    else:
-        submission_sets = ((ks, ss, makefn(paths, ks, ss, mashify),
+    elif sketcher == "flashdans":
+        submission_sets = ((ks, ss, makefn(paths, ks, ss, sketcher, estim),
                             paths, redo, estim)
                            for ss in sketch_range for ks in kmer_range
                            for estim in ESTIMS)
         Spooooool.map(submit_distcmp_call, submission_sets)
+    elif sketcher == "sourmash":
+        set(perform_sourmash(kmer_range, ss, makefn(paths, -1, ss, sketcher, None),
+                             paths, threads)
+            for ss in sketch_range)
+    else:
+        raise Exception("Whoa, what?")
     return 0
 
 
