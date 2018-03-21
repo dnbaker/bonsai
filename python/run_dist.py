@@ -30,9 +30,13 @@ def submit_mash_sketch(tup):
         print("Successfully called command for fn %s" % fn, file=sys.stderr)
 
 
+ESTIMS = ["original", "improved", "ertl_ml", "ertl_joint"]
+ESTIM_DICT = dict(zip(ESTIMS, ["-E", "-I", "-J", ""]))
+
+
 def submit_distcmp_call(tup):
-    k, n, opath, paths, redo, use_ertl = tup
-    print("Redo is: %s" % redo, file=sys.stderr)
+    k, n, opath, paths, redo, estim_method = tup
+    estim_flag = ESTIM_DICT[estim_method]
     if any(not os.path.isfile(path) for path in paths):
         raise Exception("The files are NOT in the computer! %s" %
                         ", ".join(paths))
@@ -44,7 +48,8 @@ def submit_distcmp_call(tup):
             else:
                 print("%s has run, but the file is empty."
                       " Redoing!" % opath, file=sys.stderr)
-    cstr = "distcmp %s -So%s -mn%i -k%i %s" % ("" if use_ertl else "-E", opath, n, k, ' '.join(paths))
+    cstr = "distcmp %s -So%s -s%s -mn%i -k%i %s" % (
+        estim_flag, opath, opath + ".sum", n, k, ' '.join(paths))
     print("Calling '%s'" % cstr, file=sys.stderr)
     subprocess.check_call(shlex.split(cstr))
 
@@ -98,7 +103,6 @@ def main():
                                     ' with one genome per line.'))
     shell_parser.add_argument("--range-start", default=24, type=int)
     shell_parser.add_argument("--range-end", default=32, type=int)
-    shell_parser.add_argument("--no-use-ertl", action='store_true')
     py_parser = sp.add_parser(
         "exact",
         description=("Calculates distances natively in Python "
@@ -159,9 +163,9 @@ def exact_main(args):
         set(not ofw("%s\t%s\t%i\t%f\n" % (*k, v)) for k, v in kdict.items())
 
 
+
 def sketch_main(args):
     sketch_range = range(10, 24, 1)
-    use_ertl = not args.no_use_ertl
     kmer_range = range(args.range_start, args.range_end + 1)
     threads = args.threads
     redo = not args.no_redo
@@ -169,8 +173,6 @@ def sketch_main(args):
     if len(genomes) == 1 and os.path.isfile(next(open(genomes[0])).strip()):
         paths = [i.strip() for i in open(genomes[0])]
     mashify = args.use_mash
-    submission_sets = ((ks, ss, makefn(paths, ks, ss, mashify), paths, redo, use_ertl)
-                       for ss in sketch_range for ks in kmer_range)
     if any(not os.path.isfile(path) for path in paths):
         raise Exception("The files are NOT in the computer: %s" %
                         ' '.join(path for path in paths if
@@ -229,6 +231,10 @@ def sketch_main(args):
                     except BlockingIOError:
                         pass
     else:
+        submission_sets = ((ks, ss, makefn(paths, ks, ss, mashify),
+                            paths, redo, estim)
+                           for ss in sketch_range for ks in kmer_range
+                           for estim in ESTIMS)
         Spooooool.map(submit_distcmp_call, submission_sets)
     return 0
 
