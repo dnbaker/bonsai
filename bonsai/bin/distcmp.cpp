@@ -19,7 +19,7 @@ void usage(const char *arg) {
 //#define NOTHREADING
 
 void print_results(ks::string &ks, unsigned sketchsize, double sketchval, double exactval, const hll::hll_t &h1, const khash_t(all) *s1, const hll::hll_t &h2, const khash_t(all) *s2, size_t i, size_t j, unsigned k, char *argv[], int optind) {
-    ks.sprintf("%s\t%s\t%lf\t%lf\t%lf\t%lf\t%u\t%u\t%lf\t%zu\n", argv[optind + i], argv[optind + j], sketchval, exactval, std::abs(sketchval - exactval), std::abs(sketchval - exactval) / exactval * 100., sketchsize, k, h1.creport(), kh_size(s1), h2.creport(), kh_size(s2));
+    ks.sprintf("%s\t%s\t%lf\t%lf\t%lf\t%lf\t%u\t%u\t%lf\t%zu\t%lf\t%zu\t%s\n", argv[optind + i], argv[optind + j], sketchval, exactval, std::abs(sketchval - exactval), std::abs(sketchval - exactval) / exactval * 100., sketchsize, k, h1.creport(), kh_size(s1), h2.creport(), kh_size(s2), hll::EST_STRS[std::max((uint16_t)h1.get_estim(), (uint16_t)h1.get_jestim())]);
 }
 
 class cmp_accumulonimbus {
@@ -67,6 +67,7 @@ public:
     auto report(std::FILE *fp=stdout) {
         auto ret = std::fprintf(fp, "##total hll errors\tMSE hll\ttotal union errors\tMSE hll\ttotal ji errors\tSE ji\tNum sketches\tNum pairs\n");
         ret     += std::fprintf(fp, "%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%zu\t%zu\n", herrs_, herrsqs_ / nadded_, uerrs_, uerrsqs_ / npadded_, jerrs_, jerrsqs_, nadded_, npadded_);
+        return ret;
     }
 };
 
@@ -74,13 +75,16 @@ int main(int argc, char *argv[]) {
     int c;
     bool lowmem(false), canon(true), same_stream(false);
     hll::EstimationMethod estim = hll::EstimationMethod::ERTL_MLE;
+    hll::JointEstimationMethod jestim = hll::JointEstimationMethod::ERTL_JOINT_MLE;
     unsigned sketchsize(18), k(31);
     FILE *ofp(stdout), *sumfp(stdout);
     cmp_accumulonimbus accum;
-    while((c = getopt(argc, argv, "s:p:o:k:n:SmEChI")) >= 0) {
+    if(argc == 1) goto fail;
+    while((c = getopt(argc, argv, "s:p:o:k:n:SmEJChI")) >= 0) {
         switch(c) {
-            case 'E': estim      = hll::ORIGINAL; break;
-            case 'I': estim      = hll::ERTL_IMPROVED; break;
+            case 'E': estim  = hll::ORIGINAL; break;
+            case 'I': jestim = (hll::JointEstimationMethod)(estim = hll::ERTL_IMPROVED); break;
+            case 'J': jestim = (hll::JointEstimationMethod)(estim = hll::ERTL_MLE);      break;
             case 'C': canon      = false; break;
             case 'n': sketchsize = std::atoi(optarg); LOG_DEBUG("Set sketch size to %u with string '%s'\n", sketchsize, optarg); break;
             case 'k': k          = std::atoi(optarg); break;
@@ -89,7 +93,7 @@ int main(int argc, char *argv[]) {
             case 'S': same_stream = true; break;
             case 'p': omp_set_num_threads(std::atoi(optarg)); break;
             case 'm': lowmem     = true; break;
-            case 'h': case '?': usage(argv[0]); break;
+            case 'h': case '?': fail: usage(argv[0]); break;
         }
     }
     if(same_stream) sumfp = ofp;
@@ -103,13 +107,15 @@ int main(int argc, char *argv[]) {
     spvec_t sv;
     double sketchval, exactval;
     const int fn(fileno(ofp));
-    ks::string ks("#Path1\tPath2\tApproximate jaccard index\tExact jaccard index\t"
-                  "Absolute difference\t%difference from exact value\tSketch size\tKmer size\n");
+    ks::string ks(ks::sprintf("##Command:%s", argv[0]));
+    for(char **p(argv + 1); *p; ks.sprintf(" %s", *p++));
+    ks += "#Path1\tPath2\tApproximate jaccard index\tExact jaccard index\t"
+          "Absolute difference\t%difference from exact value\tSketch size\tKmer size\n";
     Spacer sp(k);
     if(lowmem) {
         khash_t(all) *s1(kh_init(all)), *s2(kh_init(all));
         kh_resize(all, s1, 1 << 16), kh_resize(all, s2, 1 << 16);
-        hll::hll_t h1(sketchsize, estim), h2(sketchsize, estim);
+        hll::hll_t h1(sketchsize, estim, jestim), h2(sketchsize, estim, jestim);
         std::vector<std::string> paths{"ZOMG"};
         for(size_t i(0); i < ngenomes; ++i) {
             assert(kh_size(s1) == 0);
@@ -156,7 +162,7 @@ int main(int argc, char *argv[]) {
         while(sketches.size() < ngenomes)
             sketches.emplace_back(
                 make_hll(std::vector<std::string>{argv[optind + sketches.size()]},
-                         k, k, sv, canon, nullptr, 1, sketchsize, nullptr /*kseq */, estim));
+                         k, k, sv, canon, nullptr, 1, sketchsize, nullptr /*kseq */, estim, jestim));
         
         for(unsigned i = 0; i < ngenomes; ++i) {
             accum.add(sketches[i], sets[i]);
