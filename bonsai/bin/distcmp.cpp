@@ -136,14 +136,14 @@ int main(int argc, char *argv[]) {
                 h2.sum();
                 accum.add(h1, s1, h2, s2);
                 {
-                    #pragma omp critical 
+                    #pragma omp critical
                     print_results(ks, sketchsize, sketchval, exactval, h1, s1, h2, s2, i, j, k, argv, optind);
                 }
                 kh_clear(all, s2);
                 h2.clear();
                 if(ks.size() >= 1 << 16)
                 {
-                    #pragma omp critical 
+                    #pragma omp critical
                     ks.write(fn), ks.clear();
                 }
             }
@@ -163,7 +163,7 @@ int main(int argc, char *argv[]) {
             sketches.emplace_back(
                 make_hll(std::vector<std::string>{argv[optind + sketches.size()]},
                          k, k, sv, canon, nullptr, 1, sketchsize, nullptr /*kseq */, estim, jestim));
-        
+
         for(unsigned i = 0; i < ngenomes; ++i) {
             accum.add(sketches[i], sets[i]);
         }

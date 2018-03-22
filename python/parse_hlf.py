@@ -8,10 +8,10 @@ def main():
         headers = data[0][1:].split('\t')
         lines = np.array([list(map(float, line.split('\t'))) for
                           line in data[1:]], dtype=np.double)
-        nums = set(lines[:,-3].astype(np.int))
+        nums = set(lines[:, -3].astype(np.int))
         for num in nums:
-            subset = lines[lines[:,-3] == num]
-            meanerr = np.mean(subset[:,-5])
+            subset = lines[lines[:, -3] == num]
+            meanerr = np.mean(subset[:, -5])
             print("meanerr: %lf. num: %i" % (meanerr, num))
 
 

@@ -30,8 +30,9 @@ if __name__ == "__main__":
     kmer_range = range(args.range_start, args.range_end + 1)
     threads = args.threads
     paths = args.genomes
-    if os.path.isfile(paths[0]) and os.path.isfile(next(open(paths[0])).strip()):
-        paths = list(open(paths[0]))
+    path = paths[0]
+    if os.path.isfile(path) and os.path.isfile(next(open(path)).strip()):
+        paths = list(open(path))
     Spooool = multiprocessing.Pool(threads)
     Spooool.map(sketch_call,
                 ((ss, ks, paths) for ss in sketch_range for ks in kmer_range))

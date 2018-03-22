@@ -72,7 +72,7 @@ def perform_sourmash(krange, ss, opath, paths, nthreads):
     Spooooool.map(submit_call, cstrs)
     subprocess.check_call(f"cat {' '.join(tmppaths)} > {opath}", shell=True)
     subprocess.check_call(f"rm {' '.join(tmppaths)}", shell=True)
-    
+
 
 def make_sketch_fn(fn):
     return fn + ".mash"
@@ -141,14 +141,16 @@ def main():
     py_parser.add_argument("--range-start", default=24, type=int)
     py_parser.add_argument("--range-end", default=32, type=int)
     py_parser.add_argument("--outfile", "-o", default="-")
-    if not sys.argv[1:]: sys.argv.append("-h")
+    if not sys.argv[1:]:
+        sys.argv.append("-h")
     args = superparser.parse_args()
     if argv[1] == "sketch":
         return sketch_main(args)
     elif argv[1] == "exact":
         return exact_main(args)
     else:
-       raise Exception("Subcommand required. sketch or exact supported, for sketching or exact calculation.")
+        raise Exception("Subcommand required. sketch or exact supported, "
+                        "for sketching or exact calculation.")
 
 
 def jaccard_index(set1, set2):
@@ -187,7 +189,6 @@ def exact_main(args):
                     jaccard_index(genome_sets[i], genome_sets[j])
         assert len(kdict) == (len(genome_sets) * (len(genome_sets) - 1)) >> 1
         set(not ofw("%s\t%s\t%i\t%f\n" % (*k, v)) for k, v in kdict.items())
-
 
 
 def sketch_main(args):
@@ -263,8 +264,9 @@ def sketch_main(args):
                            for estim in ESTIMS)
         Spooooool.map(submit_distcmp_call, submission_sets)
     elif sketcher == "sourmash":
-        set(perform_sourmash(kmer_range, ss, makefn(paths, -1, ss, sketcher, None),
-                             paths, threads)
+        set(perform_sourmash(kmer_range, ss,
+                             makefn(paths, -1, ss, sketcher, None), paths,
+                             threads)
             for ss in sketch_range)
     else:
         raise Exception("Whoa, what?")
