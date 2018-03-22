@@ -48,7 +48,7 @@ def submit_distcmp_call(tup):
             else:
                 print("%s has run, but the file is empty."
                       " Redoing!" % opath, file=sys.stderr)
-    cstr = "distcmp %s -So%s -s%s -mn%i -k%i %s" % (
+    cstr = "distcmp %s -So%s -s %s -n%i -k%i %s" % (
         estim_flag, opath, opath + ".sum", n, k, ' '.join(paths))
     print("Calling '%s'" % cstr, file=sys.stderr)
     subprocess.check_call(shlex.split(cstr))

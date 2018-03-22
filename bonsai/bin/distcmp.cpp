@@ -80,6 +80,7 @@ int main(int argc, char *argv[]) {
     FILE *ofp(stdout), *sumfp(stdout);
     cmp_accumulonimbus accum;
     if(argc == 1) goto fail;
+    omp_set_num_threads(1);
     while((c = getopt(argc, argv, "s:p:o:k:n:SmEJChI")) >= 0) {
         switch(c) {
             case 'E': estim  = hll::ORIGINAL; break;
@@ -97,8 +98,6 @@ int main(int argc, char *argv[]) {
         }
     }
     if(same_stream) sumfp = ofp;
-    std::mutex output_lock;
-    omp_set_num_threads(1); // Only using one thread currently as multithreading has not been debugged.
     std::vector<char> buf(1 << 16);
     std::setvbuf(ofp, buf.data(), _IOFBF, buf.size());
     const size_t ngenomes(argc - optind);
@@ -112,6 +111,7 @@ int main(int argc, char *argv[]) {
     ks += "#Path1\tPath2\tApproximate jaccard index\tExact jaccard index\t"
           "Absolute difference\t%difference from exact value\tSketch size\tKmer size\n";
     Spacer sp(k);
+    auto start = std::chrono::system_clock::now();
     if(lowmem) {
         khash_t(all) *s1(kh_init(all)), *s2(kh_init(all));
         kh_resize(all, s1, 1 << 16), kh_resize(all, s2, 1 << 16);
@@ -151,18 +151,21 @@ int main(int argc, char *argv[]) {
             h1.clear();
         }
         khash_destroy(s1), khash_destroy(s2);
-    } else {
+    } else { // not lowmem
+        LOG_INFO("Performing comparison, not lowmem. ngenomes: %zu\n", ngenomes);
         std::vector<khash_t(all)*> sets;
         while(sets.size() < ngenomes) sets.emplace_back(kh_init(all));
         #pragma omp parallel for
         for(unsigned i = 0; i < ngenomes; ++i) {
             fill_set_genome<score::Lex>(argv[optind + i], sp, sets[i], i, nullptr, canon);
         }
+        LOG_INFO("Genomes filled\n");
         std::vector<hll::hll_t> sketches;
         while(sketches.size() < ngenomes)
             sketches.emplace_back(
                 make_hll(std::vector<std::string>{argv[optind + sketches.size()]},
                          k, k, sv, canon, nullptr, 1, sketchsize, nullptr /*kseq */, estim, jestim));
+        for(auto &sketch: sketches) if(!sketch.get_is_ready()) sketch.sum();
 
         for(unsigned i = 0; i < ngenomes; ++i) {
             accum.add(sketches[i], sets[i]);
@@ -174,15 +177,18 @@ int main(int argc, char *argv[]) {
                 exactval  = emp::jaccard_index(sets[i], sets[j]);
                 {
                     #pragma omp critical
-                    accum.add(sketches[i], sets[i], sketches[j], sets[j]);
                     print_results(ks, sketchsize, sketchval, exactval, sketches[i], sets[i], sketches[j], sets[j], i, j, k, argv, optind);
                     if(ks.size() >= 1 << 16) ks.write(fn), ks.clear();
                 }
             }
         }
+        for(size_t i = 0; i < ngenomes; ++i)
+            for(size_t j(i + 1); j < ngenomes; ++j)
+                    accum.add(sketches[i], sets[i], sketches[j], sets[j]);
     }
     ks.write(fn); ks.free();
     accum.report(sumfp);
     if(ofp != sumfp && sumfp != stdout) std::fclose(sumfp);
     if(ofp != stdout) std::fclose(ofp);
+    LOG_INFO("Successfully completed %s for %zu genomes, %zu comparisons in %lf seconds\n", argv[0], ngenomes, (ngenomes * (ngenomes - 1)) >> 1, std::chrono::duration<double>(std::chrono::system_clock::now() - start).count());
 }
