@@ -286,7 +286,7 @@ tax_t resolve_tree(const linear::counter<tax_t, u16> &hit_counts,
 #if !NDEBUG
   std::map<tax_t, tax_t> cpy;
   for(size_t i(0); i < hit_counts.keys().size(); ++i) {
-    std::map.emplace(hit_counts.keys()[i], hit_counts.values()[i]);
+    cpy.emplace(hit_counts.keys()[i], hit_counts.vals()[i]);
   }
   assert(max_taxon == resolve_tree(cpy, parent_map));
 #endif

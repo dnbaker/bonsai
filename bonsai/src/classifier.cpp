@@ -91,11 +91,4 @@ void append_taxa_runs(tax_t taxon, const std::vector<tax_t> &taxa, kstring_t *bk
     } else kputsn("0:0\n", 4, bks);
 }
 
-void kt_del_helper(void *data_, long index, int tid) {
-    del_data *data((del_data *)data_);
-    for(unsigned i(index * data->per_set_), end(std::min(i + data->per_set_, data->total_));
-        i < end; ++i)
-            bseq_destroy(data->seqs_ + i);
-}
-
 } // namespace emp
