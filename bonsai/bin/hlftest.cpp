@@ -37,7 +37,7 @@ int main() {
             const size_t val(1ull << pair.second), hsz(pair.first);
             hll::hlf_t hlf(16, gen(), hsz - 4);
             for(size_t i(0); i < val; ++i) {
-                hlf.add(gen());
+                hlf.addh(gen());
             }
             if(std::abs(hlf.report() - val) > (1.03896 / std::sqrt(1ull << pair.first) * val)) {
                 fprintf(stderr, "Warning: Above expected variance for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
