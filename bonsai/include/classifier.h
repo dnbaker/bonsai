@@ -185,8 +185,6 @@ struct del_data {
     unsigned total_;
 };
 
-void kt_del_helper(void *data_, long index, int tid);
-
 #if !NDEBUG
 #define DBKS(ks) do {\
     LOG_DEBUG("String: %s. Max: %zu. Len: %zu.\n", (ks) ? (ks)->s ? (ks)->s: "Unset string": "nullptr", (ks)->m, (ks)->l);\
@@ -196,26 +194,30 @@ void kt_del_helper(void *data_, long index, int tid);
 inline void process_dataset(Classifier &c, khash_t(p) *taxmap, const char *fq1, const char *fq2,
                      std::FILE *out, unsigned chunk_size,
                      unsigned per_set) {
-    int nseq(0);
+    // TODO: consider reusing buffers for processing large numbers of files.
+    int nseq(0), max_nseq(0);
     gzFile ifp1(gzopen(fq1, "rb")), ifp2(fq2 ? gzopen(fq2, "rb"): nullptr);
     kseq_t *ks1(kseq_init(ifp1)), *ks2(ifp2 ? kseq_init(ifp2): nullptr);
     del_data dd{nullptr, per_set, chunk_size};
     ks::string cks(256u);
+    const int fn = fileno(out);
     const int is_paired(fq2 != 0);
     if((dd.seqs_ = bseq_read(chunk_size, &nseq, (void *)ks1, (void *)ks2)) == nullptr) {
         LOG_WARNING("Could not get any sequences from file, fyi.\n");
         goto fail; // Wheeeeee
     }
+    max_nseq = std::max(max_nseq, nseq);
     while((dd.seqs_ = bseq_realloc_read(chunk_size, &nseq, (void *)ks1, (void *)ks2, dd.seqs_))) {
         LOG_INFO("Read %i seqs with chunk size %u\n", nseq, chunk_size);
+        max_nseq = std::max(max_nseq, nseq);
         // Classify
         classify_seqs(c, taxmap, dd.seqs_, kspp2ks(cks), nseq, per_set, is_paired);
         // Write out
-        ::write(fileno(out), cks.data(), cks.size()); // Already buffered.
-        // Delete
+        cks.write(fn);
         cks.clear();
     }
-    kt_for(c.nt_, &kt_del_helper, (void *)&dd, nseq / per_set + 1);
+    // No use parallelizing the frees, there's a global lock on the freeing anyhow.
+    for(int i(0); i < max_nseq; bseq_destroy(dd.seqs_ + i++));
     free(dd.seqs_);
     fail:
     // Clean up.
