@@ -188,22 +188,31 @@ tax_t lca(const std::map<tax_t, tax_t> &parent_map, tax_t a, tax_t b)
   return 1;
 }
 
-khash_t(p) *build_parent_map(const char *fn) noexcept {
+khash_t(p) *build_parent_map(const char *fn) {
     std::ifstream is(fn);
     khash_t(p) *ret(kh_init(p));
     khint_t ki;
     int khr;
     std::string line;
     char *p;
+#if !NDEBUG
+    unsigned lc = 0;
+#endif
     while(std::getline(is, line)) {
-        switch(line[0]) case '\n': case '0': case '#': continue;
+        switch(line[0]) case '\n': case '\0': case '#': continue;
         ki = kh_put(p, ret, std::atoi(line.data()), &khr);
         kh_val(ret, ki) = (p = std::strchr(line.data(), '|')) ? std::atoi(p + 2)
                                                               : tax_t(-1);
         if(kh_val(ret, ki) == tax_t(-1)) LOG_WARNING("Malformed line: %s", line.data());
+#if !NDEBUG
+        if(++lc % 10000 == 0) {
+            LOG_DEBUG("Read %u lines from file %s\n", lc, fn);
+        }
+#endif
     }
     ki = kh_put(p, ret, 1, &khr);
     kh_val(ret, ki) = 0; // Root of the tree.
+    if(kh_size(ret) < 2) throw std::runtime_error(std::string("Failed to create taxmap from ") + fn);
     LOG_DEBUG("Built parent map of size %zu from path %s\n", kh_size(ret), fn);
     return ret;
 }

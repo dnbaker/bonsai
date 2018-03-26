@@ -131,16 +131,19 @@ int phase2_main(int argc, char *argv[]) {
         Spacer sp(k, wsz, sv);
         Database<khash_t(c)>  phase2_map(sp);
         // Force using hll so that we can use __sync_bool_compare_and_swap to parallelize.
-        std::size_t hash_size(estimate_cardinality<score::Lex>(inpaths, k, k, sp.s_, canon, nullptr, num_threads, 24));
-        LOG_DEBUG("Estimated cardinality: %zu\n", hash_size);
-        LOG_DEBUG("Parent map bulding from %s\n", argv[optind]);
-        khash_t(p) *taxmap(build_parent_map(argv[optind]));
+        LOG_INFO("About to estimate cardinality\n");
+        std::size_t hash_size(estimate_cardinality<score::Lex>(inpaths, k, k, sv, canon, nullptr, num_threads, 24));
+        LOG_INFO("Estimated cardinality: %zu\n", hash_size);
+        if(tax_path.empty() && argv[optind]) tax_path == argv[optind];
+        LOG_INFO("Parent map bulding from %s\n", tax_path.data());
+        khash_t(p) *taxmap(build_parent_map(tax_path.data()));
         phase2_map.db_ = score_scheme::LEX == mode ? lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size)
                                                    : lca_map<score::Entropy>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size);
         phase2_map.write(argv[optind + 1]);
         kh_destroy(p, taxmap);
         return EXIT_SUCCESS;
     }
+    LOG_INFO("Making minimized map\n");
     Database<khash_t(64)> phase1_map{Database<khash_t(64)>(argv[optind])};
     Database<khash_t(c)>  phase2_map{phase1_map};
     Spacer sp(k, wsz, phase1_map.s_);

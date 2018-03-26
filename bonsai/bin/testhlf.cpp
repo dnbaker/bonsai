@@ -81,6 +81,7 @@ int main(int argc, char *argv[]) {
                        "Mean diffs hlf\tMean diffs hll\tMean diffs hlf med\tMean diffs strength borrowing\t"
                        "Mean fraction off (hll)\tmean frac off (hlf borrow)\tMean Ertl ML diff\tMean Ertl ML error\t"
                        "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\n");
+    std::fflush(ofp);
     LOG_INFO("Okay about to do first loop\n");
     #pragma omp parallel for
     for(unsigned i = 0; i < combs.size(); ++i) {
@@ -97,6 +98,7 @@ int main(int argc, char *argv[]) {
                        "Mean diffs hlf\tMean diffs hll\tMean diffs hlf med\tMean diffs strength borrowing\t"
                        "Mean fraction off (hll)\tmean frac off (hlf borrow)\tMean Ertl ML diff\tMean Ertl ML error\t"
                        "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\n");
+    std::fflush(ofp);
     #pragma omp parallel for
     for(unsigned i = 0; i < combs.size(); ++i) {
        auto str = calculate_errors<MurFinHash>(combs[i].size, combs[i].nfiltl2, niter, combs[i].nelem);
@@ -112,6 +114,7 @@ int main(int argc, char *argv[]) {
                        "Mean diffs hlf\tMean diffs hll\tMean diffs hlf med\tMean diffs strength borrowing\t"
                        "Mean fraction off (hll)\tmean frac off (hlf borrow)\tMean Ertl ML diff\tMean Ertl ML error\t"
                        "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\n");
+    std::fflush(ofp);
     #pragma omp parallel for
     for(unsigned i = 0; i < combs.size(); ++i) {
        auto str = calculate_errors<clhasher>(combs[i].size, combs[i].nfiltl2, niter, combs[i].nelem);

@@ -149,7 +149,7 @@ size_t count_lines(const char *fn) noexcept;
 khash_t(name) *build_name_hash(const char *fn) noexcept;
 void destroy_name_hash(khash_t(name) *hash) noexcept;
 void print_name_hash(khash_t(name) *hash) noexcept;
-khash_t(p) *build_parent_map(const char *fn) noexcept;
+khash_t(p) *build_parent_map(const char *fn) ;
 
 lazy::vector<u64, size_t> load_binary_kmers(const char *path);
 khash_t(all) *load_binary_kmerset(const char *path);
