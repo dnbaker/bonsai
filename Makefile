@@ -15,6 +15,9 @@ zunit:
 bonsai:
 	$(MAKE) update bonsai -C bonsai
 
+bonsai_d:
+	$(MAKE) update bonsai_d -C bonsai
+
 bonsai_z:
 	$(MAKE) update bonsai_z -C bonsai
 
