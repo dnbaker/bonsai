@@ -223,7 +223,7 @@ kh_inline u64 __ac_Wang64_hash(u64 key) {
 		khint32_t *flags; \
 		khkey_t *keys; \
 		khval_t *vals; \
-		mutable std::shared_mutex m;  \
+		mutable tthread::fast_mutex m;  \
 	} kh_##name##_t;
 
 // TODO: Add a mutex around kh_resize to be safe in resizing.
@@ -243,7 +243,7 @@ kh_inline u64 __ac_Wang64_hash(u64 key) {
 	}																	\
 	SCOPE void kh_destroy_##name(kh_##name##_t *h)						\
 	{																	\
-		std::unique_lock<std::shared_mutex>(h->m);					  \
+		std::unique_lock<std::decay_t<decltype(h->m)>>(h->m);					  \
 		if (h) {														\
 			kfree((void *)h->keys); kfree(h->flags);					\
 			kfree((void *)h->vals);										\
@@ -252,7 +252,7 @@ kh_inline u64 __ac_Wang64_hash(u64 key) {
 	}																	\
 	SCOPE void kh_clear_##name(kh_##name##_t *h)						\
 	{																	\
-		std::unique_lock<std::shared_mutex>(h->m);										 \
+		std::unique_lock<std::decay_t<decltype(h->m)>>(h->m);;										 \
 		if (h && h->flags) {											\
 			memset(h->flags, 0xaa, __ac_fsize(h->n_buckets) * sizeof(khint32_t)); \
 			h->size = h->n_occupied = 0;								\
@@ -274,7 +274,7 @@ kh_inline u64 __ac_Wang64_hash(u64 key) {
 	}																	\
 	SCOPE int kh_resize_##name(kh_##name##_t *h, khint_t new_n_buckets) \
 	{ /* This function uses 0.25*n_buckets bytes of working space instead of [sizeof(key_t+val_t)+.25]*n_buckets. */ \
-        std::unique_lock<std::shared_mutex>(h->m);				        \
+        std::unique_lock<std::decay_t<decltype(h->m)>>(h->m);				        \
 		khint32_t *new_flags = 0;										\
 		khint_t j = 1;													\
 		{																\
@@ -365,7 +365,7 @@ kh_inline u64 __ac_Wang64_hash(u64 key) {
 				}														\
 			}															\
 		}																\
-		std::unique_lock<std::shared_mutex>(h->m);					    \
+		std::unique_lock<std::decay_t<decltype(h->m)>>(h->m);	        \
 		if (__ac_isempty(h->flags, x)) { /* not present at all */		\
 			h->keys[x] = key;											\
 			__ac_set_isboth_false(h->flags, x);							\
@@ -381,7 +381,7 @@ kh_inline u64 __ac_Wang64_hash(u64 key) {
 	}																	\
 	SCOPE void kh_del_##name(kh_##name##_t *h, khint_t x)				\
 	{																	\
-		std::unique_lock<std::shared_mutex>(h->m);					   \
+		std::unique_lock<std::decay_t<decltype(h->m)>> (h->m);					   \
 		if (x != h->n_buckets && !__ac_iseither(h->flags, x)) {			\
 			__ac_set_isdel_true(h->flags, x);							\
 			--h->size;													\

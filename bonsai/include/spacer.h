@@ -13,6 +13,11 @@ using spvec_t = std::vector<u8>;
 u32 comb_size(const spvec_t &spaces);
 spvec_t parse_spacing(const char *space_string, unsigned k);
 ks::string str(const spvec_t &vec);
+inline spvec_t sub1(const spvec_t &spaces) {
+    auto ret = spaces;
+    for(auto &el: ret) --el;
+    return ret;
+}
 struct Spacer {
     static const u32 max_k = 32;
 

@@ -319,9 +319,11 @@ public:
     void for_each(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
         if(ks == nullptr) {
+            std::fprintf(stderr, "ks is null, creating\n");
             ks = kseq_init(fp);
             destroy = true;
         } else {
+            std::fprintf(stderr, "ks is not null, assigning\n");
             kseq_assign(ks, fp);
             destroy = false;
         }
@@ -559,7 +561,7 @@ struct est_helper {
 template<typename ScoreType=score::Lex>
 void est_helper_fn(void *data_, long index, int tid) {
     est_helper &h(*(est_helper *)(data_));
-    hll_fill_lmers<ScoreType>(h.master_, h.paths_[index], h.sp_, h.canon_, h.data_, h.ks_);
+    hll_fill_lmers<ScoreType>(h.master_, h.paths_[index], h.sp_, h.canon_, h.data_, h.ks_ + tid);
 }
 
 template<typename ScoreType=score::Lex>
@@ -583,8 +585,13 @@ void fill_hll(hll::hll_t &ret, const std::vector<std::string> &paths,
     } else {
         LOG_DEBUG("Starting parallel\n");
         std::mutex m;
-        est_helper helper{space, paths, m, np, canon, data, ret, ks};
+        std::vector<kseq_t> kseqs;
+        while(kseqs.size() < (unsigned)num_threads) {
+            kseqs.emplace_back(kseq_init_stack());
+        }
+        est_helper helper{space, paths, m, np, canon, data, ret, kseqs.data()};
         kt_for(num_threads, &est_helper_fn<ScoreType>, &helper, paths.size());
+        for(auto &kseq: kseqs) kseq_destroy_stack(kseq);
     }
     
 }

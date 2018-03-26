@@ -1,5 +1,4 @@
-#ifndef _FEATURE_MIN__
-#define _FEATURE_MIN__
+#pragma once
 
 #include "encoder.h"
 #include "spacer.h"
@@ -97,13 +96,24 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
     // Update this to include tax ids in the hash map.
     size_t submitted(0), completed(0), todo(fns.size());
     std::vector<khash_t(all)> counters(num_threads);
+    
+#if 0
+		khint_t n_buckets, size, n_occupied, upper_bound; \
+		khint32_t *flags; \
+		khkey_t *keys; \
+		khval_t *vals; \
+		mutable std::shared_mutex m;
+#endif
+    std::memset(counters.data(), 0, sizeof(khash_t(all)) * counters.size());
+    LOG_DEBUG("Started things\n");
     if constexpr(MapUpdater::ValSize == 8) {
-        r64 = static_cast<typename MapUpdater::ReturnType>(std::calloc(sizeof(typename MapUpdater::ReturnType), 1));
+        r64 = static_cast<typename MapUpdater::ReturnType>(std::calloc(sizeof(khash_t(64)), 1));
         kh_resize(64, r64, start_size);
     } else {
-        r32 = static_cast<typename MapUpdater::ReturnType>(std::calloc(sizeof(typename MapUpdater::ReturnType), 1));
+        r32 = static_cast<typename MapUpdater::ReturnType>(std::calloc(sizeof(khash_t(c)), 1));
         kh_resize(c, r32, start_size);
     }
+    LOG_DEBUG("Allocated memory\n");
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
     std::vector<std::future<size_t>> futures;
     // Mkae the future return the kseq pointer and then use it for resubmission.
@@ -111,6 +121,7 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
     std::vector<kseq_t> kseqs;
     std::vector<uint32_t> counter_map;
     while(kseqs.size() < (unsigned)num_threads) kseqs.emplace_back(kseq_init_stack());
+    LOG_DEBUG("Made kseqs\n");
 
     // Submit the first set of jobs
     std::set<size_t> used;
@@ -138,6 +149,7 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
               sp, counter, submitted, (void *)data, canon, ks_to_submit);
             counter_map.emplace_back(coffset);
             ++submitted, ++completed;
+            LOG_DEBUG("Have now submitted %zu element\n", submitted);
             const tax_t taxid(get_taxid(fns[index].data(), name_hash));
             mu.update(tax_map, counter, data, r32, r64, taxid);
         }
@@ -158,6 +170,7 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
         std::free(counter.keys);
     }
     kh_destroy(name, name_hash);
+    LOG_DEBUG("FInished making map!\n");
     if constexpr(MapUpdater::ValSize == 8)
         return r64;
     else
@@ -198,5 +211,3 @@ khash_t(64) *taxdepth_map(const std::vector<std::string> &fns, const khash_t(p) 
 
 
 } // namespace emp
-#endif // #ifdef _FEATURE_MIN__
-

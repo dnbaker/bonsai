@@ -23,8 +23,10 @@ struct Database {
     Spacer  *sp_;
 
     Spacer *make_sp() {
+        //std::fprintf(stderr, "Making sp with spacer = %s\n", str(s_).data());
         Spacer *ret(new Spacer(k_, (uint16_t)w_, s_));
         for(auto &i: ret->s_) --i;
+        //std::fprintf(stderr, "Current sp string: %s\n", str(ret->s_).data());
         return ret;
     }
 
@@ -52,7 +54,7 @@ struct Database {
     {
     }
     Database(Spacer sp, unsigned owns=1, T *db=nullptr):
-        Database(sp.k_, sp.w_, sp.s_, owns, db)
+        Database(sp.k_, sp.w_, sub1(sp.s_), owns, db)
     {
     }
 
