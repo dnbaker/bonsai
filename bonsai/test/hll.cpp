@@ -102,7 +102,7 @@ TEST_CASE("hll") {
 #else
             hll::dev::hlf_t hlf(16, gen(), hsz - 4);
 #endif
-            for(size_t i(0); i < val; ++i) hlf.add(gen());
+            for(size_t i(0); i < val; ++i) hlf.addh(gen());
             if(std::abs(hlf.report() - val) > (1.03896 / std::sqrt(1ull << pair.first) * val)) {
                 fprintf(stderr, "Warning: Above expected variance for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
             }

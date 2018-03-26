@@ -420,15 +420,15 @@ std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(
     }
     if(fail) throw std::runtime_error("Failed for missin tax levels.");
 #endif
-    ::std::sort(sorted_taxes.begin(), sorted_taxes.end(), [&lvl_map](const tax_t a, const tax_t b) {
-             try {
-                return lvl_map.at(a) < lvl_map.at(b);
-             } catch(std::out_of_range &ex) {
-                std::cerr << "Out of range: " << ex.what() << '\n';
-                if(lvl_map.find(a) == lvl_map.end()) {std::cerr << "Missing tax " << a << '\n'; throw;}
-                if(lvl_map.find(b) == lvl_map.end()) {std::cerr << "Missing tax " << b << '\n'; throw;}
-                throw std::runtime_error("ZOMG");
-             }
+    pdqsort(sorted_taxes.begin(), sorted_taxes.end(), [&lvl_map](const tax_t a, const tax_t b) {
+            try {
+               return lvl_map.at(a) < lvl_map.at(b);
+            } catch(std::out_of_range &ex) {
+               std::cerr << "Out of range: " << ex.what() << '\n';
+               if(lvl_map.find(a) == lvl_map.end()) {std::cerr << "Missing tax " << a << '\n'; throw;}
+               if(lvl_map.find(b) == lvl_map.end()) {std::cerr << "Missing tax " << b << '\n'; throw;}
+               throw std::runtime_error("ZOMG");
+            }
     });
 #if !NDEBUG
     for(auto it1(sorted_taxes.begin()), it2(it1 + 1); it2 != sorted_taxes.end(); ++it1, ++it2) {
