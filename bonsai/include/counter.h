@@ -220,7 +220,7 @@ public:
             for(const auto &i: map_) {
                 vc.emplace_back(&i.first, i.second);
             }
-            std::sort(std::begin(vc), std::end(vc), [](const auto &x, const auto &y) {return x.count_ < y.count_;});
+            pdqsort(std::begin(vc), std::end(vc), [](const auto &x, const auto &y) {return x.count_ < y.count_;});
             ks.sprintf("#Number of distinct patterns: %zu\n", vc.size());
             ks.sprintf("#Pattern\tCount\tNumber of bits set in pattern\n");
             if(map_.empty()) return;
