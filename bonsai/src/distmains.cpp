@@ -143,7 +143,7 @@ int sketch_main(int argc, char *argv[]) {
     LOG_DEBUG("Sketch size: %i\n", sketch_size);
     LOG_DEBUG("Using %zu threads\n", nthreads);
     omp_set_num_threads(nthreads);
-    spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
+    spvec_t sv(parse_spacing(spacing.data(), k));
     Spacer sp(k, wsz, sv);
     std::vector<std::vector<std::string>> ivecs;
     {
@@ -277,7 +277,7 @@ int dist_main(int argc, char *argv[]) {
             case 'h': case '?': dist_usage(*argv);
         }
     }
-    spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
+    spvec_t sv(parse_spacing(spacing.data(), k));
     Spacer sp(k, wsz, sv);
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind, argv + argc));
@@ -366,7 +366,7 @@ int setdist_main(int argc, char *argv[]) {
         }
     }
     std::vector<char> rdbuf(bufsize);
-    spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
+    spvec_t sv(parse_spacing(spacing.data(), k));
     Spacer sp(k, wsz, sv);
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind, argv + argc));

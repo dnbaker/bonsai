@@ -121,7 +121,7 @@ int phase2_main(int argc, char *argv[]) {
         }
     }
     if(wsz < 0 || wsz < k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
-    spvec_t sv(spacing.size() ? parse_spacing(spacing.data(), k): spvec_t(k - 1, 0));
+    spvec_t sv(parse_spacing(spacing.data(), k));
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 2, argv + argc));
     if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
@@ -190,7 +190,7 @@ int hll_main(int argc, char *argv[]) {
     if(wsz < k) wsz = k;
     std::vector<std::string> inpaths(paths_file.empty() ? get_paths(paths_file.data())
                                                         : std::vector<std::string>(argv + optind, argv + argc));
-    spvec_t sv(spacing.empty() ? spvec_t(k - 1, 0): parse_spacing(spacing.data(), k));
+    spvec_t sv(parse_spacing(spacing.data(), k));
     const double est(estimate_cardinality<score::Lex>(inpaths, k, wsz, sv, canon, nullptr, num_threads, sketch_size));
     std::fprintf(stderr, "Estimated number of unique exact matches: %lf\n", est);
     return EXIT_SUCCESS;
