@@ -137,9 +137,12 @@ int phase2_main(int argc, char *argv[]) {
         if(tax_path.empty() && argv[optind]) tax_path == argv[optind];
         LOG_INFO("Parent map bulding from %s\n", tax_path.data());
         khash_t(p) *taxmap(build_parent_map(tax_path.data()));
+        //LOG_INFO("I just feel like stopping this executable now for testing.\n");
+        //goto fail;
         phase2_map.db_ = score_scheme::LEX == mode ? lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size)
                                                    : lca_map<score::Entropy>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size);
         phase2_map.write(argv[optind + 1]);
+        //fail:
         kh_destroy(p, taxmap);
         return EXIT_SUCCESS;
     }
