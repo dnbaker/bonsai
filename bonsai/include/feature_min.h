@@ -68,7 +68,7 @@ struct MinMap {
 template<typename ScoreType>
 size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks=nullptr) {
     LOG_ASSERT(ret);
-    LOG_DEBUG("Filling from genome at path %s\n", path);
+    LOG_DEBUG("Filling from genome at path %s. kseq is pre-allocated ? %s. %p\n", path, ks ? "true": "false", (void *)ks);
 
     Encoder<ScoreType> enc(0, 0, sp, data, canon);
     enc.add(ret, path, ks);

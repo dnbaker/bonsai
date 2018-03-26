@@ -72,7 +72,7 @@ khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, const khash_t(p) *tax) {
 void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid) {
     int khr;
     khint_t k2;
-    LOG_DEBUG("Adding set of size %zu t total set of current size %zu.\n", kh_size(set), kh_size(kc));
+    LOG_DEBUG("Adding set of size %zu to total set of current size %zu.\n", kh_size(set), kh_size(kc));
     for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
         if(kh_exist(set, ki)) {
             if((k2 = kh_get(c, kc, kh_key(set, ki))) == kh_end(kc)) {
@@ -94,7 +94,7 @@ void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *t
     int khr;
     khint_t k2;
     tax_t val;
-    LOG_DEBUG("Adding set of size %zu t total set of current size %zu.\n", kh_size(set), kh_size(kc));
+    LOG_DEBUG("Adding set of size %zu to total set of current size %zu.\n", kh_size(set), kh_size(kc));
     for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
         if(kh_exist(set, ki)) {
             if((k2 = kh_get(64, kc, kh_key(set, ki))) == kh_end(kc)) {
