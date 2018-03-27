@@ -106,10 +106,11 @@ int main(int argc, char *argv[]) {
     spvec_t sv;
     double sketchval, exactval;
     const int fn(fileno(ofp));
-    ks::string ks(ks::sprintf("##Command:%s", argv[0]));
+    ks::string ks("##Command:");
+    ks.puts(argv[0]);
     for(char **p(argv + 1); *p; ks.sprintf(" %s", *p++));
-    ks += "#Path1\tPath2\tApproximate jaccard index\tExact jaccard index\t"
-          "Absolute difference\t%difference from exact value\tSketch size\tKmer size\n";
+    ks += "\n#Path1\tPath2\tApproximate jaccard index\tExact jaccard index"
+          "\tAbsolute difference\t%difference from exact value\tSketch size\tKmer size\n";
     Spacer sp(k);
     auto start = std::chrono::system_clock::now();
     if(lowmem) {
@@ -165,7 +166,12 @@ int main(int argc, char *argv[]) {
             sketches.emplace_back(
                 make_hll(std::vector<std::string>{argv[optind + sketches.size()]},
                          k, k, sv, canon, nullptr, 1, sketchsize, nullptr /*kseq */, estim, jestim));
-        for(auto &sketch: sketches) if(!sketch.get_is_ready()) sketch.sum();
+        for(auto &sketch: sketches) {
+            if(!sketch.get_is_ready()) sketch.sum();
+        }
+#if !NDEBUG
+        for(auto &sketch: sketches) assert(sketch.get_jestim() == jestim);
+#endif
 
         for(unsigned i = 0; i < ngenomes; ++i) {
             accum.add(sketches[i], sets[i]);

@@ -98,9 +98,9 @@ def parse_assembly(fn, fnidmap):
             raise Exception("Not long enough")
         if ("latest" not in line or  # Complete genome
                 (("Complete Genome" not in line and
-                  "GRCh" not in line and s[13] != "Full")) or
+                  "GRCh" not in line and "Full" not in line)) or
                 any(i in line.lower() for
-                    i in ["chromosome", "supercontig"])):
+                    i in ["contig", "supercontig"])):
             continue
         fn = "%s_genomic.fna.gz" % ([i for i in s[19].split("/") if i][-1])
         fnidmap[fn] = int(s[5])
@@ -218,10 +218,15 @@ def main():
         spoool.map(retry_cc, ((cs, args.die) for cs in cstrs))
         # Replace pathnames with seqids
         for fn in list(cladeidmap.keys()):
-            cladeidmap[xfirstline("/".join(
-                [ref, clade, fn]
-            )).decode().split()[0][1:]] = cladeidmap[fn]
-            del cladeidmap[fn]
+            try:
+                cladeidmap[xfirstline("/".join(
+                    [ref, clade, fn]
+                )).decode().split()[0][1:]] = cladeidmap[fn]
+                del cladeidmap[fn]
+            except FileNotFoundError:
+                if args.die:
+                    raise
+                pass
         nameidmap.update(cladeidmap)
     print("Done with all clades")
     with open(ref + "/" + args.idmap, "w") as f:
