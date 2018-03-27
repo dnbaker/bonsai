@@ -61,17 +61,16 @@ def submit_call(cstr):
 def perform_sourmash(krange, ss, opath, paths, nthreads):
     assert isinstance(paths, list)
     assert isinstance(opath, str)
+    ss = 1 << ss
     Spooooool = multiprocessing.Pool(nthreads)
     cstrs = ("sourmash compute -n %i -k %s %s" % (
         ss, ",".join(map(str, krange)), path) for path in paths)
     Spooooool.map(submit_call, cstrs)
     sigpaths = [path.split("/")[-1] + ".sig" for path in paths]
-    tmppaths = ["%s.%i" % (opath, k) for k in krange]
+    tmppaths = ["%s.n%i.k%i" % (opath, ss, k) for k in krange]
     cstrs = ("sourmash compare -o %s -k %i %s" % (tp, k, " ".join(sigpaths))
              for tp, k in zip(tmppaths, krange))
     Spooooool.map(submit_call, cstrs)
-    subprocess.check_call(f"cat {' '.join(tmppaths)} > {opath}", shell=True)
-    subprocess.check_call(f"rm {' '.join(tmppaths)}", shell=True)
 
 
 def make_sketch_fn(fn):
