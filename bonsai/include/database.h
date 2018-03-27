@@ -31,7 +31,15 @@ struct Database {
     }
 
     Database(const char *fn): owns_hash_(1), sp_(nullptr) {
-        std::FILE *fp(std::fopen(fn, "rb"));
+        int filetype(0);
+        {
+            std::string fns = fn;
+            std::string gzsuf   = ".gz";
+            std::string zstdsuf = ".zst";
+            if(std::equal(std::crbegin(gzsuf), std::crend(gzsuf), std::crbegin(fns))) filetype = 1;
+            else if(std::equal(std::crbegin(gzsuf), std::crend(gzsuf), std::crbegin(fns))) filetype = 2;
+        }
+        std::FILE *fp = filetype ? popen((std::string(filetype == 1 ? "gzip -dc " : "zstd -dc ") + fn).data(), "rb"): std::fopen(fn, "rb");
         if (fp) {
             __fr(k_, fp);
             __fr(w_, fp);
@@ -74,6 +82,7 @@ struct Database {
         if(sp_)        delete sp_;
     }
     void write(const char *fn) {
+        // TODO: add compression/work with zlib.
         std::FILE *ofp(std::fopen(fn, "wb"));
         if(!ofp) LOG_EXIT("Could not open %s for reading.\n", fn);
         LOG_DEBUG("I am writing a database to file %s\n", fn);
