@@ -134,6 +134,21 @@ int phase2_main(int argc, char *argv[]) {
         // Force using hll so that we can use __sync_bool_compare_and_swap to parallelize.
         LOG_INFO("About to estimate cardinality\n");
         std::size_t hash_size(estimate_cardinality<score::Lex>(inpaths, k, k, sv, canon, nullptr, num_threads, 24));
+#if !NDEBUG
+        {
+            uint64_t sum = 0;
+            for(const auto &path: inpaths) {
+                gzFile fp = gzopen(path.data(), "rb");
+                kseq_t *ks = kseq_init(fp);
+                while(kseq_read(ks) >= 0) {
+                    sum += ks->seq.l;
+                }
+                kseq_destroy(ks);
+                gzclose(fp);
+            }
+            assert(sum > hash_size || !std::fprintf(stderr, "sum: %" PRIu64". hash size: %zu\n", sum, hash_size));
+        }
+#endif
         LOG_INFO("Estimated cardinality: %zu\n", hash_size);
         if(tax_path.empty()) throw std::runtime_error("Tax path required. [See -T option.]");
         LOG_INFO("Parent map bulding from %s\n", tax_path.data());

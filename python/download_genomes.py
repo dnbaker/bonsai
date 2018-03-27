@@ -114,17 +114,17 @@ def parse_assembly(fn, fnidmap):
     return to_fetch
 
 
-def retry_cc(cstr, die=True):
-    print("Starting retry_cc")
+def retry_cc(tup):
+    cstr, die = tup
     RETRY_LIMIT = 10
     r = 0
     while r < RETRY_LIMIT:
         try:
-            print(cstr)
+            print(cstr, file=sys.stderr)
             cc(cstr, shell=True)
             return
         except CalledProcessError:
-            print("retry number", r)
+            print("retry number", r, file=sys.stderr)
             r += 1
             if r == RETRY_LIMIT:
                 if die:
@@ -135,8 +135,6 @@ def retry_cc(cstr, die=True):
                     sys.stderr.write(
                         "Could not download %s even after %i attempts" % (
                             cstr, RETRY_LIMIT))
-                return
-            continue
     print("Success with %s" % cstr)
 
 
@@ -154,6 +152,7 @@ def getopts():
                    type=int, default=16)
     a.add_argument("--lazy", "-l", default=False, type=bool,
                    help="Don't check full gzipped file contents.")
+    a.add_argument("--die", "-d", action='store_true')
     return a.parse_args()
 
 
@@ -218,7 +217,7 @@ def main():
             cstrs.append("curl {tax_path} -o {ref}/"
                          "taxdump.tgz && tar -zxvf {ref}/taxdump.tgz"
                          " && mv nodes.dmp {ref}/nodes.dmp".format(**locals()))
-        spoool.map(retry_cc, cstrs)
+        spoool.map(retry_cc, ((cs, args.die) for cs in cstrs))
         # Replace pathnames with seqids
         for fn in list(cladeidmap.keys()):
             cladeidmap[xfirstline("/".join(

@@ -554,14 +554,14 @@ struct est_helper {
     const u64                       np_;
     const bool                      canon_;
     void                            *data_;
-    hll::hll_t                    &master_;
+    std::vector<hll::hll_t>         &hlls_;
     kseq_t                            *ks_;
 };
 
 template<typename ScoreType=score::Lex>
 void est_helper_fn(void *data_, long index, int tid) {
     est_helper &h(*(est_helper *)(data_));
-    hll_fill_lmers<ScoreType>(h.master_, h.paths_[index], h.sp_, h.canon_, h.data_, h.ks_ + tid);
+    hll_fill_lmers<ScoreType>(h.hlls_[tid], h.paths_[index], h.sp_, h.canon_, h.data_, h.ks_ + tid);
 }
 
 template<typename ScoreType=score::Lex>
@@ -586,12 +586,13 @@ void fill_hll(hll::hll_t &ret, const std::vector<std::string> &paths,
         LOG_DEBUG("Starting parallel\n");
         std::mutex m;
         std::vector<kseq_t> kseqs;
-        while(kseqs.size() < (unsigned)num_threads) {
-            kseqs.emplace_back(kseq_init_stack());
-        }
-        est_helper helper{space, paths, m, np, canon, data, ret, kseqs.data()};
+        std::vector<hll::hll_t> hlls;
+        while(kseqs.size() < (unsigned)num_threads) kseqs.emplace_back(kseq_init_stack());
+        while(hlls.size() < (unsigned)num_threads) hlls.emplace_back(ret.clone());
+        est_helper helper{space, paths, m, np, canon, data, hlls, kseqs.data()};
         kt_for(num_threads, &est_helper_fn<ScoreType>, &helper, paths.size());
         for(auto &kseq: kseqs) kseq_destroy_stack(kseq);
+        for(auto &hll: hlls) ret += hll;
     }
     
 }
