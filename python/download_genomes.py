@@ -126,16 +126,14 @@ def retry_cc(tup):
         except CalledProcessError:
             print("retry number", r, file=sys.stderr)
             r += 1
-            if r == RETRY_LIMIT:
-                if die:
-                    raise Exception(
-                        "Could not download via %s "
-                        "even after %i attempts." % (cstr, RETRY_LIMIT))
-                else:
-                    sys.stderr.write(
-                        "Could not download %s even after %i attempts" % (
-                            cstr, RETRY_LIMIT))
-    print("Success with %s" % cstr)
+    if die:
+        raise Exception(
+            "Could not download via %s "
+            "even after %i attempts." % (cstr, RETRY_LIMIT))
+    else:
+        sys.stderr.write(
+            "Could not download %s even after %i attempts" % (
+                cstr, RETRY_LIMIT))
 
 
 def getopts():

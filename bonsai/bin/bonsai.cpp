@@ -207,7 +207,7 @@ int hll_main(int argc, char *argv[]) {
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind, argv + argc));
     spvec_t sv(parse_spacing(spacing.data(), k));
-    LOG_INFO("Processing %zu paths\n", inpaths.size());
+    LOG_INFO("Processing %zu paths with %i threads\n", inpaths.size(), num_threads);
     const double est(estimate_cardinality<score::Lex>(inpaths, k, wsz, sv, canon, nullptr, num_threads, sketch_size));
     std::fprintf(stderr, "Estimated number of unique exact matches: %lf\n", est);
     return EXIT_SUCCESS;
