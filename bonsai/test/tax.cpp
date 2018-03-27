@@ -31,10 +31,10 @@ TEST_CASE("tax") {
     kgset_t set(paths, sp);
     set.print_weights();
     REQUIRE(set.size() == paths.size());
-    count::Counter<bitvec_t> counts(bitmap_t(set).to_counter());
-    LOG_INFO("Made counter\n");
-    adjmap_t adj(counts);
-    std::fprintf(stderr, "Made adjmap");
+    //count::Counter<bitvec_t> counts(bitmap_t(set).to_counter());
+    //LOG_INFO("Made counter\n");
+    //adjmap_t adj(counts);
+    //std::fprintf(stderr, "Made adjmap");
 
     //counts.print_counts(stderr);
     //counts.print_hist(stderr);

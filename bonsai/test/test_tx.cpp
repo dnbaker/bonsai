@@ -46,7 +46,7 @@ std::vector<std::string> PATHS {
     "ec/GCF_001936355.1_ASM193635v1_genomic.fna.gz"
 };
 
-const char *TAX_PATH  = "ref/nodes.dmp";
+const char *TAX_PATH  = "../ref/nodes.dmp";
 const char *NAME_PATH = "ref/nameidmap.txt";
 
 TEST_CASE("tx") {

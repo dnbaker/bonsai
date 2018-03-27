@@ -556,4 +556,14 @@ public:
     {}
 };
 
+struct KSeqBufferHolder {
+    std::vector<kseq_t> kseqs_;
+    KSeqBufferHolder(size_t n) {
+        while(kseqs_.size() < n) kseqs_.emplace_back(kseq_init_stack());
+    }
+    ~KSeqBufferHolder() {
+        for(auto &ks: kseqs_) kseq_destroy_stack(ks);
+    }
+};
+
 } // namespace emp

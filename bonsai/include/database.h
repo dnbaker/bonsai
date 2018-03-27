@@ -76,12 +76,13 @@ struct Database {
     void write(const char *fn) {
         std::FILE *ofp(std::fopen(fn, "wb"));
         if(!ofp) LOG_EXIT("Could not open %s for reading.\n", fn);
+        LOG_DEBUG("I am writing a database to file %s\n", fn);
         __fw(k_, ofp);
         __fw(w_, ofp);
         std::fwrite(s_.data(), s_.size(), sizeof(uint8_t), ofp);
         khash_write_impl<T>(db_, ofp);
         std::fclose(ofp);
-#if !NDEBUG
+#if TEST_IO
         Database<T> test(fn);
         assert(kh_size(test.db_) == kh_size(db_));
         size_t ndiff(0);
