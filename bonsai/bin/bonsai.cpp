@@ -128,20 +128,21 @@ int phase2_main(int argc, char *argv[]) {
     LOG_DEBUG("Got paths\n");
     if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for final database generation.");
     if(score_scheme::LEX == mode || score_scheme::ENTROPY) {
+        LOG_INFO("Final map will be written to %s\n", argv[optind]);
         Spacer sp(k, wsz, sv);
         Database<khash_t(c)>  phase2_map(sp);
         // Force using hll so that we can use __sync_bool_compare_and_swap to parallelize.
         LOG_INFO("About to estimate cardinality\n");
         std::size_t hash_size(estimate_cardinality<score::Lex>(inpaths, k, k, sv, canon, nullptr, num_threads, 24));
         LOG_INFO("Estimated cardinality: %zu\n", hash_size);
-        if(tax_path.empty() && argv[optind]) tax_path == argv[optind];
+        if(tax_path.empty()) throw std::runtime_error("Tax path required. [See -T option.]");
         LOG_INFO("Parent map bulding from %s\n", tax_path.data());
         khash_t(p) *taxmap(build_parent_map(tax_path.data()));
         //LOG_INFO("I just feel like stopping this executable now for testing.\n");
         //goto fail;
         phase2_map.db_ = score_scheme::LEX == mode ? lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size)
                                                    : lca_map<score::Entropy>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size);
-        phase2_map.write(argv[optind + 1]);
+        phase2_map.write(argv[optind]);
         //fail:
         kh_destroy(p, taxmap);
         return EXIT_SUCCESS;
@@ -188,9 +189,10 @@ int hll_main(int argc, char *argv[]) {
         }
     }
     if(wsz < k) wsz = k;
-    std::vector<std::string> inpaths(paths_file.empty() ? get_paths(paths_file.data())
-                                                        : std::vector<std::string>(argv + optind, argv + argc));
+    std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
+                                                       : std::vector<std::string>(argv + optind, argv + argc));
     spvec_t sv(parse_spacing(spacing.data(), k));
+    LOG_INFO("Processing %zu paths\n", inpaths.size());
     const double est(estimate_cardinality<score::Lex>(inpaths, k, wsz, sv, canon, nullptr, num_threads, sketch_size));
     std::fprintf(stderr, "Estimated number of unique exact matches: %lf\n", est);
     return EXIT_SUCCESS;

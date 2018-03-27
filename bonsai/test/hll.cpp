@@ -30,8 +30,8 @@ std::vector<std::string> paths {
 TEST_CASE("hll") {
     std::vector<std::pair<uint64_t, uint64_t>> pairs;
     {
-        size_t sz_start /* = 9 */ = 12;
-        size_t sz_end /* = 20 */ = 18;
+        size_t sz_start /* = 9 */ = 10;
+        size_t sz_end /* = 20 */ = 16;
         size_t nel_start = /* = 14 */ 18;
         size_t nel_stop = /* = 22 */ 21;
         for(size_t ss(sz_start); ss < sz_end; ++ss)
