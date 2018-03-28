@@ -9,10 +9,16 @@ using namespace emp;
 using namespace hll;
 using namespace hll::detail;
 
+template<typename SketchType>
+double fprate(const std::unordered_set<u64> &oset, const SketchType &sketch) {
+    size_t nfp = 0;
+    for(const auto &el: oset) nfp += sketch.may_contain(el);
+    std::fprintf(stderr, "%zu of %zu might be contained.\n", nfp, oset.size());
+    return static_cast<double>(nfp) / oset.size();
+}
 
 template<typename Hasher>
 std::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nelem) {
-    uint64_t val;
     aes::AesCtr<std::uint64_t, 8> gen((ss + 1) * (nfiltl2 + 3) * (niter + 7) * (nelem + 63));
     std::array<double,8> mdiffs {0.,0.,0.,0.,0.,0.};
     if((int)ss - (int)nfiltl2 < 6) {
@@ -25,9 +31,16 @@ std::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nel
     double frac = 0., fracborrow = 0.;
     double ediff = 0., eabsdiff = 0., oabsdiff = 0;
     double cdiff = 0., cabsdiff = 0.;
+    double fphll = 0., fphlf = 0., fpchlf = 0.;
+    std::unordered_set<u64> set, oset;
     for(size_t i(0); i < niter; ++i) {
-        for(auto c(nelem); c--;) {
-            val = gen();
+        while(set.size() < nelem) set.emplace(gen());
+        while(oset.size() < nelem) {
+            u64 val;
+            do {val = gen();} while(set.find(val) != set.end());
+            oset.insert(val);
+        }
+        for(const auto &val: set) {
             hll.addh(val);
             hlf.addh(val);
             chlf.addh(val);
@@ -49,9 +62,14 @@ std::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nel
         cabsdiff += std::abs(ctmp);
         double omidd = (ertl_ml_estimate(hll) + hll.report()) * 0.5;
         oabsdiff += std::abs(nelem - omidd);
+        fphll += fprate(oset, hll);
+        fphlf += fprate(oset, hlf);
+        fpchlf += fprate(oset, chlf);
         hlf.clear();
         hll.clear();
         chlf.clear();
+        set.clear();
+        oset.clear();
     }
     frac /= niter;
     fracborrow /= niter;
@@ -61,9 +79,12 @@ std::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nel
     cabsdiff /= niter;
     cdiff /= niter;
     for(auto &md: mdiffs) md *= 1./niter;
+    fphll /= niter;
+    fphlf /= niter;
+    fpchlf /= niter;
     char buf[512];
-    std::sprintf(buf, "%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%zu\t%zu\t%zu\t%lf\t%lf\t%lf\n", mdiffs[0], mdiffs[1], mdiffs[2], mdiffs[3],
-                 mdiffs[4], mdiffs[5], mdiffs[6], mdiffs[7], frac, fracborrow, ediff, eabsdiff, ss, size_t(1ull << nfiltl2), nelem, oabsdiff, cdiff, cabsdiff);
+    std::sprintf(buf, "%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%zu\t%zu\t%zu\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\n", mdiffs[0], mdiffs[1], mdiffs[2], mdiffs[3],
+                 mdiffs[4], mdiffs[5], mdiffs[6], mdiffs[7], frac, fracborrow, ediff, eabsdiff, ss, size_t(1ull << nfiltl2), nelem, oabsdiff, cdiff, cabsdiff, fphll, fphlf, fpchlf);
     return std::string(buf);
 }
 
@@ -75,9 +96,9 @@ int main(int argc, char *argv[]) {
     unsigned nthreads = argc > 1 ? std::strtoul(argv[1], nullptr, 10): 8;
     size_t niter      = argc > 2 ? std::strtoull(argv[2], nullptr, 10): 50;
     std::string prefix = argc > 3 ? argv[3]: "hlfout";
-    std::vector<size_t> sizes    {12, 14, 16, 18, 20};
+    std::vector<size_t> sizes    {10, 11, 12, 14, 16, 18, 20};
     std::vector<size_t> nelems   {1 << 18, 1 << 20, 1 << 14, 1 << 12, 1 << 24};
-    std::vector<size_t> nfiltl2s {1, 2, 4, 6};
+    std::vector<size_t> nfiltl2s {1, 2, 3, 4, 5, 6};
     omp_set_num_threads(nthreads);
     std::vector<comb_t> combs;
     for(auto size: sizes)
@@ -89,7 +110,7 @@ int main(int argc, char *argv[]) {
     std::fprintf(ofp, "#Mean error hlf\tMean error hll\tMean error hlf median\t""Mean error strength borrowing\t"
                        "Mean diffs hlf\tMean diffs hll\tMean diffs hlf med\tMean diffs strength borrowing\t"
                        "Mean fraction off (hll)\tmean frac off (hlf borrow)\tMean Ertl ML diff\tMean Ertl ML error\t"
-                       "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\tMean chlf bias\tMean chlf error\n");
+                       "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\tMean chlf bias\tMean chlf error\thll fp containment\thlf fp containment\tchlf fp containment\n");
     std::fflush(ofp);
     LOG_INFO("Okay about to do first loop\n");
     #pragma omp parallel for
@@ -106,7 +127,7 @@ int main(int argc, char *argv[]) {
     std::fprintf(ofp, "#Mean error hlf\tMean error hll\tMean error hlf median\t""Mean error strength borrowing\t"
                        "Mean diffs hlf\tMean diffs hll\tMean diffs hlf med\tMean diffs strength borrowing\t"
                        "Mean fraction off (hll)\tmean frac off (hlf borrow)\tMean Ertl ML diff\tMean Ertl ML error\t"
-                       "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\tMean chlf bias\tMean chlf error\n");
+                       "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\tMean chlf bias\tMean chlf error\thll fp containment\thlf fp containment\tchlf fp containment\n");
     std::fflush(ofp);
     #pragma omp parallel for
     for(unsigned i = 0; i < combs.size(); ++i) {
@@ -122,7 +143,7 @@ int main(int argc, char *argv[]) {
     std::fprintf(ofp, "#Mean error hlf\tMean error hll\tMean error hlf median\t""Mean error strength borrowing\t"
                        "Mean diffs hlf\tMean diffs hll\tMean diffs hlf med\tMean diffs strength borrowing\t"
                        "Mean fraction off (hll)\tmean frac off (hlf borrow)\tMean Ertl ML diff\tMean Ertl ML error\t"
-                       "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\tMean chlf bias\tMean chlf error\n");
+                       "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\tMean chlf bias\tMean chlf error\thll fp containment\thlf fp containment\tchlf fp containment\n");
     std::fflush(ofp);
     #pragma omp parallel for
     for(unsigned i = 0; i < combs.size(); ++i) {
