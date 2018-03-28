@@ -108,6 +108,41 @@ def folder2mashdict(paths):
                   folder2paths(paths, "experim"), {})
 
 
+def folder2sourmashdict(paths):
+    import numpy as np
+    if isinstance(paths, str):
+        import glob
+        paths = glob.glob(paths + "/sourmashed_exp*")
+    labels = [line.strip() for line in open(next(path for path in paths if
+                                                 path.endswith(".labels.txt")))]
+    tried_path = next(path for path in paths if path.endswith(".labels.txt"))
+    ret = {}
+    for bpath in (path for path in paths if not path.endswith(".labels.txt")):
+        print(bpath)
+        toks = bpath.split("out.")[-1].split(".") # out.n8388608.k15
+        print(toks)
+        n, k = list(map(int, (tok[1:] for tok in
+                              bpath.split("out.")[-1].split("."))))
+        data = np.load(bpath)
+        assert len(labels) == data.shape[0] == data.shape[1], f"Sizes are wrong: label len: {len(labels)}. shape: {data.shape}. Tried path: {tried_path}"
+        for i in range(data.shape[0]):
+            for j in range(i + 1, data.shape[0]):
+                ret[canonkey(labels[i], labels[j], n * 8, k)] = \
+                    data[i,j]
+    return ret
+
+
+def sourmashdict2tsv(smd, path):
+    fp = path if hasattr(path, 'write') else open(path, "w")
+    fw = fp.write
+    fw("#Path1\tPath2\tNumber of elements\tKmer size"
+       "\tNumber of bytes in sketch\tEstimated Jaccard Index\n")
+    set(map(lambda k: not fw("%s\t%s\t%i\t%i\t%i\t%f\n" %
+                             (k[0][0], k[0][1], k[0][2], k[0][3],
+                              k[0][2] << 3, k[1])),
+            smd.items()))
+
+
 def mashdict2tsv(md, path):
     fp = path if hasattr(path, 'write') else open(path, "w")
     fw = fp.write
@@ -117,8 +152,6 @@ def mashdict2tsv(md, path):
                              (k[0][0], k[0][1], k[0][2], k[0][3],
                               k[0][2] * (8 if k[0][3] > 16 else 4), k[1])),
             md.items()))
-    if fp != sys.stdout:
-        fp.close()
 
 
 def hlashdict2tsv(hd, path):
@@ -156,11 +189,16 @@ def folder2hlashdict(paths):
                                          line[0] != "#"))}
 
 
+__all__ = ["mash2dict", "folder2mashdict", "get_flag",
+           "folder2hlashdict", "folder2paths",
+           "HlashData", "canonname", "canonkey"]
+
+
 if __name__ == "__main__":
     import argparse
     import sys
     p = argparse.ArgumentParser()
-    p.add_argument('subcommand', choices=('mash', 'hlash'),
+    p.add_argument('subcommand', choices=('mash', 'hlash', 'flash', 'flashdans', 'sourmash'),
                    help="Whether the parsed experiment is mash or hlash.")
     p.add_argument("path", help="Path to folder to parse files from.")
     p.add_argument("outpath", help="Path to folder to write.",
@@ -169,14 +207,12 @@ if __name__ == "__main__":
     path, outpath = args.path, args.outpath
     if args.subcommand == "mash":
         mashdict2tsv(folder2mashdict(path), outpath)
-    elif args.subcommand == "hlash":
+    elif args.subcommand in ("hlash", "flash", "flashdans"):
         hlashdict2tsv(folder2hlashdict(path), outpath)
+    elif args.subcommand == "sourmash":
+        sourmashdict2tsv(folder2sourmashdict(path), outpath)
     else:
         raise NotImplementedError("This never happens because choice "
                                   "is an illusion.")
     sys.exit(0)
 
-
-__all__ = ["mash2dict", "folder2mashdict", "get_flag",
-           "folder2hlashdict", "folder2paths",
-           "HlashData", "nk2sketchbytes", "canonname", "canonkey"]
