@@ -55,6 +55,7 @@ def submit_distcmp_call(tup):
 
 
 def submit_call(cstr):
+    print(f"submitting command-string {cstr}", file=sys.stderr)
     subprocess.check_call(cstr, shell=True)
 
 
@@ -71,6 +72,7 @@ def perform_sourmash(krange, ss, opath, paths, nthreads):
     cstrs = ("sourmash compare -o %s -k %i %s" % (tp, k, " ".join(sigpaths))
              for tp, k in zip(tmppaths, krange))
     Spooooool.map(submit_call, cstrs)
+    Spooooool.map(submit_call, (f"rm {sig}" for sig in sigpaths))
 
 
 def make_sketch_fn(fn):

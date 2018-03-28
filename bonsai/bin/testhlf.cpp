@@ -21,13 +21,16 @@ std::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nel
     }
     hlfbase_t<hllbase_t<Hasher>> hlf(1 << nfiltl2, 137, ss - nfiltl2);
     hllbase_t<Hasher> hll(ss);
+    chlf_t<Hasher>   chlf(nfiltl2, ERTL_MLE, ERTL_JOINT_MLE, ss, ss * nelem + niter);
     double frac = 0., fracborrow = 0.;
     double ediff = 0., eabsdiff = 0., oabsdiff = 0;
+    double cdiff = 0., cabsdiff = 0.;
     for(size_t i(0); i < niter; ++i) {
         for(auto c(nelem); c--;) {
             val = gen();
             hll.addh(val);
             hlf.addh(val);
+            chlf.addh(val);
         }
         mdiffs[0] += std::abs(nelem - hlf.report());
         mdiffs[1] += std::abs(nelem - hll.report());
@@ -41,20 +44,26 @@ std::string calculate_errors(size_t ss, size_t nfiltl2, size_t niter, size_t nel
         fracborrow += nelem / hlf.chunk_report();
         ediff += nelem - ertl_ml_estimate(hll);
         eabsdiff += std::abs(nelem - ertl_ml_estimate(hll));
+        auto ctmp = nelem - chlf.chunk_report();
+        cdiff += ctmp;
+        cabsdiff += std::abs(ctmp);
         double omidd = (ertl_ml_estimate(hll) + hll.report()) * 0.5;
         oabsdiff += std::abs(nelem - omidd);
         hlf.clear();
         hll.clear();
+        chlf.clear();
     }
     frac /= niter;
     fracborrow /= niter;
     ediff /= niter;
     eabsdiff /= niter;
     oabsdiff /= niter;
+    cabsdiff /= niter;
+    cdiff /= niter;
     for(auto &md: mdiffs) md *= 1./niter;
     char buf[512];
-    std::sprintf(buf, "%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%zu\t%zu\t%zu\t%lf\n", mdiffs[0], mdiffs[1], mdiffs[2], mdiffs[3],
-                 mdiffs[4], mdiffs[5], mdiffs[6], mdiffs[7], frac, fracborrow, ediff, eabsdiff, ss, size_t(1ull << nfiltl2), nelem, oabsdiff);
+    std::sprintf(buf, "%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%lf\t%zu\t%zu\t%zu\t%lf\t%lf\t%lf\n", mdiffs[0], mdiffs[1], mdiffs[2], mdiffs[3],
+                 mdiffs[4], mdiffs[5], mdiffs[6], mdiffs[7], frac, fracborrow, ediff, eabsdiff, ss, size_t(1ull << nfiltl2), nelem, oabsdiff, cdiff, cabsdiff);
     return std::string(buf);
 }
 
@@ -80,7 +89,7 @@ int main(int argc, char *argv[]) {
     std::fprintf(ofp, "#Mean error hlf\tMean error hll\tMean error hlf median\t""Mean error strength borrowing\t"
                        "Mean diffs hlf\tMean diffs hll\tMean diffs hlf med\tMean diffs strength borrowing\t"
                        "Mean fraction off (hll)\tmean frac off (hlf borrow)\tMean Ertl ML diff\tMean Ertl ML error\t"
-                       "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\n");
+                       "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\tMean chlf bias\tMean chlf error\n");
     std::fflush(ofp);
     LOG_INFO("Okay about to do first loop\n");
     #pragma omp parallel for
@@ -97,7 +106,7 @@ int main(int argc, char *argv[]) {
     std::fprintf(ofp, "#Mean error hlf\tMean error hll\tMean error hlf median\t""Mean error strength borrowing\t"
                        "Mean diffs hlf\tMean diffs hll\tMean diffs hlf med\tMean diffs strength borrowing\t"
                        "Mean fraction off (hll)\tmean frac off (hlf borrow)\tMean Ertl ML diff\tMean Ertl ML error\t"
-                       "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\n");
+                       "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\tMean chlf bias\tMean chlf error\n");
     std::fflush(ofp);
     #pragma omp parallel for
     for(unsigned i = 0; i < combs.size(); ++i) {
@@ -113,7 +122,7 @@ int main(int argc, char *argv[]) {
     std::fprintf(ofp, "#Mean error hlf\tMean error hll\tMean error hlf median\t""Mean error strength borrowing\t"
                        "Mean diffs hlf\tMean diffs hll\tMean diffs hlf med\tMean diffs strength borrowing\t"
                        "Mean fraction off (hll)\tmean frac off (hlf borrow)\tMean Ertl ML diff\tMean Ertl ML error\t"
-                       "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\n");
+                       "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\tMean chlf bias\tMean chlf error\n");
     std::fflush(ofp);
     #pragma omp parallel for
     for(unsigned i = 0; i < combs.size(); ++i) {
