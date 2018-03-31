@@ -163,7 +163,7 @@ class FMEmitter {
         // Maybe summary stats?
     }
 
-    bool bnslace_subtree(const tax_t parent, const u32 ntaxes) {
+    bool emplace_subtree(const tax_t parent, const u32 ntaxes) {
         if(ntaxes < 2) {
             LOG_DEBUG("Skipping subtree of one element. (parent: %u)\n", parent);
             return false;
