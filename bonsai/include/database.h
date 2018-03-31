@@ -10,7 +10,7 @@
 #define __fr(item, fp) std::fread(&(item), 1, sizeof(item), fp)
 #define __fw(item, fp) std::fwrite(&(item), 1, sizeof(item), fp)
 
-namespace emp {
+namespace bns {
 
 
 template <typename T>
@@ -198,7 +198,7 @@ void validate_db(const Database<T> &db, std::unordered_set<tax_t> &used_lcas, st
 }
 
 
-} /* emp namespace */
+} /* bns namespace */
 
 #undef __fr
 #undef __fw

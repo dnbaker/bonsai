@@ -4,7 +4,7 @@
 #include "tx.h"
 #include "bitmap.h"
 #include "linear/linear.h"
-using namespace emp;
+using namespace bns;
 
 TEST_CASE("set") {
     linear::set<uint32_t> linset;

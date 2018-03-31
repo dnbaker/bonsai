@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <numeric>
 
-using namespace emp;
+using namespace bns;
 using EncType = Encoder<score::Lex>;
 using namespace std::literals;
 

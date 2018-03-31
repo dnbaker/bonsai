@@ -2,7 +2,7 @@
 #include "circular_buffer.h"
 #include "kmerutil.h"
 
-namespace emp {
+namespace bns {
 
 class CircusEnt {
     circ::deque<char> q_;
@@ -62,4 +62,4 @@ public:
     }
 };
 
-} // namespace emp
+} // namespace bns

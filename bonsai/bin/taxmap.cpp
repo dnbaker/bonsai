@@ -1,7 +1,7 @@
 #include "util.h"
 #include "getopt.h"
 
-using namespace emp;
+using namespace bns;
 
 int main(int argc, char *argv[]) {
     int c;

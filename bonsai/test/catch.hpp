@@ -393,7 +393,7 @@ namespace Catch {
         SourceLineInfo& operator = ( SourceLineInfo const& ) = default;
         SourceLineInfo& operator = ( SourceLineInfo && )     = default;
 #  endif
-        bool empty() const;
+        bool bnsty() const;
         bool operator == ( SourceLineInfo const& other ) const;
         bool operator < ( SourceLineInfo const& other ) const;
 

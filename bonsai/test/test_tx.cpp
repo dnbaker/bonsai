@@ -1,7 +1,7 @@
 #include "tx.h"
 #include "test/catch.hpp"
 
-using namespace emp;
+using namespace bns;
 
 std::vector<std::string> PATHS {
     "ec/GCF_000005845.2_ASM584v2_genomic.fna.gz",

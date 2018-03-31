@@ -2,7 +2,7 @@
 #include "hll/hll.h"
 #include "util.h"
 #include "aesctr.h"
-using namespace emp;
+using namespace bns;
 
 int main() {
     aes::AesCtr<std::uint64_t, 8> gen(137);

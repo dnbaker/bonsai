@@ -2,7 +2,7 @@
 
 #include "tx.h"
 #include "bitmap.h"
-using namespace emp;
+using namespace bns;
 
 TEST_CASE("tax") {
     spvec_t v{3, 7, 1, 0, 4};

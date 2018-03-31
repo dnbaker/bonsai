@@ -3,7 +3,7 @@
 #include "util.h"
 #include <vector>
 
-using namespace emp;
+using namespace bns;
 using namespace pop;
 
 TEST_CASE("popcnt") {

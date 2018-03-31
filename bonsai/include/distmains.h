@@ -9,7 +9,7 @@
 #include "klib/kthread.h"
 #include <sstream>
 
-namespace emp {
+namespace bns {
 using MainFnPtr = int (*) (int, char **);
 int sketch_main(int, char **);
 int dist_main(int, char **);

@@ -3,7 +3,7 @@
 #include "circular_buffer.h"
 
 using namespace circ;
-using namespace emp;
+using namespace bns;
 using namespace std::literals;
 
 // This file tests qmap, encoding, and decoding.

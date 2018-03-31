@@ -30,7 +30,7 @@
 #define haszero(v) (((v) - 0x01010101UL) & ~(v) & 0x80808080UL)
 #define hasvalue(x,n) (haszero((x) ^ (~0UL/255 * (n))))
 
-namespace emp {
+namespace bns {
 
 
 extern const u32 nucpos_arr_acgt[128];
@@ -112,6 +112,6 @@ static INLINE bool canonicalize(u64 &kmer, uint8_t n) {
     return true;
 }
 
-} // namespace emp
+} // namespace bns
 
 #endif //ifndef _KMER_UTIL_H__

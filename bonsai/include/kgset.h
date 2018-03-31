@@ -2,7 +2,7 @@
 #include "feature_min.h"
 #include "counter.h"
 
-namespace emp {
+namespace bns {
 
 struct kg_data {
     std::vector<khash_t(all) *> &core_;
@@ -52,7 +52,7 @@ public:
 #endif
         for(const auto &pair: pm) {
             taxes_.push_back(pair.first);
-            assert(emp::size(pair.second) > 0);
+            assert(::bns::size(pair.second) > 0);
             tmpfl.push_back(&pair.second);
         }
         LOG_DEBUG("Tax filled size %zu. Core size: %zu\n", taxes_.size(), core_.size());
@@ -102,4 +102,4 @@ public:
 };
 
 
-} // namespace emp
+} // namespace bns

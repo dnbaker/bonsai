@@ -2,7 +2,7 @@
 #include "feature_min.h"
 #include <cstring>
 
-namespace emp {
+namespace bns {
 
 
 void lca2depth(khash_t(c) *lca_map, const khash_t(p) *tax_map) {
@@ -110,4 +110,4 @@ void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *t
     LOG_DEBUG("After updating with set of size %zu, total set current size is %zu.\n", kh_size(set), kh_size(kc));
 }
 
-} //namespace emp
+} //namespace bns

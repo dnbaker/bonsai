@@ -11,7 +11,7 @@
 #include "util.h"
 #include "kmerutil.h"
 
-namespace emp {
+namespace bns {
 
 template<typename T, typename ScoreType>
 struct ElScore {
@@ -86,6 +86,6 @@ class QueueMap {
 using qmap_t = QueueMap<u64, u64>;
 using elscore_t = ElScore<u64, u64>;
 
-} // namespace emp
+} // namespace bns
 
 #endif //ifndef _QMAP_H__

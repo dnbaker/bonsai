@@ -10,7 +10,7 @@
 #include "omp.h"
 #include "aesctr.h"
 
-using namespace emp;
+using namespace bns;
 
 // This file tests pure hll functionality
 // and cardinal estimation, including

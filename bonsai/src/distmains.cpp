@@ -1,7 +1,7 @@
 #include "distmains.h"
 #include "tinythreadpp/source/fast_mutex.h"
 
-namespace emp {
+namespace bns {
 // Usage, utilities
 void dist_usage(const char *arg) {
     std::fprintf(stderr, "Usage: %s <opts> [genomes if not provided from a file with -F]\n"

@@ -2,7 +2,7 @@
 #include "encoder.h"
 
 // Simple test for spacer IO.
-namespace emp {
+namespace bns {
 
 
 u32 comb_size(const spvec_t &spaces) {
