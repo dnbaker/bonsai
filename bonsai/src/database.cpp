@@ -1,6 +1,6 @@
 #include "database.h"
 
 
-namespace emp {
+namespace bns {
 
-} /* emp namespace */
+} /* bns namespace */

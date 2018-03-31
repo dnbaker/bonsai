@@ -1,7 +1,7 @@
 #pragma once
 #include "tx.h"
 
-namespace emp {
+namespace bns {
 
 enum BitCmp {
     EQUAL,
@@ -96,4 +96,4 @@ int veccmp(const Container1 &a, const Container2 &b) {
 }
 
 
-} // namespace emp
+} // namespace bns

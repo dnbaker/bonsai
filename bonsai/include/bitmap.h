@@ -2,7 +2,7 @@
 #include "bitcmp.h"
 #include "kgset.h"
 
-namespace emp {
+namespace bns {
 
 
 template<typename T>
@@ -147,4 +147,4 @@ public:
 u64 score_node_addn(const bitvec_t &bitstring,
                     const adjmap_t &am, const count::Counter<bitvec_t> &counts, size_t nelem);
 
-} // namespace emp
+} // namespace bns

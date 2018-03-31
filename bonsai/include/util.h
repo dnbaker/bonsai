@@ -106,7 +106,7 @@ void STLFREE(T &container) {
     fprintf(stderr, "Task %s took %lfs\n", name, std::chrono::duration<double>(j_##_name - i_##_name).count());\
 } while(0)
 
-namespace emp {
+namespace bns {
 
 using i32 = std::int32_t;
 using i64 = std::int64_t;
@@ -566,4 +566,4 @@ struct KSeqBufferHolder {
     }
 };
 
-} // namespace emp
+} // namespace bns

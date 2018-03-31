@@ -1,6 +1,6 @@
 #include "kmerutil.h"
 
-namespace emp {
+namespace bns {
 
 const int8_t cstr_lut[] {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,

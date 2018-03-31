@@ -5,8 +5,8 @@
 #include <sys/mman.h>
 
 namespace ba {
-using emp::khash_t(64);
-using emp::tax_t;
+using bns::khash_t(64);
+using bns::tax_t;
 
 void allocate_file(std::FILE *fp, size_t nbits);
 

@@ -6,7 +6,7 @@
 #include <algorithm>
 #include "kmerutil.h"
 
-namespace emp {
+namespace bns {
 
 using spvec_t = std::vector<u8>;
 
@@ -80,6 +80,6 @@ public:
     ~Spacer() {}
 };
 
-} // namespace emp
+} // namespace bns
 
 #endif // #ifndef _EMP_SPACE_H__

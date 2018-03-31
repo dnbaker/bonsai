@@ -13,7 +13,7 @@
 #include "kspp/ks.h"
 #include "hash.h"
 
-namespace emp {
+namespace bns {
 
 class rand_holder {
     const void *random_;
@@ -40,7 +40,7 @@ public:
 
 const static rand_holder RAND;
 
-} // namespace emp
+} // namespace bns
 
 namespace std {
 
@@ -49,7 +49,7 @@ namespace std {
   {
     uint64_t operator()(const lazy::vector<T, size_type>& vec) const
     {
-        return clhash(emp::RAND, reinterpret_cast<const char *>(vec.data()), vec.size() * sizeof(T));
+        return clhash(::bns::RAND, reinterpret_cast<const char *>(vec.data()), vec.size() * sizeof(T));
     }
   };
   template <typename T>
@@ -57,7 +57,7 @@ namespace std {
   {
     uint64_t operator()(const vector<T>& vec) const
     {
-        return clhash(emp::RAND, reinterpret_cast<const char *>(vec.data()), vec.size() * sizeof(T));
+        return clhash(bns::RAND, reinterpret_cast<const char *>(vec.data()), vec.size() * sizeof(T));
     }
   };
 
@@ -67,7 +67,7 @@ namespace std {
   {
     uint64_t operator()(const pair<int, lazy::vector<T, size_type>>& p) const
     {
-        return clhash(emp::RAND, reinterpret_cast<const char *>(p.second.data()), p.second.size() * sizeof(T)) ^ ((u64(p.first) << 32) | p.first);
+        return clhash(bns::RAND, reinterpret_cast<const char *>(p.second.data()), p.second.size() * sizeof(T)) ^ ((u64(p.first) << 32) | p.first);
     }
   };
 
@@ -76,13 +76,13 @@ namespace std {
   {
     uint64_t operator()(const pair<int, vector<T>>& p) const
     {
-        return clhash(emp::RAND, reinterpret_cast<const char *>(p.second.data()), p.second.size() * sizeof(T)) ^ ((u64(p.first) << 32) | p.first);
+        return clhash(bns::RAND, reinterpret_cast<const char *>(p.second.data()), p.second.size() * sizeof(T)) ^ ((u64(p.first) << 32) | p.first);
     }
   };
 
 }
 
-namespace emp {
+namespace bns {
 
 namespace count {
 
@@ -247,6 +247,6 @@ public:
 
 } // namespace count
 
-} // namespace emp
+} // namespace bns
 
 #endif  // _COUNTER_H__

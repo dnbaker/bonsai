@@ -1,7 +1,7 @@
 #include "util.h"
 #include "getopt.h"
 
-using namespace emp;
+using namespace bns;
 
 void print_vec(const std::vector<std::string> &vec) {
     for(const auto &el: vec) std::cerr << el << ", ";

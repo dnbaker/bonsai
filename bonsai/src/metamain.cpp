@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <omp.h>
 
-namespace emp {
+namespace bns {
 
 int metatree_usage(const char *arg) {
     std::fprintf(stderr, "Usage: %s <db.path> <taxmap> <nameidmap> <out_taxmap> <out_taxkey>\n"

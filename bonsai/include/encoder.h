@@ -17,7 +17,7 @@
 #include <mutex>
 
 
-namespace emp {
+namespace bns {
 
 enum score_scheme {
     LEX = 0,
@@ -572,7 +572,7 @@ void fill_hll(hll::hll_t &ret, const std::vector<std::string> &paths,
 #if 0
     LOG_DEBUG("Filling hll of %zu/%zu size, %zu paths, k%u, w%u, data %p, nt %u, sketch size %zu",
               ret.size(), ret.p(), paths.size(), k, w, data, num_threads, np);
-    LOG_DEBUG("Spacer: %s\n", ::emp::str(spaces).data());
+    LOG_DEBUG("Spacer: %s\n", ::bns::str(spaces).data());
 #endif
     if(num_threads < 0) {
         num_threads = sysconf(_SC_NPROCESSORS_ONLN);
@@ -625,5 +625,5 @@ u64 estimate_cardinality(const std::vector<std::string> &paths,
     return tmp.report();
 }
 
-} //namespace emp
+} //namespace bns
 #endif // _EMP_ENCODER_H__

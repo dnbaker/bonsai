@@ -1,6 +1,6 @@
 #include "classifier.h"
 
-namespace emp {
+namespace bns {
 
 
 void kt_for_helper(void *data_, long index, int tid) {
@@ -91,4 +91,4 @@ void append_taxa_runs(tax_t taxon, const std::vector<tax_t> &taxa, kstring_t *bk
     } else kputsn("0:0\n", 4, bks);
 }
 
-} // namespace emp
+} // namespace bns

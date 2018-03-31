@@ -1,6 +1,6 @@
 #include "sample_gen.h"
 
-namespace emp {
+namespace bns {
 const char *classlvl_arr[31] {
     "no rank",
     "root",
@@ -70,5 +70,5 @@ const std::unordered_map<std::string, ClassLevel> classlvl_map {
 };
 
 
-} // namespace emp
+} // namespace bns
 

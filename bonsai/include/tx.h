@@ -19,7 +19,7 @@ size_t get_n_occ(T *hash) {
 }
 
 
-namespace emp {
+namespace bns {
 
 
 using namespace std::literals;
@@ -204,6 +204,6 @@ struct bf_helper_t {
 
 
 
-} // namespace emp
+} // namespace bns
 
 #endif // #ifndef _TX_H__

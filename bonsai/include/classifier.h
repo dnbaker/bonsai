@@ -7,7 +7,7 @@
 #include "klib/kthread.h"
 #include "util.h"
 
-namespace emp {
+namespace bns {
 using tax_counter = linear::counter<tax_t, u16>;
 
 void append_kraken_classification(const tax_counter &hit_counts,
@@ -226,7 +226,7 @@ inline void process_dataset(Classifier &c, khash_t(p) *taxmap, const char *fq1, 
 }
 
 
-} // namespace emp
+} // namespace bns
 
 #endif // #ifndef _DB_H__
 

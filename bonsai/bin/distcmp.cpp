@@ -3,7 +3,7 @@
 #include <omp.h>
 #include <getopt.h>
 
-using namespace emp;
+using namespace bns;
 
 void usage(const char *arg) {
     std::fprintf(stderr, "Usage: %s <opts> [genome paths]\n"
@@ -133,7 +133,7 @@ int main(int argc, char *argv[]) {
                 fill_set_genome<score::Lex>(argv[optind + j], sp, s2, j, nullptr, canon);
                 hll_from_khash(h2, s2);
                 double sketchval = hll::jaccard_index(h1, h2);
-                double exactval  = emp::jaccard_index(s1, s2);
+                double exactval  = bns::jaccard_index(s1, s2);
                 h2.sum();
                 accum.add(h1, s1, h2, s2);
                 {
@@ -180,7 +180,7 @@ int main(int argc, char *argv[]) {
         for(size_t i = 0; i < ngenomes; ++i) {
             for(size_t j(i + 1); j < ngenomes; ++j) {
                 sketchval = hll::jaccard_index(sketches[i], sketches[j]);
-                exactval  = emp::jaccard_index(sets[i], sets[j]);
+                exactval  = bns::jaccard_index(sets[i], sets[j]);
                 {
                     #pragma omp critical
                     print_results(ks, sketchsize, sketchval, exactval, sketches[i], sets[i], sketches[j], sets[j], i, j, k, argv, optind);

@@ -13,7 +13,7 @@
 #include "metamain.h"
 #include <sstream>
 
-using namespace emp;
+using namespace bns;
 
 using namespace std::literals;
 using std::cerr;
@@ -314,16 +314,16 @@ int zomg_main(int argc, char *argv[]) {
 
 
 int main(int argc, char *argv[]) {
-    const static std::unordered_map<std::string, emp::MainFnPtr> md {
+    const static std::unordered_map<std::string, bns::MainFnPtr> md {
         {"phase1",   phase1_main},
         {"p1",       phase1_main},
         {"phase2",   phase2_main},
         {"p2",       phase2_main},
         {"lca",      phase1_main},
         {"hll",      hll_main},
-        {"dist",     emp::dist_main},
-        {"sketch",   emp::sketch_main},
-        {"setdist",  emp::setdist_main},
+        {"dist",     bns::dist_main},
+        {"sketch",   bns::sketch_main},
+        {"setdist",  bns::setdist_main},
         {"hist",     hist_main},
         {"metatree", metatree_main},
         {"classify", classify_main}

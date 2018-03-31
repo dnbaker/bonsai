@@ -5,7 +5,7 @@
 #include <cassert>
 #include <unordered_map>
 #include <cstring>
-namespace emp {
+namespace bns {
 
 enum class ClassLevel:int {
     SUPERKINGDOM     = 2,
@@ -47,7 +47,7 @@ extern const std::unordered_map<std::string, ClassLevel> classlvl_map;
 #define LINE_LVL_OFFSET 0
 
 
-} // namespace emp
+} // namespace bns
 
 #endif // #ifndef _CLADE_HEADER_H__
 

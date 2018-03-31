@@ -6,7 +6,7 @@
 #include <fstream>
 #include "kspp/ks.h"
 
-namespace emp {
+namespace bns {
 
 size_t count_lines(const char *fn) noexcept {
     std::ifstream is(fn);
@@ -127,7 +127,7 @@ khash_t(name) *build_name_hash(const char *fn) noexcept {
     khint_t ki;
     while((len = getline(&buf, &bufsz, fp)) >= 0) {
         switch(*buf) case '\0': case '\n': case '#': continue;
-        p = ::emp::strchrnul(buf, '\t');
+        p = ::bns::strchrnul(buf, '\t');
         ki = kh_put(name, ret, buf, &khr);
         if(khr == 0) { // Key already present.
             LOG_INFO("Key %s already present. Updating value from "
@@ -647,4 +647,4 @@ std::ifstream::pos_type filesize(const char* filename)
     return in.tellg();
 }
 
-} //namespace emp
+} //namespace bns

@@ -510,7 +510,7 @@ static kh_inline khint_t __ac_Wang_hash(khint_t key)
   @param  k	 Key [type of keys]
   @param  r	 Extra return code: -1 if the operation failed;
 				0 if the key is present in the hash table;
-				1 if the bucket is empty (never used); 2 if the element in
+				1 if the bucket is bnsty (never used); 2 if the element in
 				the bucket has been deleted [int*]
   @return	   Iterator to the inserted element [khint_t]
  */

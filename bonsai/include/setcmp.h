@@ -4,7 +4,7 @@
 #include "khash64.h"
 #include "feature_min.h"
 
-namespace emp {
+namespace bns {
 
 
 template<typename KhashType>
@@ -31,7 +31,7 @@ size_t union_size(const KhashType *a, const KhashType *b) {
     return ret;
 }
 
-} // namespace emp
+} // namespace bns
 
 
 #endif // #ifndef _SETCMP_H__

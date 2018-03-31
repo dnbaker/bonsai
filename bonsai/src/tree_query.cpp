@@ -1,6 +1,6 @@
 #include "tree_query.h"
 
-namespace emp {
+namespace bns {
 #if 0
 KrakenLcaMap::KrakenLcaMap(const char *dbpath, const char *idxpath) {
     kraken::QuickFile qf;
@@ -23,4 +23,4 @@ u32 EmpLcaMap::get_lca(u64 kmer) {
 EmpLcaMap::~EmpLcaMap() {
 }
 
-} // namespace emp
+} // namespace bns

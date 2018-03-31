@@ -78,7 +78,7 @@ public:
                 return false;
         return true;
     }
-    // Note: push_back and emplace_back are the same *except* that push_back changes size multiplicatively.
+    // Note: push_back and bnslace_back are the same *except* that push_back changes size multiplicatively.
     template<typename... Args>
     auto &emplace_back(Args&& ... args) {
         if(n_ + 1 > m_) {

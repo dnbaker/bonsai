@@ -3,7 +3,7 @@
 #include "util.h"
 #include <climits>
 
-namespace emp {
+namespace bns {
 
 // Thomas Wang hash
 // Original site down, available at https://naml.us/blog/tag/thomas-wang
@@ -115,6 +115,6 @@ static INLINE unsigned dbm_hash(const char *str)
 
 static INLINE unsigned dbm_hash(const std::string str) {return dbm_hash(str.data(), str.size());}
 
-} // namespace emp
+} // namespace bns
 
 #endif // #ifdef _HASH_H_

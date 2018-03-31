@@ -20,7 +20,7 @@
 #define FMencode(count, taxid) (((u64)count << 32) | taxid)
 
 
-namespace emp {
+namespace bns {
 
 
 template<typename ScoreType>
@@ -210,4 +210,4 @@ khash_t(64) *taxdepth_map(const std::vector<std::string> &fns, const khash_t(p) 
 
 
 
-} // namespace emp
+} // namespace bns

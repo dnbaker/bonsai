@@ -6,7 +6,7 @@
 #include "tx.h"
 #include "database.h"
 
-namespace emp {
+namespace bns {
 
 class KmerLcaMap {
 public:

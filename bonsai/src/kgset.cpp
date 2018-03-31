@@ -1,5 +1,5 @@
 #include "kgset.h"
-namespace emp {
+namespace bns {
 void kg_helper(void *data_, long index, int tid) {
     kg_data *data((kg_data *)data_);
     khash_t(all) *hash(data->core_[index]);
@@ -31,4 +31,4 @@ void kg_list_helper(void *data_, long index, int tid) {
     }, list);
 }
 
-} // namespace emp
+} // namespace bns

@@ -5,7 +5,7 @@
 #include "omp.h"
 #include "util.h"
 #include <thread>
-using namespace emp;
+using namespace bns;
 using namespace hll;
 using namespace hll::detail;
 

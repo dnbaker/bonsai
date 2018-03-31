@@ -1,6 +1,6 @@
 #include "tx.h"
 
-namespace emp {
+namespace bns {
 
 std::vector<tax_t> build_new2old_map(const char *path, size_t bufsz) {
         gzFile fp(gzopen(path, "wb"));
@@ -67,4 +67,4 @@ struct bf_helper_t {
 };
 #endif
 
-} // namespace emp
+} // namespace bns

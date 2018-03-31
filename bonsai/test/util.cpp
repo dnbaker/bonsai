@@ -1,6 +1,6 @@
 #include "test/catch.hpp"
 #include "util.h"
-using namespace emp;
+using namespace bns;
 
 #define is_pow2(x) ((x & (x - 1)) == 0)
 

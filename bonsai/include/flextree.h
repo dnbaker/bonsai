@@ -6,7 +6,7 @@
 #include "bitmap.h"
 #include "linear/linear.h"
 
-namespace emp {
+namespace bns {
 
 struct fnode_t;
 using pop::vec_bitdiff;
@@ -73,7 +73,7 @@ public:
             std::pair<const bitvec_t, fnode_t> &ref((std::pair<const bitvec_t, fnode_t> &)pair);
             if(ref.second.added_) continue;
             //LOG_DEBUG("Adding pair where key's first entry is is %" PRIu64 " and the node is %s\n", ref.first[0], ref.second.str().data());
-            //heap.insert(const_cast<std::pair<const std::vector<long long unsigned int>, emp::fnode_t>*>(&pair));
+            //heap.insert(const_cast<std::pair<const std::vector<long long unsigned int>, bns::fnode_t>*>(&pair));
             if(heap.size() < max_heap_size) {
                 heap.insert(&ref);
             } else if(get_score(pair) < get_score(*heap.begin())) {
@@ -102,7 +102,7 @@ public:
               khash_t(all) *acc=nullptr) {
         if(tax_.size()) tax_.clear();
         for(const auto &pair: list) {
-            LOG_DEBUG("Filling from flexmap #%u with tax %u and is %s\n", id_, pair.first, pair.second.empty() ? "empty": "not empty");
+            LOG_DEBUG("Filling from flexmap #%u with tax %u and is %s\n", id_, pair.first, pair.second.empty() ? "empty": "not bnsty");
             tax_.push_back(pair.first);
         }
 #if !NDEBUG
@@ -163,7 +163,7 @@ class FMEmitter {
         // Maybe summary stats?
     }
 
-    bool emplace_subtree(const tax_t parent, const u32 ntaxes) {
+    bool bnslace_subtree(const tax_t parent, const u32 ntaxes) {
         if(ntaxes < 2) {
             LOG_DEBUG("Skipping subtree of one element. (parent: %u)\n", parent);
             return false;
@@ -300,6 +300,6 @@ public:
     }
 };
 
-} // namespace emp
+} // namespace bns
 
 #endif // __FLEX_TREE_H
