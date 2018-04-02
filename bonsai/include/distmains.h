@@ -14,6 +14,7 @@ using MainFnPtr = int (*) (int, char **);
 int sketch_main(int, char **);
 int dist_main(int, char **);
 int setdist_main(int, char **);
+int hll_main(int, char **);
 }
 
 
