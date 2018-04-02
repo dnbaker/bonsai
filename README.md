@@ -31,3 +31,8 @@ We use the Catch testing framework. You can build and run the tests by:
 
 `cd bonsai && make unit && ./unit`
 
+
+Usage
+================
+
+Usage instructions are available in each executable.
