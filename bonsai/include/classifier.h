@@ -173,18 +173,14 @@ unsigned classify_seq(ClassifierGeneric<ScoreType> &c,
     taxa.clear();
 
     auto fn = [&] (u64 kmer) {
-        if(kmer == BF) ++ambig_count, taxa.push_back(static_cast<tax_t>(-1));
-        else {
-            if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count, taxa.push_back(0);
-            //If the kmer is missing from our database, just say we don't know what it is.
-            else {
-                // Otherwise, increment the count.
-                taxa.push_back(kh_val(c.db_, ki));
-                hit_counts.add(kh_val(c.db_, ki));
-            }
-        }
+        //If the kmer is missing from our database, just say we don't know what it is.
+        if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_))
+            ++missing_count, taxa.push_back(0);
+        else
+            taxa.push_back(kh_val(c.db_, ki)), hit_counts.add(kh_val(c.db_, ki));
     };
     enc.for_each(fn, bs->seq, bs->l_seq);
+    // This simplification loses information about the run of congituous labels. Do these matter?
     auto diff = bs->l_seq - enc.sp_.c_ + 1 - taxa.size();
     taxa.reserve((taxa.size() + diff) << 1);
     ambig_count += diff;
@@ -195,7 +191,7 @@ unsigned classify_seq(ClassifierGeneric<ScoreType> &c,
     while(diff--) taxa.push_back(-1); // Consider making this just be a count.
 
     ++c.classified_[!(taxon = resolve_tree(hit_counts, taxmap))];
-    if(c.get_emit_all() || taxon) {
+    if(taxon || c.get_emit_all()) {
         if(c.get_emit_fastq())
             append_fastq_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, kspp2ks(bks), c.get_emit_kraken(), is_paired);
         else if(c.get_emit_kraken())
@@ -208,7 +204,7 @@ unsigned classify_seq(ClassifierGeneric<ScoreType> &c,
 namespace {
 struct kt_data {
     ClassifierGeneric<score::Lex> &c_;
-    khash_t(p) *taxmap;
+    const khash_t(p) *taxmap;
     bseq1_t *bs_;
     const unsigned per_set_;
     const unsigned total_;
@@ -234,7 +230,7 @@ inline void kt_for_helper(void *data_, long index, int tid) {
 
 using Classifier = ClassifierGeneric<score::Lex>;
 
-inline void classify_seqs(Classifier &c, khash_t(p) *taxmap, bseq1_t *bs,
+inline void classify_seqs(Classifier &c, const khash_t(p) *taxmap, bseq1_t *bs,
                           kstring_t *cks, const unsigned chunk_size, const unsigned per_set, const int is_paired) {
     assert(per_set && ((per_set & (per_set - 1)) == 0));
 
@@ -253,13 +249,7 @@ struct del_data {
     unsigned total_;
 };
 
-#if !NDEBUG
-#define DBKS(ks) do {\
-    LOG_DEBUG("String: %s. Max: %zu. Len: %zu.\n", (ks) ? (ks)->s ? (ks)->s: "Unset string": "nullptr", (ks)->m, (ks)->l);\
-    } while(0)
-#endif
-
-inline void process_dataset(Classifier &c, khash_t(p) *taxmap, const char *fq1, const char *fq2,
+inline void process_dataset(Classifier &c, const khash_t(p) *taxmap, const char *fq1, const char *fq2,
                      std::FILE *out, unsigned chunk_size,
                      unsigned per_set) {
     // TODO: consider reusing buffers for processing large numbers of files.
