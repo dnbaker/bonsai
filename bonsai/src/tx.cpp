@@ -59,12 +59,5 @@ void bitmap_filler_helper(void *data_, long index, int tid) {
     kseq_destroy(ks);
     gzclose(fp);
 }
-#if 0
-struct bf_helper_t {
-    const Spacer &sp_;
-    const std::vector<std::string> &paths_;
-    const khash_t(64) *h_;
-};
-#endif
 
 } // namespace bns

@@ -10,9 +10,39 @@ namespace bns {
 
 using spvec_t = std::vector<u8>;
 
-u32 comb_size(const spvec_t &spaces);
-spvec_t parse_spacing(const char *space_string, unsigned k);
-ks::string str(const spvec_t &vec);
+inline u32 comb_size(const spvec_t &spaces) {
+    u32 ret(spaces.size() + 1); // Since there's 1 fewer entry in spaces
+    // We then increment the size of our comb for each space.
+    for(auto i: spaces) ret += i;
+    return ret;
+}
+
+inline ks::string str(const spvec_t &vec) {
+    ks::string ret;
+    std::fprintf(stderr, "About to print ret\n");
+    std::fprintf(stderr, "About to print '%s'\n", ret.data());
+    for(const auto val: vec)
+        ret.sprintf("%u,", val);
+    ret.pop();
+    return ret;
+}
+
+inline spvec_t parse_spacing(const char *ss, unsigned k) {
+    if(!ss || *ss == '\0') return spvec_t(k - 1, 0); // No spaces
+
+    spvec_t ret;
+    while(ss && *ss) {
+        int j(atoi(ss));
+        ret.emplace_back(j);
+
+        if(strchr(ss, 'x')) {
+            ss = strchr(ss, 'x') + 1;
+            for(int k(atoi(ss) - 1); k; k--) ret.emplace_back(j);
+        }
+        ss = strchr(ss, ',') + 1;
+    }
+    return ret;
+}
 inline spvec_t sub1(const spvec_t &spaces) {
     auto ret = spaces;
     for(auto &el: ret) --el;

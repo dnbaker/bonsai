@@ -139,12 +139,25 @@ public:
     bitmap_t(bitmap_t &&other)            = default;
     bitmap_t &operator=(bitmap_t &&other) = default;
 
-    count::Counter<bitvec_t> to_counter();
+    count::Counter<bitvec_t> to_counter() {
+        count::Counter<bitvec_t> ret;
+        for(auto &pair: core_) ret.add(pair.second);
+        ret.set_nelem(core_.size());
+        return ret;
+    }
 };
 
 
 
-u64 score_node_addn(const bitvec_t &bitstring,
-                    const adjmap_t &am, const count::Counter<bitvec_t> &counts, size_t nelem);
+inline u64 score_node_addn(const bitvec_t &bitstring,
+                           const adjmap_t &am, const count::Counter<bitvec_t> &counts, size_t nelem) {
+    assert(bitstring.size() << 6 >= nelem);
+    const auto m(am.find(bitstring));
+    const auto node(counts.find(bitstring));
+    if(unlikely(m == am.end()) || node == counts.end()) return UINT64_C(-1);
+    u64 ret(node->second * (nelem - pop::vec_popcnt(node->first)));
+    for(const auto i: m->second) ret += counts.find(*i)->second * pop::vec_popcnt(*i);
+    return ret;
+}
 
 } // namespace bns
