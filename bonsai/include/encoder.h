@@ -611,8 +611,8 @@ void hll_from_khash(hll::hll_t &ret, const T *kh, bool clear=true) {
 template<typename ScoreType=score::Lex>
 hll::hll_t make_hll(const std::vector<std::string> &paths,
                 unsigned k, uint16_t w, spvec_t spaces, bool canon=true,
-                void *data=nullptr, int num_threads=1, u64 np=23, kseq_t *ks=false, hll::EstimationMethod estim=hll::EstimationMethod::ERTL_MLE, uint16_t jestim=hll::JointEstimationMethod::ERTL_JOINT_MLE) {
-    hll::hll_t master(np, estim, (hll::JointEstimationMethod)jestim);
+                void *data=nullptr, int num_threads=1, u64 np=23, kseq_t *ks=false, hll::EstimationMethod estim=hll::EstimationMethod::ERTL_MLE, uint16_t jestim=hll::JointEstimationMethod::ERTL_JOINT_MLE, bool clamp=true) {
+    hll::hll_t master(np, estim, (hll::JointEstimationMethod)jestim, 1, clamp);
     fill_hll(master, paths, k, w, spaces, canon, data, num_threads, np, ks);
     return master;
 }
