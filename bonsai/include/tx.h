@@ -206,17 +206,10 @@ inline void bitmap_filler_helper(void *data_, long index, int tid) {
     bf_helper_t &data(*(bf_helper_t *)data_);
     ba::MMapTaxonomyBitmap &map(data.bm_);
     const tax_t taxid(data.taxes_[index]);
-    u64 val;
     Encoder enc(data.sp_, data.canonicalize_);
     gzFile fp(gzopen(data.paths_[index].data(), "rb"));
-    kseq_t *ks(kseq_init(fp));
-    while(kseq_read(ks) >= 0) {
-        enc.assign(ks);
-        while(enc.has_next_kmer())
-            if((val = enc.next_minimizer()) != BF)
-                map.set_kmer_ts(data.h_, val, taxid);
-    }
-    kseq_destroy(ks);
+    enc.for_each([&](u64 val) {map.set_kmer_ts(data.h_, val, taxid);}, fp);
+    // This could be improved by caching the kseq buffers.
     gzclose(fp);
 }
 

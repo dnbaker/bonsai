@@ -39,7 +39,7 @@ struct Database {
             if(std::equal(std::crbegin(gzsuf), std::crend(gzsuf), std::crbegin(fns))) filetype = 1;
             else if(std::equal(std::crbegin(gzsuf), std::crend(gzsuf), std::crbegin(fns))) filetype = 2;
         }
-        std::FILE *fp = filetype ? popen((std::string(filetype == 1 ? "gzip -dc " : "zstd -dc ") + fn).data(), "rb"): std::fopen(fn, "rb");
+        std::FILE *fp = filetype ? popen((std::string(filetype == 1 ? "gzip -dc " : "zstd -qdc ") + fn).data(), "rb"): std::fopen(fn, "rb");
         if (fp) {
             __fr(k_, fp);
             __fr(w_, fp);
@@ -116,87 +116,6 @@ struct Database {
                                                             : -1u;
     }
 };
-
-template<typename T>
-struct val_data_t {
-    const std::unordered_map<tax_t, std::forward_list<std::string>> &tx_;
-    const std::vector<tax_t>                                          v_;
-    const Database<T>                                               &db_;
-};
-
-template<typename T>
-void val_helper(void *data_, long index, int tid) {
-#if !NDEBUG
-    LOG_DEBUG("Starting val helper\n");
-    val_data_t<T> &data(*static_cast<val_data_t<T> *>(data_));
-    const tax_t tax(data.v_[index]);
-    if(!has_key(tax, data.tx_)) {
-        LOG_DEBUG("tax %u is not a leaf\n", tax);
-        return;
-    }
-    LOG_DEBUG("Index %ld with tid %i starting\n", index, tid);
-    std::unordered_set<u64> in;
-    std::unordered_set<u64> failing_kmers;
-    Encoder<score::Lex> enc(nullptr, 0, *data.db_.sp_, nullptr, data.canonicalize);
-    u64 passing_kmers(0);
-    for(const auto &path: data.tx_.find(tax)->second) {
-        LOG_DEBUG("Validator opening path at %s\n", path.data());
-        gzFile fp(gzopen(path.data(), "rb"));
-        kseq_t *ks(kseq_init(fp));
-        u64 kmer;
-        khiter_t ki;
-        while(kseq_read(ks) >= 0) {
-            enc.assign(ks);
-            while(enc.has_next_kmer()) {
-                if((kmer = enc.next_kmer()) != BF) {
-                    in.insert(kmer);
-                    if((ki = kh_get(c, data.db_.db_, kmer)) == kh_end(data.db_.db_)) LOG_WARNING("Kmer in genome missing from database\n");
-                }
-            }
-        }
-        gzclose(fp);
-        kseq_destroy(ks);
-    }
-    LOG_DEBUG("Validator loaded all kmers from end genome. Now scanning full database for items assigned to tax. (tax: %u. tid; %i)\n", tax, tid);
-    for(u64 i(0); i < kh_size(data.db_.db_); ++i) {
-        if(!kh_exist(data.db_.db_, i)) continue;
-        if(kh_val(data.db_.db_, i) == tax) {
-            if((i & 0xFFFFF) == 0) LOG_DEBUG("Processed %" PRIu64 " of %" PRIu64"\n.", i, kh_size(data.db_.db_));
-            if(in.find(kh_key(data.db_.db_, i)) == in.end()) {
-                failing_kmers.insert(kh_key(data.db_.db_, i));
-                LOG_DEBUG("Missing kmer %s (%" PRIu64") from genome that was assigned as lca (%u)\n", data.db_.sp_->to_string(kh_key(data.db_.db_, i)).data(), kh_key(data.db_.db_, i), tax);
-            } else ++passing_kmers;
-        }
-    }
-    LOG_DEBUG("%zu kmers failed. %" PRIu64 " kmers passed. Percent passing: %lf\n", failing_kmers.size(), passing_kmers,
-              static_cast<double>(passing_kmers) / (failing_kmers.size() + passing_kmers));
-    LOG_DEBUG("Pointer to sp: %p\n", (void *)data.db_.sp_);
-    if(failing_kmers.size()) {
-        if(data.db_.sp_) {
-            for(const auto kmer: failing_kmers) {
-                const std::string kmerstr(data.db_.sp_->to_string(kmer));
-                    LOG_DEBUG("Failed kmer %s/%" PRIu64"\n",
-                              kmerstr.data(),
-                              kmer);
-            }
-        }
-    } else {
-        LOG_DEBUG("Tax %u validated.\n", tax);
-    }
-#endif
-}
-
-
-template<typename T>
-void validate_db(const Database<T> &db, std::unordered_set<tax_t> &used_lcas, std::unordered_map<tax_t, std::forward_list<std::string>> &tx2g, int num_threads=-1, bool canonicalize=true) {
-    if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
-    std::unordered_set<u64> failing_kmers;
-    std::vector<tax_t> lcas(used_lcas.begin(), used_lcas.end());
-    val_data_t<T> data{tx2g, lcas, db, canonicalize};
-    LOG_DEBUG("lcas size: %zu\n", lcas.size());
-    kt_for(num_threads, &val_helper<T>, &data, lcas.size());
-}
-
 
 } /* bns namespace */
 
