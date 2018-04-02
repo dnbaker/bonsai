@@ -18,6 +18,7 @@ public:
     CircusEnt(const CircusEnt &other): q_(other.q_), qsz_(other.qsz_), qszinv_(other.qszinv_) {
         std::memcpy(counts_, other.counts_, sizeof(counts_));
     }
+    CircusEnt(CircusEnt &&other) = default;
     void clear() {
         *(reinterpret_cast<uint32_t *>(counts_)) = cqsz_ = 0;
         q_.clear();
