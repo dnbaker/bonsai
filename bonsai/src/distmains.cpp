@@ -117,19 +117,22 @@ void kt_for_helper(void  *data_, long index, int tid) {
 // Main functions
 int sketch_main(int argc, char *argv[]) {
     int wsz(-1), k(31), sketch_size(16), skip_cached(false), co, nthreads(1), bs(16);
-    bool canon(true), write_to_dev_null(false), write_gz(false);
+    bool canon(true), write_to_dev_null(false), write_gz(false), clamp(true);
     hll::EstimationMethod estim = hll::EstimationMethod::ERTL_MLE;
+    hll::JointEstimationMethod jestim = hll::JointEstimationMethod::ERTL_JOINT_MLE;
     std::string spacing, paths_file, suffix, prefix;
-    while((co = getopt(argc, argv, "P:F:c:p:x:s:S:k:w:zEDIcCeh?")) >= 0) {
+    while((co = getopt(argc, argv, "P:F:c:p:x:s:S:k:w:jLzEDIcCeh?")) >= 0) {
         switch(co) {
+            case 'L': clamp = false; break;
             case 'b': bs = std::atoi(optarg); break;
             case 'k': k = std::atoi(optarg); break;
             case 'x': suffix = optarg; break;
             case 'p': nthreads = std::atoi(optarg); break;
             case 'P': prefix = optarg; break;
             case 's': spacing = optarg; break;
-            case 'E': estim = hll::EstimationMethod::ORIGINAL; break;
-            case 'I': estim = hll::EstimationMethod::ERTL_IMPROVED; break;
+            case 'E': jestim = (hll::JointEstimationMethod)(estim = hll::EstimationMethod::ORIGINAL); break;
+            case 'I': jestim = (hll::JointEstimationMethod)(estim = hll::EstimationMethod::ERTL_IMPROVED); break;
+            case 'J': jestim = (hll::JointEstimationMethod)(estim = hll::EstimationMethod::ERTL_MLE); break;
             case 'S': sketch_size = std::atoi(optarg); break;
             case 'w': wsz = std::atoi(optarg); break;
             case 'c': skip_cached = true; break;
@@ -153,7 +156,8 @@ int sketch_main(int argc, char *argv[]) {
     }
     std::vector<hll::hll_t> hlls;
     std::vector<kseq_t>    kseqs;
-    while(hlls.size() < (unsigned)nthreads) hlls.emplace_back(sketch_size), kseqs.emplace_back(kseq_init_stack());
+    while(hlls.size() < (unsigned)nthreads) hlls.emplace_back(sketch_size, estim, jestim, 1, clamp), kseqs.emplace_back(kseq_init_stack());
+    for(auto &hll: hlls) hll.set_clamp(clamp);
     assert(hlls[0].size() == ((1ull << sketch_size)));
     if(wsz < sp.c_) wsz = sp.c_;
     if(ivecs.size() == 0) {
@@ -243,10 +247,12 @@ enum CompReading: unsigned {
     GZ,
     AUTODETECT
 };
+
 int dist_main(int argc, char *argv[]) {
     int wsz(-1), k(31), sketch_size(16), use_scientific(false), co, cache_sketch(false), nthreads(1);
-    bool canon(true), presketched_only(false), write_binary(false), emit_jaccard(true), emit_float(false);
+    bool canon(true), presketched_only(false), write_binary(false), emit_jaccard(true), emit_float(false), clamp(true);
     hll::EstimationMethod estim = hll::EstimationMethod::ERTL_MLE;
+    hll::JointEstimationMethod jestim = hll::JointEstimationMethod::ERTL_JOINT_MLE;
     std::string spacing, paths_file, suffix, prefix;
     CompReading reading_type = UNCOMPRESSED;
     FILE *ofp(stdout), *pairofp(stdout);
@@ -256,10 +262,12 @@ int dist_main(int argc, char *argv[]) {
             case 'z': reading_type = GZ; break;
             case 'a': reading_type = AUTODETECT; break;
             case 'C': canon = false; break;
-            case 'E': estim = hll::EstimationMethod::ORIGINAL; break;
+            case 'c': clamp = false; break;
+            case 'E': jestim = (hll::JointEstimationMethod)(estim = hll::EstimationMethod::ORIGINAL); break;
             case 'F': paths_file = optarg; break;
             case 'H': presketched_only = true; break;
-            case 'I': estim = hll::EstimationMethod::ERTL_IMPROVED; break;
+            case 'I': jestim = (hll::JointEstimationMethod)(estim = hll::EstimationMethod::ERTL_IMPROVED); break;
+            case 'm': jestim = (hll::JointEstimationMethod)(estim = hll::EstimationMethod::ERTL_MLE); break;
             case 'J': emit_jaccard = false; break;
             case 'O': pairofp = fopen(optarg, "wb"); if(pairofp == nullptr) LOG_EXIT("Could not open file at %s for writing.\n", optarg); break;
             case 'P': prefix = optarg; break;
@@ -286,7 +294,7 @@ int dist_main(int argc, char *argv[]) {
         dist_usage(*argv);
     }
     omp_set_num_threads(nthreads);
-    std::vector<hll::hll_t> hlls(inpaths.size(), presketched_only ? hll::hll_t(): hll::hll_t(sketch_size, estim));
+    std::vector<hll::hll_t> hlls(inpaths.size(), presketched_only ? hll::hll_t(): hll::hll_t(sketch_size, estim, jestim, 1, clamp));
     {
         // Scope to force deallocation of scratch_vv.
         std::vector<std::vector<std::string>> scratch_vv(nthreads, std::vector<std::string>{"empty"});
