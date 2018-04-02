@@ -164,7 +164,6 @@ template<typename ScoreType>
 unsigned classify_seq(ClassifierGeneric<ScoreType> &c,
                       Encoder<ScoreType> &enc,
                       const khash_t(p) *taxmap, bseq1_t *bs, const int is_paired, std::vector<tax_t> &taxa) {
-    u64 kmer;
     khiter_t ki;
     linear::counter<tax_t, u16> hit_counts;
     u32 ambig_count(0), missing_count(0);
@@ -173,10 +172,8 @@ unsigned classify_seq(ClassifierGeneric<ScoreType> &c,
     bks.clear();
     taxa.clear();
 
-    enc.assign(bs->seq, bs->l_seq);
-    while(enc.has_next_kmer()) {
-        if((kmer = enc.next_kmer()) == BF) ++ambig_count, taxa.push_back((tax_t)-1);
-        // If the kmer is ambiguous, ignore it and move on.
+    auto fn = [&] (u64 kmer) {
+        if(kmer == BF) ++ambig_count, taxa.push_back(static_cast<tax_t>(-1));
         else {
             if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count, taxa.push_back(0);
             //If the kmer is missing from our database, just say we don't know what it is.
@@ -186,35 +183,25 @@ unsigned classify_seq(ClassifierGeneric<ScoreType> &c,
                 hit_counts.add(kh_val(c.db_, ki));
             }
         }
-    }
-    if(is_paired) {
-        enc.assign((bs + 1)->seq, (bs + 1)->l_seq);
-        while(enc.has_next_kmer()) {
-            if((kmer = enc.next_kmer()) == BF) ++ambig_count, taxa.push_back((tax_t)-1);
-            // If the kmer is ambiguous, ignore it and move on.
-            else {
-                if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count, taxa.push_back(0);
-                //If the kmer is missing from our database, just say we don't know what it is.
-                else {
-                    // Check map for presence of the hit.
-                    // If it's not there, insert it with a hint.
-                    // Otherwise, increment the count.
-                    taxa.push_back(kh_val(c.db_, ki));
-                    hit_counts.add(kh_val(c.db_, ki));
-                }
-            }
-        }
-    }
+    };
+    enc.for_each(fn, bs->seq, bs->l_seq);
+    auto diff = bs->l_seq - enc.sp_.c_ + 1 - taxa.size();
+    taxa.reserve((taxa.size() + diff) << 1);
+    ambig_count += diff;
+    while(diff--) taxa.push_back(-1);
+    if(is_paired) enc.for_each(fn, (bs + 1)->seq, (bs + 1)->l_seq);
+    diff = (bs + 1)->l_seq - enc.sp_.c_ + 1;
+    ambig_count += diff;
+    while(diff--) taxa.push_back(-1); // Consider making this just be a count.
 
     ++c.classified_[!(taxon = resolve_tree(hit_counts, taxmap))];
     if(c.get_emit_all() || taxon) {
-        if(c.get_emit_fastq()) {
+        if(c.get_emit_fastq())
             append_fastq_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, kspp2ks(bks), c.get_emit_kraken(), is_paired);
-        } else if(c.get_emit_kraken()) {
+        else if(c.get_emit_kraken())
             append_kraken_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, kspp2ks(bks));
-        }
     }
-    bs->sam   = bks.release();
+    bs->sam          = bks.release();
     return bs->l_sam = bks.size();
 }
 
