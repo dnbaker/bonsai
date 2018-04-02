@@ -11,12 +11,18 @@ void usage(const char *arg) {
                          "-n\tSketch size [18]\n"
                          "-o\tOutput path [stdout]\n"
                          "-m\tUse more CPU but less memory [default: more memory, less runtime]\n"
+                         "-E\tUse original estimation method.\n"
+                         "-J\tUse Ertl MLE method.\n"
+                         "-I\tUse Ertl Improved method.\n"
+                         "Note\tSetting none of the above three defaults to using the Ertl Joint MLE method.\n"
+                         "-c\tDo not clamp. (Default: clamp values within expected variance of 0 to 0.)\n"
+                         "-C\tDo not canonicalize. (Default: canonicalize.)\n"
+                         "-p\tSet number of threads [1]\n"
+                         "-s\tSet output path for summary information. Default: same stream as -o unless specified.\n"
                          "-h\tEmit usage\n",
                  arg);
     std::exit(EXIT_FAILURE);
 }
-
-//#define NOTHREADING
 
 void print_results(ks::string &ks, unsigned sketchsize, double sketchval, double exactval, const hll::hll_t &h1, const khash_t(all) *s1, const hll::hll_t &h2, const khash_t(all) *s2, size_t i, size_t j, unsigned k, char *argv[], int optind) {
     ks.sprintf("%s\t%s\t%lf\t%lf\t%lf\t%lf\t%u\t%u\t%lf\t%zu\t%lf\t%zu\t%s\n", argv[optind + i], argv[optind + j], sketchval, exactval, std::abs(sketchval - exactval), std::abs(sketchval - exactval) / exactval * 100., sketchsize, k, h1.creport(), kh_size(s1), h2.creport(), kh_size(s2), hll::EST_STRS[std::max((uint16_t)h1.get_estim(), (uint16_t)h1.get_jestim())]);
@@ -73,7 +79,7 @@ public:
 
 int main(int argc, char *argv[]) {
     int c;
-    bool lowmem(false), canon(true), same_stream(false);
+    bool lowmem(false), canon(true), same_stream(false), clamp(true);
     hll::EstimationMethod estim = hll::EstimationMethod::ERTL_MLE;
     hll::JointEstimationMethod jestim = hll::JointEstimationMethod::ERTL_JOINT_MLE;
     unsigned sketchsize(18), k(31);
@@ -83,17 +89,18 @@ int main(int argc, char *argv[]) {
     omp_set_num_threads(1);
     while((c = getopt(argc, argv, "s:p:o:k:n:SmEJChI")) >= 0) {
         switch(c) {
-            case 'E': estim  = hll::ORIGINAL; break;
-            case 'I': jestim = (hll::JointEstimationMethod)(estim = hll::ERTL_IMPROVED); break;
-            case 'J': jestim = (hll::JointEstimationMethod)(estim = hll::ERTL_MLE);      break;
-            case 'C': canon      = false; break;
-            case 'n': sketchsize = std::atoi(optarg); LOG_DEBUG("Set sketch size to %u with string '%s'\n", sketchsize, optarg); break;
-            case 'k': k          = std::atoi(optarg); break;
-            case 'o': ofp        = std::fopen(optarg, "w"); break;
-            case 's': sumfp      = std::fopen(optarg, "w"); break;
+            case 'E': estim       = hll::ORIGINAL; break;
+            case 'I': jestim      = (hll::JointEstimationMethod)(estim = hll::ERTL_IMPROVED); break;
+            case 'J': jestim      = (hll::JointEstimationMethod)(estim = hll::ERTL_MLE);      break;
+            case 'c': clamp       = false; break;
+            case 'C': canon       = false; break;
+            case 'n': sketchsize  = std::atoi(optarg); LOG_DEBUG("Set sketch size to %u with string '%s'\n", sketchsize, optarg); break;
+            case 'k': k           = std::atoi(optarg); break;
+            case 'o': ofp         = std::fopen(optarg, "w"); break;
+            case 's': sumfp       = std::fopen(optarg, "w"); break;
             case 'S': same_stream = true; break;
             case 'p': omp_set_num_threads(std::atoi(optarg)); break;
-            case 'm': lowmem     = true; break;
+            case 'm': lowmem      = true; break;
             case 'h': case '?': fail: usage(argv[0]); break;
         }
     }
@@ -116,7 +123,7 @@ int main(int argc, char *argv[]) {
     if(lowmem) {
         khash_t(all) *s1(kh_init(all)), *s2(kh_init(all));
         kh_resize(all, s1, 1 << 16), kh_resize(all, s2, 1 << 16);
-        hll::hll_t h1(sketchsize, estim, jestim), h2(sketchsize, estim, jestim);
+        hll::hll_t h1(sketchsize, estim, jestim, 1, clamp), h2(sketchsize, estim, jestim, 1, clamp);
         std::vector<std::string> paths{"ZOMG"};
         for(size_t i(0); i < ngenomes; ++i) {
             assert(kh_size(s1) == 0);
@@ -165,7 +172,7 @@ int main(int argc, char *argv[]) {
         while(sketches.size() < ngenomes)
             sketches.emplace_back(
                 make_hll(std::vector<std::string>{argv[optind + sketches.size()]},
-                         k, k, sv, canon, nullptr, 1, sketchsize, nullptr /*kseq */, estim, jestim));
+                         k, k, sv, canon, nullptr, 1, sketchsize, nullptr /*kseq */, estim, jestim, clamp));
         for(auto &sketch: sketches) {
             if(!sketch.get_is_ready()) sketch.sum();
         }
