@@ -17,8 +17,9 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <type_traits>
-#include <zlib.h>
 #include <functional>
+#include <random>
+#include <zlib.h>
 #include "clhash/include/clhash.h"
 #include "klib/kstring.h"
 #include <kseq_declare.h>
@@ -26,9 +27,8 @@
 #include "khash64.h"
 #include "logutil.h"
 #include "sample_gen.h"
-#include "rand.h"
-#include "lazyvec.h"
 #include "popcnt.h"
+#include "lazy/vector.h"
 
 #ifdef __GNUC__
 #  ifndef likely
@@ -180,9 +180,9 @@ static INLINE auto roundup64(T x) noexcept {
     return x;
 }
 
-INLINE u64 rand64() noexcept {
-    return rng::random_twist();
-}
+static std::mt19937_64 __mt__(1337);
+
+INLINE u64 rand64() noexcept {return __mt__();}
 
 template <typename T>
 void khash_destroy(T *map) noexcept {

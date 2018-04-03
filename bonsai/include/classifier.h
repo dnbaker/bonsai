@@ -21,20 +21,122 @@ static void append_fastq_classification(const tax_counter &hit_counts,
 static void append_taxa_runs(tax_t taxon, const std::vector<tax_t> &taxa, kstring_t *bks);
 
 
-enum output_format {
+enum output_format: int {
     KRAKEN   = 1,
     FASTQ    = 2,
     EMIT_ALL = 4
 };
 
+
+INLINE void append_taxa_run(const tax_t last_taxa,
+                            const u32 taxa_run,
+                            ks::string &bks) {
+    // U for unclassified (unambiguous but not in database)
+    // A for ambiguous: ambiguous nucleotides
+    // Actual taxon otherwise.
+    switch(last_taxa) {
+        case 0:            bks.putc_('U'); break;
+        case (tax_t)-1:    bks.putc_('A'); break;
+        default:           bks.putuw_(last_taxa); break;
+    }
+    bks.putc_(':'); bks.putuw_(taxa_run); bks.putc_('\t');
+}
+
+
+inline void append_taxa_runs(tax_t taxon, const std::vector<tax_t> &taxa, ks::string &bks) {
+    if(taxon) {
+        tax_t last_taxa(taxa[0]);
+        unsigned taxa_run(1);
+        for(unsigned i(1), end(taxa.size()); i != end; ++i) {
+            if(taxa[i] == last_taxa) ++taxa_run;
+            else {
+                append_taxa_run(last_taxa, taxa_run, bks);
+                last_taxa = taxa[i];
+                taxa_run  = 1;
+            }
+        }
+        append_taxa_run(last_taxa, taxa_run, bks); // Add last run.
+        bks.back() = '\n'; // We add an extra tab. Replace  that with a newline.
+        bks.terminate();
+    } else bks.putsn("0:0\n", 4);
+}
+
+INLINE void append_counts(u32 count, const char character, ks::string &ks) {
+    if(count) {
+        char buf[] {character, ':'};
+        ks.putsn_(buf, 2);
+        ks.putuw_(count);
+        ks.putc_('\t');
+    }
+}
+
+inline void append_fastq_classification(const tax_counter &hit_counts,
+                                 const std::vector<tax_t> &taxa,
+                                 const tax_t taxon, const u32 ambig_count, const u32 missing_count,
+                                 bseq1_t *bs, ks::string &bks, const int verbose, const int is_paired) {
+    char *cms, *cme; // comment start, comment end -- used for using comment in both output reads.
+    bks.puts(bs->name);
+    bks.putc_(' ');
+    cms = bks.data() + bks.size();
+    static const char lut[] {'C', 'U'};
+    char tmp[] {lut[taxon == 0], '\t'};
+    bks.putsn_(tmp, 2);
+    bks.putuw_(taxon);
+    bks.putc_('\t');
+    bks.putl_(bs->l_seq);
+    bks.putc_('\t');
+    append_counts(missing_count, 'M', bks);
+    append_counts(ambig_count,   'A', bks);
+    if(verbose) append_taxa_runs(taxon, taxa, bks);
+    else        bks.back() = '\n';
+    cme = bks.end();
+    // And now add the rest of the fastq record
+    bks.putsn_(bs->seq, bs->l_seq);
+    bks.putsn_("\n+\n", 3);
+    bks.putsn_(bs->qual ? bs->qual: bs->seq, bs->l_seq); // Append sequence if it's a fasta record
+    bks.putc_('\n');
+    if(is_paired) {
+        bks.puts((bs + 1)->name);
+        bks.putc_(' ');
+        bks.putsn_(cms, (int)(cme - cms)); // Add comment section in.
+        bks.putc_('\n');
+        bks.putsn_((bs + 1)->seq, (bs + 1)->l_seq);
+        bks.putsn_("\n+\n", 3);
+        bks.putsn_((bs + 1)->qual ? (bs + 1)->qual: (bs + 1)->seq, (bs + 1)->l_seq);
+        bks.putc_('\n');
+    }
+    bks.terminate();
+}
+
+
+
+inline void append_kraken_classification(const tax_counter &hit_counts,
+                                  const std::vector<tax_t> &taxa,
+                                  const tax_t taxon, const u32 ambig_count, const u32 missing_count,
+                                  bseq1_t *bs, ks::string &bks) {
+    static const char tbl[]{'C', 'U'};
+    bks.putc_(tbl[!taxon]);
+    bks.putc_('\t');
+    bks.puts(bs->name);
+    bks.putc_('\t');
+    bks.putuw_(taxon);
+    bks.putc_('\t');
+    bks.putw_(bs->l_seq);
+    bks.putc_('\t');
+    append_counts(missing_count, 'M', bks);
+    append_counts(ambig_count,   'A', bks);
+    append_taxa_runs(taxon, taxa, bks);
+    bks.terminate();
+}
+
 template<typename ScoreType>
 struct ClassifierGeneric {
-    khash_t(c) *db_;
-    Spacer sp_;
+    const khash_t(c) *db_;
+    const Spacer sp_;
     Encoder<ScoreType> enc_;
-    int nt_;
-    int output_flag_;
-    std::atomic<u64> classified_[2];
+    uint32_t          nt_:16;
+    uint32_t output_flag_:16;
+    mutable std::atomic<u64> classified_[2];
     public:
     void set_emit_all(bool setting) {
         if(setting) output_flag_ |= output_format::EMIT_ALL;
@@ -48,22 +150,22 @@ struct ClassifierGeneric {
         if(setting) output_flag_ |= output_format::FASTQ;
         else        output_flag_ &= (~output_format::FASTQ);
     }
-    INLINE int get_emit_all()    {return output_flag_ & output_format::EMIT_ALL;}
-    INLINE int get_emit_kraken() {return output_flag_ & output_format::KRAKEN;}
-    INLINE int get_emit_fastq()  {return output_flag_ & output_format::FASTQ;}
-    ClassifierGeneric(khash_t(c) *map, spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
+    INLINE int get_emit_all()    const {return output_flag_ & output_format::EMIT_ALL;}
+    INLINE int get_emit_kraken() const {return output_flag_ & output_format::KRAKEN;}
+    INLINE int get_emit_fastq()  const {return output_flag_ & output_format::FASTQ;}
+    ClassifierGeneric(const khash_t(c) *map, const spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
                       bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false, bool canonicalize=true):
         db_(map),
         sp_(k, wsz, spaces),
         enc_(sp_, canonicalize),
-        nt_(num_threads > 0 ? num_threads: 16),
+        nt_(num_threads > 0 ? (uint16_t)(num_threads): (uint16_t)std::thread::hardware_concurrency()),
         classified_{0, 0}
     {
         set_emit_all(emit_all);
         set_emit_fastq(emit_fastq);
         set_emit_kraken(emit_kraken);
     }
-    ClassifierGeneric(const char *dbpath, spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
+    ClassifierGeneric(const char *dbpath, const spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
                       bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false, bool canonicalize=true):
         ClassifierGeneric(khash_load<khash_t(c)>(dbpath), spaces, k, wsz, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize) {}
     u64 n_classified()   const {return classified_[0];}
@@ -98,8 +200,8 @@ INLINE void append_counts(u32 count, const char character, kstring_t *ks) {
 using Classifier = ClassifierGeneric<score::Lex>;
 namespace {
 struct kt_data {
-    ClassifierGeneric<score::Lex> &c_;
-    khash_t(p) *taxmap;
+    const ClassifierGeneric<score::Lex> &c_;
+    const khash_t(p) *taxmap;
     bseq1_t *bs_;
     const unsigned per_set_;
     const unsigned total_;
@@ -109,10 +211,9 @@ struct kt_data {
 }
 
 template<typename ScoreType>
-unsigned classify_seq(ClassifierGeneric<ScoreType> &c,
+unsigned classify_seq(const ClassifierGeneric<ScoreType> &c,
                       Encoder<ScoreType> &enc,
                       const khash_t(p) *taxmap, bseq1_t *bs, const int is_paired, std::vector<tax_t> &taxa) {
-    u64 kmer;
     khiter_t ki;
     linear::counter<tax_t, u16> hit_counts;
     u32 ambig_count(0), missing_count(0);
@@ -121,52 +222,37 @@ unsigned classify_seq(ClassifierGeneric<ScoreType> &c,
     bks.clear();
     taxa.clear();
 
-    enc.assign(bs->seq, bs->l_seq);
-    while(enc.has_next_kmer()) {
-        if((kmer = enc.next_kmer()) == BF) ++ambig_count, taxa.push_back((tax_t)-1);
-        // If the kmer is ambiguous, ignore it and move on.
-        else {
-            if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count, taxa.push_back(0);
-            //If the kmer is missing from our database, just say we don't know what it is.
-            else {
-                // Otherwise, increment the count.
-                taxa.push_back(kh_val(c.db_, ki));
-                hit_counts.add(kh_val(c.db_, ki));
-            }
-        }
-    }
-    if(is_paired) {
-        enc.assign((bs + 1)->seq, (bs + 1)->l_seq);
-        while(enc.has_next_kmer()) {
-            if((kmer = enc.next_kmer()) == BF) ++ambig_count, taxa.push_back((tax_t)-1);
-            // If the kmer is ambiguous, ignore it and move on.
-            else {
-                if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count, taxa.push_back(0);
-                //If the kmer is missing from our database, just say we don't know what it is.
-                else {
-                    // Check map for presence of the hit.
-                    // If it's not there, insert it with a hint.
-                    // Otherwise, increment the count.
-                    taxa.push_back(kh_val(c.db_, ki));
-                    hit_counts.add(kh_val(c.db_, ki));
-                }
-            }
-        }
-    }
+    auto fn = [&] (u64 kmer) {
+        //If the kmer is missing from our database, just say we don't know what it is.
+        if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_))
+            ++missing_count, taxa.push_back(0);
+        else
+            taxa.push_back(kh_val(c.db_, ki)), hit_counts.add(kh_val(c.db_, ki));
+    };
+    enc.for_each(fn, bs->seq, bs->l_seq);
+    // This simplification loses information about the run of congituous labels. Do these matter?
+    auto diff = bs->l_seq - enc.sp_.c_ + 1 - taxa.size();
+    taxa.reserve((taxa.size() + diff) << 1);
+    ambig_count += diff;
+    while(diff--) taxa.push_back(-1);
+    if(is_paired) enc.for_each(fn, (bs + 1)->seq, (bs + 1)->l_seq);
+    diff = (bs + 1)->l_seq - enc.sp_.c_ + 1;
+    ambig_count += diff;
+    while(diff--) taxa.push_back(-1); // Consider making this just be a count.
 
     ++c.classified_[!(taxon = resolve_tree(hit_counts, taxmap))];
-    if(c.get_emit_all() || taxon) {
-        if(c.get_emit_fastq()) {
-            append_fastq_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, kspp2ks(bks), c.get_emit_kraken(), is_paired);
-        } else if(c.get_emit_kraken()) {
-            append_kraken_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, kspp2ks(bks));
-        }
+    if(taxon || c.get_emit_all()) {
+        if(c.get_emit_fastq())
+            append_fastq_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks, c.get_emit_kraken(), is_paired);
+        else if(c.get_emit_kraken())
+            append_kraken_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks);
     }
-    bs->sam   = bks.release();
+    bs->sam          = bks.release();
     return bs->l_sam = bks.size();
 }
 
-static void kt_for_helper(void *data_, long index, int tid) {
+
+inline void kt_for_helper(void *data_, long index, int tid) {
     kt_data *data((kt_data *)data_);
     size_t retstr_size(0);
     const int inc(!!data->is_paired_ + 1);
@@ -179,17 +265,21 @@ static void kt_for_helper(void *data_, long index, int tid) {
     data->retstr_size_ += retstr_size;
 }
 
-inline void classify_seqs(const Classifier &c, khash_t(p) *taxmap, bseq1_t *bs,
-                          kstring_t *cks, const unsigned chunk_size, const unsigned per_set, const int is_paired) {
+
+
+using Classifier = ClassifierGeneric<score::Lex>;
+
+inline void classify_seqs(const Classifier &c, const khash_t(p) *taxmap, bseq1_t *bs,
+                          ks::string &cks, const unsigned chunk_size, const unsigned per_set, const int is_paired) {
     assert(per_set && ((per_set & (per_set - 1)) == 0));
 
     std::atomic<u64> retstr_size(0);
     kt_data data{c, taxmap, bs, per_set, chunk_size, retstr_size, is_paired};
     kt_for(c.nt_, &kt_for_helper, (void *)&data, chunk_size / per_set + 1);
-    ks_resize(cks, retstr_size.load());
-    const int inc(!!is_paired + 1);
-    for(unsigned i(0); i < chunk_size; i += inc) kputsn_(bs[i].sam, bs[i].l_sam, cks);
-    cks->s[cks->l] = 0;
+    cks.resize(retstr_size.load());
+    const int inc((is_paired != 0) + 1);
+    for(u32 i(0); i < chunk_size; cks.putsn_(bs[i].sam, bs[i].l_sam), i += inc);
+    cks.terminate();
 }
 
 struct del_data {
@@ -198,23 +288,17 @@ struct del_data {
     unsigned total_;
 };
 
-#if !NDEBUG
-#define DBKS(ks) do {\
-    LOG_DEBUG("String: %s. Max: %zu. Len: %zu.\n", (ks) ? (ks)->s ? (ks)->s: "Unset string": "nullptr", (ks)->m, (ks)->l);\
-    } while(0)
-#endif
 
-inline void process_dataset(Classifier &c, khash_t(p) *taxmap, const char *fq1, const char *fq2,
-                     std::FILE *out, unsigned chunk_size,
-                     unsigned per_set) {
+inline void process_dataset(const Classifier &c, const khash_t(p) *taxmap, const char *fq1, const char *fq2,
+                            std::FILE *out, unsigned chunk_size,
+                            unsigned per_set) {
     // TODO: consider reusing buffers for processing large numbers of files.
     int nseq(0), max_nseq(0);
     gzFile ifp1(gzopen(fq1, "rb")), ifp2(fq2 ? gzopen(fq2, "rb"): nullptr);
     kseq_t *ks1(kseq_init(ifp1)), *ks2(ifp2 ? kseq_init(ifp2): nullptr);
-    del_data dd{nullptr, per_set, chunk_size};
     ks::string cks(256u);
-    const int fn = fileno(out);
-    const int is_paired(fq2 != 0);
+    const int fn = fileno(out), is_paired(fq2 != 0);
+    del_data dd{nullptr, per_set, chunk_size};
     if((dd.seqs_ = bseq_read(chunk_size, &nseq, (void *)ks1, (void *)ks2)) == nullptr) {
         LOG_WARNING("Could not get any sequences from file, fyi.\n");
         goto fail; // Wheeeeee
@@ -224,7 +308,7 @@ inline void process_dataset(Classifier &c, khash_t(p) *taxmap, const char *fq1, 
         LOG_INFO("Read %i seqs with chunk size %u\n", nseq, chunk_size);
         max_nseq = std::max(max_nseq, nseq);
         // Classify
-        classify_seqs(c, taxmap, dd.seqs_, kspp2ks(cks), nseq, per_set, is_paired);
+        classify_seqs(c, taxmap, dd.seqs_, cks, nseq, per_set, is_paired);
         // Write out
         cks.write(fn);
         cks.clear();
@@ -234,8 +318,10 @@ inline void process_dataset(Classifier &c, khash_t(p) *taxmap, const char *fq1, 
     free(dd.seqs_);
     fail:
     // Clean up.
-    gzclose(ifp1); gzclose(ifp2);
-    kseq_destroy(ks1); kseq_destroy(ks2);
+    gzclose(ifp1);
+    kseq_destroy(ks1);
+    if(ks2) kseq_destroy(ks2);
+    if(ifp2) gzclose(ifp2);
 }
 
 static void append_fastq_classification(const tax_counter &hit_counts,
