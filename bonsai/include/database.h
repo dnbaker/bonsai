@@ -46,10 +46,6 @@ struct Database {
             s_ = spvec_t(k_ - 1);
             LOG_DEBUG("reading %zu bytes from file for vector, with %zu reserved\n", s_.size(), s_.capacity());
             std::fread(s_.data(), s_.size(), sizeof(uint8_t), fp);
-    #if !NDEBUG
-            LOG_DEBUG("vec size: %u\n", s_.size());
-            for(auto i: s_) fprintf(stderr, "Value in vector is %u\n", (unsigned)i);
-    #endif
             db_ = khash_load_impl<T>(fp);
         } else LOG_EXIT("Could not open %s for reading.\n", fn);
         sp_ = make_sp();
@@ -81,11 +77,22 @@ struct Database {
         if(owns_hash_) khash_destroy(db_);
         if(sp_)        delete sp_;
     }
-    void write(const char *fn) {
+    void write(const char *fn, bool write_gz=false) const {
         // TODO: add compression/work with zlib.
+        if(write_gz) {
+            gzFile ofp = gzopen(fn, "wb");
+            if(!ofp) LOG_EXIT("Could not open %s for writing.\n", fn);
+#define gzw(_x, ofp) gzwrite(ofp, static_cast<const void *>(&_x), sizeof(_x));
+            gzw(k_, ofp);
+            gzw(w_, ofp);
+            gzwrite(ofp, static_cast<const void *>(s_.data()), s_.size() * sizeof(s_[0]));
+            khash_write_impl<T>(db_, ofp);
+            gzclose(ofp);
+            return;
+#undef gzw
+        } // else
         std::FILE *ofp(std::fopen(fn, "wb"));
-        if(!ofp) LOG_EXIT("Could not open %s for reading.\n", fn);
-        LOG_DEBUG("I am writing a database to file %s\n", fn);
+        if(!ofp) LOG_EXIT("Could not open %s for writing.\n", fn);
         __fw(k_, ofp);
         __fw(w_, ofp);
         std::fwrite(s_.data(), s_.size(), sizeof(uint8_t), ofp);

@@ -240,6 +240,13 @@ int phase1_main(int argc, char *argv[]) {
 }
 
 int hist_main(int argc, char *argv[]) {
+    for(const char *const *p(argv); *p; ++p) if((std::strcmp(*p, "-h") && std::strcmp(*p, "--help")) == 0) goto usage;
+    if(argc == 1) {
+        usage:
+        std::fprintf(stderr, "Produces a histogram of how many kmers have been assigned to all taxids\n"
+                             "Usage: bonsai %s <database.db> [outfile (omit to emit to stdout)]\n", *argv);
+        std::exit(EXIT_FAILURE);
+    }
     Database<khash_t(c)> db(argv[1]);
     khash_t(c) *map(db.db_);
     std::FILE *ofp(stdout);
@@ -250,9 +257,7 @@ int hist_main(int argc, char *argv[]) {
     using elcount = std::pair<tax_t, u32>;
     std::vector<elcount> structs;
     for(auto& i: cmap) structs.emplace_back(i.first, i.second);
-    SORT(std::begin(structs), std::end(structs), [] (const elcount &a, const elcount &b) {
-        return a.second < b.second;
-    });
+    SORT(std::begin(structs), std::end(structs), [] (const elcount &a, const elcount &b) {return a.second < b.second;});
     std::fputs("Name\tCount\n", ofp);
     for(const auto &i: structs) std::fprintf(ofp, "%u\t%u\n", i.first, i.second);
     if(ofp != stdout) std::fclose(ofp);

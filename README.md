@@ -35,4 +35,17 @@ We use the Catch testing framework. You can build and run the tests by:
 Usage
 ================
 
-Usage instructions are available in each executable.
+Usage instructions are available in each executable by executing it with no options or providing the `-h` flag.
+
+
+For classification purposes, the commands involved are `bonsai prebuild`, `bonsai build`, and `bonsai classify`.
+prebuild is only required for taxonomic or feature minimization strategies, for which case database building requires double the memory requirements.
+Unless you're very sure you know what you're doing, we recommend simply `bonsai build` with either Entropy or Lexicographic minimization.
+
+To build a database with k = 31, window size = 50, minimized by entropy, from a taxonomy in `ref/nodes.dmp` and a nameidmap in `ref/nameidmap.txt` and store it in in `bns.db`
+```
+bonsai build -e -w50 -k31 -p20 -T ref/nodes.dmp -M ref/nameidmap.txt bns.db `find ref/ -name '*.fna.gz'`
+```
+
+To prepare the above, the script in `python/download_genomes.py` can be used. The default of downloading all available genomes can be run by `python python/download_genomes.py --threads 20 all`.
+This places downloaded genomes by default into the paths listed above in the `bonsai build` command. These paths can be altered; see `python/download_genomes.py -h/--help` for details.
