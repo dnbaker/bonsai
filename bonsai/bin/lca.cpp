@@ -18,7 +18,6 @@ int main(int argc, char *argv[]) {
             case 't': taxids.push_back(std::atoi(optarg)); break;
             case 'h': case '?': goto usage;
         }
-            
     }
     if(argc < 3) {
         usage:
@@ -71,3 +70,4 @@ int main(int argc, char *argv[]) {
     khash_destroy(tax);
     destroy_name_hash(name_hash);
 }
+
