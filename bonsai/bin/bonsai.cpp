@@ -265,7 +265,7 @@ int hist_main(int argc, char *argv[]) {
  }
 
 int err_main(int argc, char *argv[]) {
-    std::fputs("No valid subcommand provided. Options: phase1, phase2, classify, hll, metatree, dist, sketch, setdist\n", stderr);
+    std::fputs("No valid subcommand provided. Options: prebuild/p1/phase, build/p2/phase2, classify, metatree\n", stderr);
     return EXIT_FAILURE;
 }
 
