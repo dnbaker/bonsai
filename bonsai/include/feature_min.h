@@ -117,16 +117,15 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
     std::vector<std::future<size_t>> futures;
     // Mkae the future return the kseq pointer and then use it for resubmission.
     // TODO: Also use a fixed st of kh_all sets to reduce memory allocations.
+    KSeqBufferHolder kseqs(num_threads);
     std::vector<kseq_t> kseqs;
     std::vector<uint32_t> counter_map;
-    while(kseqs.size() < (unsigned)num_threads) kseqs.emplace_back(kseq_init_stack());
-    LOG_DEBUG("Made kseqs\n");
 
     // Submit the first set of jobs
     std::set<size_t> used;
     for(size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
         futures.emplace_back(std::async(
-          std::launch::async, fill_set_genome<ScoreType>, fns[i].data(), sp, counters.data() + i, i, (void *)data, canon, &kseqs[submitted]));
+          std::launch::async, fill_set_genome<ScoreType>, fns[i].data(), sp, counters.data() + i, i, (void *)data, canon, kseqs.data() + submitted));
         counter_map.emplace_back(submitted);
         LOG_DEBUG("Submitted for %zu.\n", submitted);
         ++submitted;
@@ -163,13 +162,12 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
     }
 
     // Clean up
-    for(auto &ks: kseqs) kseq_destroy_stack(ks);
     for(auto &counter: counters) {
         std::free(counter.flags);
         std::free(counter.keys);
     }
     kh_destroy(name, name_hash);
-    LOG_DEBUG("FInished making map!\n");
+    LOG_DEBUG("Finished making map!\n");
     if constexpr(MapUpdater::ValSize == 8)
         return r64;
     else
