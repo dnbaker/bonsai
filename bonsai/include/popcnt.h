@@ -171,21 +171,5 @@ inline auto vec_bitdiff(const T &a, const T &b) {
     return detail::byte_bitdiff(&a[0], &b[0], a.size() * sizeof(a[0]));
 #endif
 }
-#if 0
-inline unsigned vec_popcnt(const char *p, const size_t l) noexcept {
-    return ::popcnt((void *)p, l);
-}
-
-inline unsigned vec_popcnt(uint64_t *p, size_t l) {
-    if(__builtin_expect(l == 0, 0)) return 0;
-    uint64_t ret(popcount(*p));
-    while(--l) ret += popcount(*++p);
-    return ret;
-}
-
-inline unsigned vec_popcnt(const std::string &vec) {
-    return vec_popcnt(vec.data(), vec.size());
-}
-#endif
 
 } // namespace popcnt

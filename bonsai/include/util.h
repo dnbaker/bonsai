@@ -253,30 +253,53 @@ void print_khash(T *rex) noexcept {
 #define __fw(item, fp) \
   fwrite(&(item), 1, sizeof(item), fp)
 
+#define __gz(item, fp) gzwrite(fp, static_cast<const void *>(&(item)), sizeof(item))
+
 template<typename T>
-void khash_write_impl(T *map, std::FILE *fp) noexcept {
+size_t khash_write_impl(T *map, std::FILE *fp) noexcept {
     for(khiter_t ki(0); ki != kh_end(map); ++ki)
         if(!kh_exist(map, ki))
             kh_key(map, ki) = 0, kh_val(map, ki) = 0;
-    __fw(map->n_buckets, fp);
-    __fw(map->n_occupied, fp);
-    __fw(map->size, fp);
-    __fw(map->upper_bound, fp);
-    fwrite(map->flags, __ac_fsize(map->n_buckets), sizeof(*map->flags), fp);
-    fwrite(map->keys, map->n_buckets, sizeof(*map->keys), fp);
-    fwrite(map->vals, map->n_buckets, sizeof(*map->vals), fp);
+    size_t ret = __fw(map->n_buckets, fp);
+    ret += __fw(map->n_occupied, fp);
+    ret += __fw(map->size, fp);
+    ret += __fw(map->upper_bound, fp);
+    ret += fwrite(map->flags, __ac_fsize(map->n_buckets), sizeof(*map->flags), fp);
+    ret += fwrite(map->keys, map->n_buckets, sizeof(*map->keys), fp);
+    ret += fwrite(map->vals, map->n_buckets, sizeof(*map->vals), fp);
+    return ret;
 }
+#undef __fw
+template<typename T>
+size_t khash_write_impl(T *map, gzFile fp) noexcept {
+    for(khiter_t ki(0); ki != kh_end(map); ++ki)
+        if(!kh_exist(map, ki))
+            kh_key(map, ki) = 0, kh_val(map, ki) = 0;
+    size_t ret = __gz(map->n_buckets, fp);
+    ret += __gz(map->n_occupied, fp);
+    ret += __gz(map->size, fp);
+    ret += __gz(map->upper_bound, fp);
+    ret += gzwrite(fp, static_cast<const void *>(map->flags), __ac_fsize(map->n_buckets) * sizeof(*map->flags));
+    ret += gzwrite(fp, static_cast<const void *>(map->keys), map->n_buckets * sizeof(*map->keys));
+    ret += gzwrite(fp, static_cast<const void *>(map->vals), map->n_buckets * sizeof(*map->vals));
+    return ret;
+}
+#undef __gz
 
 template <typename T>
-size_t khash_write(T *map, const char *path) noexcept {
+size_t khash_write(T *map, const char *path, bool write_gz=false) noexcept {
+    if(write_gz) {
+        gzFile fp = gzopen(path, "wb");
+        const auto ret = khash_write_impl(map, fp);
+        gzclose(fp);
+        return ret;
+    }
     std::FILE *fp(fopen(path, "wb"));
-    khash_write_impl(map, fp);
-    size_t ret(ftell(fp));
+    const auto ret = khash_write_impl(map, fp);
     fclose(fp);
     return ret;
 }
 
-#undef __fw
 
 template <typename T>
 T *khash_load_impl(std::FILE *fp) noexcept {
