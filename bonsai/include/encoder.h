@@ -585,13 +585,11 @@ void fill_hll(hll::hll_t &ret, const std::vector<std::string> &paths,
     } else {
         LOG_DEBUG("Starting parallel\n");
         std::mutex m;
-        std::vector<kseq_t> kseqs;
+        KSeqBufferHolder kseqs(num_threads);
         std::vector<hll::hll_t> hlls;
-        while(kseqs.size() < (unsigned)num_threads) kseqs.emplace_back(kseq_init_stack());
         while(hlls.size() < (unsigned)num_threads) hlls.emplace_back(ret.clone());
         est_helper helper{space, paths, m, np, canon, data, hlls, kseqs.data()};
         kt_for(num_threads, &est_helper_fn<ScoreType>, &helper, paths.size());
-        for(auto &kseq: kseqs) kseq_destroy_stack(kseq);
         for(auto &hll: hlls) ret += hll;
     }
     
