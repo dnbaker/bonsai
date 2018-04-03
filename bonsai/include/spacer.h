@@ -19,10 +19,8 @@ inline u32 comb_size(const spvec_t &spaces) {
 
 inline ks::string str(const spvec_t &vec) {
     ks::string ret;
-    std::fprintf(stderr, "About to print ret\n");
-    std::fprintf(stderr, "About to print '%s'\n", ret.data());
-    for(const auto val: vec)
-        ret.sprintf("%u,", val);
+    ret.resize(vec.size() << 1);
+    for(const auto &val: vec) ret.sprintf("%u,", val);
     ret.pop();
     return ret;
 }
@@ -43,11 +41,13 @@ inline spvec_t parse_spacing(const char *ss, unsigned k) {
     }
     return ret;
 }
+
 inline spvec_t sub1(const spvec_t &spaces) {
     auto ret = spaces;
     for(auto &el: ret) --el;
     return ret;
 }
+
 struct Spacer {
     static const u32 max_k = 32;
 

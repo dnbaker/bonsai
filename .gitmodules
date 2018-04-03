@@ -37,3 +37,6 @@
 [submodule "pdqsort"]
 	path = pdqsort
 	url = https://github.com/orlp/pdqsort
+[submodule "lazy"]
+	path = lazy
+	url = https://github.com/dnbaker/lazy

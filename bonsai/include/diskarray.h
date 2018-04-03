@@ -4,6 +4,7 @@
 #include <climits>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include "aesctr.h"
 
 namespace ba {
 using bns::khash_t(64);

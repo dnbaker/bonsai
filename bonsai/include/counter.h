@@ -12,6 +12,7 @@
 #include "util.h"
 #include "kspp/ks.h"
 #include "hash.h"
+#include "lazy/vector.h"
 
 namespace bns {
 

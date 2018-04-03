@@ -27,8 +27,6 @@
 namespace pop {
 using bitvec_t = std::vector<uint64_t>;
 
-
-
 template<typename T>
 inline unsigned popcount(T val)    noexcept {return __builtin_popcount(val);}
 template<>
@@ -54,8 +52,8 @@ inline unsigned popcount(unsigned long long val) noexcept {
     return val;
 #else
     // According to GodBolt, gcc7.3 fails to inline this function call even at -Ofast.
-    // 
-    // 
+    //
+    //
     return __builtin_popcountll(val);
 #endif
 }
@@ -63,6 +61,21 @@ inline unsigned popcount(unsigned long long val) noexcept {
 template<>
 inline unsigned popcount(unsigned long val) noexcept {
     return popcount(static_cast<unsigned long long>(val));
+}
+
+inline unsigned vec_popcnt(const char *p, const size_t l) {
+    return ::popcnt((void *)p, l);
+}
+
+inline unsigned vec_popcnt(uint64_t *p, size_t l) {
+    if(__builtin_expect(l == 0, 0)) return 0;
+    uint64_t ret(popcount(*p));
+    while(--l) ret += popcount(*++p);
+    return ret;
+}
+
+inline unsigned vec_popcnt(const std::string &vec) {
+    return vec_popcnt(vec.data(), vec.size());
 }
 
 template<typename T>
@@ -149,7 +162,7 @@ inline unsigned unrolled_bitdiff(const uint64_t *a, const uint64_t *b, size_t nb
     return ret;
 }
 } // namespace detail
-    
+
 template<typename T>
 inline auto vec_bitdiff(const T &a, const T &b) {
 #if defined(USE_UNROLLED_BITDIFF)
@@ -158,6 +171,7 @@ inline auto vec_bitdiff(const T &a, const T &b) {
     return detail::byte_bitdiff(&a[0], &b[0], a.size() * sizeof(a[0]));
 #endif
 }
+#if 0
 inline unsigned vec_popcnt(const char *p, const size_t l) noexcept {
     return ::popcnt((void *)p, l);
 }
@@ -172,5 +186,6 @@ inline unsigned vec_popcnt(uint64_t *p, size_t l) {
 inline unsigned vec_popcnt(const std::string &vec) {
     return vec_popcnt(vec.data(), vec.size());
 }
+#endif
 
 } // namespace popcnt

@@ -20,7 +20,7 @@ struct kg_list_data {
     const bool                  canon_;
 };
 
-inline void kg_helper(void *data_, long index, int tid) {
+static void kg_helper(void *data_, long index, int tid) {
     kg_data *data((kg_data *)data_);
     khash_t(all) *hash(data->core_[index]);
     int khr;
@@ -35,7 +35,7 @@ inline void kg_helper(void *data_, long index, int tid) {
     LOG_INFO("kg helper! for path %s and thread id %i, I now have %zu kmers loaded.\n", data->paths_[index].data(), tid, size_t(kh_size(hash)));
 }
 
-inline void kg_list_helper(void *data_, long index, int tid) {
+static void kg_list_helper(void *data_, long index, int tid) {
     kg_list_data &data(*(kg_list_data *)data_);
     auto &list(*data.fl_[index]);
     LOG_INFO("Size of list: %zu. Performing for index %ld of %zu\n", size(list), index, data.core_.size());
@@ -47,6 +47,7 @@ inline void kg_list_helper(void *data_, long index, int tid) {
             khash_put(hash, min, &khr);
     }, list);
 }
+
 class kgset_t {
 
     std::vector<khash_t(all) *> core_;
@@ -125,6 +126,5 @@ public:
             std::fprintf(fp, "Occupancy of %zu\n", kh_size(kh));
     }
 };
-
 
 } // namespace bns
