@@ -106,6 +106,8 @@ public:
 #define popcnt_fn(x) popcnt256(x)
     using SType = __m256i;
 #else
+    using SType = u64;
+#define popcnt_fn(x) popcount(x)
 #define USE_UNROLLED_BITDIFF
 #endif
     void add_sum(unsigned &sum) const {
@@ -114,7 +116,7 @@ public:
     }
     template<size_t iternum, size_t niter_left> struct unroller {
         void operator()(const SIMDHolder &ref, unsigned &sum) const {
-            sum += ref.val[iternum];
+            sum += ref.vals[iternum];
             unroller<iternum+1, niter_left-1>()(ref, sum);
         }
     };

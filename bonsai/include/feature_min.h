@@ -118,7 +118,6 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
     // Mkae the future return the kseq pointer and then use it for resubmission.
     // TODO: Also use a fixed st of kh_all sets to reduce memory allocations.
     KSeqBufferHolder kseqs(num_threads);
-    std::vector<kseq_t> kseqs;
     std::vector<uint32_t> counter_map;
 
     // Submit the first set of jobs
