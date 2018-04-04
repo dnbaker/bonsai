@@ -83,7 +83,8 @@ bool endswith(const std::string &path, const std::string &suf) {
 
 int phase2_main(int argc, char *argv[]) {
     int c, mode(score_scheme::LEX), wsz(-1), num_threads(1), k(31);
-    bool canon(true), write_gz(false);
+    bool canon(true);
+    WRITE write_fmt = UNCOMPRESSED;
     std::size_t start_size(1<<16);
     std::string spacing, tax_path, seq2taxpath, paths_file;
     std::ios_base::sync_with_stdio(false);
@@ -122,15 +123,20 @@ int phase2_main(int argc, char *argv[]) {
             case 'M': seq2taxpath = optarg; break;
             case 'F': paths_file = optarg; break;
             case 'e': mode = score_scheme::ENTROPY; break;
-            case 'z': write_gz = true; break;
+            case 'z': write_fmt = ZLIB; break;
         }
     }
     dbpath = argv[optind];
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
     if(wsz < 0 || wsz < k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
-    if(endswith(dbpath, ".gz")) write_gz = true;
-    if(write_gz && !endswith(dbpath, ".gz"))
-        dbpath += ".gz", LOG_INFO("Writing gzipped, but without a .gz suffix. Adding it.\n");
+#ifdef ZWRAP_USE_ZSTD
+    const std::string suf(".zst");
+#else
+    const std::string suf(".gz");
+#endif
+    if(endswith(dbpath, suf))     write_fmt = ZLIB;
+    if(write_fmt && !endswith(dbpath, ".gz"))
+        dbpath += suf, LOG_INFO("Writing gzipped, but without a .gz suffix. Adding it.\n");
     LOG_INFO("db output path: %s", dbpath.data());
     spvec_t sv(parse_spacing(spacing.data(), k));
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
@@ -168,7 +174,7 @@ int phase2_main(int argc, char *argv[]) {
         //goto fail;
         phase2_map.db_ = score_scheme::LEX == mode ? lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size)
                                                    : lca_map<score::Entropy>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size);
-        phase2_map.write(dbpath.data(), write_gz);
+        phase2_map.write(dbpath.data(), write_fmt);
         //fail:
         kh_destroy(p, taxmap);
         return EXIT_SUCCESS;
@@ -180,10 +186,11 @@ int phase2_main(int argc, char *argv[]) {
     khash_t(p) *taxmap(tax_path.empty() ? nullptr: build_parent_map(tax_path.data()));
     phase2_map.db_ = minimized_map<score::Hash>(inpaths, phase1_map.db_, seq2taxpath.data(), taxmap, sp, num_threads, start_size, canon);
     std::string dbpath2 = argv[optind + 1];
-    if(!write_gz && endswith(dbpath2, ".gz")) write_gz = true;
-    if(write_gz && !endswith(dbpath2, ".gz")) dbpath2 += ".gz";
+    if(endswith(dbpath2, suf))     write_fmt = ZLIB;
+    if(write_fmt && !endswith(dbpath2, ".gz"))
+        dbpath2 += suf, LOG_INFO("Writing gzipped, but without a .gz suffix. Adding it.\n");
     // Write minimized map
-    phase2_map.write(argv[optind + 1], write_gz);
+    phase2_map.write(dbpath2.data(), write_fmt);
     if(taxmap) kh_destroy(p, taxmap);
     return EXIT_SUCCESS;
 }
