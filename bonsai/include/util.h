@@ -895,7 +895,7 @@ static tax_t get_taxid(const char *fn, const khash_t(name) *name_hash) {
         while(!std::isspace(*p)) ++p;
         *p = 0;
     }
-    const tax_t ret(unlikely((ki = kh_get(name, name_hash, line)) == kh_end(name_hash)) ? UINT32_C(-1) : kh_val(name_hash, ki));
+    const tax_t ret(unlikely((ki = kh_get(name, name_hash, line)) == kh_end(name_hash)) ? UINT32_C(1) : kh_val(name_hash, ki));
 #endif
     gzclose(fp);
     return ret;
@@ -1080,9 +1080,7 @@ static std::vector<tax_t> get_sorted_taxes(const khash_t(p) *taxmap, const char 
     std::vector<tax_t> taxes;
     {
         std::unordered_set<tax_t> taxset;
-        for(khiter_t ki(0); ki != kh_end(taxmap); ++ki)
-            if(kh_exist(taxmap, ki))
-                taxset.insert(kh_key(taxmap, ki));
+        for(khiter_t ki(0); ki != kh_end(taxmap); ++ki) if(kh_exist(taxmap, ki)) taxset.insert(kh_key(taxmap, ki));
         taxes = std::vector<tax_t>(taxset.begin(), taxset.end());
     }
     std::unordered_map<tax_t, ClassLevel> taxclassmap(get_tax_depths(taxmap, path));
@@ -1099,12 +1097,11 @@ static std::vector<tax_t> get_sorted_taxes(const khash_t(p) *taxmap, const char 
 static std::vector<tax_t> get_desc_lca(tax_t a, tax_t b, const std::unordered_map<tax_t, std::vector<tax_t>> &parent_map, const khash_t(p) *taxmap) {
     return get_all_descendents(parent_map, lca(taxmap, a, b));
 }
+
 static void print_name_hash(khash_t(name) *hash) noexcept {
-    for(khiter_t ki(0); ki < kh_size(hash); ++ki) {
-        if(kh_exist(hash, ki)) {
+    for(khiter_t ki(0); ki < kh_size(hash); ++ki)
+        if(kh_exist(hash, ki))
             std::fprintf(stderr, "Key: %s. value: %u\n", kh_key(hash, ki), kh_val(hash, ki));
-        }
-    }
 }
 
 static tax_t get_max_val(const khash_t(p) *hash) noexcept {
@@ -1125,7 +1122,8 @@ static khash_t(all) *load_binary_kmerset(const char *path) {
     LOG_DEBUG("About to place %zu elements into a hash table of max size %zu\n", n, kh_n_buckets(ret));
     for(int khr; std::fread(&n, 1, sizeof(u64), fp) == sizeof(u64); kh_put(all, ret, n, &khr));
     std::fclose(fp);
-#if !NDEBUG
+#if defined(VERIFY_KHASH_LOAD)
+#if VERIFY_KHASH_LOAD
     // Just make sure it all worked.
     for(khiter_t ki(0); ki < kh_end(ret); ++ki) {
         if(kh_exist(ret, ki)) assert(kh_get(all, ret, kh_key(ret, ki)) != kh_end(ret));
@@ -1134,7 +1132,8 @@ static khash_t(all) *load_binary_kmerset(const char *path) {
     std::fread(&n, 1, sizeof(u64), fp); // Skip first number.
     while(std::fread(&n, 1, sizeof(u64), fp) == sizeof(u64)) assert(kh_get(all, ret, n) != kh_end(ret));
     std::fclose(fp);
-#endif
+#endif // If the value is 1
+#endif // If the value is defined
     return ret;
 }
 

@@ -200,8 +200,9 @@ khash_t(64) *taxdepth_map(const std::vector<std::string> &fns, const khash_t(p) 
 inline void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid) {
     int khr;
     khint_t k2;
+    static int warn_missing = 1;
     LOG_DEBUG("Adding set of size %zu to total set of current size %zu.\n", kh_size(set), kh_size(kc));
-    for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
+    for(khiter_t ki(kh_begin(set)); ki < kh_end(set); ++ki) {
         if(kh_exist(set, ki)) {
             if((k2 = kh_get(c, kc, kh_key(set, ki))) == kh_end(kc)) {
                 k2 = kh_put(c, kc, kh_key(set, ki), &khr);
@@ -211,7 +212,8 @@ inline void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_
 #endif
             } else if(kh_val(kc, k2) != taxid) {
                 kh_val(kc, k2) = lca(tax, taxid, kh_val(kc, k2));
-                if(kh_val(kc, k2) == UINT32_C(-1)) kh_val(kc, k2) = 1, LOG_WARNING("Missing taxid %u. Setting lca to 1\n", taxid);
+                if(kh_val(kc, k2) == UINT32_C(1))
+                    if(warn_missing) LOG_WARNING("ancestor of %u missing from taxonomy. This is not unexpected considering the issues the NCBI taxonomy has.\n", taxid), warn_missing = 0;
             }
         }
     }
@@ -223,7 +225,7 @@ inline void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_
     khint_t k2;
     tax_t val;
     LOG_DEBUG("Adding set of size %zu to total set of current size %zu.\n", kh_size(set), kh_size(kc));
-    for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
+    for(khiter_t ki(kh_begin(set)); ki < kh_end(set); ++ki) {
         if(kh_exist(set, ki)) {
             if((k2 = kh_get(64, kc, kh_key(set, ki))) == kh_end(kc)) {
                 k2 = kh_put(64, kc, kh_key(set, ki), &khr);
@@ -241,7 +243,7 @@ inline void update_feature_counter(khash_t(64) *kc, const khash_t(all) *set, con
     // TODO: make this threadsafe.
     int khr;
     khint_t k2;
-    for(khiter_t ki(kh_begin(set)); ki != kh_end(set); ++ki) {
+    for(khiter_t ki(kh_begin(set)); ki < kh_end(set); ++ki) {
         if(kh_exist(set, ki)) {
            if((k2 = kh_get(64, kc, kh_key(set, ki))) == kh_end(kc)) {
                 k2 = kh_put(64, kc, kh_key(set, ki), &khr);
@@ -254,7 +256,7 @@ inline void update_feature_counter(khash_t(64) *kc, const khash_t(all) *set, con
 inline void update_minimized_map(const khash_t(all) *set, const khash_t(64) *full_map, khash_t(c) *ret) {
     khiter_t kif;
     LOG_DEBUG("Size of set: %zu\n", kh_size(set));
-    for(khiter_t ki(0); ki != kh_end(set); ++ki) {
+    for(khiter_t ki(0); ki < kh_end(set); ++ki) {
         if(!kh_exist(set, ki) || kh_get(c, ret, kh_key(set, ki)) != kh_end(ret))
             continue;
             // If the key is already in the main map, what's the problem?
@@ -267,7 +269,7 @@ inline void update_minimized_map(const khash_t(all) *set, const khash_t(64) *ful
 }
 
 inline void lca2depth(khash_t(c) *lca_map, const khash_t(p) *tax_map) {
-    for(khiter_t ki(kh_begin(lca_map)); ki != kh_end(lca_map); ++ki)
+    for(khiter_t ki(kh_begin(lca_map)); ki < kh_end(lca_map); ++ki)
         if(kh_exist(lca_map, ki))
             kh_val(lca_map, ki) = node_depth(tax_map, kh_val(lca_map, ki));
 }
@@ -277,7 +279,7 @@ inline khash_t(c) *make_depth_hash(khash_t(c) *lca_map, const khash_t(p) *tax_ma
     kh_resize(c, ret, kh_size(lca_map));
     khiter_t ki1;
     int khr;
-    for(khiter_t ki2(kh_begin(lca_map)); ki2 != kh_end(lca_map); ++ki2) {
+    for(khiter_t ki2(kh_begin(lca_map)); ki2 < kh_end(lca_map); ++ki2) {
         if(kh_exist(lca_map, ki2)) {
             ki1 = kh_put(c, ret, kh_key(lca_map, ki2), &khr);
             kh_val(ret, ki1) = node_depth(tax_map, kh_val(lca_map, ki2));
@@ -292,7 +294,7 @@ inline khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, const khash_t(p) *tax) {
     int khr;
     khiter_t kir;
     kh_resize(64, ret, kc->n_buckets);
-    for(khiter_t ki(0); ki != kh_end(kc); ++ki) {
+    for(khiter_t ki(0); ki < kh_end(kc); ++ki) {
         if(kh_exist(kc, ki)) {
             kir = kh_put(64, ret, kh_key(kc, ki), &khr);
             kh_val(ret, kir) = TDencode(node_depth(tax, kh_val(kc, ki)), kh_val(kc, ki));
