@@ -1168,5 +1168,11 @@ static std::ifstream::pos_type filesize(const char* filename)
 }
 
 
+enum WRITE {
+    UNCOMPRESSED = 0,
+    ZLIB = 1,
+    ZSTD = 2
+};
+
 
 } // namespace bns
