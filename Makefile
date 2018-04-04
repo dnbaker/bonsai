@@ -1,7 +1,7 @@
 .PHONY=all tests clean bonsai update
 
 all:
-	$(MAKE) -C bonsai
+	$(MAKE) -C bonsai bonsai_z
 
 clean:
 	$(MAKE) update clean -C bonsai
