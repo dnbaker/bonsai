@@ -77,12 +77,17 @@ int classify_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
+bool endswith(const std::string &path, const std::string &suf) {
+    return std::equal(std::crbegin(suf), std::crend(suf), std::crbegin(path));
+}
+
 int phase2_main(int argc, char *argv[]) {
     int c, mode(score_scheme::LEX), wsz(-1), num_threads(1), k(31);
-    bool canon(true);
+    bool canon(true), write_gz(false);
     std::size_t start_size(1<<16);
     std::string spacing, tax_path, seq2taxpath, paths_file;
     std::ios_base::sync_with_stdio(false);
+    std::string dbpath;
     // TODO: update documentation for tax_path and seq2taxpath options.
     if(argc < 4) {
         usage:
@@ -98,6 +103,7 @@ int phase2_main(int argc, char *argv[]) {
                      "-T: Set tax_path.\n"
                      "-M: Set seq2taxpath.\n"
                      "-S: Set spacing.\n"
+                     "-z: Write gzip-compressed.\n"
                      , *argv);
         std::exit(EXIT_FAILURE);
     }
@@ -116,10 +122,16 @@ int phase2_main(int argc, char *argv[]) {
             case 'M': seq2taxpath = optarg; break;
             case 'F': paths_file = optarg; break;
             case 'e': mode = score_scheme::ENTROPY; break;
+            case 'z': write_gz = true; break;
         }
     }
+    dbpath = argv[optind];
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
     if(wsz < 0 || wsz < k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
+    if(endswith(dbpath, ".gz")) write_gz = true;
+    if(write_gz && !endswith(dbpath, ".gz"))
+        dbpath += ".gz", LOG_INFO("Writing gzipped, but without a .gz suffix. Adding it.\n");
+    LOG_INFO("db output path: %s", dbpath.data());
     spvec_t sv(parse_spacing(spacing.data(), k));
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 2, argv + argc));
@@ -127,7 +139,7 @@ int phase2_main(int argc, char *argv[]) {
     LOG_DEBUG("Got paths\n");
     if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for final database generation.");
     if(score_scheme::LEX == mode || score_scheme::ENTROPY) {
-        LOG_INFO("Final map will be written to %s\n", argv[optind]);
+        LOG_INFO("Final map will be written to %s\n", dbpath.data());
         Spacer sp(k, wsz, sv);
         Database<khash_t(c)>  phase2_map(sp);
         // Force using hll so that we can use __sync_bool_compare_and_swap to parallelize.
@@ -156,19 +168,22 @@ int phase2_main(int argc, char *argv[]) {
         //goto fail;
         phase2_map.db_ = score_scheme::LEX == mode ? lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size)
                                                    : lca_map<score::Entropy>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size);
-        phase2_map.write(argv[optind]);
+        phase2_map.write(dbpath.data(), write_gz);
         //fail:
         kh_destroy(p, taxmap);
         return EXIT_SUCCESS;
     }
     LOG_INFO("Making minimized map\n");
-    Database<khash_t(64)> phase1_map{Database<khash_t(64)>(argv[optind])};
+    Database<khash_t(64)> phase1_map{Database<khash_t(64)>(dbpath.data())};
     Database<khash_t(c)>  phase2_map{phase1_map};
     Spacer sp(k, wsz, phase1_map.s_);
     khash_t(p) *taxmap(tax_path.empty() ? nullptr: build_parent_map(tax_path.data()));
     phase2_map.db_ = minimized_map<score::Hash>(inpaths, phase1_map.db_, seq2taxpath.data(), taxmap, sp, num_threads, start_size, canon);
+    std::string dbpath2 = argv[optind + 1];
+    if(!write_gz && endswith(dbpath2, ".gz")) write_gz = true;
+    if(write_gz && !endswith(dbpath2, ".gz")) dbpath2 += ".gz";
     // Write minimized map
-    phase2_map.write(argv[optind + 1]);
+    phase2_map.write(argv[optind + 1], write_gz);
     if(taxmap) kh_destroy(p, taxmap);
     return EXIT_SUCCESS;
 }
