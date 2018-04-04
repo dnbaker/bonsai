@@ -20,7 +20,7 @@ using std::begin;
 using std::end;
 
 int classify_main(int argc, char *argv[]) {
-    int co, num_threads(16), emit_kraken(1), emit_fastq(0), emit_all(0), chunk_size(1 << 20), per_set(32);
+    int co, num_threads(1), emit_kraken(1), emit_fastq(0), emit_all(0), chunk_size(1 << 20), per_set(32);
     bool canonicalize(true);
     std::ios_base::sync_with_stdio(false);
     std::FILE *ofp(stdout);
@@ -30,7 +30,7 @@ int classify_main(int argc, char *argv[]) {
                              "Flags:\n-o:\tRedirect output to path instead of stdout.\n"
                              "-c:\tSet chunk size. Default: %i\n"
                              "-a:\tEmit all records, not just classified.\n"
-                             "-p:\tSet number of threads. Default: 16.\n"
+                             "-p:\tSet number of threads. [1] (Set -1 to use all threads.)\n"
                              "-k:\tEmit kraken-style output.\n"
                              "-K:\tDo not emit kraken-style output.\n"
                              "-f:\tEmit fastq-style output.\n"
@@ -78,7 +78,7 @@ int classify_main(int argc, char *argv[]) {
 }
 
 int phase2_main(int argc, char *argv[]) {
-    int c, mode(score_scheme::LEX), wsz(-1), num_threads(-1), k(31);
+    int c, mode(score_scheme::LEX), wsz(-1), num_threads(1), k(31);
     bool canon(true);
     std::size_t start_size(1<<16);
     std::string spacing, tax_path, seq2taxpath, paths_file;
@@ -88,7 +88,7 @@ int phase2_main(int argc, char *argv[]) {
         usage:
         std::fprintf(stderr, "Usage: %s <flags> [tax_path if lex/ent else <phase1map.path>] <out.path> <paths>\nFlags:\n"
                      "-k: Set k.\n"
-                     "-p: Number of threads\n"
+                     "-p: Number of threads [1] (set to -1 to use all threads)\n"
                      "-t: Build for taxonomic minimizing\n-f: Build for feature minimizing\n"
                      "-F: Load paths from file provided instead further arguments on the command-line.\n"
                      "-e: Use entropy maximization.\n"
@@ -175,7 +175,7 @@ int phase2_main(int argc, char *argv[]) {
 
 
 int phase1_main(int argc, char *argv[]) {
-    int c, taxmap_preparsed(0), use_hll(0), mode(score_scheme::LEX), wsz(-1), k(31), num_threads(-1), sketch_size(24);
+    int c, taxmap_preparsed(0), use_hll(0), mode(score_scheme::LEX), wsz(-1), k(31), num_threads(1), sketch_size(24);
     bool canon(true);
     std::ios_base::sync_with_stdio(false);
     std::string spacing;
@@ -184,7 +184,7 @@ int phase1_main(int argc, char *argv[]) {
         usage:
         std::fprintf(stderr, "Usage: %s <flags> <seq2tax.path> <taxmap.path> <out.path> <paths>\nFlags:\n"
                      "-k: Set k.\n"
-                     "-p: Number of threads.\n-S: add a spacer of the format "
+                     "-p: Number of threads. [1] (Set to -1 to use all threads.)\n-S: add a spacer of the format "
                      "<int>,<int>,<int>, (...), where each integer is the number of spaces"
                      "between successive bases included in the seed. There must be precisely k - 1"
                      "elements in this list. Use this option multiple times to specify multiple seeds.\n"
@@ -217,6 +217,7 @@ int phase1_main(int argc, char *argv[]) {
             //case 'w': wsz = std::atoi(optarg); break;
         }
     }
+    if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
     if(wsz < 0) wsz = k;
     khash_t(p) *taxmap(taxmap_preparsed ? khash_load<khash_t(p)>(argv[optind + 1])
                                         : build_parent_map(argv[optind + 1]));
@@ -286,7 +287,7 @@ int metatree_usage(const char *arg) {
                          "-f: Store binary dumps in folder <arg>.\n"
                          "-L: Set an lca to restrict analysis to one portion of the subtree.\n"
                          "    Repeating this option multiple times accepts genomes which are descendents of any taxid provided by this option.\n"
-                         "-p: nthreads [1]\n"
+                         "-p: nthreads [1] (set to -1 to use all threads.)\n"
                          "-n: nthreads [1]\n"
                  , arg);
     std::exit(EXIT_FAILURE);
@@ -319,6 +320,7 @@ int metatree_main(int argc, char *argv[]) {
             case 'L': accept_lcas.push_back(std::atoi(optarg));   break;
         }
     }
+    if(num_threads <= 0) num_threads = std::thread::hardware_concurrency();
     Spacer sp(k, k, nullptr);
     omp_set_num_threads(num_threads);
     khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));
