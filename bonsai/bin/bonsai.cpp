@@ -118,6 +118,7 @@ int phase2_main(int argc, char *argv[]) {
             case 'e': mode = score_scheme::ENTROPY; break;
         }
     }
+    if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
     if(wsz < 0 || wsz < k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
     spvec_t sv(parse_spacing(spacing.data(), k));
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())

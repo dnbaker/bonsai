@@ -94,15 +94,8 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
     khash_t(64) *r64 = nullptr;
     // Update this to include tax ids in the hash map.
     size_t submitted(0), completed(0), todo(fns.size());
+    if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
     std::vector<khash_t(all)> counters(num_threads);
-    
-#if 0
-		khint_t n_buckets, size, n_occupied, upper_bound; \
-		khint32_t *flags; \
-		khkey_t *keys; \
-		khval_t *vals; \
-		mutable std::shared_mutex m;
-#endif
     std::memset(counters.data(), 0, sizeof(khash_t(all)) * counters.size());
     LOG_DEBUG("Started things\n");
     if constexpr(MapUpdater::ValSize == 8) {
