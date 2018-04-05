@@ -1,5 +1,4 @@
-#ifndef _DB_H__
-#define _DB_H__
+#pragma once
 #include <atomic>
 #include "kspp/ks.h"
 #include "encoder.h"
@@ -216,8 +215,8 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType> &c,
                       const khash_t(p) *taxmap, bseq1_t *bs, const int is_paired, std::vector<tax_t> &taxa) {
     LOG_DEBUG("starting classify_seq with bs at pointer = %p\n", static_cast<const void*>(bs));
     khiter_t ki;
-    linear::counter<tax_t, u16> hit_counts;
-    u32 ambig_count(0), missing_count(0);
+    tax_counter hit_counts;
+    u32 missing_count(0);
     tax_t taxon(0);
     ks::string bks(bs->sam, bs->l_sam);
     bks.clear();
@@ -225,30 +224,25 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType> &c,
 
     auto fn = [&] (u64 kmer) {
         //If the kmer is missing from our database, just say we don't know what it is.
-        if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_))
-            ++missing_count, taxa.push_back(0);
-        else
-            taxa.push_back(kh_val(c.db_, ki)), hit_counts.add(kh_val(c.db_, ki));
+        if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count;
+        else taxa.push_back(kh_val(c.db_, ki)), hit_counts.add(kh_val(c.db_, ki));
     };
-    LOG_DEBUG("Initialized structures.\n");
-    enc.for_each(fn, bs->seq, bs->l_seq);
-    LOG_DEBUG("Performed stuff.\n");
     // This simplification loses information about the run of congituous labels. Do these matter?
-    unsigned diff;
+    enc.for_each(fn, bs->seq, bs->l_seq);
+    unsigned ambig_count(bs->l_seq - enc.sp_.c_ + 1 - taxa.size() - missing_count);
     if(is_paired) {
         enc.for_each(fn, (bs + 1)->seq, (bs + 1)->l_seq);
-        diff = (bs + 1)->l_seq + bs->l_seq - ((enc.sp_.c_ - 1) << 1) - taxa.size();
-    } else diff = bs->l_seq - enc.sp_.c_ + 1 - taxa.size();
-    ambig_count += diff;
-    while(diff--) taxa.push_back(-1); // Consider making this just be a count.
+        ambig_count += (bs + 1)->l_seq - (enc.sp_.c_ - 1) - taxa.size() - missing_count;
+    }
 
-    LOG_DEBUG("Have set all taxa. Now to report findings\n");
     ++c.classified_[!(taxon = resolve_tree(hit_counts, taxmap))];
-    if(taxon || c.get_emit_all()) {
-        if(c.get_emit_fastq())
-            append_fastq_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks, c.get_emit_kraken(), is_paired);
-        else if(c.get_emit_kraken())
-            append_kraken_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks);
+    if(c.get_emit_all() || taxon) {
+        switch(c.output_flag_) {
+            case EMIT_ALL | FASTQ | KRAKEN: case FASTQ | KRAKEN: case FASTQ: case EMIT_ALL | FASTQ:
+                append_fastq_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks, c.get_emit_kraken(), is_paired); break;
+            case EMIT_ALL | KRAKEN: case KRAKEN:
+                append_kraken_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks); break;
+        }
     }
     LOG_DEBUG("About to return. Len of bks = %zu. len of string: %d\n", bks.size(), std::strlen(bks.data()));
     bs->l_sam = bks.size();
@@ -263,10 +257,8 @@ inline void kt_for_helper(void *data_, long index, int tid) {
     const int inc(!!data->is_paired_ + 1);
     Encoder<score::Lex> enc(data->c_.enc_);
     std::vector<tax_t> taxa;
-    for(unsigned i(index * data->per_set_),end(std::min(i + data->per_set_, data->total_));
-        i < end;
-        i += inc)
-            retstr_size += classify_seq(data->c_, enc, data->taxmap, data->bs_ + i, data->is_paired_, taxa);
+    //static_assert(std::is_same_v<unsigned, std::decay_t<decltype((data->per_set_ + static_cast<unsigned>(1)) * index)>>, "Should be true.");
+    for(unsigned i(index * data->per_set_); i < std::min((data->per_set_ + 1) * static_cast<unsigned>(index), data->total_); retstr_size += classify_seq(data->c_, enc, data->taxmap, data->bs_ + i, data->is_paired_, taxa), i += inc);
     data->retstr_size_ += retstr_size;
 }
 
@@ -419,6 +411,3 @@ static void append_taxa_runs(tax_t taxon, const std::vector<tax_t> &taxa, kstrin
 }
 
 } // namespace bns
-
-#endif // #ifndef _DB_H__
-
