@@ -21,14 +21,10 @@ public:
         FORWARD = 0,
         REVERSE = 1
     };
-#if 0
-    AdjacencyList(const AdjacencyList<T> &other) = default;
-    AdjacencyList(AdjacencyList<T> &&other)      = default;
-#endif
 
     AdjacencyList(const count::Counter<T> &counts, bool reverse=false):
         m_(0), nelem_(counts.get_nelem()), is_reverse_(reverse) {
-        // O(n^2)
+        // O(n^2), or n choose 2 operations.
         std::set<T*> ptrs;
         const auto &map(counts.get_map());
         LOG_INFO("Trying to do stuff.\n");
@@ -37,7 +33,6 @@ public:
                 ++m_;
                 auto j(i);
                 while(++j != map.end()) {
-                    LOG_DEBUG("Calling veccmp in forward\n");
                     switch(veccmp(i->first, j->first)) {
                         case 1:
                             map_[&i->first].push_back(&j->first); // i is a strict parent of j.
@@ -46,7 +41,6 @@ public:
                             map_[&j->first].push_back(&i->first); // j is a strict parent of i.
                             break;
                     }
-                    LOG_DEBUG("Called veccmp in forward\n");
                 }
             }
         } else {
@@ -54,7 +48,6 @@ public:
                 ++m_;
                 auto j(i);
                 while(++j != map.end()) {
-                    LOG_DEBUG("Calling veccmp in reverse\n");
                     switch(veccmp(i->first, j->first)) {
                         case 1:
                             map_[&j->first].push_back(&i->first); // j is a strict parent of i.
@@ -63,14 +56,11 @@ public:
                             map_[&i->first].push_back(&j->first); // i is a strict parent of j.
                             break;
                     }
-                    LOG_DEBUG("Called veccmp in reverse\n");
                 }
             }
         }
         LOG_DEBUG("About to shrink_to_fit.\n");
-        for(auto &el: map_) {
-            el.second.shrink_to_fit();
-        }
+        for(auto &el: map_) el.second.shrink_to_fit();
         LOG_DEBUG("Finished constructor.");
     }
 };

@@ -38,6 +38,15 @@ public:
         }
         gzclose(fp);
         if(destroy) kseq_destroy(ks);
+        for(auto &el: cds_) el.csum();
+    }
+    template<typename Functor>
+    void for_each(const Functor &func) const {
+        for(const auto &el: cds_) func(el);
+    }
+    template<typename Functor>
+    void for_each(const Functor &func) {
+        for(auto &el: cds_) func(el);
     }
     auto chunk_size()  const {return chunk_sz_;}
     const auto &path() const {return path_;}
