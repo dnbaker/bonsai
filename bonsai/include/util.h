@@ -148,16 +148,8 @@ KHASH_MAP_INIT_INT64(64, u64)
 KHASH_MAP_INIT_INT(p, tax_t)
 KHASH_MAP_INIT_STR(name, tax_t)
 
-//std::string rand_string(size_t n);
-//size_t count_lines(const char *fn) noexcept;
-//khash_t(name) *build_name_hash(const char *fn) noexcept;
-//void destroy_name_hash(khash_t(name) *hash) noexcept;
-//khash_t(p) *build_parent_map(const char *fn) ;
-
 // Resolve_tree is modified from Kraken 1 source code, which
 // is MIT-licensed. https://github.com/derrickwood/kraken
-//tax_t resolve_tree(const linear::counter<tax_t, u16> &hit_counts,
-//                   const khash_t(p) *parent_map) noexcept;
 
 #ifdef roundup64
 #undef roundup64
@@ -250,28 +242,33 @@ void print_khash(T *rex) noexcept {
                  rex->n_buckets, rex->n_occupied, rex->size, rex->upper_bound);
 }
 
-#define __fw(item, fp) \
-  fwrite(&(item), 1, sizeof(item), fp)
 
-#define __gz(item, fp) gzwrite(fp, static_cast<const void *>(&(item)), sizeof(item))
-
+#define __fw(item, fn) ::write(fn, static_cast<const void *>(std::addressof(item)), sizeof(item))
 template<typename T>
-size_t khash_write_impl(T *map, std::FILE *fp) noexcept {
+size_t khash_write_impl(const T *map, const int fn) noexcept {
     for(khiter_t ki(0); ki != kh_end(map); ++ki)
         if(!kh_exist(map, ki))
             kh_key(map, ki) = 0, kh_val(map, ki) = 0;
-    size_t ret = __fw(map->n_buckets, fp);
-    ret += __fw(map->n_occupied, fp);
-    ret += __fw(map->size, fp);
-    ret += __fw(map->upper_bound, fp);
-    ret += fwrite(map->flags, __ac_fsize(map->n_buckets), sizeof(*map->flags), fp);
-    ret += fwrite(map->keys, map->n_buckets, sizeof(*map->keys), fp);
-    ret += fwrite(map->vals, map->n_buckets, sizeof(*map->vals), fp);
+    size_t ret = __fw(map->n_buckets, fn);
+    ret += __fw(map->n_occupied, fn);
+    ret += __fw(map->size, fn);
+    ret += __fw(map->upper_bound, fn);
+    ret += ::write(fn, map->flags, __ac_fsize(map->n_buckets) * sizeof(*map->flags));
+    ret += ::write(fn, map->keys, map->n_buckets * sizeof(*map->keys));
+    ret += ::write(fn, map->vals, map->n_buckets * sizeof(*map->vals));
     return ret;
 }
 #undef __fw
 template<typename T>
-size_t khash_write_impl(T *map, gzFile fp) noexcept {
+size_t khash_write_impl(const T *map, std::FILE *fp) noexcept {
+    std::fflush(fp);
+    const auto ret = khash_write_impl<T>(map, fileno(fp));
+    std::fflush(fp);
+    return ret;
+}
+#define __gz(item, fp) gzwrite(fp, static_cast<const void *>(&(item)), sizeof(item))
+template<typename T>
+size_t khash_write_impl(const T *map, gzFile fp) noexcept {
     for(khiter_t ki(0); ki != kh_end(map); ++ki)
         if(!kh_exist(map, ki))
             kh_key(map, ki) = 0, kh_val(map, ki) = 0;
@@ -287,7 +284,7 @@ size_t khash_write_impl(T *map, gzFile fp) noexcept {
 #undef __gz
 
 template <typename T>
-size_t khash_write(T *map, const char *path, bool write_gz=false) noexcept {
+size_t khash_write(const T *map, const char *path, bool write_gz=false) noexcept {
     if(write_gz) {
         gzFile fp = gzopen(path, "wb");
         const auto ret = khash_write_impl(map, fp);
@@ -302,26 +299,31 @@ size_t khash_write(T *map, const char *path, bool write_gz=false) noexcept {
 
 
 template <typename T>
-T *khash_load_impl(std::FILE *fp) noexcept {
+T *khash_load_impl(const int fn) noexcept {
     T *rex((T *)std::calloc(1, sizeof(T)));
     using keytype_t = std::remove_pointer_t<decltype(rex->keys)>;
     using valtype_t = std::remove_pointer_t<decltype(rex->vals)>;
-    fread(&rex->n_buckets, 1, sizeof(rex->n_buckets), fp);
-    fread(&rex->n_occupied, 1, sizeof(rex->n_occupied), fp);
-    fread(&rex->size, 1, sizeof(rex->size), fp);
-    fread(&rex->upper_bound, 1, sizeof(rex->upper_bound), fp);
-    LOG_DEBUG("buckets: %zu. nocc: %zu. size: %zu. ub: %zu\n", (size_t)rex->n_buckets, size_t(rex->n_occupied), size_t(rex->size), size_t(rex->upper_bound));
+    ::read(fn, &rex->n_buckets, sizeof(rex->n_buckets));
+    ::read(fn, &rex->n_occupied, sizeof(rex->n_occupied));
+    ::read(fn, &rex->size, sizeof(rex->size));
+    ::read(fn, &rex->upper_bound, sizeof(rex->upper_bound));
     rex->flags = (u32 *)std::malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
+    if(!rex->flags) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", (sizeof(*rex->flags) * __ac_fsize(rex->n_buckets)), (sizeof(*rex->flags) * __ac_fsize(rex->n_buckets)) >> 30), exit(1);
     rex->keys = (keytype_t *)std::malloc(sizeof(*rex->keys) * rex->n_buckets);
     if(!rex->keys) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->keys) * rex->n_buckets, sizeof(*rex->keys) * rex->n_buckets >> 30), exit(1);
     rex->vals = (valtype_t *)std::malloc(sizeof(*rex->vals) * rex->n_buckets);
     if(!rex->vals) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->vals) * rex->n_buckets, sizeof(*rex->vals) * rex->n_buckets >> 30), exit(1);
-    LOG_DEBUG("About to read into flags at %p\n", (void *)rex->flags);
-    fread(rex->flags, __ac_fsize(rex->n_buckets), sizeof(*rex->flags), fp);
-    LOG_DEBUG("About to read into keys at %p\n", (void *)rex->keys);
-    fread(rex->keys, 1, rex->n_buckets * sizeof(*rex->keys), fp);
-    LOG_DEBUG("About to read into vals at %p\n", (void *)rex->vals);
-    fread(rex->vals, 1, rex->n_buckets * sizeof(*rex->vals), fp);
+    ::read(fn, rex->flags, __ac_fsize(rex->n_buckets) * sizeof(*rex->flags));
+    ::read(fn, rex->keys, rex->n_buckets * sizeof(*rex->keys));
+    ::read(fn, rex->vals, rex->n_buckets * sizeof(*rex->vals));
+    return rex;
+}
+
+template <typename T>
+T *khash_load_impl(std::FILE *fp) noexcept {
+    std::fflush(fp);
+    auto rex = khash_load_impl<T>(fileno(fp));
+    std::fflush(fp);
     return rex;
 }
 
@@ -432,8 +434,7 @@ template<typename T>
 std::string bitvec2str(const T &a) {
     std::string ret;
     for(auto it(a.cbegin()), eit(a.cend()); it != eit; ++it)
-        for(int j(63); j >= 0; j--)
-            ret += ((*it & (1ull << j)) != 0) + '0';
+        for(int j(63); j >= 0; ret += ((*it & (1ull << j--)) != 0) + '0');
     return ret;
 }
 
@@ -1143,13 +1144,11 @@ static lazy::vector<u64, size_t> load_binary_kmers(const char *path) {
     if(fp == nullptr) throw std::system_error(std::error_code(2, std::system_category()), std::string("Cannot open path at ") + path + ".\n");
     lazy::vector<u64, size_t> ret;
     u64 n;
-    std::fread(&n, sizeof(n), 1, fp);
+    ::read(fileno(fp), static_cast<void *>(&n), sizeof(n));
     ret.resize(n, lazy::LAZY_VEC_NOINIT);
-    auto it(ret.begin());
-    auto eit(ret.end());
-    while(std::fread(it++, sizeof(u64), 1, fp) == sizeof(u64))
-        if(unlikely(it == eit))
-            throw std::runtime_error("Read too many integers from file. Number provided (" + std::to_string(n) + ") is wrong.");
+    ssize_t nread;
+    if((nread = ::read(fileno(fp), static_cast<void *>(&ret[0]), n * sizeof(u64))) != ssize_t(n * sizeof(u64)))
+        throw std::runtime_error(ks::sprintf("Only read %zd bytes from file when expected %zu.", nread, size_t(n * sizeof(u64))).data());
     std::fclose(fp);
     return ret;
 }

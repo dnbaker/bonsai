@@ -25,7 +25,6 @@ struct ElScore {
     }
     INLINE bool operator==(const ElScore &other) const {
         return el_ == other.el_;
-        //return std::tie(score_, el_) == std::tie(other.el_, other.score_);
     }
 };
 
@@ -54,26 +53,14 @@ class QueueMap {
     INLINE void del(const PairType &el) {
         if(auto f(map_.find(el)); --f->second <= 0) map_.erase(f);
     }
-    map_iterator begin() {
-        return map_.begin();
-    }
-    const_map_iterator begin() const {
-        return map_.cbegin();
-    }
-    map_iterator end() {
-        return map_.end();
-    }
-    const_map_iterator end() const {
-        return map_.cend();
-    }
+    map_iterator       begin()       {return map_.begin();}
+    const_map_iterator begin() const {return map_.cbegin();}
+    map_iterator       end()       {return map_.end();}
+    const_map_iterator end() const {return map_.cend();}
     // Do a std::enable_if that involves moving the element if it's by reference?
     u64 next_value(const T el, const u64 score) {
         add(list_.emplace_back(el, score));
-        if(list_.size() > wsz_) {
-            //fprintf(stderr, "list size: %zu. wsz: %zu\n", list_.size(), wsz_);
-            //map_.del(list_.front());
-            del(list_.pop_front());
-        }
+        if(list_.size() > wsz_) del(list_.pop_front());
         return list_.size() == wsz_ ? map_.begin()->first.el_: BF;
         // Signal a window that is not filled by 0xFFFFFFFFFFFFFFFF
     }
