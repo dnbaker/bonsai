@@ -128,7 +128,7 @@ int phase2_main(int argc, char *argv[]) {
     }
     dbpath = argv[optind];
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
-    if(wsz < 0 || wsz < k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
+    if(wsz < k) wsz = k;
 #ifdef ZWRAP_USE_ZSTD
     const std::string suf(".zst");
 #else
