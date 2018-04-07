@@ -90,10 +90,10 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         Encoder<score::Lex> enc(sp, true);
         gzFile fp(gzopen("test/phix.fa", "rb"));
         LOG_DEBUG("Opened fp\n");
-        if(fp == nullptr) throw std::runtime_error("ZOMG fp is null for file at test/phix.fa");
+        if(fp == nullptr) RUNTIME_ERROR("ZOMG fp is null for file at test/phix.fa");
         kseq_t *ks(kseq_init(fp));
         LOG_DEBUG("Opened kseq\n");
-        if(ks == nullptr) throw std::runtime_error("ks is null for fp");
+        if(ks == nullptr) RUNTIME_ERROR("ks is null for fp");
         std::unordered_set<u64> kmers, okmers;
         u64 k(BF);
         while(kseq_read(ks) >= 0) {
@@ -127,7 +127,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
             Spacer sp(31, 31);
             Encoder<score::Entropy> enc(sp, true);
             gzFile fp(gzopen(SPACED_FN, "rb"));
-            if(fp == nullptr) throw std::runtime_error("Could not open file at "s + SPACED_FN);
+            if(fp == nullptr) RUNTIME_ERROR("Could not open file at "s + SPACED_FN);
             kseq_t *ks(kseq_init(fp));
             std::unordered_set<u64> kmers, okmers;
             u64 k(BF);
@@ -147,7 +147,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
             LOG_DEBUG("Size of each: kmers %zu, okmers %zu, olap %zu\n", kmers.size(), okmers.size(), olap);
 #if 0
             if(olap != kmers.size()) {
-                if(okmers.size() != olap) throw std::runtime_error("I can't even try to help you this is so broken.");
+                if(okmers.size() != olap) RUNTIME_ERROR("I can't even try to help you this is so broken.");
                 LOG_DEBUG("Number of missing kmers: %zu\n", size_t(kmers.size() - olap));
                 for(const auto kmer: kmers)
                     if(okmers.find(kmer) == okmers.end())
