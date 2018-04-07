@@ -545,7 +545,9 @@ struct KSeqBufferHolder {
     ~KSeqBufferHolder() {
         for(auto &ks: kseqs_) kseq_destroy_stack(ks);
     }
+    auto data() {return kseqs_.data();}
 };
+
 static size_t count_lines(const char *fn) noexcept {
     std::ifstream is(fn);
     if(!is.good()) LOG_EXIT("Could not open file at %s\n", fn);
