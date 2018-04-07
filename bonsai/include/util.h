@@ -540,7 +540,7 @@ public:
 
 #ifndef RUNTIME_ERROR
 #define RUNTIME_ERROR(msg) \
-        throw std::runtime_error(std::string('[') + __FILE__ + ':' + __PRETTY_FUNCTION__ + std::to_string(__LINE__) + "] " + msg)
+        throw std::runtime_error(std::string("[") + __FILE__ + ':' + __PRETTY_FUNCTION__ + std::to_string(__LINE__) + "] " + msg)
 #endif
 
 struct KSeqBufferHolder {
