@@ -538,6 +538,11 @@ public:
     {}
 };
 
+#ifndef RUNTIME_ERROR
+#define RUNTIME_ERROR(msg) \
+        throw std::runtime_error(std::string("[") + __FILE__ + ':' + __PRETTY_FUNCTION__ + std::to_string(__LINE__) + "] " + msg)
+#endif
+
 struct KSeqBufferHolder {
     std::vector<kseq_t> kseqs_;
     KSeqBufferHolder(size_t n) {
@@ -753,7 +758,7 @@ static khash_t(p) *build_parent_map(const char *fn) {
     }
     ki = kh_put(p, ret, 1, &khr);
     kh_val(ret, ki) = 0; // Root of the tree.
-    if(kh_size(ret) < 2) throw std::runtime_error(std::string("Failed to create taxmap from ") + fn);
+    if(kh_size(ret) < 2) RUNTIME_ERROR(std::string("Failed to create taxmap from ") + fn);
     LOG_DEBUG("Built parent map of size %zu from path %s\n", kh_size(ret), fn);
     return ret;
 }
@@ -859,11 +864,11 @@ static std::string get_firstline(const char *fn) {
     char buf[bufsz];
     std::string ret(gzgets(fp, buf, bufsz));
     if(ret.back() != '\n')
-        throw std::runtime_error(std::string("[E:get_firstline] line from ") +
-                                 fn + " did not fit in buffer of size " +
-                                 std::to_string(bufsz) +
-                                 ". Try recompiling with a larger "
-                                 "buffer or rewrite get_firstline.");
+        RUNTIME_ERROR(std::string("[E:get_firstline] line from ") +
+                                  fn + " did not fit in buffer of size " +
+                                  std::to_string(bufsz) +
+                                  ". Try recompiling with a larger "
+                                  "buffer or rewrite get_firstline.");
     ret.pop_back();
     gzclose(fp);
     return ret;
@@ -949,7 +954,7 @@ static std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(
     bool fail(false);
     for(const auto tax: sorted_taxes)
         if(lvl_map.find(tax) == lvl_map.end()) std::cerr << "Missing tax level for " << tax << '\n', fail = true;
-    if(fail) throw std::runtime_error("Failed for missin tax levels.");
+    if(fail) RUNTIME_ERROR("Failed for missin tax levels.");
 #endif
     pdqsort(sorted_taxes.begin(), sorted_taxes.end(), [&lvl_map](const tax_t a, const tax_t b) {
             try {
@@ -958,7 +963,7 @@ static std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(
                std::cerr << "Out of range: " << ex.what() << '\n';
                if(lvl_map.find(a) == lvl_map.end()) {std::cerr << "Missing tax " << a << '\n'; throw;}
                if(lvl_map.find(b) == lvl_map.end()) {std::cerr << "Missing tax " << b << '\n'; throw;}
-               throw std::runtime_error("ZOMG");
+               RUNTIME_ERROR("ZOMG");
             }
     });
 #if !NDEBUG
@@ -983,7 +988,7 @@ static std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(
             else                                     it->second.insert(tax);
         }
         // Only reach if taxid is missing from taxonomy file.
-        throw std::runtime_error(std::string("Missing parent for taxid ") + std::to_string(tax));
+        RUNTIME_ERROR(std::string("Missing parent for taxid ") + std::to_string(tax));
         loop_end:
 #if 0
         std::cerr << "Now finishing up for tax " << tax << '\n';
@@ -1008,7 +1013,7 @@ static std::unordered_map<tax_t, strlist> tax2desc_genome_map(
         else {
             if(kh_get(p, taxmap, pair.first) == kh_end(taxmap)) {
                 std::cerr << "No parent for node " << (int)pair.first << '\n';
-                throw std::runtime_error(std::string("Invalid taxid ") + std::to_string(pair.first));
+                RUNTIME_ERROR(std::string("Invalid taxid ") + std::to_string(pair.first));
             } else {
 #if 0
                 std::cerr << "Valid tax id " << kh_key(taxmap, kh_get(p, taxmap, pair.first))
@@ -1047,18 +1052,18 @@ template<> void khash_destroy(khash_t(name) *map) noexcept {destroy_name_hash(ma
 static ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unordered_map<std::string, ClassLevel> &map) {
     const char *p(strchr(line, '|'));
     if(!p || (p = strchr(p + 1, '|')) == nullptr)
-        throw std::runtime_error("Improperly formatted line");
+        RUNTIME_ERROR("Improperly formatted line");
     p = p + 2;
     const char *q(p);
     while(*q != '\t' && *q) ++q;
-    if(!*q) throw std::runtime_error("Improperly formatted line");
+    if(!*q) RUNTIME_ERROR("Improperly formatted line");
     buffer = std::string(p, q);
     auto m(map.find(buffer));
     if(m == map.end()) {
         for(const auto &pair: map) {
             std::cerr << "Key: " << pair.first << ". Value: " << static_cast<int>(pair.second) << ".\n";
         }
-        throw std::runtime_error(std::string("Unexpected field entry '") + buffer + "' for line " + line);
+        RUNTIME_ERROR(std::string("Unexpected field entry '") + buffer + "' for line " + line);
     }
     return m->second;
 }
@@ -1068,7 +1073,7 @@ static std::unordered_map<tax_t, ClassLevel> get_tax_depths(const khash_t(p) *ta
     std::ifstream ifs(path);
     std::string buffer;
     tax_t t;
-    if(!ifs.good()) throw std::runtime_error(std::string("could not open file at ") + path);
+    if(!ifs.good()) RUNTIME_ERROR(std::string("could not open file at ") + path);
     for(std::string line; std::getline(ifs, line);) {
         t = atoi(line.data());
         if(kh_get(p, taxmap, t) == kh_end(taxmap)) continue;
@@ -1148,7 +1153,7 @@ static lazy::vector<u64, size_t> load_binary_kmers(const char *path) {
     ret.resize(n, lazy::LAZY_VEC_NOINIT);
     ssize_t nread;
     if((nread = ::read(fileno(fp), static_cast<void *>(&ret[0]), n * sizeof(u64))) != ssize_t(n * sizeof(u64)))
-        throw std::runtime_error(ks::sprintf("Only read %zd bytes from file when expected %zu.", nread, size_t(n * sizeof(u64))).data());
+        RUNTIME_ERROR(ks::sprintf("Only read %zd bytes from file when expected %zu.", nread, size_t(n * sizeof(u64))).data());
     std::fclose(fp);
     return ret;
 }

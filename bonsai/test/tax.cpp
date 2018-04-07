@@ -21,7 +21,7 @@ TEST_CASE("tax") {
         while((len = getline(&buf, &size, fp)) >= 0) {
             buf[len - 1] = '\0';
             paths.emplace_back(prefix + buf);
-            if(!std::ifstream(paths.back()).good()) throw std::runtime_error(ks::sprintf("Could not open path at %s\n", paths.back().data()).data());
+            if(!std::ifstream(paths.back()).good()) RUNTIME_ERROR(ks::sprintf("Could not open path at %s\n", paths.back().data()).data());
         }
         std::free(buf);
         std::fclose(fp);

@@ -98,7 +98,7 @@ public:
       canonicalize_(canonicalize) {
         LOG_DEBUG("Canonicalizing: %s\n", canonicalize_ ? "True": "False");
         if(std::is_same_v<ScoreType, score::Entropy> && sp_.unspaced() && !sp_.unwindowed()) {
-            if(data_) throw std::runtime_error("No data pointer must be provided for lex::Entropy minimization.");
+            if(data_) RUNTIME_ERROR("No data pointer must be provided for lex::Entropy minimization.");
             data_ = static_cast<void *>(new CircusEnt(sp_.k_));
         }
     }
@@ -289,14 +289,14 @@ public:
     template<typename Functor>
     void for_each_canon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
-        if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        if(!fp) RUNTIME_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         for_each_canon<Functor>(func, fp, ks);
         gzclose(fp);
     }
     template<typename Functor>
     void for_each_uncanon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
-        if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        if(!fp) RUNTIME_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         for_each_uncanon<Functor>(func, fp, ks);
         gzclose(fp);
     }
@@ -312,7 +312,7 @@ public:
     template<typename Functor>
     void for_each(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
-        if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        if(!fp) RUNTIME_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         if(canonicalize_) for_each_canon<Functor>(func, fp, ks);
         else              for_each_uncanon<Functor>(func, fp, ks);
         gzclose(fp);
