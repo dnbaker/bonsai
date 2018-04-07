@@ -551,6 +551,12 @@ struct KSeqBufferHolder {
     ~KSeqBufferHolder() {
         for(auto &ks: kseqs_) kseq_destroy_stack(ks);
     }
+    kseq_t &operator[](size_t index) {
+        return kseqs_[index];
+    }
+    const kseq_t &operator[](size_t index) const {
+        return kseqs_[index];
+    }
     auto data() {return kseqs_.data();}
 };
 
