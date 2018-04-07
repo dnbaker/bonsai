@@ -20,7 +20,7 @@ using std::begin;
 using std::end;
 
 int classify_main(int argc, char *argv[]) {
-    int co, num_threads(16), emit_kraken(1), emit_fastq(0), emit_all(0), chunk_size(1 << 20), per_set(32);
+    int co, num_threads(1), emit_kraken(1), emit_fastq(0), emit_all(0), chunk_size(1 << 20), per_set(32);
     bool canonicalize(true);
     std::ios_base::sync_with_stdio(false);
     std::FILE *ofp(stdout);
@@ -30,7 +30,7 @@ int classify_main(int argc, char *argv[]) {
                              "Flags:\n-o:\tRedirect output to path instead of stdout.\n"
                              "-c:\tSet chunk size. Default: %i\n"
                              "-a:\tEmit all records, not just classified.\n"
-                             "-p:\tSet number of threads. Default: 16.\n"
+                             "-p:\tSet number of threads. [1] (Set -1 to use all threads.)\n"
                              "-k:\tEmit kraken-style output.\n"
                              "-K:\tDo not emit kraken-style output.\n"
                              "-f:\tEmit fastq-style output.\n"
@@ -77,18 +77,24 @@ int classify_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
+bool endswith(const std::string &path, const std::string &suf) {
+    return std::equal(std::crbegin(suf), std::crend(suf), std::crbegin(path));
+}
+
 int phase2_main(int argc, char *argv[]) {
-    int c, mode(score_scheme::LEX), wsz(-1), num_threads(-1), k(31);
+    int c, mode(score_scheme::LEX), wsz(-1), num_threads(1), k(31);
     bool canon(true);
+    WRITE write_fmt = UNCOMPRESSED;
     std::size_t start_size(1<<16);
     std::string spacing, tax_path, seq2taxpath, paths_file;
     std::ios_base::sync_with_stdio(false);
+    std::string dbpath;
     // TODO: update documentation for tax_path and seq2taxpath options.
     if(argc < 4) {
         usage:
         std::fprintf(stderr, "Usage: %s <flags> [tax_path if lex/ent else <phase1map.path>] <out.path> <paths>\nFlags:\n"
                      "-k: Set k.\n"
-                     "-p: Number of threads\n"
+                     "-p: Number of threads [1] (set to -1 to use all threads)\n"
                      "-t: Build for taxonomic minimizing\n-f: Build for feature minimizing\n"
                      "-F: Load paths from file provided instead further arguments on the command-line.\n"
                      "-e: Use entropy maximization.\n"
@@ -98,6 +104,7 @@ int phase2_main(int argc, char *argv[]) {
                      "-T: Set tax_path.\n"
                      "-M: Set seq2taxpath.\n"
                      "-S: Set spacing.\n"
+                     "-z: Write gzip-compressed.\n"
                      , *argv);
         std::exit(EXIT_FAILURE);
     }
@@ -116,9 +123,21 @@ int phase2_main(int argc, char *argv[]) {
             case 'M': seq2taxpath = optarg; break;
             case 'F': paths_file = optarg; break;
             case 'e': mode = score_scheme::ENTROPY; break;
+            case 'z': write_fmt = ZLIB; break;
         }
     }
+    dbpath = argv[optind];
+    if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
     if(wsz < 0 || wsz < k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
+#ifdef ZWRAP_USE_ZSTD
+    const std::string suf(".zst");
+#else
+    const std::string suf(".gz");
+#endif
+    if(endswith(dbpath, suf))     write_fmt = ZLIB;
+    if(write_fmt && !endswith(dbpath, ".gz"))
+        dbpath += suf, LOG_INFO("Writing gzipped, but without a .gz suffix. Adding it.\n");
+    LOG_INFO("db output path: %s", dbpath.data());
     spvec_t sv(parse_spacing(spacing.data(), k));
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 2, argv + argc));
@@ -126,7 +145,7 @@ int phase2_main(int argc, char *argv[]) {
     LOG_DEBUG("Got paths\n");
     if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for final database generation.");
     if(score_scheme::LEX == mode || score_scheme::ENTROPY) {
-        LOG_INFO("Final map will be written to %s\n", argv[optind]);
+        LOG_INFO("Final map will be written to %s\n", dbpath.data());
         Spacer sp(k, wsz, sv);
         Database<khash_t(c)>  phase2_map(sp);
         // Force using hll so that we can use __sync_bool_compare_and_swap to parallelize.
@@ -148,33 +167,37 @@ int phase2_main(int argc, char *argv[]) {
         }
 #endif
         LOG_INFO("Estimated cardinality: %zu\n", hash_size);
-        if(tax_path.empty()) throw std::runtime_error("Tax path required. [See -T option.]");
+        if(tax_path.empty()) RUNTIME_ERROR("Tax path required. [See -T option.]");
         LOG_INFO("Parent map bulding from %s\n", tax_path.data());
         khash_t(p) *taxmap(build_parent_map(tax_path.data()));
         //LOG_INFO("I just feel like stopping this executable now for testing.\n");
         //goto fail;
         phase2_map.db_ = score_scheme::LEX == mode ? lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size)
                                                    : lca_map<score::Entropy>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size);
-        phase2_map.write(argv[optind]);
+        phase2_map.write(dbpath.data(), write_fmt);
         //fail:
         kh_destroy(p, taxmap);
         return EXIT_SUCCESS;
     }
     LOG_INFO("Making minimized map\n");
-    Database<khash_t(64)> phase1_map{Database<khash_t(64)>(argv[optind])};
+    Database<khash_t(64)> phase1_map{Database<khash_t(64)>(dbpath.data())};
     Database<khash_t(c)>  phase2_map{phase1_map};
     Spacer sp(k, wsz, phase1_map.s_);
     khash_t(p) *taxmap(tax_path.empty() ? nullptr: build_parent_map(tax_path.data()));
     phase2_map.db_ = minimized_map<score::Hash>(inpaths, phase1_map.db_, seq2taxpath.data(), taxmap, sp, num_threads, start_size, canon);
+    std::string dbpath2 = argv[optind + 1];
+    if(endswith(dbpath2, suf))     write_fmt = ZLIB;
+    if(write_fmt && !endswith(dbpath2, ".gz"))
+        dbpath2 += suf, LOG_INFO("Writing gzipped, but without a .gz suffix. Adding it.\n");
     // Write minimized map
-    phase2_map.write(argv[optind + 1]);
+    phase2_map.write(dbpath2.data(), write_fmt);
     if(taxmap) kh_destroy(p, taxmap);
     return EXIT_SUCCESS;
 }
 
 
 int phase1_main(int argc, char *argv[]) {
-    int c, taxmap_preparsed(0), use_hll(0), mode(score_scheme::LEX), wsz(-1), k(31), num_threads(-1), sketch_size(24);
+    int c, taxmap_preparsed(0), use_hll(0), mode(score_scheme::LEX), wsz(-1), k(31), num_threads(1), sketch_size(24);
     bool canon(true);
     std::ios_base::sync_with_stdio(false);
     std::string spacing;
@@ -183,7 +206,7 @@ int phase1_main(int argc, char *argv[]) {
         usage:
         std::fprintf(stderr, "Usage: %s <flags> <seq2tax.path> <taxmap.path> <out.path> <paths>\nFlags:\n"
                      "-k: Set k.\n"
-                     "-p: Number of threads.\n-S: add a spacer of the format "
+                     "-p: Number of threads. [1] (Set to -1 to use all threads.)\n-S: add a spacer of the format "
                      "<int>,<int>,<int>, (...), where each integer is the number of spaces"
                      "between successive bases included in the seed. There must be precisely k - 1"
                      "elements in this list. Use this option multiple times to specify multiple seeds.\n"
@@ -216,6 +239,7 @@ int phase1_main(int argc, char *argv[]) {
             //case 'w': wsz = std::atoi(optarg); break;
         }
     }
+    if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
     if(wsz < 0) wsz = k;
     khash_t(p) *taxmap(taxmap_preparsed ? khash_load<khash_t(p)>(argv[optind + 1])
                                         : build_parent_map(argv[optind + 1]));
@@ -265,7 +289,7 @@ int hist_main(int argc, char *argv[]) {
  }
 
 int err_main(int argc, char *argv[]) {
-    std::fputs("No valid subcommand provided. Options: phase1, phase2, classify, hll, metatree, dist, sketch, setdist\n", stderr);
+    std::fputs("No valid subcommand provided. Options: prebuild/p1/phase, build/p2/phase2, classify, metatree\n", stderr);
     return EXIT_FAILURE;
 }
 
@@ -285,7 +309,7 @@ int metatree_usage(const char *arg) {
                          "-f: Store binary dumps in folder <arg>.\n"
                          "-L: Set an lca to restrict analysis to one portion of the subtree.\n"
                          "    Repeating this option multiple times accepts genomes which are descendents of any taxid provided by this option.\n"
-                         "-p: nthreads [1]\n"
+                         "-p: nthreads [1] (set to -1 to use all threads.)\n"
                          "-n: nthreads [1]\n"
                  , arg);
     std::exit(EXIT_FAILURE);
@@ -318,6 +342,7 @@ int metatree_main(int argc, char *argv[]) {
             case 'L': accept_lcas.push_back(std::atoi(optarg));   break;
         }
     }
+    if(num_threads <= 0) num_threads = std::thread::hardware_concurrency();
     Spacer sp(k, k, nullptr);
     omp_set_num_threads(num_threads);
     khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));

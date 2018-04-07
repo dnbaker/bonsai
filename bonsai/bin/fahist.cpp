@@ -48,14 +48,11 @@ void kfunc(void *data_, long index, int id) {
 
 int main(int argc, char **argv) {
     std::size_t nthreads(16);
-
     gzFile ofp(gzdopen(STDOUT_FILENO, "wT"));
-
     std::unordered_map<std::size_t, std::size_t> data;
     std::vector<std::map<std::size_t, std::size_t>> maps;
     std::vector<std::string> paths;
     paths.reserve(argc - 1);
-    
     for(char **p(argv + 1); *p; ++p) {
         if(**p == '-') {
             if((*p)[1] == 'f') {
@@ -85,7 +82,6 @@ int main(int argc, char **argv) {
     lens.reserve(data.size());
     for(const auto &pair: data) lens.emplace_back(pair.first);
     SORT(lens.begin(), lens.end());
-    for(const auto len: lens)
-        gzprintf(ofp, "#Len: %zu\tCount: %zu\n", len, data[len]);
+    for(const auto len: lens) gzprintf(ofp, "#Len: %zu\tCount: %zu\n", len, data[len]);
     gzclose(ofp);
 }

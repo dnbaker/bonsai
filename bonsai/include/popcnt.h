@@ -95,52 +95,45 @@ inline unsigned bitdiff(T a, T b) {
 }
 
 namespace detail {
-union SIMDHolder {
-
-public:
 
 #if HAS_AVX_512
-    using SType = __m512i;
-#define popcnt_fn(x) popcnt512(x)
+#define popcnt_fn(x) popcnt512(x.simd_)
 #elif __AVX2__
-#define popcnt_fn(x) popcnt256(x)
-    using SType = __m256i;
+#define popcnt_fn(x) popcnt256(x.simd_)
+#elif __SSE2__
+#define popcnt_fn(x) (popcount(x.arr_[0]) + popcount(x.arr_[1]))
 #else
-#define USE_UNROLLED_BITDIFF
+#error("Need SSE2")
 #endif
-    void add_sum(unsigned &sum) const {
-        unroller<0, n64> ur;
-        ur(*this, sum);
-    }
-    template<size_t iternum, size_t niter_left> struct unroller {
-        void operator()(const SIMDHolder &ref, unsigned &sum) const {
-            sum += ref.val[iternum];
-            unroller<iternum+1, niter_left-1>()(ref, sum);
-        }
-    };
-    template<size_t iternum> struct unroller<iternum, 0> {
-        void operator()(const SIMDHolder &ref, unsigned &sum) const {}
-    };
-
-    static constexpr size_t nels = sizeof(SType) / sizeof(uint8_t);
-    static constexpr size_t n64  = sizeof(SType) / sizeof(uint64_t);
-    using u8arr = uint8_t[nels];
-    SType val;
-    u8arr vals;
-};
 
 inline unsigned unrolled_bitdiff(const uint64_t *a, const uint64_t *b, size_t nbytes);
 inline unsigned byte_bitdiff(const uint8_t *a, const uint8_t *b, size_t nelem) {
-    size_t nblocks(nelem / (sizeof(SIMDHolder) / sizeof(uint8_t)));
+    using SIMDHolder = vec::SIMDTypes<u64>::VType;
+    size_t nblocks(nelem / (sizeof(SIMDHolder)));
     const SIMDHolder *pa((const SIMDHolder *)a), *pb((const SIMDHolder *)b);
-    SIMDHolder tmp, sum;
-    tmp.val = (pa++)->val ^ (pb++)->val; // I'm being lazy here and assuming it's aligned, but I have that guarantee from the aligned vectors.
-    sum.val = popcnt_fn(tmp.val);
+    SIMDHolder tmp;
+#if HAS_AVX_512 || __AVX2__
+    SIMDHolder
+#else
+    unsigned
+#endif
+        sum;
+    tmp = (pa++)->simd_ ^ (pb++)->simd_; // I'm being lazy here and assuming it's aligned, but I have that guarantee from the aligned vectors.
+    sum = popcnt_fn(tmp);
     while(--nblocks) { // Prefix decrement to account for the fact that I used one block in initialization.
-        tmp.val = (pa++)->val ^ (pb++)->val, sum.val += popcnt_fn(tmp.val);
+        tmp.simd_ = (pa++)->simd_ ^ (pb++)->simd_;
+#if HAS_AVX_512 || __AVX2__
+        sum.simd_ += popcnt_fn(tmp);
+#else
+        sum += popcnt_fn(tmp);
+#endif
     }
     unsigned ret = unrolled_bitdiff((const uint64_t *)pa, (const uint64_t *)pb, nelem & ((nelem / (sizeof(SIMDHolder) / sizeof(uint8_t))) - 1));
-    sum.add_sum(ret);
+#if HAS_AVX_512 || __AVX2__
+    sum.for_each([&](const std::uint64_t &x) {ret += x;});
+#else
+    ret += sum;
+#endif
     return ret;
 }
 

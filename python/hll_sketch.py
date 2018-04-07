@@ -8,7 +8,7 @@ import sys
 
 def sketch_call(tup):
     ss, ks, paths = tup
-    cstr = "bonsai sketch -p1 -k%i -S%i %s" % (ss, ks, " ".join(paths))
+    cstr = "flashdans sketch -p1 -k%i -S%i %s" % (ss, ks, " ".join(paths))
     subprocess.check_call(shlex.split(cstr))
 
 

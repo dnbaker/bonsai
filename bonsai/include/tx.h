@@ -138,7 +138,7 @@ public:
             const tax_t id(get_taxid(get_cstr(path), name_map_));
             if(id == tax_t(-1)) {
                 if(panic_on_undef_)
-                    throw std::runtime_error(ks::sprintf("Tax id not found in path %s. Skipping. This can be fixed by augmenting the name dictionary file.\n", get_cstr(path)).data());
+                    RUNTIME_ERROR(ks::sprintf("Tax id not found in path %s. Skipping. This can be fixed by augmenting the name dictionary file.\n", get_cstr(path)).data());
                 else
                     LOG_WARNING("Tax id not found in path %s. Skipping. This can be fixed by augmenting the name dictionary file.\n", get_cstr(path));
                 continue;
@@ -154,7 +154,7 @@ public:
     }
     void write_name_map(const char *fn) {
         gzFile fp(gzopen(fn, "wb"));
-        if(fp == nullptr) throw std::runtime_error(ks::sprintf("Could not open file at %s for writing", fn).data());
+        if(fp == nullptr) RUNTIME_ERROR(ks::sprintf("Could not open file at %s for writing", fn).data());
         gzbuffer(fp, 1 << 18);
         for(const auto &pair: newid_path_map) {
             gzprintf(fp, "%s\t%u\n", pair.second.data(), pair.first);
@@ -163,7 +163,7 @@ public:
     }
     void write_old_to_new(const char *fn) {
         gzFile fp(gzopen(fn, "wb"));
-        if(fp == nullptr) throw std::runtime_error(ks::sprintf("Could not open file at %s for writing", fn).data());
+        if(fp == nullptr) RUNTIME_ERROR(ks::sprintf("Could not open file at %s for writing", fn).data());
         gzbuffer(fp, 1 << 18);
         gzprintf(fp, "#Old\tNew\n");
         for(khiter_t ki(0); ki < kh_end(old_to_new_); ++ki)
@@ -173,7 +173,7 @@ public:
     }
     void write_new_to_old(const char *fn) {
         gzFile fp(gzopen(fn, "wb"));
-        if(fp == nullptr) throw std::runtime_error(ks::sprintf("Could not open file at %s for writing", fn).data());
+        if(fp == nullptr) RUNTIME_ERROR(ks::sprintf("Could not open file at %s for writing", fn).data());
         gzbuffer(fp, 1 << 18);
         for(const auto &el: old_ids_) gzwrite(fp, (void *)&el, sizeof(el));
         gzclose(fp);
@@ -216,12 +216,12 @@ static std::vector<tax_t> build_new2old_map(const char *path, size_t bufsz) {
 static INLINE std::vector<tax_t> build_new2old_map(const std::string &str, size_t bufsz) { return build_new2old_map(str.data(), bufsz);}
 static std::vector<tax_t> binary_new2old_map(const char *fn) {
     gzFile fp(gzopen(fn, "wb"));
-    if(fp == nullptr) throw std::runtime_error(ks::sprintf("Could not open file at %s\n", fn).data());
+    if(fp == nullptr) RUNTIME_ERROR(ks::sprintf("Could not open file at %s\n", fn).data());
     tax_t tmp;
     std::vector<tax_t> ret;
     const size_t fsize(filesize(fn));
-    if(fsize == 0) throw std::runtime_error(ks::sprintf("Empty file at %s", fn).data());
-    if(fsize & (sizeof(tax_t) - 1)) throw std::runtime_error(ks::sprintf("Wrong number of bytes %s (%zu/%zu)", fn, fsize, fsize & 3u).data());
+    if(fsize == 0) RUNTIME_ERROR(ks::sprintf("Empty file at %s", fn).data());
+    if(fsize & (sizeof(tax_t) - 1)) RUNTIME_ERROR(ks::sprintf("Wrong number of bytes %s (%zu/%zu)", fn, fsize, fsize & 3u).data());
     ret.reserve(fsize >> 2);
     int c;
     while((c = gzread(fp, (void *)&tmp, sizeof(tmp))) == Z_OK) ret.push_back(tmp);

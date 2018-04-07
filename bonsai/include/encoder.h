@@ -98,7 +98,7 @@ public:
       canonicalize_(canonicalize) {
         LOG_DEBUG("Canonicalizing: %s\n", canonicalize_ ? "True": "False");
         if(std::is_same_v<ScoreType, score::Entropy> && sp_.unspaced() && !sp_.unwindowed()) {
-            if(data_) throw std::runtime_error("No data pointer must be provided for lex::Entropy minimization.");
+            if(data_) RUNTIME_ERROR("No data pointer must be provided for lex::Entropy minimization.");
             data_ = static_cast<void *>(new CircusEnt(sp_.k_));
         }
     }
@@ -171,15 +171,14 @@ public:
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_windowed(const Functor &func) {
         const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
-        u64 min = 0;
-        unsigned filled = 0;
-        u64 kmer, score;
+        u64 min, kmer, score;
+        unsigned filled;
         windowed_loop_start:
+        min = filled = 0;
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 min <<= 2;
                 if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF) && likely(sp_.k_ < 31 || cstr_lut[s_[pos_ - 1]] != 'T')) {
-                    filled = min = 0;
                     goto windowed_loop_start;
                 }
                 ++filled;
@@ -197,17 +196,16 @@ public:
         // NEVER CALL THIS DIRECTLY.
         // This contains instructions for generating uncanonicalized but windowed entropy-minimized kmers.
         const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
-        u64 min = 0;
-        unsigned filled = 0;
-        u64 kmer, score;
+        u64 min, kmer, score;
+        unsigned filled;
         CircusEnt &ent = *(static_cast<CircusEnt *>(data_));
         windowed_loop_start:
+        filled = min = 0;
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 min <<= 2;
                 if(unlikely((min |= cstr_lut[s_[pos_]]) == BF) && likely(sp_.k_ < 31 || cstr_lut[s_[pos_]] != 'T')) {
                     ++pos_;
-                    filled = min = 0;
                     goto windowed_loop_start;
                 }
                 ent.push(s_[pos_]);
@@ -236,12 +234,9 @@ public:
                  for_each_canon_unwindowed(func);
             } else {
                 if constexpr(std::is_same_v<ScoreType, score::Entropy>) {
-                    if(sp_.unspaced()) {
-                        for_each_canon_unspaced_windowed_entropy_(func);
-                    } else for_each_canon_windowed(func);
-                } else {
-                    for_each_canon_windowed(func);
-                }
+                    if(sp_.unspaced()) for_each_canon_unspaced_windowed_entropy_(func);
+                    else               for_each_canon_windowed(func);
+                } else for_each_canon_windowed(func);
             }
         } else {
             // Note that an entropy-based score calculation can be sped up for this case.
@@ -249,9 +244,9 @@ public:
             if(sp_.unspaced()) {
                 if(sp_.unwindowed()) for_each_uncanon_unspaced_unwindowed(func);
                 else {
-                    if constexpr(std::is_same_v<ScoreType, score::Entropy>) {
+                    if constexpr(std::is_same_v<ScoreType, score::Entropy>)
                         for_each_uncanon_unspaced_windowed_entropy_(func);
-                    } else for_each_uncanon_unspaced_windowed(func);
+                    else for_each_uncanon_unspaced_windowed(func);
                 }
             } else for_each_uncanon_spaced(func);
         }
@@ -277,13 +272,8 @@ public:
     template<typename Functor>
     void for_each_canon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
-        if(ks == nullptr) {
-            ks = kseq_init(fp);
-            destroy = true;
-        } else {
-            kseq_assign(ks, fp);
-            destroy = false;
-        }
+        if(ks == nullptr) ks = kseq_init(fp), destroy = true;
+        else            kseq_assign(ks, fp), destroy = false;
         //LOG_DEBUG("Destroy is %s. I have just assigned kseq's f->f field to the pointer %p\n", destroy ? "true": "false", fp);
         for_each_canon<Functor>(func, ks);
         if(destroy) kseq_destroy(ks);
@@ -291,42 +281,30 @@ public:
     template<typename Functor>
     void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
-        if(ks == nullptr) {
-            ks = kseq_init(fp);
-            destroy = true;
-        } else {
-            kseq_assign(ks, fp);
-            destroy = false;
-        }
+        if(ks == nullptr) ks = kseq_init(fp), destroy = true;
+        else            kseq_assign(ks, fp), destroy = false;
         for_each_uncanon<Functor>(func, ks);
         if(destroy) kseq_destroy(ks);
     }
     template<typename Functor>
     void for_each_canon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
-        if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        if(!fp) RUNTIME_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         for_each_canon<Functor>(func, fp, ks);
         gzclose(fp);
     }
     template<typename Functor>
     void for_each_uncanon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
-        if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        if(!fp) RUNTIME_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         for_each_uncanon<Functor>(func, fp, ks);
         gzclose(fp);
     }
     template<typename Functor>
     void for_each(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
-        if(ks == nullptr) {
-            std::fprintf(stderr, "ks is null, creating\n");
-            ks = kseq_init(fp);
-            destroy = true;
-        } else {
-            std::fprintf(stderr, "ks is not null, assigning\n");
-            kseq_assign(ks, fp);
-            destroy = false;
-        }
+        if(ks == nullptr) ks = kseq_init(fp), destroy = true;
+        else            kseq_assign(ks, fp), destroy = false;
         if(canonicalize_) for_each_canon<Functor>(func, ks);
         else              for_each_uncanon<Functor>(func, ks);
         if(destroy) kseq_destroy(ks);
@@ -334,7 +312,7 @@ public:
     template<typename Functor>
     void for_each(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
-        if(!fp) throw std::runtime_error(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        if(!fp) RUNTIME_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         if(canonicalize_) for_each_canon<Functor>(func, fp, ks);
         else              for_each_uncanon<Functor>(func, fp, ks);
         gzclose(fp);
@@ -585,13 +563,11 @@ void fill_hll(hll::hll_t &ret, const std::vector<std::string> &paths,
     } else {
         LOG_DEBUG("Starting parallel\n");
         std::mutex m;
-        std::vector<kseq_t> kseqs;
+        KSeqBufferHolder kseqs(num_threads);
         std::vector<hll::hll_t> hlls;
-        while(kseqs.size() < (unsigned)num_threads) kseqs.emplace_back(kseq_init_stack());
         while(hlls.size() < (unsigned)num_threads) hlls.emplace_back(ret.clone());
         est_helper helper{space, paths, m, np, canon, data, hlls, kseqs.data()};
         kt_for(num_threads, &est_helper_fn<ScoreType>, &helper, paths.size());
-        for(auto &kseq: kseqs) kseq_destroy_stack(kseq);
         for(auto &hll: hlls) ret += hll;
     }
     
