@@ -67,7 +67,7 @@ ZSTD_INCLUDE=$(patsubst %,-I%,$(ZSTD_INCLUDE_DIRS))
 ZFLAGS=-DZWRAP_USE_ZSTD=1
 ZCOMPILE_FLAGS= $(ZFLAGS) -lzstd
 ALL_ZOBJS=$(ZOBJS) $(ZW_OBJS)
-INCLUDE=-Iclhash/include -I. -I.. -I../libpopcnt -I.. -Iinclude -I../circularqueue $(ZSTD_INCLUDE) $(INCPLUS) -I../hll/vec -I../pdqsort
+INCLUDE=-Iclhash/include -I. -I.. -I../libpopcnt -I.. -Iinclude -I../circularqueue $(ZSTD_INCLUDE) $(INCPLUS) -I../filtered_hll/hll/vec -I../filtered_hll -I../pdqsort
 
 
 
@@ -77,9 +77,9 @@ all: update $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX) $(ZEX)
 #	cd hll && make CXX=$(CXX) && cp libhll.a ..
 
 update:
-	for i in circularqueue clhash cppitertools hll klib kraken kspp libpopcnt linear pdqsort tinythreadpp zstd; \
-        do cd ../$$i && git checkout master && git pull && cd ../bonsai; \
-    done
+	for i in circularqueue clhash cppitertools filtered_hll klib kraken kspp libpopcnt linear pdqsort tinythreadpp zstd; \
+        do cd ../$$i && git checkout master && git pull && cd ../bonsai; done; \
+    cd ../filtered_hll/hll &&  git checkout master && git pull && cd .. && cd cruel_bloom && git checkout master && git pull && cd ../..
 
 obj: $(OBJS) $(DOBJS) $(ZOBJS) $(ZW_OBJS)
 
@@ -93,7 +93,7 @@ clhash.o: ../clhash/src/clhash.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DNDEBUG -c $< -o $@ $(LIB)
 
 %.do: %.c
-	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB)
+	$(CC) $(CFLAGS) $(INCLUDE) -g -c $< -o $@ $(LIB)
 
 %.zo: %.c
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIB) $(ZCOMPILE_FLAGS)
@@ -108,7 +108,7 @@ test/%.zo: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
 
 %.do: %.cpp
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -g -c $< -o $@ $(LIB)
 
 %.zo: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD)  -c $< -o $@ -DNDEBUG $(LIB) $(ZCOMPILE_FLAGS)
@@ -136,7 +136,7 @@ src/popcnt.zo: src/popcnt.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -static-libstdc++ -static-libgcc -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) $(LIB)
 
 %_d: bin/%.cpp $(DOBJS)
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(DOBJS) $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(DOBJS) $< -g -o $@ $(LIB)
 
 bonsai/fahist: src/fahist.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) ../klib/kthread.o $< -o $@ -lz

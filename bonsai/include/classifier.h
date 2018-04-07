@@ -214,6 +214,7 @@ template<typename ScoreType>
 unsigned classify_seq(const ClassifierGeneric<ScoreType> &c,
                       Encoder<ScoreType> &enc,
                       const khash_t(p) *taxmap, bseq1_t *bs, const int is_paired, std::vector<tax_t> &taxa) {
+    LOG_DEBUG("starting classify_seq with bs at pointer = %p\n", static_cast<const void*>(bs));
     khiter_t ki;
     linear::counter<tax_t, u16> hit_counts;
     u32 ambig_count(0), missing_count(0);
@@ -229,17 +230,19 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType> &c,
         else
             taxa.push_back(kh_val(c.db_, ki)), hit_counts.add(kh_val(c.db_, ki));
     };
+    LOG_DEBUG("Initialized structures.\n");
     enc.for_each(fn, bs->seq, bs->l_seq);
+    LOG_DEBUG("Performed stuff.\n");
     // This simplification loses information about the run of congituous labels. Do these matter?
-    auto diff = bs->l_seq - enc.sp_.c_ + 1 - taxa.size();
-    taxa.reserve((taxa.size() + diff) << 1);
-    ambig_count += diff;
-    while(diff--) taxa.push_back(-1);
-    if(is_paired) enc.for_each(fn, (bs + 1)->seq, (bs + 1)->l_seq);
-    diff = (bs + 1)->l_seq - enc.sp_.c_ + 1;
+    unsigned diff;
+    if(is_paired) {
+        enc.for_each(fn, (bs + 1)->seq, (bs + 1)->l_seq);
+        diff = (bs + 1)->l_seq + bs->l_seq - ((enc.sp_.c_ - 1) << 1) - taxa.size();
+    } else diff = bs->l_seq - enc.sp_.c_ + 1 - taxa.size();
     ambig_count += diff;
     while(diff--) taxa.push_back(-1); // Consider making this just be a count.
 
+    LOG_DEBUG("Have set all taxa. Now to report findings\n");
     ++c.classified_[!(taxon = resolve_tree(hit_counts, taxmap))];
     if(taxon || c.get_emit_all()) {
         if(c.get_emit_fastq())
@@ -247,8 +250,10 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType> &c,
         else if(c.get_emit_kraken())
             append_kraken_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks);
     }
-    bs->sam          = bks.release();
-    return bs->l_sam = bks.size();
+    LOG_DEBUG("About to return. Len of bks = %zu. len of string: %d\n", bks.size(), std::strlen(bks.data()));
+    bs->l_sam = bks.size();
+    bs->sam = bks.release();
+    return bs->l_sam;
 }
 
 
@@ -278,7 +283,14 @@ inline void classify_seqs(const Classifier &c, const khash_t(p) *taxmap, bseq1_t
     kt_for(c.nt_, &kt_for_helper, (void *)&data, chunk_size / per_set + 1);
     cks.resize(retstr_size.load());
     const int inc((is_paired != 0) + 1);
+#if !NDEBUG
+    for(u32 i(0); i < chunk_size; i += inc) {
+        cks.putsn_(bs[i].sam, bs[i].l_sam);
+        LOG_DEBUG("sam1: %s. len: %d. chunk size: %u\n", bs[i].sam, bs[i].l_sam, chunk_size);
+    }
+#else
     for(u32 i(0); i < chunk_size; cks.putsn_(bs[i].sam, bs[i].l_sam), i += inc);
+#endif
     cks.terminate();
 }
 
@@ -303,16 +315,23 @@ inline void process_dataset(const Classifier &c, const khash_t(p) *taxmap, const
         LOG_WARNING("Could not get any sequences from file, fyi.\n");
         goto fail; // Wheeeeee
     }
+    classify_seqs(c, taxmap, dd.seqs_, cks, nseq, per_set, is_paired);
+    std::fprintf(stderr, "nseq: %i\n", nseq);
     max_nseq = std::max(max_nseq, nseq);
-    while((dd.seqs_ = bseq_realloc_read(chunk_size, &nseq, (void *)ks1, (void *)ks2, dd.seqs_))) {
+    while((dd.seqs_ = bseq_realloc_read(chunk_size, &nseq, (void *)ks1, (void *)ks2, dd.seqs_)) && nseq) {
         LOG_INFO("Read %i seqs with chunk size %u\n", nseq, chunk_size);
         max_nseq = std::max(max_nseq, nseq);
         // Classify
         classify_seqs(c, taxmap, dd.seqs_, cks, nseq, per_set, is_paired);
         // Write out
-        cks.write(fn);
-        cks.clear();
+        LOG_DEBUG("Emitting batch. str: %s", cks.data());
+        if(cks.size() > (1ull << 16)) {
+            cks.write(fn);
+            cks.clear();
+        }
     }
+    cks.write(fn);
+    cks.clear();
     // No use parallelizing the frees, there's a global lock on the freeing anyhow.
     for(int i(0); i < max_nseq; bseq_destroy(dd.seqs_ + i++));
     free(dd.seqs_);

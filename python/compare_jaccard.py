@@ -50,12 +50,12 @@ def main():
     for path in paths:
         if not os.path.isfile(path):
             raise RuntimeError("Path %s is not a file. Abort!" % path)
-    cstr = ("bonsai dist -p%i -o %s "
+    cstr = ("flashdans dist -p%i -o %s "
             "-O %s %s") % (nthreads, sketch_sizes,
                            sketch_dists, " ".join(paths))
     print(cstr)
     subprocess.check_call(shlex.split(cstr))
-    cstr = ("bonsai setdist -p%i -o %s "
+    cstr = ("flashdans setdist -p%i -o %s "
             "-O %s %s") % (nthreads, set_sizes, set_dists, " ".join(paths))
     print(cstr)
     subprocess.check_call(shlex.split(cstr))

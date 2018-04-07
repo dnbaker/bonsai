@@ -122,7 +122,7 @@ def main():
                               default=multiprocessing.cpu_count(), type=int)
     shell_parser.add_argument("--sketcher", "-S",
                               help=("Use Mash to calculate distances "
-                                    "rather than 'bonsai dist'"),
+                                    "rather than 'flashdans dist'"),
                               choices=("mash", "flashdans", "sourmash"),
                               default="flashdans")
     shell_parser.add_argument('genomes', metavar='paths', type=str, nargs='+',
