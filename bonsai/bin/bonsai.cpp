@@ -167,7 +167,7 @@ int phase2_main(int argc, char *argv[]) {
         }
 #endif
         LOG_INFO("Estimated cardinality: %zu\n", hash_size);
-        if(tax_path.empty()) throw std::runtime_error("Tax path required. [See -T option.]");
+        if(tax_path.empty()) RUNTIME_ERROR("Tax path required. [See -T option.]");
         LOG_INFO("Parent map bulding from %s\n", tax_path.data());
         khash_t(p) *taxmap(build_parent_map(tax_path.data()));
         //LOG_INFO("I just feel like stopping this executable now for testing.\n");
