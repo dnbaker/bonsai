@@ -8,6 +8,7 @@
 #include "klib/kstring.h"
 #include "hash.h"
 #include "hll/hll.h"
+#include "filtered_hll/filterhll.h"
 #include "entropy.h"
 #include "kseq_declare.h"
 #include "qmap.h"
@@ -532,6 +533,20 @@ u64 count_cardinality(const std::vector<std::string> paths,
 }
 
 template<typename SketchType>
+hll::hll_t &get_hll(SketchType &s);
+template<>
+hll::hll_t &get_hll<hll::hll_t>(hll::hll_t &s) {return s;}
+template<>
+hll::hll_t &get_hll<fhll::fhll_t>(fhll::fhll_t &s) {return s.hll();}
+
+template<typename SketchType> const hll::hll_t &get_hll(const SketchType &s);
+
+template<>
+const hll::hll_t &get_hll<hll::hll_t>(const hll::hll_t &s) {return s;}
+template<>
+const hll::hll_t &get_hll<fhll::fhll_t>(const fhll::fhll_t &s) {return s.hll();}
+
+template<typename SketchType>
 struct est_helper {
     const Spacer                      &sp_;
     const std::vector<std::string> &paths_;
@@ -566,11 +581,12 @@ void fill_sketch(SketchType &ret, const std::vector<std::string> &paths,
         LOG_DEBUG("Starting parallel\n");
         std::mutex m;
         KSeqBufferHolder kseqs(num_threads);
-        std::vector<hll::hll_t> hlls;
-        while(hlls.size() < (unsigned)num_threads) hlls.emplace_back(ret.clone());
-        est_helper<SketchType> helper{space, paths, m, np, canon, data, hlls, kseqs.data()};
+        std::vector<SketchType> sketches;
+        while(sketches.size() < (unsigned)num_threads) sketches.emplace_back(ret.clone());
+        est_helper<SketchType> helper{space, paths, m, np, canon, data, sketches, kseqs.data()};
         kt_for(num_threads, &est_helper_fn<SketchType, ScoreType>, &helper, paths.size());
-        for(auto &hll: hlls) ret += hll;
+        auto &rhll = get_hll(ret);
+        for(auto &sketch: sketches) rhll += get_hll(sketch);
     }
     
 }
