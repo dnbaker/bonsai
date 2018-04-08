@@ -473,13 +473,19 @@ void add_to_hll(hll::hll_t &hll, kseq_t *ks, Encoder<ScoreType> &enc) {
     }
 }
 
+template<typename ScoreType, typename SketchType>
+void fill_lmers(SketchType &sketch, const std::string &path, const Spacer &space, bool canonicalize=true,
+                void *data=nullptr, kseq_t *ks=nullptr) {
+    LOG_DEBUG("Canonicalizing: %s\n", canonicalize ? "true": "false");
+    sketch.not_ready();
+    Encoder<ScoreType> enc(nullptr, 0, space, data, canonicalize);
+    enc.for_each([&](u64 min) {sketch.addh(min);}, path.data(), ks);
+}
+
 template<typename ScoreType>
 void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &space, bool canonicalize=true,
                     void *data=nullptr, kseq_t *ks=nullptr) {
-    LOG_DEBUG("Canonicalizing: %s\n", canonicalize ? "true": "false");
-    hll.not_ready();
-    Encoder<ScoreType> enc(nullptr, 0, space, data, canonicalize);
-    enc.for_each([&](u64 min) {hll.addh(min);}, path.data(), ks);
+    fill_lmers<ScoreType>(hll, path, space, canonicalize, data, nullptr);
 }
 
 #define SUB_CALL \
@@ -531,50 +537,61 @@ u64 count_cardinality(const std::vector<std::string> paths,
     return ret;
 }
 
+template<typename SketchType>
+hll::hll_t &get_hll(SketchType &s);
+template<>
+hll::hll_t &get_hll<hll::hll_t>(hll::hll_t &s) {return s;}
+template<>
+hll::hll_t &get_hll<fhll::fhll_t>(fhll::fhll_t &s) {return s.hll();}
+
+template<typename SketchType> const hll::hll_t &get_hll(const SketchType &s);
+
+template<>
+const hll::hll_t &get_hll<hll::hll_t>(const hll::hll_t &s) {return s;}
+template<>
+const hll::hll_t &get_hll<fhll::fhll_t>(const fhll::fhll_t &s) {return s.hll();}
+
+template<typename SketchType>
 struct est_helper {
     const Spacer                      &sp_;
     const std::vector<std::string> &paths_;
     std::mutex                         &m_;
-    const u64                       np_;
+    const u64                          np_;
     const bool                      canon_;
     void                            *data_;
-    std::vector<hll::hll_t>         &hlls_;
+    std::vector<SketchType>         &hlls_;
     kseq_t                            *ks_;
 };
 
-template<typename ScoreType=score::Lex>
+template<typename SketchType, typename ScoreType=score::Lex>
 void est_helper_fn(void *data_, long index, int tid) {
-    est_helper &h(*(est_helper *)(data_));
-    hll_fill_lmers<ScoreType>(h.hlls_[tid], h.paths_[index], h.sp_, h.canon_, h.data_, h.ks_ + tid);
+    est_helper<SketchType> &h(*(est_helper<SketchType> *)(data_));
+    fill_lmers<ScoreType, SketchType>(h.hlls_[tid], h.paths_[index], h.sp_, h.canon_, h.data_, h.ks_ + tid);
 }
 
-template<typename ScoreType=score::Lex>
-void fill_hll(hll::hll_t &ret, const std::vector<std::string> &paths,
+template<typename SketchType, typename ScoreType=score::Lex>
+void fill_sketch(SketchType &ret, const std::vector<std::string> &paths,
               unsigned k, uint16_t w, const spvec_t &spaces, bool canon=true,
               void *data=nullptr, int num_threads=1, u64 np=23, kseq_t *ks=nullptr) {
     // Default to using all available threads if num_threads is negative.
-#if 0
-    LOG_DEBUG("Filling hll of %zu/%zu size, %zu paths, k%u, w%u, data %p, nt %u, sketch size %zu",
-              ret.size(), ret.p(), paths.size(), k, w, data, num_threads, np);
-    LOG_DEBUG("Spacer: %s\n", ::bns::str(spaces).data());
-#endif
     if(num_threads < 0) {
-        num_threads = sysconf(_SC_NPROCESSORS_ONLN);
-        LOG_WARNING("Number of threads was negative and has been adjusted to all available threads (%i).\n", num_threads);
+        num_threads = std::thread::hardware_concurrency();
+        LOG_INFO("Number of threads was negative and has been adjusted to all available threads (%i).\n", num_threads);
     }
     const Spacer space(k, w, spaces);
     if(num_threads <= 1) {
         LOG_DEBUG("Starting serial\n");
-        for(u64 i(0); i < paths.size(); hll_fill_lmers<ScoreType>(ret, paths[i++], space, canon, data, ks));
+        for(u64 i(0); i < paths.size(); fill_lmers<ScoreType, SketchType>(ret, paths[i++], space, canon, data, ks));
     } else {
         LOG_DEBUG("Starting parallel\n");
         std::mutex m;
         KSeqBufferHolder kseqs(num_threads);
-        std::vector<hll::hll_t> hlls;
-        while(hlls.size() < (unsigned)num_threads) hlls.emplace_back(ret.clone());
-        est_helper helper{space, paths, m, np, canon, data, hlls, kseqs.data()};
-        kt_for(num_threads, &est_helper_fn<ScoreType>, &helper, paths.size());
-        for(auto &hll: hlls) ret += hll;
+        std::vector<SketchType> sketches;
+        while(sketches.size() < (unsigned)num_threads) sketches.emplace_back(ret.clone());
+        est_helper<SketchType> helper{space, paths, m, np, canon, data, sketches, kseqs.data()};
+        kt_for(num_threads, &est_helper_fn<SketchType, ScoreType>, &helper, paths.size());
+        auto &rhll = get_hll(ret);
+        for(auto &sketch: sketches) rhll += get_hll(sketch);
     }
     
 }
@@ -595,7 +612,7 @@ hll::hll_t make_hll(const std::vector<std::string> &paths,
                 unsigned k, uint16_t w, spvec_t spaces, bool canon=true,
                 void *data=nullptr, int num_threads=1, u64 np=23, kseq_t *ks=false, hll::EstimationMethod estim=hll::EstimationMethod::ERTL_MLE, uint16_t jestim=hll::JointEstimationMethod::ERTL_JOINT_MLE, bool clamp=true) {
     hll::hll_t master(np, estim, (hll::JointEstimationMethod)jestim, 1, clamp);
-    fill_hll(master, paths, k, w, spaces, canon, data, num_threads, np, ks);
+    fill_sketch<hll::hll_t, ScoreType>(master, paths, k, w, spaces, canon, data, num_threads, np, ks);
     return master;
 }
 
