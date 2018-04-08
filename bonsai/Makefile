@@ -77,7 +77,7 @@ all: update $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX) $(ZEX)
 #	cd hll && make CXX=$(CXX) && cp libhll.a ..
 
 update:
-	for i in circularqueue clhash cppitertools filtered_hll klib kraken kspp libpopcnt linear pdqsort tinythreadpp zstd; \
+	for i in circularqueue clhash cppitertools filtered_hll klib kspp libpopcnt linear pdqsort tinythreadpp zstd; \
         do cd ../$$i && git checkout master && git pull && cd ../bonsai; done; \
     cd ../filtered_hll/hll &&  git checkout master && git pull && cd .. && cd cruel_bloom && git checkout master && git pull && cd ../..
 
@@ -153,8 +153,7 @@ zunit: $(ZOBJS) $(ZTEST_OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDE) $(ZTEST_OBJS) $(LD) $(ALL_ZOBJS) -o $@ $(LIB) $(ZCOMPILE_FLAGS)
 
 clean:
-	rm -f $(ZOBJS) $(ZTEST_OBJS) $(ZW_OBJS) $(OBJS) $(DEX) $(ZEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o \
-	&& cd ../hll && make clean && cd ../bonsai
+	rm -f $(ZOBJS) $(ZTEST_OBJS) $(ZW_OBJS) $(OBJS) $(DEX) $(ZEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o
 
 mostlyclean:
 	rm -f $(ZOBJS) $(ZTEST_OBJS) $(ZW_OBJS) $(OBJS) $(DEX) $(ZEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o
