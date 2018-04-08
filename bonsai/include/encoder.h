@@ -8,6 +8,7 @@
 #include "klib/kstring.h"
 #include "hash.h"
 #include "hll/hll.h"
+#include "filtered_hll/filterhll.h"
 #include "entropy.h"
 #include "kseq_declare.h"
 #include "qmap.h"
@@ -331,6 +332,11 @@ public:
 
     template<typename Target>
     void add(hll::hll_t &hll, const Target &target, kseq_t *ks=nullptr) {
+        this->for_each([&](u64 min) {hll.addh(min);}, target, ks);
+    }
+
+    template<typename Target, typename HashType>
+    void add(fhll::fhllbase_t<HashType> &hll, const Target &target, kseq_t *ks=nullptr) {
         this->for_each([&](u64 min) {hll.addh(min);}, target, ks);
     }
 
