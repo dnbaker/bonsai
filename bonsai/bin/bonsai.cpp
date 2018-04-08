@@ -128,7 +128,7 @@ int phase2_main(int argc, char *argv[]) {
     }
     dbpath = argv[optind];
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
-    if(wsz < 0 || wsz < k) LOG_EXIT("Window size must be set and >= k for phase2.\n");
+    if(wsz < k) wsz = k;
 #ifdef ZWRAP_USE_ZSTD
     const std::string suf(".zst");
 #else
@@ -137,7 +137,7 @@ int phase2_main(int argc, char *argv[]) {
     if(endswith(dbpath, suf))     write_fmt = ZLIB;
     if(write_fmt && !endswith(dbpath, ".gz"))
         dbpath += suf, LOG_INFO("Writing gzipped, but without a .gz suffix. Adding it.\n");
-    LOG_INFO("db output path: %s", dbpath.data());
+    LOG_INFO("db output path: %s\n", dbpath.data());
     spvec_t sv(parse_spacing(spacing.data(), k));
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
                                                        : std::vector<std::string>(argv + optind + 2, argv + argc));
