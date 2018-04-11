@@ -40,6 +40,3 @@
 [submodule "hll"]
 	path = hll
 	url = https://github.com/dnbaker/hll
-[submodule "filtered_hll"]
-	path = filtered_hll
-	url = https://github.com/dnbaker/filtered_hll
