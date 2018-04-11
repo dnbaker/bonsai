@@ -74,12 +74,12 @@ public:
     std::unordered_map<u64, bitvec_t> fill(const kgset_t &set) {
         std::unordered_map<u64, bitvec_t> tmp;
         const unsigned len((set.size() + 63) >> 6);
-        khash_t(all) *h;
-        const auto &vec(set.get_core());
+        const khash_t(all) *h;
+        const auto &vec(set.core());
         LOG_DEBUG("Size of set: %zu\n", set.size());
 
         for(size_t i(0); i < set.size(); ++i) {
-            h = vec[i];
+            h = &vec[i];
             for(khiter_t ki(0); ki != kh_end(h); ++ki) {
                 if(kh_exist(h, ki)) {
                     auto m(tmp.find(kh_key(h, ki)));

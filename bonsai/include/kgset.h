@@ -5,7 +5,7 @@
 namespace bns {
 
 struct kg_data {
-    std::vector<khash_t(all) *> &core_;
+    std::vector<khash_t(all)>   &core_;
     std::vector<std::string>   &paths_;
     const Spacer                  &sp_;
     const khash_t(all)    *acceptable_;
@@ -13,7 +13,7 @@ struct kg_data {
 };
 
 struct kg_list_data {
-    std::vector<khash_t(all) *> &core_;
+    std::vector<khash_t(all)>   &core_;
     const std::vector<const std::forward_list<std::string>*> &fl_;
     const Spacer                  &sp_;
     const khash_t(all)    *acceptable_;
@@ -22,7 +22,7 @@ struct kg_list_data {
 
 static void kg_helper(void *data_, long index, int tid) {
     kg_data *data((kg_data *)data_);
-    khash_t(all) *hash(data->core_[index]);
+    khash_t(all) *hash(&data->core_[index]);
     int khr;
     Encoder<score::Lex> enc(data->sp_, data->canon_);
     LOG_INFO("Getting kmers from %s with index %ld\n", data->paths_[index].data(), index);
@@ -39,7 +39,7 @@ static void kg_list_helper(void *data_, long index, int tid) {
     kg_list_data &data(*(kg_list_data *)data_);
     auto &list(*data.fl_[index]);
     LOG_INFO("Size of list: %zu. Performing for index %ld of %zu\n", size(list), index, data.core_.size());
-    khash_t(all) *hash(data.core_[index]);
+    khash_t(all) *hash(&data.core_[index]);
     int khr;
     Encoder<score::Lex> enc(data.sp_, data.canon_);
     enc.for_each([&](u64 min) {
@@ -50,11 +50,11 @@ static void kg_list_helper(void *data_, long index, int tid) {
 
 class kgset_t {
 
-    std::vector<khash_t(all) *> core_;
+    std::vector<khash_t(all)>    core_;
     std::vector<std::string>    paths_;
     const khash_t(all)         *acceptable_;
     const std::unordered_map<u32, std::forward_list<std::string>> *fl_;
-    std::vector<tax_t>         taxes_;
+    std::vector<tax_t>          taxes_;
 
 public:
     void fill(std::vector<std::string> &paths, const Spacer &sp, bool canonicalize=true, int num_threads=-1) {
@@ -86,13 +86,13 @@ public:
         kt_for(num_threads, &kg_list_helper, (void *)&data, core_.size());
     }
     const auto &get_taxes()                        const {return taxes_;} // Who'd want that?
-    const std::vector<khash_t(all) *> &get_core()  const {return core_;}
-    const std::vector<std::string>    &get_paths() const {return paths_;}
+    const std::vector<khash_t(all)> &core()        const {return core_;}
+    const std::vector<std::string> &paths()        const {return paths_;}
     // Encoding constructors
     kgset_t(typename std::vector<std::string>::const_iterator begin, typename std::vector<std::string>::const_iterator end,
             const Spacer &sp, bool canonicalize=true, int num_threads=-1, const khash_t(all) *acc=nullptr): paths_(begin, end), acceptable_(acc), fl_(nullptr) {
         core_.reserve(end - begin);
-        for(size_t i(0), end(paths_.size()); i != end; ++i) core_.emplace_back(kh_init(all));
+        for(size_t i(0), end(paths_.size()); i != end; ++i) core_.emplace_back(khash_t(all){0,0,0,0,0,0,0});
         fill(paths_, sp, canonicalize, num_threads);
     }
     kgset_t(const std::vector<std::string> &paths, const Spacer &sp, bool canonicalize=true, int num_threads=-1, const khash_t(all) *acc=nullptr):
@@ -105,25 +105,25 @@ public:
         LOG_DEBUG("Acc? %p\n", (void *)acc);
         if(list.size() == 0) LOG_EXIT("List size is 0\n");
         core_.reserve(list.size());
-        while(core_.size() < list.size()) core_.emplace_back(kh_init(all));
-        assert(core_.size() > 0);
+        while(core_.size() < list.size()) core_.emplace_back(khash_t(all){0,0,0,0,0,0,0});
+        assert(core_.size());
         fill(fl_, sp, canonicalize, num_threads);
     }
 
     ~kgset_t() {
-        for(auto i: core_) khash_destroy(i);
+        for(auto &i: core_) std::free(i.keys), std::free(i.vals), std::free(i.flags);
     }
     size_t size() const {return core_.size();}
 
     size_t weight() const {
         if(!size()) return 0;
-        size_t ret(kh_size(core_[0]));
-        for(size_t i(1), e(core_.size()); i < e; ++i) ret += kh_size(core_[i]);
+        size_t ret(kh_size(&core_[0]));
+        for(size_t i(1), e(core_.size()); i < e; ++i) ret += kh_size(&core_[i]);
         return ret;
     }
     void print_weights(std::FILE *fp=stderr) const {
-        for(const auto kh: core_)
-            std::fprintf(fp, "Occupancy of %zu\n", kh_size(kh));
+        for(const auto &kh: core_)
+            std::fprintf(fp, "Occupancy of %zu\n", kh_size(&kh));
     }
 };
 
