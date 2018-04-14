@@ -65,7 +65,7 @@ STATEXZ=$(patsubst %,%_sz,$(EX))
 ZSTD_INCLUDE_DIRS=../zstd/zlibWrapper ../zstd/lib/common ../zstd/lib
 ZSTD_INCLUDE=$(patsubst %,-I%,$(ZSTD_INCLUDE_DIRS))
 ZFLAGS=-DZWRAP_USE_ZSTD=1
-ZCOMPILE_FLAGS= $(ZFLAGS) -lzstd
+ZCOMPILE_FLAGS= $(ZFLAGS)
 ALL_ZOBJS=$(ZOBJS) $(ZW_OBJS)
 INCLUDE=-Iclhash/include -I. -I.. -I../libpopcnt -I.. -Iinclude -I../circularqueue $(ZSTD_INCLUDE) $(INCPLUS) -I../hll/vec -I../hll -I../pdqsort
 
@@ -104,6 +104,9 @@ test/%.o: test/%.cpp
 test/%.zo: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(ZCOMPILE_FLAGS)
 
+../zlib/libz.a:
+	cd ../zlib && ./configure && make && cd ../bonsai
+
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
 
@@ -128,12 +131,11 @@ src/popcnt.zo: src/popcnt.cpp
 %_s: bin/%.cpp $(OBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) -static-libstdc++ -static-libgcc -DNDEBUG $< -o $@ $(LIB)
 
-
 %_z: bin/%.cpp $(ALL_ZOBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) $(LIB)
 
-%_sz: bin/%.cpp $(ALL_ZOBJS)
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -static-libstdc++ -static-libgcc -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) $(LIB)
+%_sz: bin/%.cpp $(ALL_ZOBJS) ../zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -static-libstdc++ -static-libgcc -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) ../zlib/libz.a
 
 %_d: bin/%.cpp $(DOBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(DOBJS) $< -g -o $@ $(LIB)
