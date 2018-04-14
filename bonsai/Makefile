@@ -3,6 +3,7 @@ CXX=g++
 CC=gcc
 
 GMATCH=$(findstring g++,$(CXX))
+GIT_VERSION := $(shell git describe --abbrev=4 --always)
 
 CLHASH_CHECKOUT = "&& git checkout master"
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
@@ -27,9 +28,9 @@ OPT_MINUS_OPENMP= -O3 -funroll-loops\
 	  -pipe -fno-strict-aliasing -march=native -mpclmul $(FLAGS) $(EXTRA)
 OPT=$(OPT_MINUS_OPENMP) -fopenmp
 XXFLAGS=-fno-rtti
-CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS)
-CXXFLAGS_MINUS_OPENMP=$(OPT_MINUS_OPENMP) $(XXFLAGS) -std=c++1z $(WARNINGS) -Wno-cast-align -Wno-gnu-zero-variadic-macro-arguments
-CCFLAGS=$(OPT) $(CFLAGS) -std=c11 $(WARNINGS)
+CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS) -DBONSAI_VERSION=\"$(GIT_VERSION)\"
+CXXFLAGS_MINUS_OPENMP=$(OPT_MINUS_OPENMP) $(XXFLAGS) -std=c++1z $(WARNINGS) -Wno-cast-align -Wno-gnu-zero-variadic-macro-arguments -DBONSAI_VERSION=\"$(GIT_VERSION)\"
+CCFLAGS=$(OPT) $(CFLAGS) -std=c11 $(WARNINGS) -DBONSAI_VERSION=\"$(GIT_VERSION)\"
 LIB=-lz
 LD=-L. $(EXTRA_LD)
 
@@ -77,9 +78,8 @@ all: update $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX) $(ZEX)
 #	cd hll && make CXX=$(CXX) && cp libhll.a ..
 
 update:
-	for i in circularqueue clhash cppitertools filtered_hll klib kspp libpopcnt linear pdqsort tinythreadpp zstd; \
-        do cd ../$$i && git checkout master && git pull && cd ../bonsai; done; \
-    cd ../filtered_hll/hll &&  git checkout master && git pull && cd .. && cd cruel_bloom && git checkout master && git pull && cd ../..
+	for i in circularqueue clhash cppitertools hll klib kspp libpopcnt linear pdqsort tinythreadpp zstd; \
+        do cd ../$$i && git checkout master && git pull && cd ../bonsai; done;
 
 obj: $(OBJS) $(DOBJS) $(ZOBJS) $(ZW_OBJS)
 
