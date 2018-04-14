@@ -40,3 +40,6 @@
 [submodule "hll"]
 	path = hll
 	url = https://github.com/dnbaker/hll
+[submodule "zlib"]
+	path = zlib
+	url = https://github.com/madler/zlib
