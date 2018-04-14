@@ -289,7 +289,7 @@ int hist_main(int argc, char *argv[]) {
  }
 
 int err_main(int argc, char *argv[]) {
-    std::fputs("No valid subcommand provided. Options: prebuild/p1/phase, build/p2/phase2, classify, metatree\n", stderr);
+    std::fprintf(stderr, "[bonsai:%s] No valid subcommand provided. Options: prebuild/p1/phase, build/p2/phase2, classify, metatree\n", BONSAI_VERSION);
     return EXIT_FAILURE;
 }
 
@@ -443,6 +443,10 @@ int main(int argc, char *argv[]) {
         {"metatree", metatree_main},
         {"classify", classify_main}
     };
+    if(std::find_if(argv, argv + argc, [&](char *s) {return std::strcmp("-v", s) == 0 || std::strcmp("--version", s) == 0;}) != argv + argc) {
+        std::fprintf(stdout, "bonsai|%s\n", BONSAI_VERSION);
+        return EXIT_SUCCESS;
+    }
     return (argc > 1 && md.find(argv[1]) != md.end() ? md.find(argv[1])->second
                                                      : err_main)(argc - 1, argv + 1);
 }
