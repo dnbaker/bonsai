@@ -97,11 +97,7 @@ TEST_CASE("hll") {
         for(size_t j = 0; j < niter; ++j) {
             const size_t val(1ull << pair.second), hsz(pair.first);
             aes::AesCtr<uint64_t, 8> gen(mt() + j * (j + 1));
-#if ENABLE_HLL_DEVELOP
             hll::hlf_t hlf(16, gen(), hsz - 4);
-#else
-            hll::dev::hlf_t hlf(16, gen(), hsz - 4);
-#endif
             for(size_t i(0); i < val; ++i) hlf.addh(gen());
             if(std::abs(hlf.report() - val) > (1.03896 / std::sqrt(1ull << pair.first) * val)) {
                 fprintf(stderr, "Warning: Above expected variance for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
@@ -150,9 +146,10 @@ TEST_CASE("phll") {
 
 TEST_CASE("Invert Wang") {
     u64 r;
+    std::mt19937_64 mt;
     for(size_t i{0}; i < 10000uL; ++i) {
         REQUIRE(irving_inv_hash(wang_hash(i)) == i);
-        r = rand64();
+        r = mt();
         REQUIRE(irving_inv_hash(wang_hash(r)) == r);
         REQUIRE(irving_inv_hash(wang_hash(r)) == r);
     }
