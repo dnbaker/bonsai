@@ -129,13 +129,13 @@ src/popcnt.zo: src/popcnt.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) -DNDEBUG $< -o $@ $(LIB)
 
 %_s: bin/%.cpp $(OBJS)
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) -static-libstdc++ -static-libgcc -DNDEBUG $< -o $@ $(LIB)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) -static-libstdc++ -static-libgcc -DNDEBUG $< -o $@ ../zlib/libz.a
 
 %_z: bin/%.cpp $(ALL_ZOBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) $(LIB)
 
 %_sz: bin/%.cpp $(ALL_ZOBJS) ../zlib/libz.a
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -static-libstdc++ -static-libgcc -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) ../zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -static-libstdc++ -static-libgcc -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) -lz
 
 %_d: bin/%.cpp $(DOBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(DOBJS) $< -g -o $@ $(LIB)
