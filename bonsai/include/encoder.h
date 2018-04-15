@@ -538,18 +538,17 @@ u64 count_cardinality(const std::vector<std::string> paths,
 }
 
 template<typename SketchType>
-hll::hll_t &get_hll(SketchType &s);
+inline hll::hll_t &get_hll(SketchType &s);
 template<>
-hll::hll_t &get_hll<hll::hll_t>(hll::hll_t &s) {return s;}
+inline hll::hll_t &get_hll<hll::hll_t>(hll::hll_t &s) {return s;}
 template<>
-hll::hll_t &get_hll<fhll::fhll_t>(fhll::fhll_t &s) {return s.hll();}
+inline hll::hll_t &get_hll<fhll::fhll_t>(fhll::fhll_t &s) {return s.hll();}
 
-template<typename SketchType> const hll::hll_t &get_hll(const SketchType &s);
-
+template<typename SketchType> inline const hll::hll_t &get_hll(const SketchType &s);
 template<>
-const hll::hll_t &get_hll<hll::hll_t>(const hll::hll_t &s) {return s;}
+inline const hll::hll_t &get_hll<hll::hll_t>(const hll::hll_t &s) {return s;}
 template<>
-const hll::hll_t &get_hll<fhll::fhll_t>(const fhll::fhll_t &s) {return s.hll();}
+inline const hll::hll_t &get_hll<fhll::fhll_t>(const fhll::fhll_t &s) {return s.hll();}
 
 template<typename SketchType>
 struct est_helper {
