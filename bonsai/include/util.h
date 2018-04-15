@@ -4,34 +4,35 @@
 #    undef NDEBUG
 #  endif
 #endif
-#include "kspp/ks.h"
 #include <algorithm>
 #include <cassert>
 #include <chrono>
 #include <cinttypes>
-#include "clhash/include/clhash.h"
 #include <cstdio>
 #include <cstring>
 #include <forward_list>
 #include <fstream>
 #include <functional>
-#include "khash64.h"
-#include "klib/kstring.h"
-#include <kseq_declare.h>
-#include "lazy/vector.h"
 #include <limits>
-#include "linear/linear.h"
-#include "logutil.h"
 #include <map>
-#include "popcnt.h"
 #include <random>
-#include "sample_gen.h"
 #include <set>
 #include <sstream>
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <zlib.h>
+
+#include "kspp/ks.h"
+#include "clhash/include/clhash.h"
+#include "khash64.h"
+#include "klib/kstring.h"
+#include "kseq_declare.h"
+#include "lazy/vector.h"
+#include "linear/linear.h"
+#include "logutil.h"
+#include "popcnt.h"
+#include "sample_gen.h"
 
 #ifdef __GNUC__
 #  ifndef likely
@@ -158,13 +159,16 @@ KHASH_MAP_INIT_STR(name, tax_t)
 // Modified from bit-twiddling hacks to work with 64-bit integers.
 template<typename T>
 static INLINE auto roundup64(T x) noexcept {
-    kroundup64(x);
+    --x;
+    x |= x>>1;
+    x |= x>>2;
+    x |= x>>4;
+    x |= x>>8;
+    x |= x>>16;
+    x |= x>>32;
+    ++x;
     return x;
 }
-
-static std::mt19937_64 __mt__(1337);
-
-INLINE u64 rand64() noexcept {return __mt__();}
 
 template <typename T>
 void khash_destroy(T *map) noexcept {

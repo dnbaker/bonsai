@@ -6,6 +6,7 @@
 #include <string>
 #include "libpopcnt.h"
 #include "hll/hll.h"
+#include "vec/vec.h"
 
 
 #ifndef DO_DUFF
@@ -108,7 +109,7 @@ namespace detail {
 
 inline unsigned unrolled_bitdiff(const uint64_t *a, const uint64_t *b, size_t nbytes);
 inline unsigned byte_bitdiff(const uint8_t *a, const uint8_t *b, size_t nelem) {
-    using SIMDHolder = vec::SIMDTypes<u64>::VType;
+    using SIMDHolder = typename vec::SIMDTypes<::std::uint64_t>::VType;
     size_t nblocks(nelem / (sizeof(SIMDHolder)));
     const SIMDHolder *pa((const SIMDHolder *)a), *pb((const SIMDHolder *)b);
     SIMDHolder tmp;
