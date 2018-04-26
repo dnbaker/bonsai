@@ -34,7 +34,7 @@ using std::size_t;
   } while (0)
 
 
-template<typename GeneratedType=uint64_t, size_t UNROLL_COUNT=4, typename=std::enable_if_t<std::is_integral<GeneratedType>::value>>
+template<typename GeneratedType=uint64_t, size_t UNROLL_COUNT=4, typename=std::enable_if_t<std::is_integral_v<GeneratedType>>>
 class AesCtr {
     static const size_t AESCTR_ROUNDS = 10;
     uint8_t state_[sizeof(__m128i) * UNROLL_COUNT];
@@ -84,13 +84,15 @@ public:
     AesCtr(uint64_t seedval=0) {
         seed(seedval);
     }
+    void generate_new_values() {
+        aes_unroll_impl<0, UNROLL_COUNT>()(work, *this);
+        aes_unroll_impl<1, AESCTR_ROUNDS - 1>().template round_and_enc<UNROLL_COUNT>(work, *this);
+        aes_unroll_impl<0, UNROLL_COUNT>().add_store(work, *this);
+        offset_ = 0;
+    }
     result_type operator()() {
-        if (__builtin_expect(offset_ >= sizeof(__m128i) * UNROLL_COUNT, 0)) {
-            aes_unroll_impl<0, UNROLL_COUNT>()(work, *this);
-            aes_unroll_impl<1, AESCTR_ROUNDS - 1>().template round_and_enc<UNROLL_COUNT>(work, *this);
-            aes_unroll_impl<0, UNROLL_COUNT>().add_store(work, *this);
-            offset_ = 0;
-        }
+        if (__builtin_expect(offset_ >= sizeof(__m128i) * UNROLL_COUNT, 0))
+            generate_new_values(); // sets offset_ to 0.
         result_type ret;
         std::memcpy(&ret, state_ + offset_, sizeof(ret));
         offset_ += sizeof(result_type);
@@ -131,6 +133,8 @@ public:
         _mm_store_si128((__m128i *)ret, _mm_aesenclast_si128(tmp, seed_[AESCTR_ROUNDS]));
         return ret[offset_];
     }
+    static constexpr size_t BUFSIZE = sizeof(state_);
+    const __m128i *buf() const {return state_;}
 };
 #undef AES_ROUND
 
