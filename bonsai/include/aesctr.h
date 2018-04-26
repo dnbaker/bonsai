@@ -134,7 +134,7 @@ public:
         return ret[offset_];
     }
     static constexpr size_t BUFSIZE = sizeof(state_);
-    const __m128i *buf() const {return state_;}
+    const uint8_t *buf() const {return state_;}
 };
 #undef AES_ROUND
 
