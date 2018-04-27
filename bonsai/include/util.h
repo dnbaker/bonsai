@@ -1188,5 +1188,70 @@ enum WRITE {
     ZSTD = 2
 };
 
+template<bool Condition>
+using disable_if_t = typename std::enable_if_t<!Condition>;
+
+namespace detail {
+
+struct HasValueTypeImpl
+{
+    template<class T>
+    static auto test(T&&) -> decltype( std::declval<typename T::value_type>(), std::true_type() );
+    static auto test(...) -> std::false_type;
+};
+
+template<class T>
+using HasValueType = decltype( HasValueTypeImpl::test(std::declval<T>()) );
+
+template<class T, class U>
+using IsConstructible = typename std::is_constructible<T, U>::type;
+
+template<class Container>
+class back_emplace_iterator
+    : public std::iterator<std::output_iterator_tag, void, void, void, void>
+{
+    template<class T>
+    using IsSelf = typename std::is_same<std::decay_t<T>, back_emplace_iterator>::type;
+
+    Container &container;
+
+public:
+    typedef Container container_type;
+
+    explicit back_emplace_iterator(Container& x): container(x){}
+    template<class T, typename=disable_if_t<IsSelf<T>::value>>
+    back_emplace_iterator& operator =(T&& t)
+    {
+        container.emplace_back(std::forward<T>(t));
+        return *this;
+    }
+    template<class T=typename Container::value_type, class=std::enable_if_t<HasValueType<T>::value && IsConstructible<T, std::initializer_list<typename T::value_type>>::value>>
+    back_emplace_iterator& operator =(std::initializer_list<typename T::value_type> ilist)
+    {
+        container.emplace_back(ilist);
+        return *this;
+    }
+    back_emplace_iterator& operator =(typename Container::value_type&& t)
+    {
+        container.emplace_back(std::move(t));
+        return *this;
+    }
+    back_emplace_iterator& operator *() { return *this; }
+    back_emplace_iterator& operator ++() { return *this; }
+    back_emplace_iterator& operator ++(int) { return *this; }
+};
+
+template<class Container>
+inline back_emplace_iterator<Container> back_emplacer(Container& c) {
+    return back_emplace_iterator<Container>(c);
+}
+
+} // namespace detail
+
+
 
 } // namespace bns
+namespace std {
+    using bns::detail::back_emplacer;
+    using bns::detail::back_emplace_iterator;
+} // na
