@@ -267,12 +267,12 @@ inline void kt_for_helper(void *data_, long index, int tid) {
 using Classifier = ClassifierGeneric<score::Lex>;
 
 inline void classify_seqs(const Classifier &c, const khash_t(p) *taxmap, bseq1_t *bs,
-                          ks::string &cks, const unsigned chunk_size, const unsigned per_set, const int is_paired) {
+                          ks::string &cks, const unsigned chunk_size, const unsigned per_set, const int is_paired, ForPool &pool) {
     assert(per_set && ((per_set & (per_set - 1)) == 0));
 
     std::atomic<u64> retstr_size(0);
     kt_data data{c, taxmap, bs, per_set, chunk_size, retstr_size, is_paired};
-    kt_for(c.nt_, &kt_for_helper, (void *)&data, chunk_size / per_set + 1);
+    pool.forpool(&kt_for_helper, (void *)&data, chunk_size / per_set + 1);
     cks.resize(retstr_size.load());
     const int inc((is_paired != 0) + 1);
 #if !NDEBUG
@@ -303,18 +303,19 @@ inline void process_dataset(const Classifier &c, const khash_t(p) *taxmap, const
     ks::string cks(256u);
     const int fn = fileno(out), is_paired(fq2 != 0);
     del_data dd{nullptr, per_set, chunk_size};
+    ForPool pool(c.nt_);
     if((dd.seqs_ = bseq_read(chunk_size, &nseq, (void *)ks1, (void *)ks2)) == nullptr) {
         LOG_WARNING("Could not get any sequences from file, fyi.\n");
         goto fail; // Wheeeeee
     }
-    classify_seqs(c, taxmap, dd.seqs_, cks, nseq, per_set, is_paired);
+    classify_seqs(c, taxmap, dd.seqs_, cks, nseq, per_set, is_paired, pool);
     std::fprintf(stderr, "nseq: %i\n", nseq);
     max_nseq = std::max(max_nseq, nseq);
     while((dd.seqs_ = bseq_realloc_read(chunk_size, &nseq, (void *)ks1, (void *)ks2, dd.seqs_)) && nseq) {
         LOG_INFO("Read %i seqs with chunk size %u\n", nseq, chunk_size);
         max_nseq = std::max(max_nseq, nseq);
         // Classify
-        classify_seqs(c, taxmap, dd.seqs_, cks, nseq, per_set, is_paired);
+        classify_seqs(c, taxmap, dd.seqs_, cks, nseq, per_set, is_paired, pool);
         // Write out
         LOG_DEBUG("Emitting batch. str: %s", cks.data());
         if(cks.size() > (1ull << 16)) {
