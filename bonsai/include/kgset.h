@@ -60,7 +60,8 @@ public:
     void fill(std::vector<std::string> &paths, const Spacer &sp, bool canonicalize=true, int num_threads=-1) {
         if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
         kg_data data{core_, paths, sp, acceptable_, canonicalize};
-        kt_for(num_threads, &kg_helper, (void *)&data, core_.size());
+        ForPool pool(num_threads);
+        pool.forpool(&kg_helper, (void *)&data, core_.size());
     }
     void fill(const std::unordered_map<u32, std::forward_list<std::string>> *path_map, const Spacer &sp, bool canonicalize=true, int num_threads=-1) {
         auto &pm(*path_map);
@@ -83,7 +84,8 @@ public:
         }
         LOG_DEBUG("Tax filled size %zu. Core size: %zu\n", taxes_.size(), core_.size());
         kg_list_data data{core_, tmpfl, sp, acceptable_, canonicalize};
-        kt_for(num_threads, &kg_list_helper, (void *)&data, core_.size());
+        ForPool pool(num_threads);
+        pool.forpool(&kg_list_helper, (void *)&data, core_.size());
     }
     const auto &get_taxes()                        const {return taxes_;} // Who'd want that?
     const std::vector<khash_t(all)> &core()        const {return core_;}

@@ -590,7 +590,10 @@ void fill_sketch(SketchType &ret, const std::vector<std::string> &paths,
         std::vector<SketchType> sketches;
         while(sketches.size() < (unsigned)num_threads) sketches.emplace_back(ret.clone());
         est_helper<SketchType> helper{space, paths, m, np, canon, data, sketches, kseqs.data()};
-        kt_for(num_threads, &est_helper_fn<SketchType, ScoreType>, &helper, paths.size());
+        {
+            ForPool pool(num_threads);
+            pool.forpool(&est_helper_fn<SketchType, ScoreType>, &helper, paths.size());
+        }
         auto &rhll = get_hll(ret);
         for(auto &sketch: sketches) rhll += get_hll(sketch);
     }

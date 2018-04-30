@@ -74,7 +74,9 @@ int main(int argc, char **argv) {
     helpers.reserve(paths.size());
     for(std::size_t i(0); i < paths.size(); ++i) helpers.emplace_back(paths[i], maps[i]);
     fprintf(stderr, "Processing %zu paths.\n", paths.size());
-    kt_for(nthreads, &kfunc, (void *)helpers.data(), paths.size());
+    using bns::ForPool;
+    ForPool pool(nthreads);
+    pool.forpool(&kfunc, (void *)helpers.data(), paths.size());
     for(auto &kf: helpers)
         for(auto &pair: kf.map_)
             data[pair.first] += pair.second;
