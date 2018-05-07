@@ -14,22 +14,8 @@
 #else
 #  include <zlib.h>
 #endif
+#include "bonsai/include/util.h"
 
-#ifdef USE_PDQSORT
-#include "pdqsort/pdqsort.h"
-#ifndef SORT
-#define SORT pdqsort
-#endif
-#define SORT_BRANCHLESS pdqsort_branchless
-#else
-#ifndef SORT
-#define SORT ::std::sort
-#endif
-#define SORT_BRANCHLESS ::std::sort
-#endif
-
-
-KSEQ_INIT(gzFile, gzread)
 
 struct kth {
     const std::string &path_;

@@ -96,16 +96,7 @@ inline unsigned bitdiff(T a, T b) {
 }
 
 namespace detail {
-
-#if HAS_AVX_512
-#define popcnt_fn(x) popcnt512(x.simd_)
-#elif __AVX2__
-#define popcnt_fn(x) popcnt256(x.simd_)
-#elif __SSE2__
-#define popcnt_fn(x) (popcount(x.arr_[0]) + popcount(x.arr_[1]))
-#else
-#error("Need SSE2")
-#endif
+using common::popcnt_fn;
 
 inline unsigned unrolled_bitdiff(const uint64_t *a, const uint64_t *b, size_t nbytes);
 inline unsigned byte_bitdiff(const uint8_t *a, const uint8_t *b, size_t nelem) {
