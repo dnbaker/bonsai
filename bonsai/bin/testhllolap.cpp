@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
         double divinv = 1./div;
         for(double val = 0.; val <= 1.; olap_fracs.push_back(val), val += divinv);
     }
-    std::fprintf(stdout, "#Mean error hlf\tMean error hll\tMean error hlf median\t""Mean error strength borrowing\t"
+    std::fprintf(stdout, "#Mean error hlf\tMean error hll\tMean error hlf median\tMean error strength borrowing\t"
                           "Mean diffs hlf\tMean diffs hll\tMean diffs hlf med\tMean diffs strength borrowing\t"
                           "Mean fraction off (hll)\tmean frac off (hlf borrow)\tMean Ertl ML diff\tMean Ertl ML error\t"
                           "sketch size l2\tNumber of subfilters\tnelem\tError using mean of both methods\n");
