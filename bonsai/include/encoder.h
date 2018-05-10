@@ -20,6 +20,24 @@
 
 namespace bns {
 
+namespace detail {
+template<typename SketchType>
+struct HashFiller {
+    using UType = typename vec::SIMDTypes<u64>::VType;
+    SketchType &ref_;
+    UType vec_;
+    unsigned char count_;
+    HashFiller(SketchType &ref): ref_(ref) {}
+    void add(u64 val) {
+        vec_.arr_[count_++] = val;
+        if(count_ == UType::COUNT) ref_.addh(vec_.simd_), count_ = 0;
+    }
+    ~HashFiller() {
+        for(;count_--;ref_.addh(vec_.arr_[count_]));
+    }
+};
+} // namespace detail
+
 enum score_scheme {
     LEX = 0,
     ENTROPY,
@@ -476,10 +494,11 @@ void add_to_hll(hll::hll_t &hll, kseq_t *ks, Encoder<ScoreType> &enc) {
 template<typename ScoreType, typename SketchType>
 void fill_lmers(SketchType &sketch, const std::string &path, const Spacer &space, bool canonicalize=true,
                 void *data=nullptr, kseq_t *ks=nullptr) {
+    detail::HashFiller<SketchType> hf(sketch);
     LOG_DEBUG("Canonicalizing: %s\n", canonicalize ? "true": "false");
     sketch.not_ready();
     Encoder<ScoreType> enc(nullptr, 0, space, data, canonicalize);
-    enc.for_each([&](u64 min) {sketch.addh(min);}, path.data(), ks);
+    enc.for_each([&](u64 min) {hf.add(min);}, path.data(), ks);
 }
 
 template<typename ScoreType>
