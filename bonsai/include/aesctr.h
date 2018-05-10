@@ -62,11 +62,23 @@ using std::size_t;
     seed_[index] = k;                                                    \
   } while (0)
 
+#ifndef HAS_AVX_512
+#  define HAS_AVX_512 (_FEATURE_AVX512F || _FEATURE_AVX512ER || _FEATURE_AVX512PF || _FEATURE_AVX512CD || __AVX512BW__ || __AVX512CD__ || __AVX512F__)
+#endif
+#if HAS_AVX_512
+#define VEC_ALIGNMENT_FOR_BUFFER 64
+#elif __AVX2__
+#define VEC_ALIGNMENT_FOR_BUFFER 32
+#else
+#define VEC_ALIGNMENT_FOR_BUFFER 16
+#endif
+
+
 
 template<typename GeneratedType=uint64_t, size_t UNROLL_COUNT=4, typename=std::enable_if_t<types::is_integral_v<GeneratedType>>>
 class AesCtr {
     static const size_t AESCTR_ROUNDS = 10;
-    uint8_t state_[sizeof(__m128i) * UNROLL_COUNT] __attribute__ ((aligned (sizeof(__m128i))));
+    uint8_t state_[sizeof(__m128i) * UNROLL_COUNT] __attribute__ ((aligned (VEC_ALIGNMENT_FOR_BUFFER)));
     __m128i ctr_[UNROLL_COUNT];
     __m128i seed_[AESCTR_ROUNDS + 1];
     __m128i work[UNROLL_COUNT];
