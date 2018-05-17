@@ -28,13 +28,13 @@ struct HashFiller {
     SketchType &ref_;
     UType vec_;
     unsigned char count_;
-    HashFiller(SketchType &ref): ref_(ref) {}
+    HashFiller(SketchType &ref): ref_(ref), count_(0) {}
     void add(u64 val) {
         vec_.arr_[count_++] = val;
         if(count_ == UType::COUNT) ref_.addh(vec_.simd_), count_ = 0;
     }
     ~HashFiller() {
-        for(;count_--;ref_.addh(vec_.arr_[count_]));
+        for(;count_;ref_.addh(vec_.arr_[--count_]));
     }
 };
 } // namespace detail
@@ -514,9 +514,9 @@ void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &spac
 
 template<typename ScoreType>
 u64 count_cardinality(const std::vector<std::string> paths,
-                         unsigned k, uint16_t w, spvec_t spaces,
-                         bool canonicalize,
-                         void *data=nullptr, int num_threads=-1) {
+                      unsigned k, uint16_t w, spvec_t spaces,
+                      bool canonicalize,
+                      void *data=nullptr, int num_threads=-1) {
     // Default to using all available threads.
     if(num_threads < 0) num_threads = sysconf(_SC_NPROCESSORS_ONLN);
     const Spacer space(k, w, spaces);
