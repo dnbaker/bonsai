@@ -96,7 +96,7 @@ inline unsigned bitdiff(T a, T b) {
 }
 
 namespace detail {
-using common::popcnt_fn;
+using sketch::common::popcnt_fn;
 
 inline unsigned unrolled_bitdiff(const uint64_t *a, const uint64_t *b, size_t nbytes);
 inline unsigned byte_bitdiff(const uint8_t *a, const uint8_t *b, size_t nelem) {

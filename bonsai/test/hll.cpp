@@ -8,7 +8,7 @@
 #include "hll/hll.h"
 #include "encoder.h"
 #include "omp.h"
-#include "aesctr.h"
+#include "aesctr/aesctr.h"
 
 using namespace bns;
 

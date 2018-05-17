@@ -2,7 +2,7 @@
 #include "hll/hll.h"
 #include "bonsai/include/util.h"
 
-template<typename T> class TD;
+using namespace sketch;
 
 TEST_CASE("SIMDhash") {
     hll::WangHash hf;
