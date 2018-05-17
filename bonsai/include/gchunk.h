@@ -38,7 +38,7 @@ public:
         }
         gzclose(fp);
         if(destroy) kseq_destroy(ks);
-        for(auto &el: cds_) el.csum();
+        for(auto &cd: cds_) for(auto &hll: cd.hlls_) hll.csum();
     }
     template<typename Functor>
     void for_each(const Functor &func) const {
