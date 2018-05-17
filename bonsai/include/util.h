@@ -111,6 +111,7 @@ void STLFREE(T &container) {
 } while(0)
 
 namespace bns {
+using namespace std::literals;
 
 struct ForPool {
     void *fp_;
