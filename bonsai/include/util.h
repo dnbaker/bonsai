@@ -490,20 +490,21 @@ static inline kseq_t kseq_init_stack() {
     std::memset(&ret, 0, sizeof(ret));
     return ret;
 }
+
 static inline void kseq_destroy_stack(kseq_t &ks) {
     free(ks.name.s); free(ks.comment.s); free(ks.seq.s); free(ks.qual.s);
     ks_destroy(ks.f);
+    std::memset(&ks, 0, sizeof(ks));
 }
-
 
 
 INLINE double kmer_entropy(uint64_t kmer, unsigned k) {
     const u32 counts(nuccount(kmer, k));
     const double div(1./k);
-    double tmp(div * (counts >> 24)), sum(tmp * std::log2(tmp));
+    double tmp(div * (counts >> 24)),    sum(tmp * std::log2(tmp));
     tmp = div * ((counts >> 16) & 0xFF), sum += tmp * std::log2(tmp);
-    tmp = div * ((counts >> 8) & 0xFF), sum += tmp * std::log2(tmp);
-    return tmp = div * (counts & 0xFF), sum += tmp * std::log2(tmp);
+    tmp = div * ((counts >> 8) & 0xFF),  sum += tmp * std::log2(tmp);
+    return tmp = div * (counts & 0xFF),  sum += tmp * std::log2(tmp);
 }
 
 template<typename T> INLINE const char *get_cstr(const T &str) {return str.data();}
@@ -565,7 +566,7 @@ struct KSeqBufferHolder {
         while(kseqs_.size() < n) kseqs_.emplace_back(kseq_init_stack());
     }
     ~KSeqBufferHolder() {
-        for(auto &ks: kseqs_) kseq_destroy_stack(ks);
+        this->free();
     }
     kseq_t &operator[](size_t index) {
         return kseqs_[index];
@@ -574,6 +575,9 @@ struct KSeqBufferHolder {
         return kseqs_[index];
     }
     auto data() {return kseqs_.data();}
+    void free() {
+        for(auto &ks: kseqs_) kseq_destroy_stack(ks);
+    }
 };
 
 static size_t count_lines(const char *fn) noexcept {
