@@ -238,7 +238,10 @@ public:\
     }\
     KHR(x)(KHR(x) &&other) {\
         std::memcpy(this, &other, sizeof(*this));\
-        std::memset(&other, 0, sizeof(other));\
+        other.h_.keys = nullptr;\
+        other.h_.vals = nullptr;\
+        other.h_.flags = nullptr;\
+        other.h_.n_buckets = other.h_.n_occupied = 0;\
     }\
     ~KHR(x)() {\
         std::free(h_.keys);\
