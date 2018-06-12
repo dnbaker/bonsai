@@ -4,7 +4,7 @@ all:
 	$(MAKE) -C bonsai bonsai_z
 
 clean:
-	$(MAKE) update clean -C bonsai
+	$(MAKE) clean -C bonsai
 
 unit:
 	$(MAKE) update unit -C bonsai
