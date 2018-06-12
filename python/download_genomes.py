@@ -228,7 +228,7 @@ def main():
                     raise
                 pass
         nameidmap.update(cladeidmap)
-    print("Done with all clades")
+    print("Done with all clades", file=sys.stderr)
     with open(ref + "/" + args.idmap, "w") as f:
         fw = f.write
         for k, v in nameidmap.items():
