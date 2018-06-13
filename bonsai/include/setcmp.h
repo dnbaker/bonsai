@@ -21,6 +21,7 @@ double jaccard_index(const KhashType *a, const KhashType *b) {
     const auto is(intersection_size(a, b));
     return static_cast<double>(is) / (kh_size(a) + kh_size(b) - is);
 }
+
 template<typename KhashType>
 size_t union_size(const KhashType *a, const KhashType *b) {
     size_t ret(0);

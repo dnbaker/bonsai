@@ -362,7 +362,10 @@ public:
     template<typename Target>
     void add(khash_t(all) *set, const Target &target, kseq_t *ks=nullptr) {
         int khr;
-        this->for_each([&] (u64 min) {kh_put(all, set, min, &khr);}, target, ks);
+        this->for_each([&] (u64 min) {
+            kh_put(all, set, min, &khr);
+            if(unlikely(khr < 0)) throw std::runtime_error(ks::sprintf("Failed to insert key %" PRIu64 " into hash map. Size of map: %zu\n", min, kh_size(set)).data());
+        }, target, ks);
     }
 
     template<typename ContainerType>

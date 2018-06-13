@@ -7,7 +7,7 @@
 #include <cstdarg>
 
 #define _FUNCTION_MACRO_ __PRETTY_FUNCTION__
-#define LOG_INFO(...) log_info(__func__, ##__VA_ARGS__)
+#define LOG_INFO(...) log_info(_FUNCTION_MACRO_, ##__VA_ARGS__)
 #define LOG_WARNING(...) log_warning(_FUNCTION_MACRO_, ##__VA_ARGS__)
 #define LOG_EXIT(...) log_error(_FUNCTION_MACRO_, __LINE__, ##__VA_ARGS__)
 #if !NDEBUG
