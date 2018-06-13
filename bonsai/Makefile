@@ -58,7 +58,6 @@ ZW_OBJS=$(patsubst %.c,%.o,$(wildcard ../zstd/zlibWrapper/*.c)) libzstd.a
 
 EX=$(patsubst bin/%.cpp,%,$(wildcard bin/*.cpp))
 DEX=$(patsubst %_d,%,$(EX))
-ZEX=$(patsubst %_z,%,$(EX))
 STATEX=$(patsubst %,%_s,$(EX))
 STATEXZ=$(patsubst %,%_sz,$(EX))
 
@@ -125,16 +124,10 @@ src/popcnt.do: src/popcnt.cpp
 src/popcnt.zo: src/popcnt.cpp
 	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD)  -c $< -o $@ $(LIB)
 
-%: bin/%.cpp $(OBJS)
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) -DNDEBUG $< -o $@ $(LIB)
-
-%_s: bin/%.cpp $(OBJS)
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(OBJS) -static-libstdc++ -static-libgcc -DNDEBUG $< -o $@ ../zlib/libz.a
-
-%_z: bin/%.cpp $(ALL_ZOBJS)
+%: bin/%.cpp $(ALL_ZOBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) $(LIB)
 
-%_sz: bin/%.cpp $(ALL_ZOBJS) ../zlib/libz.a
+%_s: bin/%.cpp $(ALL_ZOBJS) ../zlib/libz.a
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -static-libstdc++ -static-libgcc -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) -lz
 
 %_d: bin/%.cpp $(DOBJS)

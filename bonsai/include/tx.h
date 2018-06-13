@@ -72,6 +72,7 @@ public:
         // Add the root of the tree to our pmap.
         int khr;
         khint_t ki(kh_put(p, pmap_, tax_t(counter_), &khr));
+        if(unlikely(khr < 0)) throw std::runtime_error("Failed to insert tree. This is very surprising.");
         kh_val(pmap_, ki) = 0;
         fill_path_map(paths);
         // Deterministic seeding that still varies run to run.
@@ -83,6 +84,7 @@ public:
                     while(kh_get(p, ct, tmp) != kh_end(ct)) tmp = mt();
                     path_map[tmp] = {path};
                     ki = kh_put(p, ct, tmp, &khr);
+                    if(unlikely(khr < 0)) throw std::runtime_error(ks::sprintf("[%s:%d] Could not insert key %u to table of size %zu.", __PRETTY_FUNCTION__, __LINE__, tmp, kh_size(ct)).data());
                     kh_val(ct, ki) = pair.first;
                     newid_path_map[tmp] = path;
                 }
@@ -102,9 +104,11 @@ public:
         for(const auto tax: insertion_order) {
             int khr;
             khiter_t ki(kh_put(p, old_to_new_, tax, &khr));
+            if(unlikely(khr < 0)) throw std::runtime_error(ks::sprintf("[%s:%d] Could not insert key %u to table of size %zu.", __PRETTY_FUNCTION__, __LINE__, tax, kh_size(old_to_new_)).data());
             kh_val(old_to_new_, tax) = old_ids_.size();
             old_ids_.emplace_back(tax);
             ki = kh_put(p, pmap_, static_cast<tax_t>(old_ids_.size()), &khr);
+            if(unlikely(khr < 0)) throw std::runtime_error(ks::sprintf("[%s:%d] Could not insert key %u to table of size %zu.", __PRETTY_FUNCTION__, __LINE__, static_cast<tax_t>(old_ids_.size()), kh_size(pmap_)).data());
             kh_val(pmap_, ki) = kh_val(old_to_new_, kh_get(p, old_to_new_, kh_val(ct, kh_get(p, ct, tax))));
             // TODO: remove \.at check when we're certain it's working.
         }

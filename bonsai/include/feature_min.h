@@ -206,6 +206,8 @@ inline void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_
         if(kh_exist(set, ki)) {
             if((k2 = kh_get(c, kc, kh_key(set, ki))) == kh_end(kc)) {
                 k2 = kh_put(c, kc, kh_key(set, ki), &khr);
+                if(unlikely(khr < 0))
+                    throw std::runtime_error(ks::sprintf("[%s:%d] Could not insert key %" PRIu64 " to table of size %zu.", __PRETTY_FUNCTION__, __LINE__, kh_key(set, ki), kh_size(kc)).data());
                 kh_val(kc, k2) = taxid;
 #if !NDEBUG
                 if(unlikely(kh_size(kc) % 1000000 == 0)) LOG_DEBUG("Final hash size %zu\n", kh_size(kc));
@@ -229,6 +231,8 @@ inline void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_
         if(kh_exist(set, ki)) {
             if((k2 = kh_get(64, kc, kh_key(set, ki))) == kh_end(kc)) {
                 k2 = kh_put(64, kc, kh_key(set, ki), &khr);
+                if(unlikely(khr < 0))
+                    throw std::runtime_error(ks::sprintf("[%s:%d] Could not insert key %" PRIu64 " to table of size %zu.", __PRETTY_FUNCTION__, __LINE__, kh_key(set, ki), kh_size(kc)).data());
                 kh_val(kc, k2) = TDencode(node_depth(tax, kh_val(kc, ki)), kh_val(kc, ki));
                 if(unlikely(kh_size(kc) % 1000000 == 0)) LOG_INFO("Final hash size %zu\n", kh_size(kc));
             } else if(kh_val(kc, k2) != taxid) {
@@ -247,6 +251,8 @@ inline void update_feature_counter(khash_t(64) *kc, const khash_t(all) *set, con
         if(kh_exist(set, ki)) {
            if((k2 = kh_get(64, kc, kh_key(set, ki))) == kh_end(kc)) {
                 k2 = kh_put(64, kc, kh_key(set, ki), &khr);
+                if(unlikely(khr < 0))
+                    throw std::runtime_error(ks::sprintf("[%s:%d] Could not insert key %" PRIu64 " to table of size %zu.", __PRETTY_FUNCTION__, __LINE__, kh_key(set, ki), kh_size(kc)).data());
                 kh_val(kc, k2) = FMencode(1, node_depth(tax, taxid));
             } else while(!kh_try_set(64, kc, k2, FMencode(FMcount(kh_val(kc, k2)), lca(tax, taxid, kh_val(kc, k2)))));
         }
@@ -262,7 +268,9 @@ inline void update_minimized_map(const khash_t(all) *set, const khash_t(64) *ful
             // If the key is already in the main map, what's the problem?
         if(unlikely((kif = kh_get(64, full_map, kh_key(set, ki))) == kh_end(full_map)))
             LOG_EXIT("Missing kmer from database... Check for matching spacer and kmer size.\n");
-        kh_set(c, ret, kh_key(full_map, kif), kh_val(full_map, kif));
+        if(unlikely(kh_set(c, ret, kh_key(full_map, kif), kh_val(full_map, kif)) < 0)) {
+            throw std::runtime_error(ks::sprintf("[%s:%d] Failed to update minimized map with kh_set to table of size %zu.", __PRETTY_FUNCTION__, __LINE__, kh_size(ret)).data());
+        }
         if(unlikely(kh_size(ret) % 1000000 == 0)) LOG_INFO("Final hash size %zu\n", kh_size(ret));
     }
     return;
@@ -282,6 +290,7 @@ inline khash_t(c) *make_depth_hash(khash_t(c) *lca_map, const khash_t(p) *tax_ma
     for(khiter_t ki2(kh_begin(lca_map)); ki2 < kh_end(lca_map); ++ki2) {
         if(kh_exist(lca_map, ki2)) {
             ki1 = kh_put(c, ret, kh_key(lca_map, ki2), &khr);
+            if(unlikely(khr < 0)) throw std::runtime_error(ks::sprintf("[%s:%d] Failed to insert into to table of size %zu.", __PRETTY_FUNCTION__, __LINE__, kh_size(ret)).data());
             kh_val(ret, ki1) = node_depth(tax_map, kh_val(lca_map, ki2));
         }
     }
