@@ -490,7 +490,7 @@ static inline kseq_t kseq_init_stack() {
     std::memset(&ret, 0, sizeof(ret));
     return ret;
 }
-static inline void kseq_destroy_stack(kseq_t &ks) {
+static INLINE void kseq_destroy_stack(kseq_t &ks) {
     free(ks.name.s); free(ks.comment.s); free(ks.seq.s); free(ks.qual.s);
     ks_destroy(ks.f);
 }
