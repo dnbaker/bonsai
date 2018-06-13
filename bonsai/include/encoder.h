@@ -21,6 +21,8 @@
 namespace bns {
 using namespace sketch;
 
+
+#if USE_HASH_FILLER
 namespace detail {
 template<typename SketchType>
 struct HashFiller {
@@ -38,6 +40,7 @@ struct HashFiller {
     }
 };
 } // namespace detail
+#endif
 
 enum score_scheme {
     LEX = 0,
@@ -498,11 +501,17 @@ void add_to_hll(hll::hll_t &hll, kseq_t *ks, Encoder<ScoreType> &enc) {
 template<typename ScoreType, typename SketchType>
 void fill_lmers(SketchType &sketch, const std::string &path, const Spacer &space, bool canonicalize=true,
                 void *data=nullptr, kseq_t *ks=nullptr) {
+#if USE_HASH_FILLER
     detail::HashFiller<SketchType> hf(sketch);
+#endif
     LOG_DEBUG("Canonicalizing: %s\n", canonicalize ? "true": "false");
     sketch.not_ready();
     Encoder<ScoreType> enc(nullptr, 0, space, data, canonicalize);
+#if USE_HASH_FILLER
     enc.for_each([&](u64 min) {hf.add(min);}, path.data(), ks);
+#else
+    enc.for_each([&](u64 min) {sketch.addh(min);}, path.data(), ks);
+#endif
 }
 
 template<typename ScoreType>
