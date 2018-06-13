@@ -494,7 +494,7 @@ static inline kseq_t kseq_init_stack() {
     return ret;
 }
 
-static inline void kseq_destroy_stack(kseq_t &ks) {
+static INLINE void kseq_destroy_stack(kseq_t &ks) {
     free(ks.name.s); free(ks.comment.s); free(ks.seq.s); free(ks.qual.s);
     ks_destroy(ks.f);
     std::memset(&ks, 0, sizeof(ks));
@@ -1196,6 +1196,7 @@ static std::vector<std::string> get_paths(const char *path) {
 
 static std::ifstream::pos_type filesize(const char* filename)
 {
+    LOG_INFO("Getting filesize for %s\n", filename);
     std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
     return in.tellg();
 }

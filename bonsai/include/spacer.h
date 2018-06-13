@@ -13,7 +13,7 @@ using spvec_t = std::vector<u8>;
 inline u32 comb_size(const spvec_t &spaces) {
     u32 ret(spaces.size() + 1); // Since there's 1 fewer entry in spaces
     // We then increment the size of our comb for each space.
-    for(auto i: spaces) ret += i;
+    for(const auto i: spaces) ret += i;
     return ret;
 }
 
@@ -71,6 +71,7 @@ public:
             LOG_EXIT("Error: input vector must have size 1 less than k. k: %u. size: %zu.\n",
                      k, s_.size());
         }
+        LOG_DEBUG("Is spaced? %s\n", unspaced() ? "false": "true");
     }
     Spacer(unsigned k, std::uint16_t w, const char *space_string):
         Spacer(k, w, parse_spacing(space_string, k)) {}

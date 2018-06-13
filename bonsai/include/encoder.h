@@ -28,12 +28,12 @@ struct HashFiller {
     SketchType &ref_;
     UType vec_;
     unsigned char count_;
-    HashFiller(SketchType &ref): ref_(ref), count_(0) {}
-    void add(u64 val) {
+    INLINE HashFiller(SketchType &ref): ref_(ref), count_(0) {}
+    INLINE void add(u64 val) {
         vec_.arr_[count_++] = val;
         if(count_ == UType::COUNT) ref_.addh(vec_.simd_), count_ = 0;
     }
-    ~HashFiller() {
+    INLINE ~HashFiller() {
         for(;count_;ref_.addh(vec_.arr_[--count_]));
     }
 };
