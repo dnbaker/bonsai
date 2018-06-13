@@ -73,6 +73,8 @@ INCLUDE=-Iclhash/include -I. -I.. -I../libpopcnt -I.. -Iinclude -I../circularque
 
 
 all: update $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX) $(ZEX)
+z: $(ZEX)
+
 
 #libhll.a:
 #	cd hll && make CXX=$(CXX) && cp libhll.a ..

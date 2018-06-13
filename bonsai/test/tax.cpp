@@ -12,8 +12,6 @@ TEST_CASE("tax") {
         const char cmd[] {"ls test/ec | grep fna.gz | head -n 40"};
         std::FILE *fp(popen(cmd, "r"));
         if(fp == nullptr) throw "a party";//throw std::system_error(1, std::string("Could not call command '") + cmd + "'\n");
-        int c;
-        size_t ind(0);
         ssize_t len;
         size_t size;
         char *buf(nullptr);
