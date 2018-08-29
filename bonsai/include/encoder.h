@@ -67,19 +67,18 @@ static INLINE u64 ent_score(u64 i, void *data) {
     return UINT64_C(-1) - static_cast<u64>(UINT64_C(7958933093282078720) * kmer_entropy(i, *(unsigned *)data));
 }
 static INLINE u64 hash_score(u64 i, void *data) {
-    khash_t(64) *hash((khash_t(64) *)data);
     khint_t k1;
-    if(unlikely((k1 = kh_get(64, hash, i)) == kh_end(hash))) goto fail;
-    return kh_val(hash, k1);
-    fail:
-        for(k1 = 0; k1 != kh_end(hash); ++k1) {
-            LOG_DEBUG("Did not find key. Scanning.\n");
-            if(kh_key(hash, k1) == i) __ac_set_isdel_false(hash->flags, k1);
-            return kh_val(hash, k1);
-        }
-        std::fprintf(stderr, "i: %" PRIu64 "\n", i);
-        std::exit(EXIT_FAILURE);
-        return 0uL;
+    khash_t(64) *hash((khash_t(64) *)data);
+    if(likely((k1 = kh_get(64, hash, i)) == kh_end(hash))) return kh_val(hash, k1);
+    for(k1 = 0; k1 != kh_end(hash); ++k1) {
+        LOG_DEBUG("Did not find key. Scanning.\n");
+        if(kh_key(hash, k1) == i) __ac_set_isdel_false(hash->flags, k1);
+        return kh_val(hash, k1);
+    }
+    std::fprintf(stderr, "i: %" PRIu64 "\n", i);
+    std::exit(EXIT_FAILURE);
+    __builtin_unreachable();
+    return 0uL;
 }
 
 namespace score {
@@ -155,11 +154,9 @@ public:
     }
     template<typename Functor>
     INLINE void for_each_canon_unwindowed(const Functor &func) {
-        if(sp_.unspaced()) {
-            for_each_uncanon_unspaced_unwindowed([&](u64 min) {
-                return func(canonical_representation(min, sp_.k_));
-            });
-        } else {
+        if(sp_.unspaced())
+            for_each_uncanon_unspaced_unwindowed([&](u64 min) {return func(canonical_representation(min, sp_.k_));});
+        else {
             u64 min;
             while(likely(has_next_kmer()))
                 if((min = next_kmer()) != BF)
@@ -176,15 +173,15 @@ public:
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_unwindowed(const Functor &func) {
         const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
-        u64 min = 0;
-        unsigned filled = 0;
+        u64 min;
+        unsigned filled;
         loop_start:
+        min = filled = 0;
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 min <<= 2;
                 //std::fprintf(stderr, "Encoding character %c with value %u at last position.\n", s_[pos_], (unsigned)cstr_lut[s_[pos_]]);
                 if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF) && (sp_.k_ < 31 || cstr_lut[s_[pos_ - 1]] != 'T')) {
-                    filled = min = 0;
                     goto loop_start;
                 }
                 ++filled;
@@ -199,7 +196,7 @@ public:
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_windowed(const Functor &func) {
         const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
-        u64 min, kmer, score;
+        u64 min, kmer;
         unsigned filled;
         windowed_loop_start:
         min = filled = 0;
@@ -213,8 +210,7 @@ public:
             }
             if(likely(filled == sp_.k_)) {
                 min &= mask;
-                score = scorer_(min, data_);
-                if((kmer = qmap_.next_value(min, score)) != BF) func(kmer);
+                if((kmer = qmap_.next_value(min, scorer_(min, data_))) != BF) func(kmer);
                 --filled;
             }
         }
@@ -224,7 +220,7 @@ public:
         // NEVER CALL THIS DIRECTLY.
         // This contains instructions for generating uncanonicalized but windowed entropy-minimized kmers.
         const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
-        u64 min, kmer, score;
+        u64 min, kmer;
         unsigned filled;
         CircusEnt &ent = *(static_cast<CircusEnt *>(data_));
         windowed_loop_start:
@@ -242,8 +238,7 @@ public:
             }
             if(likely(filled == sp_.k_)) {
                 min &= mask;
-                score = UINT64_C(-1) - static_cast<u64>(UINT64_C(7958933093282078720) * ent.value());
-                if((kmer = qmap_.next_value(min, score)) != BF) func(kmer);
+                if((kmer = qmap_.next_value(min, ent.score())) != BF) func(kmer);
                 --filled;
             }
         }

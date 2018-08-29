@@ -1,7 +1,7 @@
 .PHONY=all tests clean bonsai update
 
 all:
-	$(MAKE) -C bonsai bonsai_z
+	$(MAKE) -C bonsai
 
 clean:
 	$(MAKE) clean -C bonsai
@@ -17,12 +17,6 @@ bonsai:
 
 bonsai_d:
 	$(MAKE) update bonsai_d -C bonsai
-
-bonsai_z:
-	$(MAKE) update bonsai_z -C bonsai
-
-distcmp_z:
-	$(MAKE) update distcmp_z -C bonsai
 
 distcmp:
 	$(MAKE) update distcmp -C bonsai

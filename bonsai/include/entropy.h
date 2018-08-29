@@ -57,6 +57,9 @@ public:
         tmp = qszinv_ * counts_[3], sum += tmp * std::log2(tmp);
         return sum;
     }
+    u64 score() const {
+        return UINT64_MAX - static_cast<u64>(UINT64_C(7958933093282078720) * value());
+    }
     double next_ent(char c) {
         push(c);
         return value();
