@@ -144,10 +144,54 @@ public:
     }
     INLINE void assign(kstring_t *ks) {assign(ks->s, ks->l);}
     INLINE void assign(kseq_t    *ks) {assign(&ks->seq);}
+#if THEY_SEE_ME_ROLLIN
+    template<typename Functor>
+    INLINE void for_each_rolling_hash(const Functor &func) {
+        // Uses nthash, a rolling hash for nucleotides.
+        if(unlikely(!sp_.unspaced())) throw std::runtime_error("Can't perform "s + __PRETTY_FUNCTION__ + " for spaced seeds. Use for_each and hash it yourself.");
+        if((!sp_.unwindowed())) throw std::runtime_error("Can't perform "s + __PRETTY_FUNCTION__ + " for windowed seeds. Use for_each and hash it yourself.");
+        const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
+        u64 min;
+        unsigned filled;
+        loop_start:
+        min = filled = 0;
+        // TODO: this
+#if 0
+        while(likely(pos_ < l_)) {
+            while(filled < sp_.k_ && likely(pos_ < l_)) {
+                min <<= 2;
+                //std::fprintf(stderr, "Encoding character %c with value %u at last position.\n", s_[pos_], (unsigned)cstr_lut[s_[pos_]]);
+                if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF) && (sp_.k_ < 31 || cstr_lut[s_[pos_ - 1]] != 'T')) {
+                    goto loop_start;
+                }
+                ++filled;
+            }
+            if(likely(filled == sp_.k_)) {
+                min &= mask;
+                func(min);
+                --filled;
+            }
+        }
+#endif
+    }
+    template<typename Functor>
+    INLINE void for_each_rolling_hash_canon(const Functor &func) {
+        // TODO: this
+    }
+    template<typename Functor, size_t N>
+    INLINE void for_each_rolling_hash_seed_multiply(const Functor &func) {
+        // TODO: this (uses a stack of values with seeds to perform the hashing)
+    }
+    template<typename Functor>
+    INLINE void for_each_rolling_hash_seed_multiply_n(const Functor &func, size_t n) {
+
+        // TODO: this (uses a heap-allocated array of seeds to perform the hashing)
+    }
+#endif /* THEY_SEE_ME_ROLLIN */
 
     template<typename Functor>
     INLINE void for_each_canon_windowed(const Functor &func) {
-        u64 min(BF);
+        u64 min;
         while(likely(has_next_kmer()))
             if((min = next_canonicalized_minimizer()) != BF)
                 func(min);
@@ -180,8 +224,7 @@ public:
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 min <<= 2;
-                //std::fprintf(stderr, "Encoding character %c with value %u at last position.\n", s_[pos_], (unsigned)cstr_lut[s_[pos_]]);
-                if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF) && (sp_.k_ < 31 || cstr_lut[s_[pos_ - 1]] != 'T')) {
+                if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF) && (sp_.k_ < 32 || cstr_lut[s_[pos_ - 1]] != 'T')) {
                     goto loop_start;
                 }
                 ++filled;
@@ -203,7 +246,7 @@ public:
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 min <<= 2;
-                if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF) && likely(sp_.k_ < 31 || cstr_lut[s_[pos_ - 1]] != 'T')) {
+                if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF) && likely(sp_.k_ < 32 || cstr_lut[s_[pos_ - 1]] != 'T')) {
                     goto windowed_loop_start;
                 }
                 ++filled;
@@ -629,7 +672,6 @@ void fill_sketch(SketchType &ret, const std::vector<std::string> &paths,
         auto &rhll = get_hll(ret);
         for(auto &sketch: sketches) rhll += get_hll(sketch);
     }
-    
 }
 
 template<typename T>
