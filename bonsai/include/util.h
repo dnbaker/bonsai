@@ -1196,7 +1196,6 @@ static std::vector<std::string> get_paths(const char *path) {
 
 static std::ifstream::pos_type filesize(const char* filename)
 {
-    LOG_INFO("Getting filesize for %s\n", filename);
     std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
     return in.tellg();
 }
