@@ -98,7 +98,7 @@ public:
         else ++match->second.n_;
         ++n_;
     }
-    void fill(const std::unordered_map<tax_t, strlist> &list, const Spacer &sp, bool canonicalize=true, int num_threads=-1,
+    void fill(const std::unordered_map<tax_t, std::forward_list<std::string>> &list, const Spacer &sp, bool canonicalize=true, int num_threads=-1,
               khash_t(all) *acc=nullptr) {
         if(tax_.size()) tax_.clear();
         for(const auto &pair: list) {
@@ -118,7 +118,7 @@ public:
 
 class FMEmitter {
     using HeapType = std::set<NodeType *, node_lt>;
-    using TaxPathType = std::unordered_map<tax_t, strlist>;
+    using TaxPathType = std::unordered_map<tax_t, std::forward_list<std::string>>;
     static const size_t BufferSize = 1 << 17;
 
     std::vector<FlexMap>   subtrees_;
@@ -173,7 +173,7 @@ class FMEmitter {
     }
 public:
     // Also need a map of taxid to tax level.
-    FMEmitter(khash_t(p) *tax, const std::unordered_map<tax_t, strlist> &taxpathmap, bool canonicalize=true,
+    FMEmitter(khash_t(p) *tax, const std::unordered_map<tax_t, std::forward_list<std::string>> &taxpathmap, bool canonicalize=true,
               size_t max_heapsz=1<<8, size_t to_add=0):
         tax_{tax}, tpm_{taxpathmap}, max_heapsz_{max_heapsz},
         left_to_add_((to_add ? to_add
@@ -287,8 +287,8 @@ public:
     }
     template<typename T>
     void process_subtree(const tax_t parent, T bit, T eit, const Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr) {
-        std::unordered_map<tax_t, strlist> tmpmap;
-        typename std::unordered_map<tax_t, strlist>::const_iterator m;
+        std::unordered_map<tax_t, std::forward_list<std::string>> tmpmap;
+        typename std::unordered_map<tax_t, std::forward_list<std::string>>::const_iterator m;
         while(bit != eit) {
             if((m = tpm_.find(*bit++)) == tpm_.end()) LOG_DEBUG("No paths found for tax %u. Continuing.\n", *(bit - 1));
             else tmpmap.emplace(m->first, m->second);

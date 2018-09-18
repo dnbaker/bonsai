@@ -123,19 +123,19 @@ struct ForPool {
         kt_forpool_destroy(fp_);
     }
 };
+
 using MainFnPtr = int (*) (int, char **);
 
+using i16 = std::uint16_t;
 using i32 = std::int32_t;
 using i64 = std::int64_t;
+using i8  = std::uint8_t;
 using u16 = std::uint16_t;
 using u32 = std::uint32_t;
 using u64 = std::uint64_t;
-using u8 = std::uint8_t;
+using u8  = std::uint8_t;
 using std::size_t;
 using tax_t = u32;
-using std::forward_list;
-using strlist = forward_list<std::string>;
-using cpslist = forward_list<std::string*>;
 using pop::bitvec_t;
 
 class Timer {
@@ -367,7 +367,7 @@ inline bool isfile(const std::string &path) noexcept {return isfile(path.data())
 template<typename T>
 size_t size(const T &container) {return container.size();}
 template<typename T>
-size_t size(const forward_list<T> &list) {
+size_t size(const std::forward_list<T> &list) {
     size_t ret(0);
     for(auto i(list.begin()); i != list.end(); ++i) ++ret;
     return ret;
@@ -946,7 +946,7 @@ static std::map<uint32_t, uint32_t> kh2kr(khash_t(p) *map) {
 }
 
 
-static std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths) {
+static std::unordered_map<tax_t, std::forward_list<std::string>> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths) {
     tax_t taxid;
     std::unordered_map<tax_t, std::forward_list<std::string>> ret;
     typename std::unordered_map<tax_t, std::forward_list<std::string>>::iterator m;
@@ -956,7 +956,7 @@ static std::unordered_map<tax_t, strlist> tax2genome_map(khash_t(name) *name_map
 #endif
     for(const auto &path: paths) {
         if((taxid = get_taxid(path.data(), name_map)) == UINT32_C(-1)) continue;
-        if((m = ret.find(taxid)) == ret.end()) m = ret.emplace(taxid, strlist{path}).first;
+        if((m = ret.find(taxid)) == ret.end()) m = ret.emplace(taxid, std::forward_list<std::string>{path}).first;
         else if(std::find(m->second.begin(), m->second.end(), path) == m->second.end()) m->second.push_front(path);
 #if !NDEBUG
         ks.clear();
@@ -1028,14 +1028,14 @@ static std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(
     return ret;
 }
 
-static std::unordered_map<tax_t, strlist> tax2desc_genome_map(
-        const std::unordered_map<tax_t, strlist> &tx2g,
+static std::unordered_map<tax_t, std::forward_list<std::string>> tax2desc_genome_map(
+        const std::unordered_map<tax_t, std::forward_list<std::string>> &tx2g,
         const khash_t(p) *taxmap, const std::vector<tax_t> &taxes,
         const std::unordered_map<tax_t, ClassLevel> &lvl_map) {
-    std::unordered_map<tax_t, strlist> ret;
+    std::unordered_map<tax_t, std::forward_list<std::string>> ret;
     for(const auto &pair: make_ptc_map(taxmap, taxes, lvl_map)) {
-        typename std::unordered_map<tax_t, strlist>::const_iterator pit;
-        strlist list;
+        typename std::unordered_map<tax_t, std::forward_list<std::string>>::const_iterator pit;
+        std::forward_list<std::string> list;
         if((pit = tx2g.find(pair.first)) != tx2g.end()) {
             for(const auto &str: pit->second) list.push_front(str);
         }
