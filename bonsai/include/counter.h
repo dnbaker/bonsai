@@ -111,6 +111,11 @@ class Counter {
 public:
     Counter(): n_(0), nelem_(0), hist_(nullptr) {}
     ~Counter() {if(hist_) delete hist_;}
+    Counter(Counter &&o): n_(o.n_), nelem_(o.nelem_), map_(std::move(o.map_)), hist_(o.hist_) {
+        o.hist_ = nullptr;
+    }
+    Counter(const Counter &o) = delete;
+    Counter &operator=(const Counter &o) = delete;
 
     template<typename Q=T>
     void add(const typename std::enable_if_t<std::is_fundamental_v<Q>, Q> elem) {
