@@ -129,7 +129,7 @@ public:
     bitmap_t(bitmap_t &&other)            = default;
     bitmap_t &operator=(bitmap_t &&other) = default;
 
-    count::Counter<bitvec_t> to_counter() {
+    auto to_counter() const {
         count::Counter<bitvec_t> ret;
         for(auto &pair: core_) ret.add(pair.second);
         ret.set_nelem(core_.size());
