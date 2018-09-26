@@ -51,7 +51,7 @@ inline int veccmp(const void *a, const void *b, size_t nbytes) {
         ++pa, ++pb;
     }
 #endif
-    u8 *eba((u8 *)pa), *ebb((u8 *)pb);
+    u8 *eba(const_cast<u8 *>(reinterpret_cast<const u8 *>(pa))), *ebb(const_cast<u8 *>(reinterpret_cast<const u8 *>(pb)));
     while(nlo--) {
         bparent &= !(*eba & (~*ebb));
         aparent &= !(*ebb & (~*eba));
