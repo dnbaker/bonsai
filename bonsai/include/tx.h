@@ -243,7 +243,7 @@ struct bf_helper_t {
     const bool canonicalize_;
 };
 static void bitmap_filler_helper(void *data_, long index, int tid) {
-    bf_helper_t &data(*(bf_helper_t *)data_);
+    bf_helper_t &data(*reinterpret_cast<bf_helper_t *>(data_));
     ba::MMapTaxonomyBitmap &map(data.bm_);
     const tax_t taxid(data.taxes_[index]);
     u64 val;

@@ -21,7 +21,7 @@ struct kg_list_data {
 };
 
 static void kg_helper(void *data_, long index, int tid) {
-    kg_data *data((kg_data *)data_);
+    kg_data *data(reinterpret_cast<kg_data *>(data_));
     khash_t(all) *hash(&data->core_[index]);
     int khr;
     Encoder<score::Lex> enc(data->sp_, data->canon_);
@@ -36,7 +36,7 @@ static void kg_helper(void *data_, long index, int tid) {
 }
 
 static void kg_list_helper(void *data_, long index, int tid) {
-    kg_list_data &data(*(kg_list_data *)data_);
+    kg_list_data &data(*reinterpret_cast<kg_list_data *>(data_));
     auto &list(*data.fl_[index]);
     LOG_INFO("Size of list: %zu. Performing for index %ld of %zu\n", size(list), index, data.core_.size());
     khash_t(all) *hash(&data.core_[index]);
@@ -61,13 +61,13 @@ public:
         if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
         kg_data data{core_, paths, sp, acceptable_, canonicalize};
         ForPool pool(num_threads);
-        pool.forpool(&kg_helper, (void *)&data, core_.size());
+        pool.forpool(&kg_helper, reinterpret_cast<void *>(&data), core_.size());
     }
     void fill(const std::unordered_map<u32, std::forward_list<std::string>> *path_map, const Spacer &sp, bool canonicalize=true, int num_threads=-1) {
         auto &pm(*path_map);
         if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
         std::vector<const std::forward_list<std::string>*> tmpfl;
-        taxes_.clear(), taxes_.reserve(std::max(pm.size(), (size_t)4));
+        taxes_.clear(), taxes_.reserve(std::max(pm.size(), size_t(4)));
         LOG_DEBUG("Tax reserved size %zu\n", taxes_.capacity());
 #if !NDEBUG
         for(const auto &pair: pm) {
@@ -85,7 +85,7 @@ public:
         LOG_DEBUG("Tax filled size %zu. Core size: %zu\n", taxes_.size(), core_.size());
         kg_list_data data{core_, tmpfl, sp, acceptable_, canonicalize};
         ForPool pool(num_threads);
-        pool.forpool(&kg_list_helper, (void *)&data, core_.size());
+        pool.forpool(&kg_list_helper, reinterpret_cast<void *>(&data), core_.size());
     }
     const auto &get_taxes()                        const {return taxes_;} // Who'd want that?
     const std::vector<khash_t(all)> &core()        const {return core_;}
