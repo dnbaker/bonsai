@@ -92,11 +92,7 @@
 #define kputuw_ kputuw
 #endif
 
-template<typename T>
-void STLFREE(T &container) {
-    T tmp;
-    std::swap(tmp, container);
-}
+#define STLFREE(x) do {decltype(x) tmp; using std::swap; swap(tmp, x);} while(0)
 
 #ifndef XOR_MASK
 #    define XOR_MASK 0xe37e28c4271b5a2dULL
@@ -197,13 +193,23 @@ template<> inline khint_t khash_put(khash_t(all) *map, uint64_t key, int *ret) {
 }
 
 template<typename T, typename KType> khint_t khash_get(T *map, KType key) {
-    if constexpr(std::is_same_v<std::decay_t<KType>, uint64_t>) {
+#if __cplusplus < 201703L
+    if (std::is_same<std::decay_t<KType>, uint64_t>::value) {
         return kh_get(64, (khash_t(64) *)map, (uint64_t)key);
-    } else if constexpr(std::is_same_v<KType, const char *>) {
+    } else if (std::is_same<KType, const char *>::value) {
         return kh_get(name, (khash_t(name) *)map, (const char *)key);
     } else {
         return kh_get(c, (khash_t(c) *)map, (uint32_t)key);
     }
+#else
+    if constexpr(std::is_same<std::decay_t<KType>, uint64_t>::value) {
+        return kh_get(64, (khash_t(64) *)map, (uint64_t)key);
+    } else if constexpr(std::is_same<KType, const char *>::value) {
+        return kh_get(name, (khash_t(name) *)map, (const char *)key);
+    } else {
+        return kh_get(c, (khash_t(c) *)map, (uint32_t)key);
+    }
+#endif
 }
 
 template<>
@@ -426,7 +432,7 @@ INLINE u32 nuccount(u64 kmer, unsigned k) {
 
 INLINE const char *get_lvlname(ClassLevel lvl) {return classlvl_arr[static_cast<int>(lvl) + LINE_LVL_OFFSET];}
 
-template<typename Container, typename=std::enable_if_t<std::is_same_v<typename Container::value_type, tax_t>>>
+template<typename Container, typename=typename std::enable_if<std::is_same<typename Container::value_type, tax_t>::value>::type>
 tax_t lca(khash_t(p) *taxmap, const Container& v) noexcept {
     if(v.size() == 0) {
         fprintf(stderr, "Warning: no elements provided. Returning 0 for lca.\n");
