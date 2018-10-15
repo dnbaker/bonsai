@@ -21,6 +21,7 @@
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
+#include <sys/stat.h>
 #include <zlib.h>
 
 #include "kspp/ks.h"
@@ -133,6 +134,14 @@ using u8  = std::uint8_t;
 using std::size_t;
 using tax_t = u32;
 using pop::bitvec_t;
+
+template<typename MutexType>
+struct LockSmith {
+    // Simple lock-holder to avoid writing to the same file twice.
+    MutexType &m_;
+    LockSmith(MutexType &m): m_(m) {m_.lock();}
+    ~LockSmith() {m_.unlock();}
+};
 
 class Timer {
     using TpType = std::chrono::system_clock::time_point;
@@ -1200,10 +1209,11 @@ static std::vector<std::string> get_paths(const char *path) {
     return ret;
 }
 
-static std::ifstream::pos_type filesize(const char* filename)
+static int filesize(const char* filename)
 {
-    std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
-    return in.tellg();
+    struct stat st;
+    stat(filename, &st);
+    return st.st_size;
 }
 
 
