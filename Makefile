@@ -1,25 +1,25 @@
 .PHONY=all tests clean bonsai update
 
 all:
-	$(MAKE) -C bonsai
+	+$(MAKE) -C bonsai
 
 clean:
-	$(MAKE) clean -C bonsai
+	+$(MAKE) clean -C bonsai
 
 unit:
-	$(MAKE) update unit -C bonsai
+	+$(MAKE) update unit -C bonsai
 
 zunit:
-	$(MAKE) update zunit -C bonsai
+	+$(MAKE) update zunit -C bonsai
 
 bonsai:
-	$(MAKE) update bonsai -C bonsai
+	+$(MAKE) update bonsai -C bonsai
 
 bonsai_d:
-	$(MAKE) update bonsai_d -C bonsai
+	+$(MAKE) update bonsai_d -C bonsai
 
 distcmp:
-	$(MAKE) update distcmp -C bonsai
+	+$(MAKE) update distcmp -C bonsai
 
 update:
-	$(MAKE) update -C bonsai
+	+$(MAKE) update -C bonsai

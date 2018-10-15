@@ -2,6 +2,8 @@
 CXX=g++
 CC=gcc
 
+MAKE?=make
+
 GMATCH=$(findstring g++,$(CXX))
 GIT_VERSION := $(shell git describe --abbrev=4 --always)
 
@@ -10,7 +12,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
 		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
 		 -pedantic -DUSE_PDQSORT -Wunused-variable \
-		-Wduplicated-branches -Wdangling-else  -Wsuggest-attribute=malloc # -Wconversion
+		-Wduplicated-branches -Wdangling-else # -Wsuggest-attribute=malloc # -Wconversion
 ifndef EXTRA
 	EXTRA:=
 endif
@@ -75,8 +77,6 @@ all: update $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX) $(ZEX)
 z: $(ZEX)
 
 
-#libhll.a:
-#	cd hll && make CXX=$(CXX) && cp libhll.a ..
 
 update:
 	for i in circularqueue clhash cppitertools hll klib kspp libpopcnt linear pdqsort tinythreadpp zstd; \
@@ -85,10 +85,10 @@ update:
 obj: $(OBJS) $(DOBJS) $(ZOBJS) $(ZW_OBJS)
 
 libzstd.a:
-	cd ../zstd && make && mv lib/libzstd.a ../bonsai && cd ../bonsai
+	cd ../zstd && $(MAKE) && mv lib/libzstd.a ../bonsai && cd ../bonsai
 
 clhash.o: ../clhash/src/clhash.c
-	ls $@ 2>/dev/null || mv ../clhash/clhash.o . 2>/dev/null || (cd ../clhash $(CLHASH_CHECKOUT) && make && cd ../bonsai && ln -s ../clhash/clhash.o .)
+	ls $@ 2>/dev/null || mv ../clhash/clhash.o . 2>/dev/null || (cd ../clhash $(CLHASH_CHECKOUT) && $(MAKE) && cd ../bonsai && ln -s ../clhash/clhash.o .)
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDE) -DNDEBUG -c $< -o $@ $(LIB)
@@ -106,7 +106,7 @@ test/%.zo: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(ZCOMPILE_FLAGS)
 
 ../zlib/libz.a:
-	cd ../zlib && ./configure && make && cd ../bonsai
+	+cd ../zlib && ./configure && $(MAKE) && cd ../bonsai
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)

@@ -664,6 +664,7 @@ void fill_sketch(SketchType &ret, const std::vector<std::string> &paths,
         KSeqBufferHolder kseqs(num_threads);
         std::vector<SketchType> sketches;
         while(sketches.size() < (unsigned)num_threads) sketches.emplace_back(ret.clone());
+        if(ret.size() != sketches.back().size()) throw "a party";
         est_helper<SketchType> helper{space, paths, m, np, canon, data, sketches, kseqs.data()};
         {
             ForPool pool(num_threads);
