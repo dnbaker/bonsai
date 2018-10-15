@@ -11,12 +11,10 @@ template<typename KhashType>
 size_t intersection_size(const KhashType *a, const KhashType *b) {
     size_t ret(0);
     const KhashType *lhs, *rhs;
-    if(a->n_buckets <= b->n_buckets) {
-        lhs = a, rhs = b;
-    } else lhs = b, rhs = a;
-    for(khiter_t ki(0); ki != kh_end(lhs); ++ki)
-        if(kh_exist(lhs, ki))
-            ret += (khash_get(rhs, kh_key(lhs, ki)) != kh_end(rhs));
+    if(b->n_buckets <= a->n_buckets) std::swap(a, b);
+    for(khiter_t ki(0); ki != kh_end(a); ++ki)
+        if(kh_exist(a, ki))
+            ret += (khash_get(b, kh_key(a, ki)) != kh_end(b));
     return ret;
 }
 
