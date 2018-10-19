@@ -82,7 +82,7 @@ static INLINE u64 hash_score(u64 i, void *data) {
 }
 
 namespace score {
-#define DECHASH(name, fn) struct name {u64 operator()(u64 i, void *data) const { return fn(i, data);}}
+#define DECHASH(name, fn) struct name {u64 operator()(u64 i, void *data) const {return fn(i, data);}}
 DECHASH(Lex, lex_score);
 DECHASH(Entropy, ent_score);
 DECHASH(Hash, hash_score);
@@ -139,7 +139,8 @@ public:
     // the correct portions of the structs.
     INLINE void assign(const char *s, u64 l) {
         s_ = s; l_ = l; pos_ = 0;
-        qmap_.reset();
+        if(!sp_.unwindowed())
+            qmap_.reset();
         assert((l_ >= sp_.c_ || (!has_next_kmer())) || std::fprintf(stderr, "l: %zu. c: %zu. pos: %zu\n", size_t(l), size_t(sp_.c_), size_t(pos_)) == 0);
     }
     INLINE void assign(kstring_t *ks) {assign(ks->s, ks->l);}
