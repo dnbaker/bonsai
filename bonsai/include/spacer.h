@@ -76,7 +76,7 @@ public:
     Spacer(unsigned k, std::uint16_t w, const char *space_string):
         Spacer(k, w, parse_spacing(space_string, k)) {}
     bool unspaced() const {
-        return std::find(s_.begin(), s_.end(), [](auto x) {return x != 1}) == s_.end();
+        return std::find_if(s_.begin(), s_.end(), [](auto x) {return x != 1;}) == s_.end();
     }
     bool unwindowed() const {
         return k_ == w_;
