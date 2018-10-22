@@ -148,7 +148,7 @@ def getopts():
     a.add_argument("--threads", "-p",
                    help="Number of threads to use while downloading.",
                    type=int, default=16)
-    a.add_argument("--lazy", "-l", default=False, type=bool,
+    a.add_argument("--lazy", "-l", action='store_true',
                    help="Don't check full gzipped file contents.")
     a.add_argument("--die", "-d", action='store_true')
     return a.parse_args()
