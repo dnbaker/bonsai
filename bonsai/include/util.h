@@ -180,9 +180,12 @@ static INLINE auto roundup64(T x) noexcept {
     x |= x>>1;
     x |= x>>2;
     x |= x>>4;
-    x |= x>>8;
-    x |= x>>16;
-    x |= x>>32;
+    if constexpr(sizeof(x) >= 2)
+        x |= x>>8;
+    if constexpr(sizeof(x) >= 4)
+        x |= x>>16;
+    if constexpr(sizeof(x) >= 8)
+        x |= x>>32;
     ++x;
     return x;
 }
@@ -211,9 +214,9 @@ template<typename T, typename KType> khint_t khash_get(T *map, KType key) {
         return kh_get(c, (khash_t(c) *)map, (uint32_t)key);
     }
 #else
-    if constexpr(std::is_same<std::decay_t<KType>, uint64_t>::value) {
+    if constexpr(std::is_same_v<std::decay_t<KType>, uint64_t>) {
         return kh_get(64, (khash_t(64) *)map, (uint64_t)key);
-    } else if constexpr(std::is_same<KType, const char *>::value) {
+    } else if constexpr(std::is_same_v<KType, const char *>) {
         return kh_get(name, (khash_t(name) *)map, (const char *)key);
     } else {
         return kh_get(c, (khash_t(c) *)map, (uint32_t)key);
@@ -1214,6 +1217,16 @@ static int filesize(const char* filename)
     struct stat st;
     stat(filename, &st);
     return st.st_size;
+}
+static int filesize(const int fd)
+{
+    struct stat st;
+    fstat(fd, &st);
+    return st.st_size;
+}
+static int filesize(std::FILE *fp)
+{
+    return filesize(fileno(fp));
 }
 
 
