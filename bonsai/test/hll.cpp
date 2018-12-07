@@ -46,6 +46,7 @@ TEST_CASE("hll") {
     //std::fprintf(stdout, "#Structure Type\tSketch size\tNumber of elements\tDifference\tRMSE\tAbsDiffMean\tNumber underestimated\tNumber overestimated\tNumber of sketches with difference above expected\n");
     const auto npairs = pairs.size();
     omp_set_num_threads(std::thread::hardware_concurrency());
+    std::set<std::pair<uint64_t, uint64_t>> gset;
     for(size_t ind = 0; ind < npairs; ++ind) {
         const auto pair(pairs[ind]);
         double diffsum = 0., absdiffsum = 0.;
@@ -55,6 +56,7 @@ TEST_CASE("hll") {
         int localnp = 0;
         #pragma omp parallel for
         for(size_t j = 0; j < niter; ++j) {
+            std::set<std::pair<uint64_t, uint64_t>> lset;
             aes::AesCtr<uint64_t, 8> gen(mt() + j * (j + 1)); // I'm okay with a race condition, because I'm salting with the value of j
             const size_t val(1ull << pair.second), hsz(pair.first);
             hll::hll_t hll(hsz);
@@ -63,7 +65,8 @@ TEST_CASE("hll") {
             }
             hll.sum();
             if(std::abs(hll.report() - val) > hll.est_err()) {
-                fprintf(stderr, "Warning: Above expected variance for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
+                lset.insert(pair);
+                //fprintf(stderr, "Warning: Above expected variance for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
             }
             auto diff = hll.report() - val; // For maximally mixed metaphors
             diffs[j] = diff;
@@ -75,8 +78,11 @@ TEST_CASE("hll") {
                 absdiffsum += std::abs(diff);
                 diff *= diff;
                 localnp += (std::abs(hll.report() - val) <= hll.est_err());
+                gset.insert(lset.begin(), lset.end());
             }
         }
+
+        std::fprintf(stderr, "Failed to meet expectations %zu of %zu times\n", gset.size(), niter);
         // auto sqvar = std::sqrt(std::accumulate(std::begin(diffs), std::end(diffs), 0., [div](auto x, auto y) {return x + y / div * y;}));
         {
 //            std::fprintf(stdout, "HLL\t%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\t%f\t%f\n",
@@ -86,6 +92,9 @@ TEST_CASE("hll") {
         }
         numpass += localnp;
     }
+    for(const auto &p: gset)
+        std::fprintf(stderr, "Failed expectations for pair %" PRIu64 " and %" PRIu64 "\n", p.first, p.second);
+    gset.clear();
     for(size_t ind = 0; ind < npairs; ++ind) {
         const auto pair(pairs[ind]);
         double diffsum = 0., absdiffsum = 0.;
@@ -96,11 +105,13 @@ TEST_CASE("hll") {
         #pragma omp parallel for
         for(size_t j = 0; j < niter; ++j) {
             const size_t val(1ull << pair.second), hsz(pair.first);
+            std::set<std::pair<uint64_t, uint64_t>> lset;
             aes::AesCtr<uint64_t, 8> gen(mt() + j * (j + 1));
             hll::hlf_t hlf(16, gen(), hsz - 4);
             for(size_t i(0); i < val; ++i) hlf.addh(gen());
             if(std::abs(hlf.report() - val) > (1.03896 / std::sqrt(1ull << pair.first) * val)) {
-                fprintf(stderr, "Warning: Above expected variance for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
+                lset.emplace(pair);
+                //fprintf(stderr, "Warning: Above expected variance for %u, %u.\n", (unsigned)pair.first, (unsigned)pair.second);
             }
             auto diff = hlf.report() - val; // For maximally mixed metaphors
             diffs[j] = diff;
@@ -112,8 +123,11 @@ TEST_CASE("hll") {
                 sumlessmore[diff > 0] += absdiffsum;
                 diff *= diff;
                 localnp += (std::abs(hlf.report() - val) <= (1.03896 / std::sqrt(1ull << pair.first) * val));
+                gset.insert(lset.begin(), lset.end());
             }
         }
+        for(const auto &p: gset)
+            std::fprintf(stderr, "Failed expectations for pair %" PRIu64 " and %" PRIu64 "\n", p.first, p.second);
         // auto sqvar = std::sqrt(std::accumulate(std::begin(diffs), std::end(diffs), 0., [div](auto x, auto y) {return x + y / div * y;}));
         {
             //std::fprintf(stdout, "HLF\t%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\t%lf\t%lf\n", (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1], (int)niter - localnp, sumlessmore[0] / div, sumlessmore[1] / div);

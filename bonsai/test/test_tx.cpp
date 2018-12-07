@@ -47,7 +47,7 @@ std::vector<std::string> PATHS {
 };
 
 const char *TAX_PATH  = "../ref/nodes.dmp";
-const char *NAME_PATH = "ref/nameidmap.txt";
+const char *NAME_PATH = "../ref/nameidmap.txt";
 
 TEST_CASE("tx") {
     khash_t(p) *old_tax(build_parent_map(TAX_PATH));
