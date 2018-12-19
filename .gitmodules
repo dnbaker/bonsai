@@ -1,45 +1,60 @@
 [submodule "libcuckoo"]
 	path = libcuckoo
 	url = https://github.com/Efficient/libcuckoo
+    branch = master
 [submodule "klib"]
 	path = klib
 	url = https://github.com/dnbaker/klib
+    branch = master
 [submodule "clhash"]
 	path = clhash
 	url = https://github.com/lemire/clhash
+    branch = master
 [submodule "cppitertools"]
 	path = cppitertools
 	url = https://github.com/ryanhaining/cppitertools
+    branch = master
 [submodule "kraken"]
 	path = kraken
 	url = https://github.com/derrickwood/kraken
+    branch = master
 [submodule "tinythreadpp"]
 	path = tinythreadpp
 	url = https://github.com/aseprite/tinythreadpp
+    branch = master
 [submodule "kspp"]
 	path = kspp
 	url = https://github.com/dnbaker/kspp
+    branch = master
 [submodule "linear"]
 	path = linear
 	url = https://github.com/dnbaker/linear
+    branch = master
 [submodule "zstd"]
 	path = zstd
 	url = https://github.com/facebook/zstd
+    branch = master
 [submodule "libpopcnt"]
 	path = libpopcnt
 	url = https://github.com/kimwalisch/libpopcnt
+    branch = master
 [submodule "circularqueue"]
 	path = circularqueue
 	url = https://github.com/dnbaker/circularqueue
+    branch = master
 [submodule "pdqsort"]
 	path = pdqsort
 	url = https://github.com/orlp/pdqsort
+    branch = master
 [submodule "lazy"]
 	path = lazy
 	url = https://github.com/dnbaker/lazy
+    branch = master
 [submodule "hll"]
 	path = hll
-	url = https://github.com/dnbaker/hll
+	url = https://github.com/dnbaker/sketch
+    branch = master
 [submodule "zlib"]
 	path = zlib
 	url = https://github.com/madler/zlib
+    branch = master
