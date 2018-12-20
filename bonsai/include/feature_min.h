@@ -98,14 +98,13 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
     std::vector<khash_t(all)> counters(num_threads);
     std::memset(counters.data(), 0, sizeof(khash_t(all)) * counters.size());
     LOG_DEBUG("Started things\n");
-    if constexpr(MapUpdater::ValSize == 8) {
-        r64 = static_cast<typename MapUpdater::ReturnType>(std::calloc(sizeof(khash_t(64)), 1));
+    if(MapUpdater::ValSize == 8) {
+        r64 = static_cast<khash_t(64) *>(std::calloc(sizeof(khash_t(64)), 1));
         kh_resize(64, r64, start_size);
     } else {
-        r32 = static_cast<typename MapUpdater::ReturnType>(std::calloc(sizeof(khash_t(c)), 1));
+        r32 = static_cast<khash_t(c) *>(std::calloc(sizeof(khash_t(c)), 1));
         kh_resize(c, r32, start_size);
     }
-    LOG_DEBUG("Allocated memory\n");
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
     std::vector<std::future<size_t>> futures;
     // Mkae the future return the kseq pointer and then use it for resubmission.
@@ -160,11 +159,11 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
     }
     kh_destroy(name, name_hash);
     LOG_DEBUG("Finished making map!\n");
-    if constexpr(MapUpdater::ValSize == 8)
-        return r64;
-    else
-        return r32;
+    if (MapUpdater::ValSize == 8)
+        r32 = reinterpret_cast<khash_t(c) *>(r64);
+    return reinterpret_cast<typename MapUpdater::ReturnType>(r32);
 }
+
 template<typename ScoreType>
 auto feature_count_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon, size_t start_size) {
     return make_map<ScoreType, FcMap>(fns, tax_map, seq2tax_path, sp, num_threads, canon, start_size, nullptr);
