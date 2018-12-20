@@ -794,6 +794,7 @@ static khash_t(p) *build_parent_map(const char *fn) {
         kh_val(ret, ki) = (p = std::strchr(line.data(), '|')) ? std::atoi(p + 2)
                                                               : tax_t(-1);
         if(kh_val(ret, ki) == tax_t(-1)) LOG_WARNING("Malformed line: %s", line.data());
+    }
     ki = kh_put(p, ret, 1, &khr);
     kh_val(ret, ki) = 0; // Root of the tree.
     if(kh_size(ret) < 2) RUNTIME_ERROR(std::string("Failed to create taxmap from ") + fn);
