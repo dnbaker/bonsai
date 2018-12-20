@@ -180,11 +180,11 @@ static INLINE auto roundup64(T x) noexcept {
     x |= x>>1;
     x |= x>>2;
     x |= x>>4;
-    if constexpr(sizeof(x) >= 2)
+    if(sizeof(x) >= 2)
         x |= x>>8;
-    if constexpr(sizeof(x) >= 4)
+    if(sizeof(x) >= 4)
         x |= x>>16;
-    if constexpr(sizeof(x) >= 8)
+    if(sizeof(x) >= 8)
         x |= x>>32;
     ++x;
     return x;

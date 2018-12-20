@@ -153,7 +153,7 @@ public:
       scorer_{},
       canonicalize_(canonicalize)
     {
-        if(std::is_same_v<ScoreType, score::Entropy> && sp_.unspaced() && !sp_.unwindowed()) {
+        if(std::is_same<ScoreType, score::Entropy>::value && sp_.unspaced() && !sp_.unwindowed()) {
             if(data_) RUNTIME_ERROR("No data pointer must be provided for lex::Entropy minimization.");
             data_ = static_cast<void *>(new CircusEnt(sp_.k_));
         }
@@ -339,18 +339,16 @@ public:
             if(sp_.unwindowed()) {
                  for_each_canon_unwindowed(func);
             } else {
-                if constexpr(std::is_same_v<ScoreType, score::Entropy>) {
+                if(std::is_same<ScoreType, score::Entropy>::value) {
                     if(sp_.unspaced()) for_each_canon_unspaced_windowed_entropy_(func);
                     else               for_each_canon_windowed(func);
                 } else for_each_canon_windowed(func);
             }
         } else {
-            // Note that an entropy-based score calculation can be sped up for this case.
-            // This will benefit from either a special function or an if constexpr
             if(sp_.unspaced()) {
                 if(sp_.unwindowed()) for_each_uncanon_unspaced_unwindowed(func);
                 else {
-                    if constexpr(std::is_same_v<ScoreType, score::Entropy>)
+                    if(std::is_same<ScoreType, score::Entropy>::value)
                         for_each_uncanon_unspaced_windowed_entropy_(func);
                     else for_each_uncanon_unspaced_windowed(func);
                 }
@@ -424,9 +422,9 @@ public:
         gzclose(fp);
     }
     template<typename Functor, typename ContainerType,
-             typename=std::enable_if_t<std::is_same_v<typename ContainerType::value_type::value_type, char> ||
-                                       std::is_same_v<std::decay_t<typename ContainerType::value_type>, char *>
-                                      >
+             typename=typename std::enable_if<std::is_same<typename ContainerType::value_type::value_type, char>::value ||
+                                       std::is_same<std::decay_t<typename ContainerType::value_type>, char *>::value
+                                             >::type
             >
     void for_each(const Functor &func, const ContainerType &strcon, kseq_t *ks=nullptr) {
         for(const auto &el: strcon) {
