@@ -91,6 +91,18 @@ DECHASH(Hash, hash_score);
 
 
 
+static std::array<u64, 256> make_nthash_lut(u64 seedseed) {
+    aes::AesCtr<uint64_t> gen(seedseed);
+    uint64_t a = gen(), c = gen(), g = gen(), t = gen();
+    std::array<u64, 256> ret;
+    std::fill(ret.begin(), ret.end(), 0);
+    ret[4] = ret['a'] = ret['A'] = a;
+    ret[7] = ret['c'] = ret['C'] = c;
+    ret[3] = ret['g'] = ret['G'] = g;
+    ret[1] = ret['t'] = ret['T'] = t;
+    return ret;
+}
+
 /*
  *Encoder:
  * Uses a Spacer to control spacing.
@@ -108,31 +120,59 @@ public:
 private:
     u64         pos_; // Current position within the string s_ we're working with.
     void      *data_; // A void pointer for using with scoring. Needed for hash_score.
+    std::array<u64, 256> *rolling_seeds_;
     qmap_t     qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
     const ScoreType  scorer_; // scoring struct
     bool canonicalize_;
+#if 0
+template<unsigned b1, unsigned b2, unsigned range=1>
+INLINE uint64_t swapbits(uint64_t x) {
+template<size_t lbits>
+INLINE uint64_t rol(uint64_t x, unsigned s) {
+template<size_t n>
+INLINE uint64_t lrot(uint64_t x) {
+    return (x << n) | (x >> (64 - n));
+}
+template<size_t n>
+INLINE uint64_t rrot(uint64_t x) {
+    return (x >> n) | (x << (64 - n));
+}
+#endif
+static constexpr uint64_t DEFAULT_ROLLING_SEED = UINT64_C(0xB0BAFE77C001D00D);
 
 public:
     Encoder(char *s, u64 l, const Spacer &sp, void *data=nullptr,
-            bool canonicalize=true):
+            bool canonicalize=true, uint64_t rolling_seed=0):
       s_(s),
       l_(l),
       sp_(sp),
       pos_(0),
       data_(data),
+      rolling_seeds_(nullptr),
       qmap_(sp_.w_ - sp_.c_ + 1),
       scorer_{},
-      canonicalize_(canonicalize) {
+      canonicalize_(canonicalize)
+    {
         LOG_DEBUG("Canonicalizing: %s\n", canonicalize_ ? "True": "False");
         if(std::is_same_v<ScoreType, score::Entropy> && sp_.unspaced() && !sp_.unwindowed()) {
             if(data_) RUNTIME_ERROR("No data pointer must be provided for lex::Entropy minimization.");
             data_ = static_cast<void *>(new CircusEnt(sp_.k_));
         }
+        if(rolling_seed) {
+            if((rolling_seeds_ = static_cast<std::array<u64, 256> *>(std::malloc(sizeof(*rolling_seeds_)))) == nullptr) throw std::bad_alloc();
+            *rolling_seeds_ = make_nthash_lut(rolling_seed);
+        }
     }
-    Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data, canonicalize) {}
-    Encoder(const Spacer &sp, bool canonicalize=true): Encoder(sp, nullptr, canonicalize) {}
-    Encoder(const Encoder &other): Encoder(other.sp_, other.data_) {}
-    Encoder(unsigned k, bool canonicalize=true): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize) {}
+    Encoder(const Spacer &sp, void *data, bool canonicalize=true, uint64_t rolling_seed=0): Encoder(nullptr, 0, sp, data, canonicalize, rolling_seed) {}
+    Encoder(const Spacer &sp, bool canonicalize=true, uint64_t rolling_seed=0): Encoder(sp, nullptr, canonicalize, rolling_seed) {}
+    Encoder(const Encoder &other): Encoder(other.sp_, other.data_) {
+        canonicalize_ = other.canonicalize_;
+        if(other.rolling_seeds_) {
+            if((rolling_seeds_ = static_cast<std::array<u64, 256> *>(std::malloc(sizeof(*rolling_seeds_)))) == nullptr) throw std::bad_alloc();
+            std::memcpy(rolling_seeds_, other.rolling_seeds_, sizeof(std::array<u64, 256>));
+        }
+    }
+    Encoder(unsigned k, bool canonicalize=true, uint64_t rolling_seed=0): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize, rolling_seed) {}
 
     // Assign functions: These tell the encoder to fetch kmers from this string.
     // kstring and kseq are overloads which call assign(char *s, u64 l) on
@@ -147,7 +187,7 @@ public:
     INLINE void assign(kseq_t    *ks) {assign(&ks->seq);}
 #if THEY_SEE_ME_ROLLIN
     template<typename Functor>
-    INLINE void for_each_rolling_hash(const Functor &func) {
+    INLINE void for_each_rolling_hash(const Functor &func, u64 seed=0xB0BAF377C001D00D) {
         // Uses nthash, a rolling hash for nucleotides.
         if(unlikely(!sp_.unspaced())) throw std::runtime_error("Can't perform "s + __PRETTY_FUNCTION__ + " for spaced seeds. Use for_each and hash it yourself.");
         if((!sp_.unwindowed())) throw std::runtime_error("Can't perform "s + __PRETTY_FUNCTION__ + " for windowed seeds. Use for_each and hash it yourself.");
@@ -463,12 +503,13 @@ public:
     }
     bool canonicalize() const {return canonicalize_;}
     void set_canonicalize(bool value) {canonicalize_ = value;}
-    auto pos() const {return pos_;}
+    auto pos()   const {return pos_;}
     uint32_t k() const {return sp_.k_;}
     ~Encoder() {
         if(std::is_same_v<ScoreType, score::Entropy> && sp_.unspaced() && !sp_.unwindowed()) {
             delete static_cast<CircusEnt *>(data_);
         }
+        std::free(rolling_seeds_);
     }
 };
 

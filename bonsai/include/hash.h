@@ -119,6 +119,43 @@ static INLINE unsigned dbm_hash(const char *str)
 
 static INLINE unsigned dbm_hash(const std::string str) {return dbm_hash(str.data(), str.size());}
 
+// rotate "v" to the left 1 position
+template<size_t n>
+INLINE constexpr uint64_t lrot(uint64_t x) {
+    return (x << n) | (x >> (64 - n));
+}
+template<size_t n>
+INLINE constexpr uint64_t rrot(uint64_t x) {
+    return (x >> n) | (x << (64 - n));
+}
+
+// rotate 31-left bits of "v" to the left by "s" positions
+// Precondition: s must be less than lbits
+template<unsigned lbits>
+INLINE constexpr uint64_t rol(uint64_t x, unsigned s) {
+    s = std::min(s, uint32_t(s - lbits));
+    assert(s < lbits);
+    return ((x << s) | (x >> (lbits - s))) & ((1ul << lbits) - 1);
+}
+
+
+// From bit twiddling hacks
+// Swaps ranges of bits starting at b1 and b2
+template<unsigned b1, unsigned b2, unsigned range=1>
+INLINE constexpr uint64_t swapbits(uint64_t x) {
+    static_assert(b1 <= 64 && b2 <= 64, "Can't swap bits which don't exist.");
+    const uint64_t tmp = ((x >> b1) ^ (x >> b2)) & ((1ul << range) - 1);
+    x ^= (tmp << b1) | (tmp << b2);
+    return x;
+}
+inline uint64_t swapbits033(const uint64_t v) {return swapbits<0, 33>(v);}
+inline uint64_t swapbits3263(const uint64_t v) {return swapbits<32, 63>(v);}
+
+// rotate 33-right bits of "v" to the left by "s" positions
+inline uint64_t rol33(const uint64_t v, unsigned s) {
+    return rol<33>(v, s);
+}
+
 } // namespace bns
 
 #endif // #ifdef _HASH_H_

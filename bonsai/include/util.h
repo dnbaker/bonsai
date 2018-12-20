@@ -151,7 +151,7 @@ public:
     Timer(std::string &&name=""): name_{std::move(name)}, start_(std::chrono::system_clock::now()) {}
     void stop() {stop_ = std::chrono::system_clock::now();}
     void restart() {start_ = std::chrono::system_clock::now();}
-    void report() {std::cerr << "Took " << std::chrono::duration<double>(stop_ - start_).count() << "s for task '" << name_ << "'\n";}
+    void report() {std::cerr << "Took " << std::chrono::duration_cast<std::chrono::nanoseconds>(stop_ - start_).count() << "ns for task '" << name_ << "'\n";}
     ~Timer() {stop(); /* hammertime */ report();}
     void rename(const char *name) {name_ = name;}
 };
@@ -1212,7 +1212,7 @@ static std::vector<std::string> get_paths(const char *path) {
     return ret;
 }
 
-static int filesize(const char* filename)
+static ssize_t filesize(const char* filename)
 {
     struct stat st;
     stat(filename, &st);
