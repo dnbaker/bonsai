@@ -131,7 +131,6 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
             kseq_t *ks(kseq_init(fp));
             std::unordered_set<u64> kmers, okmers;
             u64 k(BF);
-            LOG_DEBUG("Readign from file one.\n");
             while(kseq_read(ks) >= 0) {
                 enc.assign(ks);
                 while(enc.has_next_kmer())
@@ -166,13 +165,13 @@ TEST_CASE("entmin") {
     Spacer sp(31, 60);
     Encoder<score::Entropy> enc(Spacer(31, 60));
     std::unordered_set<u64> kmers;
-    enc.for_each([&](const u64 &val) {std::fprintf(stderr, "zomg %s at size %zu\n", sp.to_string(val).data(), kmers.size() + 1); kmers.insert(val);}, "test/phix.fa");
+    enc.for_each([&](const u64 val) {kmers.insert(val);}, "test/phix.fa");
     REQUIRE(kmers.size() < 5353);
     std::unordered_set<u64> kmers2;
     LOG_INFO("kmers size: %zu\n", kmers.size());
     {
         Encoder<score::Entropy> enc2(Spacer(31, 31));
-        enc2.for_each([&](const u64 &val) {std::fprintf(stderr, "zomg %s at size %zu\n", sp.to_string(val).data(), kmers2.size() + 1); kmers2.insert(val);}, "test/phix.fa");
+        enc2.for_each([&](const u64 &val) {kmers2.insert(val);}, "test/phix.fa");
     }
     LOG_INFO("kmers2 size: %zu\n", kmers2.size());
 }

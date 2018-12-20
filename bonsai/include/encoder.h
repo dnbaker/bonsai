@@ -153,7 +153,6 @@ public:
       scorer_{},
       canonicalize_(canonicalize)
     {
-        LOG_DEBUG("Canonicalizing: %s\n", canonicalize_ ? "True": "False");
         if(std::is_same_v<ScoreType, score::Entropy> && sp_.unspaced() && !sp_.unwindowed()) {
             if(data_) RUNTIME_ERROR("No data pointer must be provided for lex::Entropy minimization.");
             data_ = static_cast<void *>(new CircusEnt(sp_.k_));
@@ -431,7 +430,6 @@ public:
             >
     void for_each(const Functor &func, const ContainerType &strcon, kseq_t *ks=nullptr) {
         for(const auto &el: strcon) {
-            LOG_DEBUG("Loading from file %s\n", get_cstr(el));
             for_each<Functor>(func, get_cstr(el), ks);
         }
     }
@@ -589,7 +587,6 @@ void fill_lmers(SketchType &sketch, const std::string &path, const Spacer &space
 #if USE_HASH_FILLER
     detail::HashFiller<SketchType> hf(sketch);
 #endif
-    LOG_DEBUG("Canonicalizing: %s\n", canonicalize ? "true": "false");
     sketch.not_ready();
     Encoder<ScoreType> enc(nullptr, 0, space, data, canonicalize);
 #if USE_HASH_FILLER
@@ -637,7 +634,7 @@ u64 count_cardinality(const std::vector<std::string> paths,
                         ++completed;
                         success = 1;
                     } catch (std::system_error &se) {
-                          LOG_DEBUG("System error: resource temporarily available. Retry #%i\n", tries + 1);
+                          LOG_WARNING("System error: resource temporarily available. Retry #%i\n", tries + 1);
                           if(++tries >= max_retries) {LOG_EXIT("Exceeded maximum retries\n"); throw;}
                           sleep(1);
                     }
@@ -698,10 +695,8 @@ void fill_sketch(SketchType &ret, const std::vector<std::string> &paths,
     }
     const Spacer space(k, w, spaces);
     if(num_threads <= 1) {
-        LOG_DEBUG("Starting serial\n");
         for(u64 i(0); i < paths.size(); fill_lmers<ScoreType, SketchType>(ret, paths[i++], space, canon, data, ks));
     } else {
-        LOG_DEBUG("Starting parallel\n");
         std::mutex m;
         KSeqBufferHolder kseqs(num_threads);
         std::vector<SketchType> sketches;
@@ -720,7 +715,6 @@ void fill_sketch(SketchType &ret, const std::vector<std::string> &paths,
 template<typename T>
 void hll_from_khash(hll::hll_t &ret, const T *kh, bool clear=true) {
     if(clear) {
-        LOG_DEBUG("Clearing hll::hll_t ret with address %p\n", (void *)&ret);
         ret.clear();
     }
     for(khiter_t i(0); i < kh_size(kh); ++i)
