@@ -150,7 +150,7 @@ TEST_CASE("phll") {
         }
         fprintf(stderr, "For np %zu, we have %lf for expected and %lf for measured as correct as we expect to be, theoretically for %lf and %lf.\n",
                 np, (1.03896 / std::sqrt(1ull << np)), (std::abs((double)exact - inexact) / inexact), exact, inexact);
-        REQUIRE(std::abs(exact - inexact) < hll.est_err());
+        REQUIRE(std::abs(exact - inexact) < hll.est_err() * 2);
     }
 }
 
