@@ -11,18 +11,11 @@ CLHASH_CHECKOUT = "&& git checkout master"
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
 		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
-		 -pedantic -DUSE_PDQSORT -Wunused-variable \
-		-Wduplicated-branches -Wdangling-else # -Wsuggest-attribute=malloc # -Wconversion
-ifndef EXTRA
-	EXTRA:=
-endif
-ifndef INCPLUS
-	INCPLUS:=
-endif
-ifndef EXTRA_LD
-	EXTRA_LD:=
-endif
-DBG:=
+		 -pedantic -DUSE_PDQSORT -Wunused-variable
+EXTRA?=
+INCPLUS?=
+EXTRA_LD?=
+DBG?=
 OS:=$(shell uname)
 FLAGS=
 
