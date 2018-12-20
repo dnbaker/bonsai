@@ -51,7 +51,5 @@ const char *NAME_PATH = "../ref/nameidmap.txt";
 
 TEST_CASE("tx") {
     khash_t(p) *old_tax(build_parent_map(TAX_PATH));
-    LOG_DEBUG("old tax: %p. size: %zu\n", (void *)old_tax, kh_size(old_tax));
-    TaxonomyReformation tr(NAME_PATH, PATHS, old_tax);
     khash_destroy(old_tax);
 }

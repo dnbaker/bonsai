@@ -82,7 +82,7 @@ TEST_CASE("hll") {
             }
         }
 
-        std::fprintf(stderr, "Failed to meet expectations %zu of %zu times\n", gset.size(), niter);
+        // std::fprintf(stderr, "Failed to meet expectations %zu of %zu times\n", gset.size(), niter);
         // auto sqvar = std::sqrt(std::accumulate(std::begin(diffs), std::end(diffs), 0., [div](auto x, auto y) {return x + y / div * y;}));
         {
 //            std::fprintf(stdout, "HLL\t%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\t%f\t%f\n",
@@ -92,8 +92,6 @@ TEST_CASE("hll") {
         }
         numpass += localnp;
     }
-    for(const auto &p: gset)
-        std::fprintf(stderr, "Failed expectations for pair %" PRIu64 " and %" PRIu64 "\n", p.first, p.second);
     gset.clear();
     for(size_t ind = 0; ind < npairs; ++ind) {
         const auto pair(pairs[ind]);
@@ -126,8 +124,6 @@ TEST_CASE("hll") {
                 gset.insert(lset.begin(), lset.end());
             }
         }
-        for(const auto &p: gset)
-            std::fprintf(stderr, "Failed expectations for pair %" PRIu64 " and %" PRIu64 "\n", p.first, p.second);
         // auto sqvar = std::sqrt(std::accumulate(std::begin(diffs), std::end(diffs), 0., [div](auto x, auto y) {return x + y / div * y;}));
         {
             //std::fprintf(stdout, "HLF\t%u\t%u\t%lf\t%lf\t%lf\t%zu\t%zu\t%i\t%lf\t%lf\n", (unsigned)pair.first, (unsigned)pair.second, diffsum / div, sqvar, absdiffsum / div, numlessmore[0], numlessmore[1], (int)niter - localnp, sumlessmore[0] / div, sumlessmore[1] / div);
@@ -142,19 +138,19 @@ TEST_CASE("phll") {
     spvec_t vec;
     std::vector<size_t> nps {10, 11, 14, 18};
     for(const auto np: nps) {
-        const ssize_t exact(count_cardinality<score::Lex>(paths, 31, 31, vec, true, nullptr, 2));
-        const ssize_t inexact(estimate_cardinality<score::Lex>(paths, 31, 31, vec, true, nullptr, 2, np));
+        const double exact(count_cardinality<score::Lex>(paths, 31, 31, vec, true, nullptr, 2));
+        const double inexact(estimate_cardinality<score::Lex>(paths, 31, 31, vec, true, nullptr, 2, np));
+        hll::hll_t hll(np);
         {
-            hll::hll_t hll(np);
             Encoder enc(Spacer(31, 31, vec), true);
             enc.add(hll, paths);
-            std::fprintf(stderr, "The hll_add method returned an estimated quantity of %lf, compared to estimated %zd manually\n", hll.report(), inexact);
+            std::fprintf(stderr, "The hll_add method returned an estimated quantity of %lf, compared to estimated %lf manually\n", hll.report(), inexact);
             ssize_t hll_rep(hll.report());
             REQUIRE(hll_rep == size_t(inexact));
         }
-        fprintf(stderr, "For np %zu, we have %lf for expected and %lf for measured as correct as we expect to be, theoretically for %zu and %zu.\n",
+        fprintf(stderr, "For np %zu, we have %lf for expected and %lf for measured as correct as we expect to be, theoretically for %lf and %lf.\n",
                 np, (1.03896 / std::sqrt(1ull << np)), (std::abs((double)exact - inexact) / inexact), exact, inexact);
-        REQUIRE(std::abs((double)exact - inexact) < (1.03896 * inexact / std::sqrt(1uLL << np)));
+        REQUIRE(std::abs(exact - inexact) < hll.est_err());
     }
 }
 

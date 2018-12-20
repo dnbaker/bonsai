@@ -788,21 +788,12 @@ static khash_t(p) *build_parent_map(const char *fn) {
     int khr;
     std::string line;
     char *p;
-#if !NDEBUG
-    unsigned lc = 0;
-#endif
     while(std::getline(is, line)) {
         switch(line[0]) case '\n': case '\0': case '#': continue;
         ki = kh_put(p, ret, std::atoi(line.data()), &khr);
         kh_val(ret, ki) = (p = std::strchr(line.data(), '|')) ? std::atoi(p + 2)
                                                               : tax_t(-1);
         if(kh_val(ret, ki) == tax_t(-1)) LOG_WARNING("Malformed line: %s", line.data());
-#if !NDEBUG
-        if(++lc % 10000 == 0) {
-            LOG_DEBUG("Read %u lines from file %s\n", lc, fn);
-        }
-#endif
-    }
     ki = kh_put(p, ret, 1, &khr);
     kh_val(ret, ki) = 0; // Root of the tree.
     if(kh_size(ret) < 2) RUNTIME_ERROR(std::string("Failed to create taxmap from ") + fn);
