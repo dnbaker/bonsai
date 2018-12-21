@@ -11,7 +11,11 @@ addons:
 install:
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
 script:
-  - make
+  - cd circularqueue
+  -   git checkout master
+  -   git pull
+  -   cd ..
+  - make bonsai
   - make unit
   - ./bonsai/unit hll
   - ./bonsai/unit SIMDhash
