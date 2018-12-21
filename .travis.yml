@@ -13,3 +13,12 @@ install:
 script:
   - make
   - make unit
+  - ./unit hll
+  - ./unit SIMDhash
+  - ./unit popcnt
+  - ./unit roundup64
+  - ./unit set
+  - ./unit entmin
+  - ./unit counter
+  - ./unit circdebuff
+  - ./unit tax
