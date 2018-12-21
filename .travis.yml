@@ -10,11 +10,13 @@ addons:
     - g++-7
 install:
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
-script:
+before_install:
+  - git submodule update --init --recursive
   - cd circularqueue
   -   git checkout master
   -   git pull
   -   cd ..
+script:
   - make bonsai
   - make unit
   - ./bonsai/unit hll
