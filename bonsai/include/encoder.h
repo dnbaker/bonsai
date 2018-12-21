@@ -423,7 +423,7 @@ public:
     }
     template<typename Functor, typename ContainerType,
              typename=typename std::enable_if<std::is_same<typename ContainerType::value_type::value_type, char>::value ||
-                                       std::is_same<std::decay_t<typename ContainerType::value_type>, char *>::value
+                                       std::is_same<typename std::decay<typename ContainerType::value_type>::type, char *>::value
                                              >::type
             >
     void for_each(const Functor &func, const ContainerType &strcon, kseq_t *ks=nullptr) {
@@ -471,7 +471,7 @@ public:
     }
     // Whether or not an additional kmer is present in the sequence being encoded.
     INLINE int has_next_kmer() const {
-        static_assert(std::is_same_v<decltype((std::int64_t)l_ - sp_.c_ + 1), std::int64_t>, "is not same");
+        static_assert(std::is_same<decltype((std::int64_t)l_ - sp_.c_ + 1), std::int64_t>::value, "is not same");
         return (pos_ + sp_.c_ - 1) < l_;
     }
     // This fetches our next kmer for our window. It is immediately placed in the qmap_t,
@@ -502,7 +502,7 @@ public:
     auto pos()   const {return pos_;}
     uint32_t k() const {return sp_.k_;}
     ~Encoder() {
-        if(std::is_same_v<ScoreType, score::Entropy> && sp_.unspaced() && !sp_.unwindowed()) {
+        if(std::is_same<ScoreType, score::Entropy>::value && sp_.unspaced() && !sp_.unwindowed()) {
             delete static_cast<CircusEnt *>(data_);
         }
         std::free(rolling_seeds_);

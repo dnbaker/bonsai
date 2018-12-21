@@ -124,7 +124,8 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
 
     // Daemon -- check the status of currently running jobs, submit new ones when available.
     while(submitted < todo) {
-        if(auto it = std::find_if(std::begin(futures), std::end(futures), [](auto &f) {return is_ready(f);}); it != futures.end()) {
+        auto it = std::find_if(std::begin(futures), std::end(futures), [](auto &f) {return is_ready(f);});
+        if(it != futures.end()) {
             auto &f(*it);
             const size_t index(f.get());
             if(submitted == todo) break;

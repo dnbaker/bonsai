@@ -157,9 +157,9 @@ struct ClassifierGeneric {
         db_(map),
         sp_(k, wsz, spaces),
         enc_(sp_, canonicalize),
-        nt_(num_threads > 0 ? (uint16_t)(num_threads): (uint16_t)std::thread::hardware_concurrency()),
-        classified_{0, 0}
+        nt_(num_threads > 0 ? (uint16_t)(num_threads): (uint16_t)std::thread::hardware_concurrency())
     {
+        for(auto &c: classified_) c.store(0);
         set_emit_all(emit_all);
         set_emit_fastq(emit_fastq);
         set_emit_kraken(emit_kraken);
