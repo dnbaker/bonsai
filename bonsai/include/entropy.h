@@ -34,7 +34,7 @@ public:
         q_.push(c);
         assert(cstr_lut[c] != static_cast<int8_t>(-1));
         ++counts_[cstr_lut[c]];
-        static_assert(std::is_unsigned_v<std::decay_t<decltype(q_.size())>>, "q's size should be unsigned.");
+        static_assert(std::is_unsigned<typename std::decay<decltype(q_.size())>::type>::value, "q's size should be unsigned.");
         assert(unsigned(counts_[0] + counts_[1] + counts_[2] + counts_[3]) == q_.size());
 #else
         // Increment count of added nucleotide
