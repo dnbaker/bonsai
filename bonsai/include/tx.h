@@ -206,7 +206,9 @@ static std::vector<tax_t> build_new2old_map(const char *path, size_t bufsz) {
         auto it(taxes.begin());
         assert(taxes.begin()->first < (++it)->first && "I really hope that this is sorted by the new taxids so that I can turn this into a vector");
 #endif
-        for(const auto [k, v]: taxes) {
+        for(const auto &pair: taxes) {
+            auto k = pair.first;
+            auto v = pair.second;
             std::fprintf(stderr, "New: %u. Old: %u\n", k, v);
         }
         std::vector<tax_t> ret;
@@ -247,7 +249,7 @@ static void bitmap_filler_helper(void *data_, long index, int tid) {
     ba::MMapTaxonomyBitmap &map(data.bm_);
     const tax_t taxid(data.taxes_[index]);
     u64 val;
-    Encoder enc(data.sp_, data.canonicalize_);
+    Encoder<> enc(data.sp_, data.canonicalize_);
     gzFile fp(gzopen(data.paths_[index].data(), "rb"));
     kseq_t *ks(kseq_init(fp));
     while(kseq_read(ks) >= 0) {

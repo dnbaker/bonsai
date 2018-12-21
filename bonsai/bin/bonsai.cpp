@@ -1,4 +1,5 @@
 #include <fstream>
+#include <sstream>
 #include <omp.h>
 #include "feature_min.h"
 #include "util.h"
@@ -8,8 +9,10 @@
 #include "tx.h"
 #include "setcmp.h"
 #include "flextree.h"
+
+#if __cplusplus >= 201703L
 #include "cppitertools/groupby.hpp"
-#include <sstream>
+#endif
 
 using namespace bns;
 
@@ -417,6 +420,7 @@ int metatree_main(int argc, char *argv[]) {
     // TODO: Add new taxonomy creation
     FMEmitter fme(taxmap, tx2desc_map, heap_size, nelem);
     std::vector<tax_t> tmptaxes;
+#if __cplusplus >= 201703L
     for(auto &&pair: iter::groupby(taxes, [tm=taxmap](const tax_t a){return get_parent(tm, a);})) {
         // Copying just because I don't trust the lifetime management of iter::groupby.
         for(const auto tax: pair.second) tmptaxes.push_back(tax);
@@ -424,6 +428,8 @@ int metatree_main(int argc, char *argv[]) {
         fme.process_subtree(pair.first, begin(tmptaxes), end(tmptaxes), sp, num_threads, nullptr);
         tmptaxes.clear();
     }
+#endif
+
     fme.run_collapse(max_tax, ofp);
     if(ofp != stdout) std::fclose(ofp);
     return EXIT_SUCCESS;

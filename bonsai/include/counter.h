@@ -87,7 +87,7 @@ namespace bns {
 
 namespace count {
 
-template<typename Container, typename=std::enable_if_t<std::is_arithmetic_v<typename Container::value_type>>>
+template<typename Container, typename=typename std::enable_if<std::is_arithmetic<typename Container::value_type>::value>::type>
 std::string vec2str(const Container &vec)  {
     std::string ret;
     for(const auto i: vec) ret += std::to_string(i) + ", ";
@@ -101,7 +101,7 @@ struct is_specialization : std::false_type {};
 template<template<typename...> class Ref, typename... Args>
 struct is_specialization<Ref<Args...>, Ref>: std::true_type {};
 
-template<typename T, class Hash=std::hash<T>, typename SizeType=size_t, typename=std::enable_if_t<std::is_arithmetic_v<SizeType>>>
+template<typename T, class Hash=std::hash<T>, typename SizeType=size_t, typename=typename std::enable_if<std::is_arithmetic<SizeType>::value>::type>
 class Counter {
     SizeType                                     n_;
     SizeType                                 nelem_;
@@ -118,8 +118,8 @@ public:
     Counter &operator=(const Counter &o) = delete;
 
     template<typename Q=T>
-    void add(const typename std::enable_if_t<std::is_fundamental_v<Q>, Q> elem) {
-#if __GNUC__ >= 7
+    void add(const typename std::enable_if<std::is_fundamental<Q>::value, Q>::type elem) {
+#if __GNUC__ >= 7 && __cplusplus >= 201703L
         if(auto match = map_.find(elem); match == map_.end()) map_.emplace(elem, 1);
         else                                          ++match->second;
 #else
@@ -131,14 +131,14 @@ public:
     }
 
     template<typename Q=T>
-    void add(const typename std::enable_if_t<!std::is_fundamental_v<Q>, Q> &elem) {
+    void add(const typename std::enable_if<!std::is_fundamental<Q>::value, Q>::type &elem) {
         auto match(map_.find(elem));
         if(match == map_.end()) map_.emplace(elem, 1);
         else                    ++match->second;
         ++n_;
     }
     template<typename Q=T>
-    void add(typename std::enable_if_t<!std::is_fundamental_v<Q>, Q> &&elem) {
+    void add(typename std::enable_if<!std::is_fundamental<Q>::value, Q> &&elem) {
         auto match(map_.find(elem));
         if(match == map_.end()) map_.emplace(std::move(elem), 1);
         else                    ++match->second;
@@ -172,8 +172,8 @@ public:
 
     const std::unordered_map<T, SizeType, Hash> &get_map() const { return map_;}
 
-    template<typename = std::enable_if<std::is_same_v<bitvec_t, T>>>
     std::unordered_map<unsigned, unsigned> *make_hist() {
+#if 0
         if(hist_) delete hist_;
         hist_ = new std::unordered_map<unsigned, unsigned>;
         std::unordered_map<unsigned, unsigned>::iterator m;
@@ -184,10 +184,13 @@ public:
             else                                            ++m->second;
         }
         return hist_;
+#endif
+        return nullptr;
     }
 
     int print_hist(std::FILE *fp) {
         if(hist_ == nullptr || hist_->empty()) make_hist();
+        if(!hist_) return 0;
         int ret(0);
         std::set<unsigned> countset;
         for(const auto &i: *hist_)

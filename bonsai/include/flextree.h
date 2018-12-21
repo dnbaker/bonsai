@@ -87,7 +87,7 @@ public:
         n_{0}, bitcount_{ntaxes}, id_{id}, parent_{parent} {}
 
     INLINE void add(bitvec_t &&elem) {
-#if __GNUC__ >= 7
+#if __GNUC__ >= 7 && __cplusplus >= 201703L
         if(auto match = map_.find(elem); match == map_.end())
 #else
         auto match(map_.find(elem));

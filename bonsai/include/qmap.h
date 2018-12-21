@@ -45,13 +45,15 @@ class QueueMap {
     public:
     QueueMap(size_t wsz): list_(wsz), wsz_(wsz) {}
     INLINE void add(const PairType &el) {
-        if(auto it(map_.lower_bound(el)); it != map_.end()) {
+        auto it(map_.lower_bound(el));
+        if(it != map_.end()) {
             if(it->first == el) ++it->second;
             else map_.emplace_hint(it, el, 1);
         } else map_.emplace(el, 1);
     }
     INLINE void del(const PairType &el) {
-        if(auto f(map_.find(el)); --f->second <= 0) map_.erase(f);
+        auto f(map_.find(el));
+        if(--f->second <= 0) map_.erase(f);
     }
     map_iterator       begin()       {return map_.begin();}
     const_map_iterator begin() const {return map_.cbegin();}

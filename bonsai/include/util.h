@@ -787,7 +787,7 @@ static khash_t(p) *build_parent_map(const char *fn) {
     khint_t ki;
     int khr;
     std::string line;
-    char *p;
+    const char *p;
     while(std::getline(is, line)) {
         switch(line[0]) case '\n': case '\0': case '#': continue;
         ki = kh_put(p, ret, std::atoi(line.data()), &khr);
