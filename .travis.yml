@@ -1,0 +1,16 @@
+sudo: false
+language: cpp
+compiler:
+  - gcc
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - g++-7
+install:
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
+script:
+  - make
+  - make unit
+  - ./unit
