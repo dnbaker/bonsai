@@ -22,3 +22,7 @@ script:
   - ./unit counter
   - ./unit circdebuff
   - ./unit tax
+notifications:
+    slack: jhu-genomics:BbHYSks7DhOolq80IYf6m9oe
+    rooms:
+      - jhu-genomics:BbHYSks7DhOolq80IYf6m9oe#meta_trees
