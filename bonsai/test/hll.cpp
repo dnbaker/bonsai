@@ -39,7 +39,7 @@ TEST_CASE("hll") {
                 pairs.emplace_back(std::pair<uint64_t, uint64_t>(ss, nel));
     }
     double diffsumsum = 0.;
-    std::atomic<int> numpass = 0;
+    std::atomic<int> numpass; numpass.store(0);
     std::mt19937_64 mt;
     const size_t niter = 100;
     // const double div = niter;
@@ -142,7 +142,7 @@ TEST_CASE("phll") {
         const double inexact(estimate_cardinality<score::Lex>(paths, 31, 31, vec, true, nullptr, 2, np));
         hll::hll_t hll(np);
         {
-            Encoder enc(Spacer(31, 31, vec), true);
+            Encoder<> enc(Spacer(31, 31, vec), true);
             enc.add(hll, paths);
             std::fprintf(stderr, "The hll_add method returned an estimated quantity of %lf, compared to estimated %lf manually\n", hll.report(), inexact);
             ssize_t hll_rep(hll.report());
