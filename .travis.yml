@@ -18,7 +18,6 @@ script:
   - ./bonsai/unit popcnt
   - ./bonsai/unit roundup64
   - ./bonsai/unit set
-  - ./bonsai/unit entmin
   - ./bonsai/unit counter
   - ./bonsai/unit circdebuff
   - ./bonsai/unit tax
