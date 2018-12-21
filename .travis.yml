@@ -13,15 +13,15 @@ install:
 script:
   - make
   - make unit
-  - ./unit hll
-  - ./unit SIMDhash
-  - ./unit popcnt
-  - ./unit roundup64
-  - ./unit set
-  - ./unit entmin
-  - ./unit counter
-  - ./unit circdebuff
-  - ./unit tax
+  - ./bonsai/unit hll
+  - ./bonsai/unit SIMDhash
+  - ./bonsai/unit popcnt
+  - ./bonsai/unit roundup64
+  - ./bonsai/unit set
+  - ./bonsai/unit entmin
+  - ./bonsai/unit counter
+  - ./bonsai/unit circdebuff
+  - ./bonsai/unit tax
 notifications:
     slack: jhu-genomics:BbHYSks7DhOolq80IYf6m9oe
     rooms:
