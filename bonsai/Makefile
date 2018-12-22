@@ -73,7 +73,8 @@ ex: $(EX)
 
 update:
 	for i in circularqueue clhash cppitertools hll klib kspp libpopcnt linear pdqsort tinythreadpp zstd; \
-        do cd ../$$i && git checkout master && git pull && cd ../bonsai; done;
+        do cd ../$$i && git checkout master && git pull && cd ../bonsai; done; \
+	cd ../hll/vec && git checkout master && git pull && cd ../../bonsai
 
 obj: $(OBJS) $(DOBJS) $(ZOBJS) $(ZW_OBJS)
 
