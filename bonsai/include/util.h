@@ -1228,6 +1228,32 @@ enum WRITE {
     ZSTD = 2
 };
 
+INLINE u32 gccount(u64 kmer, unsigned k) {
+    // Modified from Bowtie2.
+    // Returns counts in the 4 different 8-bit registers of a 32-bit integer.
+    const uint64_t COUNT_MASK = (0xFFFFFFFFFFFFFFFF >> (64 - 2 * k));
+    static constexpr uint64_t c_table[2] {
+        0xaaaaaaaaaaaaaaaa, // b1010101010101010101010101010101010101010101010101010101010101010
+        0x5555555555555555 // b0101010101010101010101010101010101010101010101010101010101010101
+    };
+    uint64_t c0 = c_table[0];
+    uint64_t x0 = kmer ^ c0;
+    uint64_t x1 = (x0 >> 1);
+    uint64_t x2 = x1 & UINT64_C(0x5555555555555555);
+    uint64_t x3 = x0 & x2;
+    x3 &= COUNT_MASK;
+    u32 ret = pop::popcount(x3);
+
+    c0 = c_table[1];
+    x0 = kmer ^ c0;
+    x1 = (x0 >> 1);
+    x2 = x1 & UINT64_C(0x5555555555555555);
+    x3 = x0 & x2;
+    x3 &= COUNT_MASK;
+    ret += pop::popcount(x3);
+    return ret;
+}
+
 
 
 } // namespace bns
