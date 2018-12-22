@@ -17,6 +17,7 @@ before_install:
   -   git pull
   -   cd ..
 script:
+  - make update
   - make unit
   - ./bonsai/unit hll
   - ./bonsai/unit SIMDhash
