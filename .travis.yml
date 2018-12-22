@@ -11,14 +11,19 @@ addons:
 install:
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
 before_install:
+  - git checkout master
+  - git pull
+  - cd hll
+  -   git checkout master
+  -   git pull
+  -   cd ..
   - git submodule update --init --recursive
   - cd circularqueue
   -   git checkout master
   -   git pull
   -   cd ..
 script:
-  - make update
-  - make unit
+  - make update unit
   - ./bonsai/unit hll
   - ./bonsai/unit SIMDhash
   - ./bonsai/unit popcnt
