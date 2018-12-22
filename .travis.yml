@@ -9,6 +9,8 @@ addons:
     packages:
     - g++-7
 install:
+  - git submodule sync
+  - git checkout master
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
 before_install:
   - git submodule sync
