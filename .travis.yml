@@ -13,6 +13,7 @@ install:
 before_install:
   - git checkout master
   - git pull
+  - git submodule sync
   - cd hll
   -   git checkout master
   -   git pull
