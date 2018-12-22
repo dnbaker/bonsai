@@ -11,9 +11,9 @@ addons:
 install:
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
 before_install:
+  - git submodule sync
   - git checkout master
   - git pull
-  - git submodule sync
   - cd hll
   -   git checkout master
   -   git pull
