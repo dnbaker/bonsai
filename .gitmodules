@@ -50,3 +50,6 @@
 	path = hll
 	url = https://github.com/dnbaker/sketch
     branch = master
+[submodule "zstd"]
+    path = ztsd
+    url = https://github.com/facebook/zstd
