@@ -69,20 +69,19 @@ INCLUDE=-Iclhash/include -I. -I.. -I../libpopcnt -I.. -Iinclude -I../circularque
 all: update $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX)
 ex: $(EX)
 
-../zstd/zlibWrapper:
-	cd .. && git clone --recursive https://github.com/zstd && cd bonsai
-
-
 
 update:
-	for i in circularqueue clhash cppitertools hll klib kspp libpopcnt linear pdqsort tinythreadpp zstd; \
+	for i in circularqueue clhash cppitertools hll klib kspp libpopcnt linear pdqsort tinythreadpp; \
         do cd ../$$i && git checkout master && git pull && cd ../bonsai; done; \
 	cd ../hll/vec && git checkout master && git pull && cd ../../bonsai
 
 obj: $(OBJS) $(DOBJS) $(ZOBJS) $(ZW_OBJS)
 
-libzstd.a:
-	cd ../zstd && $(MAKE) && mv lib/libzstd.a ../bonsai && cd ../bonsai
+../zstd:
+	cd .. && git clone --recursive https://github.com/facebook/zstd
+
+libzstd.a: ../zstd
+	+cd ../zstd && $(MAKE) lib/libzstd.a && mv lib/libzstd.a ../bonsai && cd ../bonsai
 
 clhash.o: ../clhash/src/clhash.c
 	ls $@ 2>/dev/null || mv ../clhash/clhash.o . 2>/dev/null || (cd ../clhash $(CLHASH_CHECKOUT) && $(MAKE) && cd ../bonsai && ln -s ../clhash/clhash.o .)
