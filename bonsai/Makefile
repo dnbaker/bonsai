@@ -77,11 +77,11 @@ update:
 
 obj: $(OBJS) $(DOBJS) $(ZOBJS) $(ZW_OBJS)
 
-../zstd:
+../zstd/lib:
 	cd .. && git clone --recursive https://github.com/facebook/zstd
 
-libzstd.a: ../zstd
-	+cd ../zstd && $(MAKE) lib/libzstd.a && mv lib/libzstd.a ../bonsai && cd ../bonsai
+libzstd.a: ../zstd/lib
+	+cd ../zstd && $(MAKE) lib && mv lib/libzstd.a ../bonsai && cd ../bonsai
 
 clhash.o: ../clhash/src/clhash.c
 	ls $@ 2>/dev/null || mv ../clhash/clhash.o . 2>/dev/null || (cd ../clhash $(CLHASH_CHECKOUT) && $(MAKE) && cd ../bonsai && ln -s ../clhash/clhash.o .)
