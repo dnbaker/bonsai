@@ -69,6 +69,9 @@ INCLUDE=-Iclhash/include -I. -I.. -I../libpopcnt -I.. -Iinclude -I../circularque
 all: update $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX)
 ex: $(EX)
 
+../zstd/zlibWrapper:
+	cd .. && git clone --recursive https://github.com/zstd && cd bonsai
+
 
 
 update:
@@ -99,9 +102,6 @@ test/%.o: test/%.cpp
 test/%.zo: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(ZCOMPILE_FLAGS)
 
-../zlib/libz.a:
-	+cd ../zlib && ./configure && $(MAKE) && cd ../bonsai
-
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
 
@@ -120,11 +120,11 @@ src/popcnt.do: src/popcnt.cpp
 src/popcnt.zo: src/popcnt.cpp
 	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD)  -c $< -o $@ $(LIB)
 
-%: bin/%.cpp $(ALL_ZOBJS)
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) $(LIB)
+%: bin/%.cpp
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o ../klib/kthread.o -DNDEBUG $< -o $@ $(LIB)
 
-%_s: bin/%.cpp $(ALL_ZOBJS) ../zlib/libz.a
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -static-libstdc++ -static-libgcc -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) -lz
+%_z: bin/%.cpp $(ALL_ZOBJS)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) $(LIB)
 
 %_d: bin/%.cpp $(DOBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(DOBJS) $< -g -o $@ $(LIB)

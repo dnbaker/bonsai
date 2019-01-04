@@ -30,10 +30,6 @@
 	path = linear
 	url = https://github.com/dnbaker/linear
     branch = master
-[submodule "zstd"]
-	path = zstd
-	url = https://github.com/facebook/zstd
-    branch = master
 [submodule "libpopcnt"]
 	path = libpopcnt
 	url = https://github.com/kimwalisch/libpopcnt
@@ -53,8 +49,4 @@
 [submodule "hll"]
 	path = hll
 	url = https://github.com/dnbaker/sketch
-    branch = master
-[submodule "zlib"]
-	path = zlib
-	url = https://github.com/madler/zlib
     branch = master
