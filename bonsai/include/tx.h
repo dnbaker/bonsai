@@ -159,7 +159,6 @@ public:
     void write_name_map(const char *fn) {
         gzFile fp(gzopen(fn, "wb"));
         if(fp == nullptr) RUNTIME_ERROR(ks::sprintf("Could not open file at %s for writing", fn).data());
-        gzbuffer(fp, 1 << 18);
         for(const auto &pair: newid_path_map) {
             gzprintf(fp, "%s\t%u\n", pair.second.data(), pair.first);
         }
@@ -168,7 +167,6 @@ public:
     void write_old_to_new(const char *fn) {
         gzFile fp(gzopen(fn, "wb"));
         if(fp == nullptr) RUNTIME_ERROR(ks::sprintf("Could not open file at %s for writing", fn).data());
-        gzbuffer(fp, 1 << 18);
         gzprintf(fp, "#Old\tNew\n");
         for(khiter_t ki(0); ki < kh_end(old_to_new_); ++ki)
             if(kh_exist(old_to_new_, ki))
@@ -178,7 +176,6 @@ public:
     void write_new_to_old(const char *fn) {
         gzFile fp(gzopen(fn, "wb"));
         if(fp == nullptr) RUNTIME_ERROR(ks::sprintf("Could not open file at %s for writing", fn).data());
-        gzbuffer(fp, 1 << 18);
         for(const auto &el: old_ids_) gzwrite(fp, (void *)&el, sizeof(el));
         gzclose(fp);
     }
@@ -195,7 +192,6 @@ public:
 using concise_tax_t = TaxonomyReformation;
 static std::vector<tax_t> build_new2old_map(const char *path, size_t bufsz) {
         gzFile fp(gzopen(path, "wb"));
-        gzbuffer(fp, 1 << 16);
         std::vector<char> buf(bufsz);
         char *line;
         std::map<tax_t, tax_t> taxes;
