@@ -498,7 +498,7 @@ inline constexpr int log2_64(uint64_t value)
     return tab64[((uint64_t)((value - (value >> 1))*0x07EDD5E59A4E28C2)) >> 58];
 }
 
-static inline void kseq_assign(kseq_t *ks, gzFile fp) {
+static INLINE void kseq_assign(kseq_t *ks, gzFile fp) {
     if(!ks->f) {
         ks->f = (kstream_t*)calloc(1, sizeof(kstream_t));
         ks->f->buf = (unsigned char*)malloc(KSTREAM_SIZE);

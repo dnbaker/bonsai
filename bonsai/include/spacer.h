@@ -25,7 +25,7 @@ inline ks::string str(const spvec_t &vec) {
     return ret;
 }
 
-inline spvec_t parse_spacing(const char *ss, unsigned k) {
+static spvec_t parse_spacing(const char *ss, unsigned k) {
     if(!ss || *ss == '\0') return spvec_t(k - 1, 0); // No spaces
 
     spvec_t ret;
