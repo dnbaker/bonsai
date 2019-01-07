@@ -1,10 +1,16 @@
 #ifndef KHPP_H__
 #define KHPP_H__
 #include <functional>
-#include <shared_mutex>
 #include <mutex>
 #include <cstring>
 #include "tinythreadpp/source/fast_mutex.h"
+#include <shared_mutex>
+
+#if __GNUC__
+  #if __cplusplus < 201411L || __GNUC__ < 6
+    #define shared_mutex shared_timed_mutex
+  #endif
+#endif
 using std::shared_mutex;
 
 #if __GNUC__ >= 7
