@@ -10,10 +10,6 @@
 	path = clhash
 	url = https://github.com/lemire/clhash
     branch = master
-[submodule "cppitertools"]
-	path = cppitertools
-	url = https://github.com/ryanhaining/cppitertools
-    branch = master
 [submodule "kraken"]
 	path = kraken
 	url = https://github.com/derrickwood/kraken
