@@ -70,15 +70,18 @@ all: update $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX)
 ex: $(EX)
 
 
-
 update:
-	for i in circularqueue clhash cppitertools hll klib kspp libpopcnt linear pdqsort tinythreadpp zstd; \
-        do cd ../$$i && git checkout master && git pull && cd ../bonsai; done;
+	for i in circularqueue clhash cppitertools hll klib kspp libpopcnt linear pdqsort tinythreadpp; \
+        do cd ../$$i && git checkout master && git pull && cd ../bonsai; done; \
+	cd ../hll/vec && git checkout master && git pull && cd ../../bonsai
 
 obj: $(OBJS) $(DOBJS) $(ZOBJS) $(ZW_OBJS)
 
-libzstd.a:
-	cd ../zstd && $(MAKE) && mv lib/libzstd.a ../bonsai && cd ../bonsai
+../zstd/lib:
+	cd .. && git clone --recursive https://github.com/facebook/zstd
+
+libzstd.a: ../zstd/lib
+	+cd ../zstd && $(MAKE) lib && mv lib/libzstd.a ../bonsai && cd ../bonsai
 
 clhash.o: ../clhash/src/clhash.c
 	ls $@ 2>/dev/null || mv ../clhash/clhash.o . 2>/dev/null || (cd ../clhash $(CLHASH_CHECKOUT) && $(MAKE) && cd ../bonsai && ln -s ../clhash/clhash.o .)
@@ -98,9 +101,6 @@ test/%.o: test/%.cpp
 test/%.zo: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(ZCOMPILE_FLAGS)
 
-../zlib/libz.a:
-	+cd ../zlib && ./configure && $(MAKE) && cd ../bonsai
-
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
 
@@ -119,11 +119,11 @@ src/popcnt.do: src/popcnt.cpp
 src/popcnt.zo: src/popcnt.cpp
 	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD)  -c $< -o $@ $(LIB)
 
-%: bin/%.cpp $(ALL_ZOBJS)
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) $(LIB)
+%: bin/%.cpp
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o ../klib/kthread.o -DNDEBUG $< -o $@ $(LIB)
 
-%_s: bin/%.cpp $(ALL_ZOBJS) ../zlib/libz.a
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -static-libstdc++ -static-libgcc -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) -lz
+%_z: bin/%.cpp $(ALL_ZOBJS)
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) $(LIB)
 
 %_d: bin/%.cpp $(DOBJS)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(DOBJS) $< -g -o $@ $(LIB)

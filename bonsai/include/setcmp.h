@@ -10,7 +10,6 @@ namespace bns {
 template<typename KhashType>
 size_t intersection_size(const KhashType *a, const KhashType *b) {
     size_t ret(0);
-    const KhashType *lhs, *rhs;
     if(b->n_buckets <= a->n_buckets) std::swap(a, b);
     for(khiter_t ki(0); ki != kh_end(a); ++ki)
         if(kh_exist(a, ki))

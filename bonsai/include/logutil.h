@@ -17,7 +17,7 @@
 #endif
 #define LOG_ASSERT(condition) log_assert(_FUNCTION_MACRO_, __LINE__, ((u64)(condition)), (#condition))
 
-static inline int log_debug(const char *func, int line, const char *fmt, ...) {
+static int log_debug(const char *func, int line, const char *fmt, ...) {
     std::va_list args;
     va_start(args, fmt);
     int ret(std::fprintf(stderr, "[D:%s:%d] ", func, line));
@@ -26,7 +26,7 @@ static inline int log_debug(const char *func, int line, const char *fmt, ...) {
     return ret;
 }
 
-static inline int log_warning(const char *func, const char *fmt, ...) {
+static int log_warning(const char *func, const char *fmt, ...) {
     std::va_list args;
     va_start(args, fmt);
     int ret(std::fprintf(stderr, "[W:%s] ", func));
@@ -35,7 +35,7 @@ static inline int log_warning(const char *func, const char *fmt, ...) {
     return ret;
 }
 
-static inline int log_info(const char *func, const char *fmt, ...) {
+static int log_info(const char *func, const char *fmt, ...) {
     std::va_list args;
     va_start(args, fmt);
     int ret(std::fprintf(stderr, "[%s] ", func));
@@ -44,7 +44,7 @@ static inline int log_info(const char *func, const char *fmt, ...) {
     return ret;
 }
 
-static inline void log_error(const char *func, int line, const char *fmt, ...) {
+static void log_error(const char *func, int line, const char *fmt, ...) {
     std::va_list args;
     va_start(args, fmt);
     std::fprintf(stderr, "[E:%s:%d] ", func, line);
