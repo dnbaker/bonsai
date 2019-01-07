@@ -10,7 +10,7 @@
 #include "setcmp.h"
 #include "flextree.h"
 
-#if __cplusplus >= 201703L
+#if USE_CPPITERTOOLS
 #include "cppitertools/groupby.hpp"
 #endif
 
@@ -420,7 +420,7 @@ int metatree_main(int argc, char *argv[]) {
     // TODO: Add new taxonomy creation
     FMEmitter fme(taxmap, tx2desc_map, heap_size, nelem);
     std::vector<tax_t> tmptaxes;
-#if __cplusplus >= 201703L
+#if USE_CPPITERTOOLS
     for(auto &&pair: iter::groupby(taxes, [tm=taxmap](const tax_t a){return get_parent(tm, a);})) {
         // Copying just because I don't trust the lifetime management of iter::groupby.
         for(const auto tax: pair.second) tmptaxes.push_back(tax);
