@@ -38,12 +38,14 @@ freely, subject to the following restrictions:
 
 // Check if we can support the assembly language level implementation (otherwise
 // revert to the system API)
-#if (defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))) || \
-    (defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))) || \
-    (defined(__GNUC__) && (defined(__ppc__)))
-  #define _FAST_MUTEX_ASM_
-#else
-  #define _FAST_MUTEX_SYS_
+#if !defined(_FAST_MUTEX_ASM_) && !defined(_FAST_MUTEX_SYS_)
+#  if (defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))) || \
+      (defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))) || \
+      (defined(__GNUC__) && (defined(__ppc__)))
+#    define _FAST_MUTEX_ASM_
+#  else
+#    define _FAST_MUTEX_SYS_
+#  endif
 #endif
 
 #if defined(_TTHREAD_WIN32_)
