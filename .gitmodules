@@ -14,10 +14,6 @@
 	path = kraken
 	url = https://github.com/derrickwood/kraken
     branch = master
-[submodule "tinythreadpp"]
-	path = tinythreadpp
-	url = https://github.com/aseprite/tinythreadpp
-    branch = master
 [submodule "kspp"]
 	path = kspp
 	url = https://github.com/dnbaker/kspp
