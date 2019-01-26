@@ -995,7 +995,7 @@ static std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(
         if(lvl_map.find(tax) == lvl_map.end()) std::cerr << "Missing tax level for " << tax << '\n', fail = true;
     if(fail) RUNTIME_ERROR("Failed for missin tax levels.");
 #endif
-    pdqsort(sorted_taxes.begin(), sorted_taxes.end(), [&lvl_map](const tax_t a, const tax_t b) {
+    SORT(sorted_taxes.begin(), sorted_taxes.end(), [&lvl_map](const tax_t a, const tax_t b) {
             try {
                return lvl_map.at(a) < lvl_map.at(b);
             } catch(std::out_of_range &ex) {
