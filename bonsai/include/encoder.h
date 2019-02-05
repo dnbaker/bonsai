@@ -196,23 +196,6 @@ public:
         loop_start:
         min = filled = 0;
         // TODO: this
-#if 0
-        while(likely(pos_ < l_)) {
-            while(filled < sp_.k_ && likely(pos_ < l_)) {
-                min <<= 2;
-                //std::fprintf(stderr, "Encoding character %c with value %u at last position.\n", s_[pos_], (unsigned)cstr_lut[s_[pos_]]);
-                if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF) && (sp_.k_ < 31 || cstr_lut[s_[pos_ - 1]] != 'T')) {
-                    goto loop_start;
-                }
-                ++filled;
-            }
-            if(likely(filled == sp_.k_)) {
-                min &= mask;
-                func(min);
-                --filled;
-            }
-        }
-#endif
     }
     template<typename Functor>
     INLINE void for_each_rolling_hash_canon(const Functor &func) {
