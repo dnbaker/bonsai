@@ -4,7 +4,7 @@
     branch = master
 [submodule "klib"]
 	path = klib
-	url = https://github.com/dnbaker/klib
+	url = https://github.com/attractivechaos/klib
     branch = master
 [submodule "clhash"]
 	path = clhash
