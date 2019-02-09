@@ -42,3 +42,6 @@
 	path = hll
 	url = https://github.com/dnbaker/sketch
     branch = master
+[submodule "zlib"]
+	path = zlib
+	url = https://github.com/madler/zlib
