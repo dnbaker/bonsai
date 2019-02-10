@@ -100,32 +100,20 @@ using sketch::common::popcnt_fn;
 
 inline unsigned unrolled_bitdiff(const uint64_t *a, const uint64_t *b, size_t nbytes);
 inline unsigned byte_bitdiff(const uint8_t *a, const uint8_t *b, size_t nelem) {
+    using Space = vec::SIMDTypes<uint64_t>;
     using SIMDHolder = typename vec::SIMDTypes<::std::uint64_t>::VType;
     size_t nblocks(nelem / (sizeof(SIMDHolder)));
     const SIMDHolder *pa((const SIMDHolder *)a), *pb((const SIMDHolder *)b);
     SIMDHolder tmp;
-#if HAS_AVX_512 || __AVX2__
-    SIMDHolder
-#else
-    unsigned
-#endif
-        sum;
     tmp = (pa++)->simd_ ^ (pb++)->simd_; // I'm being lazy here and assuming it's aligned, but I have that guarantee from the aligned vectors.
-    sum = popcnt_fn(tmp);
+    auto sum = popcnt_fn(tmp);
     while(--nblocks) { // Prefix decrement to account for the fact that I used one block in initialization.
         tmp.simd_ = (pa++)->simd_ ^ (pb++)->simd_;
-#if HAS_AVX_512 || __AVX2__
-        sum.simd_ += popcnt_fn(tmp);
-#else
-        sum += popcnt_fn(tmp);
-#endif
+        Space::add(sum, popcnt_fn(tmp));
     }
     unsigned ret = unrolled_bitdiff((const uint64_t *)pa, (const uint64_t *)pb, nelem & ((nelem / (sizeof(SIMDHolder) / sizeof(uint8_t))) - 1));
-#if HAS_AVX_512 || __AVX2__
-    sum.for_each([&](const std::uint64_t &x) {ret += x;});
-#else
-    ret += sum;
-#endif
+    for(size_t i = 0; i < sizeof(sum) / sizeof(uint64_t); ++i)
+        ret += ((uint64_t *)&sum)[i];
     return ret;
 }
 
