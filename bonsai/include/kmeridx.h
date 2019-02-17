@@ -6,19 +6,24 @@
 
 namespace bns {
 
-template<typename KmerType=u64, typename IT1=u64, typename IT2=u32>
+#define KI_SWAP_DESTROY(x) do {decltype(x) tmp = std::move(x);} while(0)
+
+template<typename KmerType=u64, typename IT1=u64>
 struct KmerIdx {
-    static_assert(std::is_integral<KmerType>::value && std::is_integral<IT1>::value && std::is_integral<IT2>::value, "IT1 and IT2 and KmerType must both be integral");
-    static_assert(std::is_unsigned<KmerType>::value && std::is_unsigned<IT1>::value && std::is_unsigned<IT2>::value, "IT1 and IT2 and KmerType must both be unsigned");
+    static_assert(std::is_integral<KmerType>::value && std::is_integral<IT1>::value, "IT1 and KmerType must both be integral");
+    static_assert(std::is_unsigned<KmerType>::value && std::is_unsigned<IT1>::value, "IT1 and KmerType must both be unsigned");
     static constexpr KmerType BAD_KMER = std::numeric_limits<KmerType>::max();
 
     const unsigned k_;
     std::vector<std::string> refnames_;
     std::vector<std::string> comments_;
+    std::vector<uint64_t>     seqlens_;
+    std::vector<uint64_t>     cm_seqs_; // Cumulative sequence lengths
     ska::flat_hash_map<KmerType, lazy::vector<IT1>> map_;
     
     KmerIdx(unsigned k, const char *path=nullptr): k_(k) {
         if(k > sizeof(KmerType) * CHAR_BIT / 2) RUNTIME_ERROR("Error: k must be <= bits per KmerType / 2.");
+        cm_seqs_.emplace_back(0);
         if(path) make_idx(path);
     }
     void add_seq(const kseq_t *ks) {
@@ -26,7 +31,11 @@ struct KmerIdx {
         if(ks->comment.s)
             comments_.emplace_back(ks->comment.s);
         else comments_.emplace_back();
-        KmerType kmer = 0, mask = ((1ull << k_) - 1);
+        seqlens_.emplace_back(ks->seq.l);
+        IT1 position_increment = cm_seqs_.back();
+        cm_seqs_.emplace_back(cm_seqs_.back() + ks->seq.l);
+        KmerType kmer = 0;
+        const KmerType mask = ((1ull << k_) - 1);
         const char *s = ks->seq.s, *e = ks->seq.s + ks->seq.l;
         unsigned nfilled = 0;
         while(s < e) {
@@ -38,14 +47,14 @@ struct KmerIdx {
             }
             if(++nfilled == k_) {
                 kmer &= mask;
-                auto diff = s - ks->seq.s;
-                auto pos = (refnames_.size() << (sizeof(IT1) / 2 * CHAR_BIT)) | diff;
+                IT1 diff = s - ks->seq.s;
                 auto it = map_.find(kmer);
                 if(it == map_.end()) {
-                    map_.emplace(kmer, lazy::vector<IT1>{pos});
-                } else it->second.emplace_back(pos);
+                    map_.emplace(kmer, lazy::vector<IT1>{diff + position_increment});
+                } else it->second.emplace_back(diff + position_increment);
                 --nfilled;
             }
+            ++s;
         }
     }
     void make_idx(const char *path) {
@@ -56,11 +65,57 @@ struct KmerIdx {
         gzclose(fp);
         kseq_destroy(ks);
     }
+    void read(const char *path) {
+        KI_SWAP_DESTROY(refnames_);
+        KI_SWAP_DESTROY(comments_);
+        KI_SWAP_DESTROY(seqlens_);
+        KI_SWAP_DESTROY(cm_seqs_);
+        KI_SWAP_DESTROY(map_);
+        gzFile fp = gzopen(path, "rb");
+        if(!fp) RUNTIME_ERROR("ZOMG");
+        gzread(fp, &k_, sizeof(k_));
+        uint32_t nnames;
+        gzread(fp, &nnames, sizeof(nnames));
+        for(auto i = 0u; i < nnames; ++i) {
+            uint64_t len;
+            gzread(fp, &len, sizeof(len));
+            seqlens_.emplace_back(len);
+        }
+        std::string tmp;
+        for(auto i = 0u; i < nnames; ++i) {
+            char buf[1 << 12];
+            if(!gzgets(fp, buf, sizeof(buf))) RUNTIME_ERROR("ZOMG");
+            tmp = buf;
+            tmp.pop_back();
+            refnames_.push_back(std::move(tmp));
+        }
+        for(auto i = 0u; i < nnames; ++i) {
+            char buf[1 << 12];
+            if(!gzgets(fp, buf, sizeof(buf))) RUNTIME_ERROR("ZOMG");
+            tmp = buf;
+            tmp.pop_back();
+            comments_.push_back(std::move(tmp));
+        }
+        FOREVER {
+            KmerType kmer;
+            uint32_t nelem;
+            if(gzread(fp, &kmer, sizeof(kmer)) != sizeof(kmer)) RUNTIME_ERROR("ZOMG");
+            if(gzread(fp, &nelem, sizeof(nelem)) != sizeof(nelem)) RUNTIME_ERROR("ZOMG");
+            auto it = map_.emplace(nelem, lazy::vector<IT1>()).first;
+            IT1 tmp;
+            it->second.reserve(nelem);
+            for(size_t i = 0; i < nelem; ++i)
+                gzread(fp, &tmp, sizeof(tmp)), it->second.emplace_back(tmp);
+            if(gzeof(fp)) break;
+        }
+    }
     void write(const char *path) const {
         gzFile fp = gzopen(path, "w");
         gzwrite(fp, &k_, sizeof(k_));
         uint32_t nnames = refnames_.size();
         gzwrite(fp, &nnames, sizeof(nnames));
+        for(size_t i = 0; i < nnames; ++i)
+            gzwrite(fp, &seqlens_[i], sizeof(seqlens_[i]));
         for(size_t i = 0; i < refnames_.size(); ++i)
             gzputs(fp, refnames_[i].data()), gzputc(fp, '\n');
         for(size_t i = 0; i < comments_.size(); ++i)
