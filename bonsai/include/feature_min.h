@@ -77,7 +77,6 @@ size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, si
 
 template<typename Container, typename ScoreType>
 size_t fill_set_genome_container(Container &container, const Spacer &sp, khash_t(all) *ret, void *data, bool canon, kseq_t *ks=nullptr) {
-    bool destroy;
     size_t sz(0);
     for(std::string &str: container)
         sz += fill_set_genome<ScoreType>(str.data(), sp, ret, 0, data, canon);
