@@ -34,6 +34,9 @@
 #include "logutil.h"
 #include "popcnt.h"
 #include "sample_gen.h"
+#if defined(__AES__)
+#include "aesctr/aesctr.h"
+#endif
 
 #ifdef __GNUC__
 #  ifndef likely
@@ -109,6 +112,12 @@
 
 namespace bns {
 using namespace std::literals;
+
+#if __AES__
+using RNGType = aes::AesCtr<uint64_t, 8>;
+#else
+using RNGType = std::mt19937_64;
+#endif
 
 struct ForPool {
     void *fp_;

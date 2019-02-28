@@ -1,6 +1,5 @@
 #pragma once
 #include "util.h"
-#include "aesctr/aesctr.h"
 #include <climits>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -19,7 +18,7 @@ inline void allocate_file(std::FILE *fp, size_t nbytes) {
     static const size_t bufsz(1 << 18);
     std::vector<uint8_t> data(bufsz);
     const int fn(fileno(fp));
-    aes::AesCtr<u64> gen(nbytes);
+    RNGType gen(nbytes);
     while(nbytes >= bufsz) {
         ::write(fn, data.data(), bufsz);
         nbytes -= bufsz;
