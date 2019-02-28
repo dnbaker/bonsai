@@ -34,9 +34,6 @@
 #include "logutil.h"
 #include "popcnt.h"
 #include "sample_gen.h"
-#if defined(__AES__)
-#include "aesctr/aesctr.h"
-#endif
 
 #ifdef __GNUC__
 #  ifndef likely
