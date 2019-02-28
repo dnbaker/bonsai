@@ -18,7 +18,7 @@ inline void allocate_file(std::FILE *fp, size_t nbytes) {
     static const size_t bufsz(1 << 18);
     std::vector<uint8_t> data(bufsz);
     const int fn(fileno(fp));
-    RNGType gen(nbytes);
+    bns::RNGType gen(nbytes);
     while(nbytes >= bufsz) {
         ::write(fn, data.data(), bufsz);
         nbytes -= bufsz;
