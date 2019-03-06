@@ -20,7 +20,7 @@ struct KmerIdx {
     std::vector<uint64_t>     seqlens_;
     std::vector<uint64_t>     cm_seqs_; // Cumulative sequence lengths
     ska::flat_hash_map<KmerType, lazy::vector<IT1>> map_;
-    
+
     KmerIdx(unsigned k, const char *path=nullptr): k_(k) {
         if(k > sizeof(KmerType) * CHAR_BIT / 2) RUNTIME_ERROR("Error: k must be <= bits per KmerType / 2.");
         cm_seqs_.emplace_back(0);

@@ -38,6 +38,7 @@ freely, subject to the following restrictions:
 
 // Check if we can support the assembly language level implementation (otherwise
 // revert to the system API)
+#define _FAST_MUTEX_SYS_
 #if !defined(_FAST_MUTEX_ASM_) && !defined(_FAST_MUTEX_SYS_)
 #  if (defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))) || \
       (defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))) || \

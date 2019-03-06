@@ -92,7 +92,7 @@ DECHASH(Hash, hash_score);
 
 
 static std::array<u64, 256> make_nthash_lut(u64 seedseed) {
-    aes::AesCtr<uint64_t> gen(seedseed);
+    RNGType gen(seedseed);
     uint64_t a = gen(), c = gen(), g = gen(), t = gen();
     std::array<u64, 256> ret;
     std::fill(ret.begin(), ret.end(), 0);
