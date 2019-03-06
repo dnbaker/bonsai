@@ -110,6 +110,12 @@
 namespace bns {
 using namespace std::literals;
 
+#if __AES__
+using RNGType = aes::AesCtr<uint64_t, 8>;
+#else
+using RNGType = std::mt19937_64;
+#endif
+
 struct ForPool {
     void *fp_;
     ForPool(int nthreads): fp_(kt_forpool_init(nthreads)) {}
@@ -1197,12 +1203,13 @@ static lazy::vector<u64, size_t> load_binary_kmers(const char *path) {
     return ret;
 }
 
-static std::vector<std::string> get_paths(const char *path) {
+static std::vector<std::string> get_lines(const char *path) {
     std::ifstream is(path);
     std::vector<std::string> ret;
     for(std::string line;std::getline(is, line);ret.emplace_back(std::move(line)));
     return ret;
 }
+static INLINE std::vector<std::string> get_paths(const char *path) {return get_lines(path);}
 
 static ssize_t filesize(const char* filename)
 {
