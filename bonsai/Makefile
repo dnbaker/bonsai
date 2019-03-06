@@ -119,7 +119,7 @@ src/popcnt.do: src/popcnt.cpp
 src/popcnt.zo: src/popcnt.cpp
 	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD)  -c $< -o $@ $(LIB)
 
-%: bin/%.cpp
+%: bin/%.cpp clhash.o ../klib/kthread.o
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o ../klib/kthread.o -DNDEBUG $< -o $@ $(LIB)
 
 %_z: bin/%.cpp $(ALL_ZOBJS)
