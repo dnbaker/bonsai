@@ -7,7 +7,7 @@ MAKE?=make
 GMATCH=$(findstring g++,$(CXX))
 GIT_VERSION := $(shell git describe --abbrev=4 --always)
 
-CLHASH_CHECKOUT = "&& git checkout master"
+CLHASH_CHECKOUT = && git checkout master
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
 		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
