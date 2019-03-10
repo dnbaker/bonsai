@@ -48,3 +48,6 @@
 [submodule "flat_hash_map"]
 	path = flat_hash_map
 	url = https://github.com/skarupke/flat_hash_map
+[submodule "rollinghashcpp"]
+	path = rollinghashcpp
+	url = https://github.com/dnbaker/rollinghashcpp

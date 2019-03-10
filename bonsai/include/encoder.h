@@ -16,7 +16,8 @@
 #include "util.h"
 #include "klib/kthread.h"
 #include <mutex>
-
+#include "rollinghashcpp/rabinkarphash.h"
+#include "rollinghashcpp/cyclichash.h"
 
 namespace bns {
 using namespace sketch;
@@ -489,6 +490,98 @@ public:
             delete static_cast<CircusEnt *>(data_);
         }
         std::free(rolling_seeds_);
+    }
+};
+
+enum RollingHashingType {
+    DNA,
+    PROTEIN,
+    PROTEIN_3BIT,
+    PROTEIN_6_FRAME
+};
+
+
+template<typename IntType, typename HashClass=CyclicHash<IntType>>
+struct RollingHasher {
+    static_assert(std::is_integral<IntType>::value || std::is_same<IntType, __uint128_t>::value, "Must be integral");
+    const unsigned k_;
+    RollingHashingType enctype_;
+    bool canon_;
+    HashClass hasher_;
+    HashClass rchasher_;
+    RollingHasher(unsigned k, bool canon=false,
+                   RollingHashingType enc=DNA, uint64_t seed1=1337, uint64_t seed2=137):
+        k_(k), enctype_(enc), canon_(canon), hasher_(k, sizeof(IntType) * CHAR_BIT), rchasher_(k, sizeof(IntType) * CHAR_BIT)
+    {
+        hasher_.seed(seed1, seed2);
+        rchasher_.seed(seed2 * seed1, seed2 ^ seed1);
+        if(enc == PROTEIN_6_FRAME) throw sketch::common::NotImplementedError("Protein 6-frame not implemented.");
+        if(enc == DNA) if(k_ > sizeof(IntType) * CHAR_BIT / 2) LOG_WARNING("There will may be significant collisions, as k is greater than the universe size.\n");
+        if(enc == PROTEIN) if(k_ > sizeof(IntType) * CHAR_BIT / 4) LOG_WARNING("There will may be significant collisions, as k is greater than the universe size.\n");
+        if(enc == PROTEIN_3BIT) if(k_ > sizeof(IntType) * CHAR_BIT / 3) LOG_WARNING("There will may be significant collisions, as k is greater than the universe size.\n");
+    }
+    template<typename Functor>
+    void for_each_canon(const Functor &func, const char *s, size_t l) {
+        if(l < k_) return;
+        hasher_.reset();
+        rchasher_.reset();
+        //LOG_WARNING("Canonical not implemented; This would likely be better-suited to nthash. In the meantime, we're adding both strands");
+        size_t i;
+        for(i = 0; i < k_; ++i)
+            hasher_.eat(s[i]), rchasher_.eat(s[k_ - i - 1]);
+        func(hasher_.hashvalue);
+        func(rchasher_.hashvalue);
+        for(;i < l; ++i) {
+            hasher_.update(s[i - k_], s[i]);
+            rchasher_.update(s[i], s[i - k_]);
+            func(hasher_.hashvalue > rchasher_.hashvalue ? rchasher_.hashvalue: hasher_.hashvalue);
+        }
+    }
+    template<typename Functor>
+    void for_each_uncanon(const Functor &func, const char *s, size_t l) {
+        if(l < k_) return;
+        hasher_.reset();
+        size_t i;
+        for(i = 0; i < k_; ++i)
+            hasher_.eat(s[i]);
+        func(hasher_.hashvalue);
+        for(;i < l; ++i) {
+            hasher_.update(s[i - k_], s[i]);
+            func(hasher_.hashvalue);
+        }
+    }
+    template<typename Functor>
+    void for_each_canon(const Functor &func, kseq_t *ks) {
+        while(kseq_read(ks) >= 0) {
+            for_each_canon<Functor>(func, ks->seq.s, ks->seq.l);
+        }
+    }
+    template<typename Functor>
+    void for_each_uncanon(const Functor &func, kseq_t *ks) {
+        while(kseq_read(ks) >= 0) {
+            for_each_uncanon<Functor>(func, ks->seq.s, ks->seq.l);
+        }
+    }
+    template<typename Functor>
+    void for_each(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+        if(canon_) for_each_canon<Functor>(func, fp, ks);
+        else       for_each_uncanon<Functor>(func, fp, ks);
+    }
+    template<typename Functor>
+    void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+        bool destroy;
+        if(ks == nullptr) ks = kseq_init(fp), destroy = true;
+        else            kseq_assign(ks, fp), destroy = false;
+        for_each_uncanon<Functor>(func, ks);
+        if(destroy) kseq_destroy(ks);
+    }
+    template<typename Functor>
+    void for_each_canon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+        bool destroy;
+        if(ks == nullptr) ks = kseq_init(fp), destroy = true;
+        else            kseq_assign(ks, fp), destroy = false;
+        for_each_canon<Functor>(func, ks);
+        if(destroy) kseq_destroy(ks);
     }
 };
 
