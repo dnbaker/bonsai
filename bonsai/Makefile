@@ -7,7 +7,7 @@ MAKE?=make
 GMATCH=$(findstring g++,$(CXX))
 GIT_VERSION := $(shell git describe --abbrev=4 --always)
 
-CLHASH_CHECKOUT = "&& git checkout master"
+CLHASH_CHECKOUT = && git checkout master
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
 		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
@@ -120,7 +120,7 @@ src/popcnt.do: src/popcnt.cpp
 src/popcnt.zo: src/popcnt.cpp
 	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD)  -c $< -o $@ $(LIB)
 
-%: bin/%.cpp
+%: bin/%.cpp clhash.o ../klib/kthread.o
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o ../klib/kthread.o -DNDEBUG $< -o $@ $(LIB)
 
 %_z: bin/%.cpp $(ALL_ZOBJS)
