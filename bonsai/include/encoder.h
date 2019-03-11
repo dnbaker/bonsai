@@ -528,12 +528,12 @@ struct RollingHasher {
         //LOG_WARNING("Canonical not implemented; This would likely be better-suited to nthash. In the meantime, we're adding both strands");
         size_t i;
         for(i = 0; i < k_; ++i)
-            hasher_.eat(s[i]), rchasher_.eat(s[k_ - i - 1]);
+            hasher_.eat(s[i]), rchasher_.eat(nuc_cmpl(s[k_ - i - 1]));
         func(hasher_.hashvalue);
         func(rchasher_.hashvalue);
         for(;i < l; ++i) {
             hasher_.update(s[i - k_], s[i]);
-            rchasher_.update(s[i], s[i - k_]);
+            rchasher_.update(nuc_cmpl(s[i]), nuc_cmpl(s[i - k_]));
             func(hasher_.hashvalue > rchasher_.hashvalue ? rchasher_.hashvalue: hasher_.hashvalue);
         }
     }
