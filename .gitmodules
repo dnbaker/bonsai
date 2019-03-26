@@ -51,3 +51,6 @@
 [submodule "rollinghashcpp"]
 	path = rollinghashcpp
 	url = https://github.com/dnbaker/rollinghashcpp
+[submodule "ntHash"]
+	path = ntHash
+	url = https://github.com/bcgsc/ntHash
