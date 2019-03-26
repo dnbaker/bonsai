@@ -185,33 +185,7 @@ public:
     }
     INLINE void assign(kstring_t *ks) {assign(ks->s, ks->l);}
     INLINE void assign(kseq_t    *ks) {assign(&ks->seq);}
-#if THEY_SEE_ME_ROLLIN
-    template<typename Functor>
-    INLINE void for_each_rolling_hash(const Functor &func, u64 seed=0xB0BAF377C001D00D) {
-        // Uses nthash, a rolling hash for nucleotides.
-        if(unlikely(!sp_.unspaced())) throw std::runtime_error("Can't perform "s + __PRETTY_FUNCTION__ + " for spaced seeds. Use for_each and hash it yourself.");
-        if((!sp_.unwindowed())) throw std::runtime_error("Can't perform "s + __PRETTY_FUNCTION__ + " for windowed seeds. Use for_each and hash it yourself.");
-        const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
-        u64 min;
-        unsigned filled;
-        loop_start:
-        min = filled = 0;
-        // TODO: this
-    }
-    template<typename Functor>
-    INLINE void for_each_rolling_hash_canon(const Functor &func) {
-        // TODO: this
-    }
-    template<typename Functor, size_t N>
-    INLINE void for_each_rolling_hash_seed_multiply(const Functor &func) {
-        // TODO: this (uses a stack of values with seeds to perform the hashing)
-    }
-    template<typename Functor>
-    INLINE void for_each_rolling_hash_seed_multiply_n(const Functor &func, size_t n) {
 
-        // TODO: this (uses a heap-allocated array of seeds to perform the hashing)
-    }
-#endif /* THEY_SEE_ME_ROLLIN */
 
     template<typename Functor>
     INLINE void for_each_canon_windowed(const Functor &func) {
