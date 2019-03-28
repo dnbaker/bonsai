@@ -18,6 +18,7 @@
 #include <mutex>
 #include "rollinghashcpp/rabinkarphash.h"
 #include "rollinghashcpp/cyclichash.h"
+#include "ntHash/nthash.hpp"
 
 namespace bns {
 using namespace sketch;
@@ -139,7 +140,6 @@ INLINE uint64_t rrot(uint64_t x) {
     return (x >> n) | (x << (64 - n));
 }
 #endif
-static constexpr uint64_t DEFAULT_ROLLING_SEED = UINT64_C(0xB0BAFE77C001D00D);
 
 public:
     Encoder(char *s, u64 l, const Spacer &sp, void *data=nullptr,
@@ -289,6 +289,44 @@ public:
         this->for_each_uncanon_unspaced_windowed_entropy_([&](u64 &min) {return func(canonical_representation(min, sp_.k_));});
     }
     // Utility 'for-each'-like functions.
+    template<typename Functor>
+    INLINE void for_each_hash(const Functor &func, const char *str, u64 l) {
+        s_ = str; l_ = l;
+        for_each_hash<Functor>(func);
+    }
+    template<typename Functor>
+    INLINE void for_each_hash(const Functor &func) {
+        if(!sp_.unwindowed()) RUNTIME_ERROR("Can't for_each_hash for a windowed spacer");
+        if(!sp_.unspaced()) RUNTIME_ERROR("Can't for_each_hash for a spaced spacer");
+        if(l_ < sp_.k_) return;
+        uint64_t fhv=0, rhv=0;
+        const u32 k = sp_.k_;
+        uint64_t hv = NTC64(s_, k, fhv, rhv);
+        func(canonicalize_ ? hv: fhv);
+        if(canonicalize_)
+            for(size_t i = 0; i < l_ - k; func(NTC64(s_[i], s_[i+k], k, fhv, rhv)), ++i);
+        else
+            for(size_t i = 0; i < l_ - k; fhv = NTF64(fhv, k, s_[i], s_[i+k]), func(fhv), ++i);
+    }
+    template<typename Functor>
+    INLINE void for_each_hash(const Functor &func, kseq_t *ks) {
+        while(kseq_read(ks) >= 0) assign(ks), for_each_hash<Functor>(func, ks->seq.s, ks->seq.l);
+    }
+    template<typename Functor>
+    void for_each_hash(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+        bool destroy;
+        if(ks == nullptr) ks = kseq_init(fp), destroy = true;
+        else            kseq_assign(ks, fp), destroy = false;
+        for_each_hash<Functor>(func, ks);
+        if(destroy) kseq_destroy(ks);
+    }
+    template<typename Functor>
+    void for_each_hash(const Functor &func, const char *path, kseq_t *ks=nullptr) {
+        gzFile fp(gzopen(path, "rb"));
+        if(!fp) RUNTIME_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        for_each_hash<Functor>(func, fp, ks);
+        gzclose(fp);
+    }
     template<typename Functor>
     INLINE void for_each(const Functor &func, const char *str, u64 l) {
         this->assign(str, l);

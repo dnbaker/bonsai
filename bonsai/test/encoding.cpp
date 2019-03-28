@@ -172,6 +172,10 @@ TEST_CASE("rollin") {
     gzrewind(fp);
     enc2.for_each([&total_hash](auto x) {total_hash ^= x;}, fp);
     std::fprintf(stderr, "total hash sum for canon: %zu/%zu\n", size_t(total_hash>>64), size_t(total_hash));
+    gzrewind(fp);
+    size_t xor_red = 0;
+    Encoder<> enc3(31);
+    enc3.for_each_hash([&](uint64_t x) {xor_red |= x;});
     gzclose(fp);
 }
 TEST_CASE("entmin") {
