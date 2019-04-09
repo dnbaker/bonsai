@@ -538,14 +538,29 @@ struct RollingHasher {
         hasher_.reset();
         rchasher_.reset();
         //LOG_WARNING("Canonical not implemented; This would likely be better-suited to nthash. In the meantime, we're adding both strands");
-        size_t i;
-        for(i = 0; i < k_; ++i)
-            hasher_.eat(s[i]), rchasher_.eat(nuc_cmpl(s[k_ - i - 1]));
-        func(hasher_.hashvalue);
-        func(rchasher_.hashvalue);
+        size_t i, nf;
+        uint8_t v1;
+        for(i = nf = 0; nf < k_ && i < l; ++i) {
+            v1  = cstr_lut[s[i]];
+            if(v1 == uint8_t(-1)) {
+                fixup:
+                if(i + 2 * k_ >= l) return;
+                i += k_;
+                nf = 0;
+                hasher_.reset();
+                rchasher_.reset();
+            } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
+              // In the future, encode the side that is still valid
+            else hasher_.eat(v1), rchasher_.eat(cstr_rc_lut[s[i - nf + k_ - 1]]), ++nf;
+        }
+        if(nf < k_) return; // All failed
+        func(hasher_.hashvalue > rchasher_.hashvalue ? rchasher_.hashvalue: hasher_.hashvalue);
         for(;i < l; ++i) {
-            hasher_.update(s[i - k_], s[i]);
-            rchasher_.update(nuc_cmpl(s[i]), nuc_cmpl(s[i - k_]));
+            if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
+                goto fixup;
+            }
+            hasher_.update(cstr_lut[s[i - k_]], cstr_lut[v1]);
+            rchasher_.update(cstr_rc_lut[v1], cstr_rc_lut[s[i - k_]]);
             func(hasher_.hashvalue > rchasher_.hashvalue ? rchasher_.hashvalue: hasher_.hashvalue);
         }
     }
@@ -553,12 +568,27 @@ struct RollingHasher {
     void for_each_uncanon(const Functor &func, const char *s, size_t l) {
         if(l < k_) return;
         hasher_.reset();
-        size_t i;
-        for(i = 0; i < k_; ++i)
-            hasher_.eat(s[i]);
+        size_t i, nf;
+        for(i = nf = 0; i < l && nf < k_; ++i) {
+            if(s[i] == 'N')
+                nf = 0, hasher_.reset();
+            else hasher_.eat(cstr_lut[s[i]]), ++nf;
+        }
+        if(nf < k_) return;
         func(hasher_.hashvalue);
         for(;i < l; ++i) {
-            hasher_.update(s[i - k_], s[i]);
+            if(s[i] == 'N') {
+                if(i + k_ >= l) return;
+                hasher_.reset();
+                i += k_;
+                while(s[i] == 'N') ++i;
+                for(nf = 0;nf < k_ && i < l; ++nf) {
+                    auto v = cstr_lut[s[i]];
+                    if(v < 0) {nf = 0; hasher_.reset(); continue;}
+                    hasher_.eat(cstr_lut[s[i++]]);
+                }
+            }
+            hasher_.update(cstr_lut[s[i - k_]], cstr_lut[s[i]]);
             func(hasher_.hashvalue);
         }
     }
@@ -575,7 +605,7 @@ struct RollingHasher {
         }
     }
     template<typename Functor>
-    void for_each(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+    void for_each_hash(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         if(canon_) for_each_canon<Functor>(func, fp, ks);
         else       for_each_uncanon<Functor>(func, fp, ks);
     }
@@ -812,7 +842,7 @@ template<typename ScoreType=score::Lex>
 hll::hll_t make_hll(const std::vector<std::string> &paths,
                 unsigned k, uint16_t w, spvec_t spaces, bool canon=true,
                 void *data=nullptr, int num_threads=1, u64 np=23, kseq_t *ks=nullptr, hll::EstimationMethod estim=hll::EstimationMethod::ERTL_MLE, uint16_t jestim=hll::JointEstimationMethod::ERTL_JOINT_MLE) {
-    hll::hll_t master(np, estim, (hll::JointEstimationMethod)jestim, 1);
+    hll::hll_t master(np, estim, (hll::JointEstimationMethod)jestim);
     fill_sketch<hll::hll_t, ScoreType>(master, paths, k, w, spaces, canon, data, num_threads, np, ks);
     return master;
 }

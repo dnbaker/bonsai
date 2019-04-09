@@ -167,10 +167,10 @@ TEST_CASE("rollin") {
     gzFile fp = gzopen("test/phix.fa", "rb");
     if(!fp) throw "a party!";
     __uint128_t total_hash = 0;
-    enc.for_each([&total_hash](auto x) {total_hash ^= x;}, fp);
+    enc.for_each_hash([&total_hash](auto x) {total_hash ^= x;}, fp);
     std::fprintf(stderr, "total hash sum: %zu/%zu\n", size_t(total_hash>>64), size_t(total_hash));
     gzrewind(fp);
-    enc2.for_each([&total_hash](auto x) {total_hash ^= x;}, fp);
+    enc2.for_each_hash([&total_hash](auto x) {total_hash ^= x;}, fp);
     std::fprintf(stderr, "total hash sum for canon: %zu/%zu\n", size_t(total_hash>>64), size_t(total_hash));
     gzrewind(fp);
     size_t xor_red = 0;
