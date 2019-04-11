@@ -122,7 +122,6 @@ public:
 private:
     u64         pos_; // Current position within the string s_ we're working with.
     void      *data_; // A void pointer for using with scoring. Needed for hash_score.
-    std::array<u64, 256> *rolling_seeds_;
     qmap_t     qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
     const ScoreType  scorer_; // scoring struct
     bool canonicalize_;
@@ -143,13 +142,12 @@ INLINE uint64_t rrot(uint64_t x) {
 
 public:
     Encoder(char *s, u64 l, const Spacer &sp, void *data=nullptr,
-            bool canonicalize=true, uint64_t rolling_seed=0):
+            bool canonicalize=true):
       s_(s),
       l_(l),
       sp_(sp),
       pos_(0),
       data_(data),
-      rolling_seeds_(nullptr),
       qmap_(sp_.w_ - sp_.c_ + 1),
       scorer_{},
       canonicalize_(canonicalize)
@@ -158,21 +156,13 @@ public:
             if(data_) RUNTIME_ERROR("No data pointer must be provided for lex::Entropy minimization.");
             data_ = static_cast<void *>(new CircusEnt(sp_.k_));
         }
-        if(rolling_seed) {
-            if((rolling_seeds_ = static_cast<std::array<u64, 256> *>(std::malloc(sizeof(*rolling_seeds_)))) == nullptr) throw std::bad_alloc();
-            *rolling_seeds_ = make_nthash_lut(rolling_seed);
-        }
     }
-    Encoder(const Spacer &sp, void *data, bool canonicalize=true, uint64_t rolling_seed=0): Encoder(nullptr, 0, sp, data, canonicalize, rolling_seed) {}
-    Encoder(const Spacer &sp, bool canonicalize=true, uint64_t rolling_seed=0): Encoder(sp, nullptr, canonicalize, rolling_seed) {}
+    Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data, canonicalize) {}
+    Encoder(const Spacer &sp, bool canonicalize=true): Encoder(sp, nullptr, canonicalize) {}
     Encoder(const Encoder &other): Encoder(other.sp_, other.data_) {
         canonicalize_ = other.canonicalize_;
-        if(other.rolling_seeds_) {
-            if((rolling_seeds_ = static_cast<std::array<u64, 256> *>(std::malloc(sizeof(*rolling_seeds_)))) == nullptr) throw std::bad_alloc();
-            std::memcpy(rolling_seeds_, other.rolling_seeds_, sizeof(std::array<u64, 256>));
-        }
     }
-    Encoder(unsigned k, bool canonicalize=true, uint64_t rolling_seed=0): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize, rolling_seed) {}
+    Encoder(unsigned k, bool canonicalize=true): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize) {}
 
     // Assign functions: These tell the encoder to fetch kmers from this string.
     // kstring and kseq are overloads which call assign(char *s, u64 l) on
@@ -290,17 +280,17 @@ public:
     }
     // Utility 'for-each'-like functions.
     template<typename Functor>
-    INLINE void for_each_hash(const Functor &func, const char *str, u64 l) {
+    INLINE void for_each_hash(const Functor &func, const char *str, u64 l, unsigned k = 0) {
         s_ = str; l_ = l;
-        for_each_hash<Functor>(func);
+        for_each_hash<Functor>(func, k > 0 ? k: sp_.k_);
     }
     template<typename Functor>
-    INLINE void for_each_hash(const Functor &func) {
+    INLINE void for_each_hash(const Functor &func, unsigned k = 0) const {
+        k = k > 0 ? k: sp_.k_;
         if(!sp_.unwindowed()) RUNTIME_ERROR("Can't for_each_hash for a windowed spacer");
         if(!sp_.unspaced()) RUNTIME_ERROR("Can't for_each_hash for a spaced spacer");
-        if(l_ < sp_.k_) return;
+        if(l_ < k) return;
         uint64_t fhv=0, rhv=0;
-        const u32 k = sp_.k_;
         uint64_t hv = NTC64(s_, k, fhv, rhv);
         func(canonicalize_ ? hv: fhv);
         if(canonicalize_)
@@ -357,10 +347,8 @@ public:
     }
     template<typename Functor>
     INLINE void for_each_canon(const Functor &func, kseq_t *ks) {
-        if(sp_.unwindowed())
-            while(kseq_read(ks) >= 0) assign(ks), for_each_canon_unwindowed<Functor>(func);
-        else
-            while(kseq_read(ks) >= 0) assign(ks), for_each_canon_windowed<Functor>(func);
+        if(sp_.unwindowed()) while(kseq_read(ks) >= 0) assign(ks), for_each_canon_unwindowed<Functor>(func);
+        else                 while(kseq_read(ks) >= 0) assign(ks), for_each_canon_windowed<Functor>(func);
     }
     template<typename Functor>
     INLINE void for_each_uncanon(const Functor &func, kseq_t *ks) {
@@ -374,7 +362,6 @@ public:
         bool destroy;
         if(ks == nullptr) ks = kseq_init(fp), destroy = true;
         else            kseq_assign(ks, fp), destroy = false;
-        //LOG_DEBUG("Destroy is %s. I have just assigned kseq's f->f field to the pointer %p\n", destroy ? "true": "false", fp);
         for_each_canon<Functor>(func, ks);
         if(destroy) kseq_destroy(ks);
     }
@@ -501,7 +488,6 @@ public:
         if(std::is_same<ScoreType, score::Entropy>::value && sp_.unspaced() && !sp_.unwindowed()) {
             delete static_cast<CircusEnt *>(data_);
         }
-        std::free(rolling_seeds_);
     }
 };
 
@@ -554,14 +540,14 @@ struct RollingHasher {
             else hasher_.eat(v1), rchasher_.eat(cstr_rc_lut[s[i - nf + k_ - 1]]), ++nf;
         }
         if(nf < k_) return; // All failed
-        func(hasher_.hashvalue > rchasher_.hashvalue ? rchasher_.hashvalue: hasher_.hashvalue);
+        func(std::min(hasher_.hashvalue, rchasher_.hashvalue));
         for(;i < l; ++i) {
             if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
                 goto fixup;
             }
             hasher_.update(cstr_lut[s[i - k_]], cstr_lut[v1]);
             rchasher_.update(cstr_rc_lut[v1], cstr_rc_lut[s[i - k_]]);
-            func(hasher_.hashvalue > rchasher_.hashvalue ? rchasher_.hashvalue: hasher_.hashvalue);
+            func(std::min(hasher_.hashvalue, rchasher_.hashvalue));
         }
     }
     template<typename Functor>
