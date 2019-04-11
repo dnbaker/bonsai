@@ -176,6 +176,8 @@ TEST_CASE("rollin") {
     size_t xor_red = 0;
     Encoder<> enc3(31);
     enc3.for_each_hash([&](uint64_t x) {xor_red |= x;});
+    Encoder<> enc4(147);
+    enc3.for_each_hash([&](uint64_t x) {xor_red |= x;});
     gzclose(fp);
 }
 TEST_CASE("entmin") {
