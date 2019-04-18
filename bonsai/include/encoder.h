@@ -522,7 +522,6 @@ struct RollingHasher {
         if(l < k_) return;
         hasher_.reset();
         rchasher_.reset();
-        //LOG_WARNING("Canonical not implemented; This would likely be better-suited to nthash. In the meantime, we're adding both strands");
         size_t i, nf;
         uint8_t v1;
         for(i = nf = 0; nf < k_ && i < l; ++i) {
@@ -585,6 +584,13 @@ struct RollingHasher {
     void for_each_hash(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         if(canon_) for_each_canon<Functor>(func, fp, ks);
         else       for_each_uncanon<Functor>(func, fp, ks);
+    }
+    template<typename Functor>
+    void for_each_hash(const Functor &func, const char *inpath, kseq_t *ks=nullptr) {
+        gzFile fp = gzopen(inpath, "rb");
+        if(!fp) throw "a party";
+        for_each_hash<Functor>(func, fp, ks);
+        gzclose(fp);
     }
     template<typename Functor>
     void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
