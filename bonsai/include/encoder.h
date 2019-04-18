@@ -498,7 +498,6 @@ enum RollingHashingType {
     PROTEIN_6_FRAME
 };
 
-
 template<typename IntType, typename HashClass=CyclicHash<IntType>>
 struct RollingHasher {
     static_assert(std::is_integral<IntType>::value || std::is_same<IntType, __uint128_t>::value, "Must be integral");
@@ -527,8 +526,7 @@ struct RollingHasher {
         size_t i, nf;
         uint8_t v1;
         for(i = nf = 0; nf < k_ && i < l; ++i) {
-            v1  = cstr_lut[s[i]];
-            if(v1 == uint8_t(-1)) {
+            if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
                 fixup:
                 if(i + 2 * k_ >= l) return;
                 i += k_;
@@ -542,11 +540,10 @@ struct RollingHasher {
         if(nf < k_) return; // All failed
         func(std::min(hasher_.hashvalue, rchasher_.hashvalue));
         for(;i < l; ++i) {
-            if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
+            if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
                 goto fixup;
-            }
-            hasher_.update(cstr_lut[s[i - k_]], cstr_lut[v1]);
-            rchasher_.update(cstr_rc_lut[v1], cstr_rc_lut[s[i - k_]]);
+            hasher_.update(cstr_lut[s[i - k_]], v1);
+            rchasher_.reverse_update(cstr_rc_lut[s[i]], cstr_rc_lut[s[i - k_]]);
             func(std::min(hasher_.hashvalue, rchasher_.hashvalue));
         }
     }
@@ -555,25 +552,19 @@ struct RollingHasher {
         if(l < k_) return;
         hasher_.reset();
         size_t i, nf;
+        uint8_t v1;
         for(i = nf = 0; i < l && nf < k_; ++i) {
-            if(s[i] == 'N')
+            if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
+                fixup:
+                if(i + k_ >= l) return;
                 nf = 0, hasher_.reset();
-            else hasher_.eat(cstr_lut[s[i]]), ++nf;
+            } else hasher_.eat(v1), ++nf;
         }
         if(nf < k_) return;
         func(hasher_.hashvalue);
         for(;i < l; ++i) {
-            if(s[i] == 'N') {
-                if(i + k_ >= l) return;
-                hasher_.reset();
-                i += k_;
-                while(s[i] == 'N') ++i;
-                for(nf = 0;nf < k_ && i < l; ++nf) {
-                    auto v = cstr_lut[s[i]];
-                    if(v < 0) {nf = 0; hasher_.reset(); continue;}
-                    hasher_.eat(cstr_lut[s[i++]]);
-                }
-            }
+            if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
+                goto fixup;
             hasher_.update(cstr_lut[s[i - k_]], cstr_lut[s[i]]);
             func(hasher_.hashvalue);
         }
