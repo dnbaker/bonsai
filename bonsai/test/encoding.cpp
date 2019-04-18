@@ -163,14 +163,14 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
 }
 TEST_CASE("rollin") {
     RollingHasher<__uint128_t, CyclicHash<__uint128_t>> enc(100);
-    RollingHasher<__uint128_t, KarpRabinHashBits<__uint128_t>> enc2(100, true);
+    //RollingHasher<__uint128_t, KarpRabinHashBits<__uint128_t>> enc2(100, true);
     gzFile fp = gzopen("test/phix.fa", "rb");
     if(!fp) throw "a party!";
     __uint128_t total_hash = 0;
     enc.for_each_hash([&total_hash](auto x) {total_hash ^= x;}, fp);
     std::fprintf(stderr, "total hash sum: %zu/%zu\n", size_t(total_hash>>64), size_t(total_hash));
     gzrewind(fp);
-    enc2.for_each_hash([&total_hash](auto x) {total_hash ^= x;}, fp);
+    //enc2.for_each_canon([&total_hash](auto x) {total_hash ^= x;}, fp);
     std::fprintf(stderr, "total hash sum for canon: %zu/%zu\n", size_t(total_hash>>64), size_t(total_hash));
     gzrewind(fp);
     size_t xor_red = 0;

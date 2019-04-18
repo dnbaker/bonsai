@@ -11,8 +11,8 @@ CLHASH_CHECKOUT = && git checkout master
 WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
 		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
-		 -pedantic -DUSE_PDQSORT -Wunused-variable -Wno-ignored-attributes -Wno-cast-align \
-        -Wno-gnu-zero-variadic-macro-arguments
+		 -pedantic -DUSE_PDQSORT -Wunused-variable -Wno-attributes -Wno-cast-align \
+        -Wno-gnu-zero-variadic-macro-arguments -Wno-ignored-attributes
 EXTRA?=
 INCPLUS?=
 EXTRA_LD?=
