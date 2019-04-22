@@ -1,4 +1,0 @@
-AC_000091 is missing
-NC_010400 is missing
-NC_007413 is missing
-NC_009972 is missing
