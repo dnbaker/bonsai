@@ -8,6 +8,10 @@ from enum import IntEnum
 argv = sys.argv
 
 
+if sys.version_info[0] != 3:
+    raise Exception("Python 3 required")
+
+
 class ExitCodes(IntEnum):
     EXIT_SUCCESS = 0
     EXIT_FAILURE = 1
@@ -88,8 +92,9 @@ def get_clade_map(clades):
 
 
 def parse_assembly(fn, fnidmap):
+    print(fn)
     to_fetch = []
-    for line in open(fn):
+    for line in open(fn, encoding='utf8'):
         if line[0] == '#':
             continue
         s = line.split("\t")
@@ -170,7 +175,6 @@ def main():
     tax_path = TAX_PATH  # Make global variable local
     args = getopts()
     ref = args.ref if args.ref else "ref"
-    print(argv[1])
     if argv[1:] and argv[1] == "nodes":
         if not os.path.isfile("%s/nodes.dmp" % ref):
             cc("curl {tax_path} -o {ref}/"
@@ -186,10 +190,10 @@ def main():
             assert clade in ALL_CLADES_MAP or clade in ["all", "default"]
         except AssertionError:
             print("Clade %s not 'all', 'default', or one of the valid "
-                  "clades: %s" % (clade, ALL_CLADES_STR))
+                  "clades: %s" % (clade, ALL_CLADES_STR), file=sys.stderr)
             sys.exit(ExitCodes.EXIT_FAILURE)
     to_dl = get_clade_map(clades)
-    print("About to download clades %s" % ", ".join(to_dl))
+    print("About to download clades %s" % ", ".join(to_dl), file=sys.stderr)
     nameidmap = {}
     for clade in to_dl:
         cladeidmap = {}
