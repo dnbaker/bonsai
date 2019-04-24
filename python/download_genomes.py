@@ -31,7 +31,7 @@ def is_valid_gzip(fn, lazy=False, use_pigz=False):
     '''
     if lazy:
         try:
-            cc("zcat %s | head &>/dev/null" % fn, shell=True)
+            cc("gzip -dc %s | head &>/dev/null" % fn, shell=True)
             return True
         except CalledProcessError:
             return False
