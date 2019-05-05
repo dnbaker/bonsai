@@ -99,8 +99,8 @@ struct KmerIdx {
         FOREVER {
             KmerType kmer;
             uint32_t nelem;
-            if(gzread(fp, &kmer, sizeof(kmer)) != sizeof(kmer)) RUNTIME_ERROR("ZOMG");
-            if(gzread(fp, &nelem, sizeof(nelem)) != sizeof(nelem)) RUNTIME_ERROR("ZOMG");
+            if(unlikely(gzread(fp,  &kmer, sizeof(kmer )) != sizeof(kmer)))  RUNTIME_ERROR("ZOMG");
+            if(unlikely(gzread(fp, &nelem, sizeof(nelem)) != sizeof(nelem))) RUNTIME_ERROR("ZOMG");
             auto it = map_.emplace(nelem, lazy::vector<IT1>()).first;
             IT1 tmp;
             it->second.reserve(nelem);
