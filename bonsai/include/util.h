@@ -346,19 +346,22 @@ T *khash_load_impl(const int fn) noexcept {
     T *rex((T *)std::calloc(1, sizeof(T)));
     using keytype_t = std::remove_pointer_t<decltype(rex->keys)>;
     using valtype_t = std::remove_pointer_t<decltype(rex->vals)>;
-    ::read(fn, &rex->n_buckets, sizeof(rex->n_buckets));
-    ::read(fn, &rex->n_occupied, sizeof(rex->n_occupied));
-    ::read(fn, &rex->size, sizeof(rex->size));
-    ::read(fn, &rex->upper_bound, sizeof(rex->upper_bound));
+    if(::read(fn, &rex->n_buckets, sizeof(rex->n_buckets)) != sizeof(rex->n_buckets)) exit(1);
+    if(::read(fn, &rex->n_occupied, sizeof(rex->n_occupied)) !=  sizeof(rex->n_occupied)) exit(1);
+    if((::read(fn, &rex->size, sizeof(rex->size))) != sizeof(rex->size)) exit(1);
+    if(::read(fn, &rex->upper_bound, sizeof(rex->upper_bound)) != sizeof(rex->upper_bound)) exit(1);
     rex->flags = (u32 *)std::malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
     if(!rex->flags) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", (sizeof(*rex->flags) * __ac_fsize(rex->n_buckets)), (sizeof(*rex->flags) * __ac_fsize(rex->n_buckets)) >> 30), exit(1);
     rex->keys = (keytype_t *)std::malloc(sizeof(*rex->keys) * rex->n_buckets);
     if(!rex->keys) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->keys) * rex->n_buckets, sizeof(*rex->keys) * rex->n_buckets >> 30), exit(1);
     rex->vals = (valtype_t *)std::malloc(sizeof(*rex->vals) * rex->n_buckets);
     if(!rex->vals) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->vals) * rex->n_buckets, sizeof(*rex->vals) * rex->n_buckets >> 30), exit(1);
-    ::read(fn, rex->flags, __ac_fsize(rex->n_buckets) * sizeof(*rex->flags));
-    ::read(fn, rex->keys, rex->n_buckets * sizeof(*rex->keys));
-    ::read(fn, rex->vals, rex->n_buckets * sizeof(*rex->vals));
+    ssize_t nb = __ac_fsize(rex->n_buckets) * sizeof(*rex->flags);
+    if(::read(fn, rex->flags, nb) != nb) exit(1);
+    nb = rex->n_buckets * sizeof(*rex->keys);
+    if(::read(fn, rex->keys, nb) != nb) exit(1);
+    nb = rex->n_buckets * sizeof(*rex->vals);
+    if(::read(fn, rex->keys, nb) != nb) exit(1);
     return rex;
 }
 
