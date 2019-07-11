@@ -498,9 +498,11 @@ enum RollingHashingType {
     PROTEIN_6_FRAME
 };
 
+
+
 template<typename IntType, typename HashClass=CyclicHash<IntType>>
 struct RollingHasher {
-    static_assert(std::is_integral<IntType>::value || std::is_same<IntType, __uint128_t>::value, "Must be integral");
+    static_assert(std::is_integral<IntType>::value || std::is_same<IntType, __uint128_t>::value || std::is_same<IntType, __int128_t>::value, "Must be integral");
     const unsigned k_;
     RollingHashingType enctype_;
     bool canon_;
@@ -608,7 +610,144 @@ struct RollingHasher {
         for_each_canon<Functor>(func, ks);
         if(destroy) kseq_destroy(ks);
     }
+    void reset() {hasher_.reset(); rchasher_.reset();}
 };
+
+template<typename IType>
+struct RollingHasherSet {
+    std::vector<RollingHasher<IType>> hashers_;
+    bool canon_;
+    template<typename C>
+    RollingHasherSet(const C &c, bool canon=false, RollingHashingType enc=DNA, uint64_t seedseed=1337u): canon_(canon) {
+        std::mt19937_64 mt;
+        hashers_.reserve(c.size());
+        for(const auto k: c)
+            hashers_.emplace_back(k, canon, enc, mt(), mt());
+    }
+    template<typename Functor>
+    void for_each_canon(const Functor &func, const char *s, size_t l) {
+        const auto mink = get_mink();
+        if(l < mink) return;
+        for(auto &h: hashers_) h.reset();
+        size_t i = 0, nf = 0;
+        uint8_t v1;
+        for(; nf < mink && i < l; ++i) {
+            if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
+                fixup:
+                if(i + 2 * mink >= l) return;
+                i += mink;
+                nf = 0;
+                for(auto &h: hashers_) h.reset();
+            } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
+              // In the future, encode the side that is still valid
+            else {
+                for(auto &h: hashers_) h.hasher_.eat(v1), h.rchasher_.eat(cstr_rc_lut[s[h.k_ - i - 1]]);
+                ++nf;
+            }
+        }
+        for(size_t hi = 0; hi < hashers_.size(); ++hi) {
+            auto &h(hashers_[hi]);
+            if(nf >= h.k_)
+                func(std::min(h.hasher_.hashvalue, h.rchasher_.hashvalue), hi);
+        }
+        for(;i < l; ++i) {
+            if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
+                goto fixup;
+            for(size_t hi = 0; hi < hashers_.size(); ++hi) {
+                auto &h(hashers_[hi]);
+                //h.rchasher_.eat(cstr_rc_lut[s[i - nf + h.k_ - 1]]);
+                if(nf >= h.k_) {
+                    h.rchasher_.reverse_update(cstr_rc_lut[s[i]], cstr_rc_lut[s[i - h.k_]]);
+                    h.hasher_.update(cstr_lut[s[i - h.k_]], v1);
+                    func(std::min(h.hasher_.hashvalue, h.rchasher_.hashvalue), hi);
+                } else {
+                    h.hasher_.eat(v1);
+                    h.rchasher_.eat(cstr_rc_lut[s[i + h.k_ - nf - 1]]);
+                }
+            }
+            ++nf;
+        }
+    }
+    uint32_t get_mink() const {return std::accumulate(hashers_.begin(), hashers_.end(), unsigned(-1), [](unsigned x, const auto & y) {return std::min(x, y.k_);});}
+    template<typename Functor>
+    void for_each_uncanon(const Functor &func, const char *s, size_t l) {
+        const auto mink = get_mink();
+        if(l < mink) return;
+        for(auto &h: hashers_) h.reset();
+        size_t i = 0, nf = 0;
+        uint8_t v1;
+        for(; nf < mink && i < l; ++i) {
+            if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
+                fixup:
+                if(i + 2 * mink >= l) return;
+                i += mink;
+                nf = 0;
+                for(auto &h: hashers_) h.hasher_.reset();
+            } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
+              // In the future, encode the side that is still valid
+            else {
+                for(auto &h: hashers_) h.hasher_.eat(v1); 
+                ++nf;
+            }
+        }
+        for(size_t i = 0; i < hashers_.size(); ++i) {
+            auto &h(hashers_[i]);
+            if(nf >= h.k_)
+                func(h.hasher_.hashvalue, i);
+        }
+        for(;i < l; ++i) {
+            if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
+                goto fixup;
+            for(size_t hi = 0; hi < hashers_.size(); ++hi) {
+                auto &h(hashers_[hi]);
+                h.hasher_.eat(v1);
+                if(++nf >= h.k_)
+                    func(h.hasher_.hashvalue, hi);
+            }
+        }
+    }
+    template<typename Functor>
+    void for_each_canon(const Functor &func, kseq_t *ks) {
+        while(kseq_read(ks) >= 0) {
+            for_each_canon<Functor>(func, ks->seq.s, ks->seq.l);
+        }
+    }
+    template<typename Functor>
+    void for_each_uncanon(const Functor &func, kseq_t *ks) {
+        while(kseq_read(ks) >= 0) {
+            for_each_uncanon<Functor>(func, ks->seq.s, ks->seq.l);
+        }
+    }
+    template<typename Functor>
+    void for_each_hash(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+        if(canon_) for_each_canon<Functor>(func, fp, ks);
+        else       for_each_uncanon<Functor>(func, fp, ks);
+    }
+    template<typename Functor>
+    void for_each_hash(const Functor &func, const char *inpath, kseq_t *ks=nullptr) {
+        gzFile fp = gzopen(inpath, "rb");
+        if(!fp) throw "a party";
+        for_each_hash<Functor>(func, fp, ks);
+        gzclose(fp);
+    }
+    template<typename Functor>
+    void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+        bool destroy;
+        if(ks == nullptr) ks = kseq_init(fp), destroy = true;
+        else            kseq_assign(ks, fp), destroy = false;
+        for_each_uncanon<Functor>(func, ks);
+        if(destroy) kseq_destroy(ks);
+    }
+    template<typename Functor>
+    void for_each_canon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+        bool destroy;
+        if(ks == nullptr) ks = kseq_init(fp), destroy = true;
+        else            kseq_assign(ks, fp), destroy = false;
+        for_each_canon<Functor>(func, ks);
+        if(destroy) kseq_destroy(ks);
+    }
+};
+
 
 template<typename ScoreType, typename KhashType>
 void add_to_khash(KhashType *kh, Encoder<ScoreType> &enc, kseq_t *ks) {
