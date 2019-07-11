@@ -180,6 +180,11 @@ TEST_CASE("rollin") {
     enc3.for_each_hash([&](uint64_t x) {xor_red |= x;});
     gzclose(fp);
 }
+TEST_CASE("rhs") {
+    RollingHasherSet<uint64_t> rhs(std::vector<int>{16,32,64,128});
+    rhs.for_each_hash([](uint64_t kmer, size_t hashnum) {std::fprintf(stderr, "%" PRIu64 ": %zu\n", kmer, hashnum);},
+                      "test/phix.fa");
+}
 TEST_CASE("entmin") {
     Spacer sp(31, 60);
     Encoder<score::Entropy> enc(Spacer(31, 60));
