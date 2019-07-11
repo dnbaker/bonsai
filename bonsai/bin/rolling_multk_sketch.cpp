@@ -53,7 +53,6 @@ int main(int argc, char *argv[]) {
     }
     if(prefix.empty()) prefix = argv[optind];
     gzFile fp = gzopen(argv[optind], "rb");
-    uint64_t nelem;
     auto sketches = build_multk_sketches(ks, fp, canon, l2sz);
     for(const auto &s: sketches)
         s.write((prefix + "." + std::to_string(ks[&s - &*sketches.begin()]) + ".sketch.hll").data());
