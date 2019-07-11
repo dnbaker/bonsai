@@ -11,11 +11,13 @@ void usage() {
 template<typename Sketch>
 Sketch &fn2sketch(std::string fn, Sketch &sk) {
     gzFile fp = gzopen(fn.data(), "rb");
+    if(!fp) throw std::runtime_error("Could not open file");
     uint64_t w;
     if(gzread(fp, &w, sizeof(w)) != sizeof(w)) throw 1;
     size_t nelem = w;
+    std::fprintf(stderr, "nelem: %zu\n", nelem);
     size_t count = 0;
-    while(gzread(fp, &w, w) == sizeof(w)) {
+    while(gzread(fp, &w, sizeof(w)) == sizeof(w)) {
         sk.add(w);
         ++count;
     }
@@ -39,7 +41,9 @@ int main(int argc, char *argv[]) {
     sketches.reserve(inputs.size());
     while(sketches.size() < inputs.size())
         sketches.emplace_back(l2sz);
-    #pragma omp parallel for
+    std::fprintf(stderr, "Prepared. size: %zu\n", sketches.size());
+    //#pragma omp parallel for
+    assert(sketches.size() == inputs.size());
     for(size_t i = 0; i < inputs.size(); ++i) {
         fn2sketch(inputs[i], sketches[i]);
         sketches[i].write(inputs[i] + ".sketch.hll");
