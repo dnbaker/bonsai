@@ -30,3 +30,12 @@ def shsets2dict(prefix, minhash_sample=-1):
     fns = glob.glob(prefix + "*.shs")
     if not fns: return {}
     return {int(x.split(".")[-2]): load_from_path(x, minhash_sample) for x in fns}
+
+'''
+TODO:
+1. Turn every genome into sets of sketches.
+2. Do all pairwise comparisons.
+3. Add curve-fitting code.
+4. ???
+5. PROFIT
+'''
