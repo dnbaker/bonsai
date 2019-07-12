@@ -7,6 +7,7 @@ using namespace kmerc;
 
 void usage() {
     std::fprintf(stderr, "rolling_multk <opts> in.fa\n-P: set prefix\n-p: set number of threads\n-k: Add kmer length\n-C: Do not canonicalize\n-r:  set START,END for kmer range (e.g., -r34,38 will use 34, 35, 36, 37]).\n");
+    std::fprintf(stderr, "-K: do not write kvmap\n-S: do not write SHS\n");
     std::exit(1);
 }
 
@@ -15,13 +16,16 @@ int main(int argc, char *argv[]) {
     std::vector<uint32_t> ks;
     std::string prefix;
     bool canon = true;
-    while((c = getopt(argc, argv, "ChP:p:k:r:")) >= 0) {
+    int write_flags = WRITE_KVMAP | WRITE_SHS;
+    while((c = getopt(argc, argv, "KSChP:p:k:r:")) >= 0) {
         switch(c) {
             case 'h': usage(); break;
             case 'k': {auto i = std::atoi(optarg); if(i > 0) ks.push_back(i);} break;
             case 'C': canon = false; break;
             case 'P': prefix = optarg; break;
             case 'p': omp_set_num_threads(std::atoi(optarg)); break;
+            case 'K': write_flags &= ~WRITE_KVMAP; break;
+            case 'S': write_flags &= ~WRITE_SHS; break;
             case 'r':
                 {
                     auto s = std::atoi(optarg);
@@ -37,5 +41,5 @@ int main(int argc, char *argv[]) {
     size_t presize = bns::filesize(argv[optind]);
     if(optind == argc) usage();
     if(prefix.empty()) prefix = argv[optind];
-    dump_maps(prefix.data(), ks, argv[optind], canon, presize);
+    dump_maps(prefix.data(), ks, argv[optind], canon, presize, write_flags);
 }

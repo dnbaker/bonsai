@@ -3,7 +3,7 @@
 #include "omp.h"
 
 void usage() {
-    std::fprintf(stderr, "rolling_multk_sketch <opts> in.fa\n-P: set prefix\n-p: set number of threads\n-k: Add kmer length\n-C: Do not canonicalize\n-r:  set START,END for kmer range (e.g., -r34,38 will use 34, 35, 36, 37]).\n");
+    std::fprintf(stderr, "shs2sketch <opts> in.shs\n");
     std::fprintf(stderr, "-S: set log 2 sketch size (14)\n");
     std::exit(1);
 }
@@ -25,6 +25,21 @@ Sketch &fn2sketch(std::string fn, Sketch &sk) {
     return sk;
 }
 
+template<typename Sketch>
+void core(const std::vector<std::string> &inputs, size_t l2sz) {
+    std::vector<sketch::hll_t> sketches;
+    sketches.reserve(inputs.size());
+    while(sketches.size() < inputs.size())
+        sketches.emplace_back(l2sz);
+    assert(sketches.size() == inputs.size());
+    #pragma omp parallel for
+    for(size_t i = 0; i < inputs.size(); ++i) {
+        fn2sketch(inputs[i], sketches[i]);
+    }
+    for(size_t i = 0; i < inputs.size(); ++i)
+        sketches[i].write(inputs[i] + ".sketch." + std::to_string(l2sz) + ".hll");
+}
+
 
 int main(int argc, char *argv[]) {
     int c;
@@ -36,16 +51,7 @@ int main(int argc, char *argv[]) {
             case 'S': l2sz = std::atoi(optarg); break;
         }
     }
+    if(argc == optind) usage();
     std::vector<std::string> inputs(argv + optind, argv + argc);
-    std::vector<sketch::hll_t> sketches;
-    sketches.reserve(inputs.size());
-    while(sketches.size() < inputs.size())
-        sketches.emplace_back(l2sz);
-    std::fprintf(stderr, "Prepared. size: %zu\n", sketches.size());
-    //#pragma omp parallel for
-    assert(sketches.size() == inputs.size());
-    for(size_t i = 0; i < inputs.size(); ++i) {
-        fn2sketch(inputs[i], sketches[i]);
-        sketches[i].write(inputs[i] + ".sketch.hll");
-    }
+    core<sketch::hll_t>(inputs, l2sz);
 }
