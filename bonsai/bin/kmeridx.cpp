@@ -1,6 +1,11 @@
 #include "bonsai/include/kmeridx.h"
 #include <getopt.h>
 
+template<typename T1, typename T2>
+void build_write(unsigned k, const char *s, const char *o) {
+    bns::KmerIdx<T1, T2>(k, s).write(o);
+}
+
 int main(int argc, char *argv[]) {
     int c;
     bool pos32 = false;
@@ -15,22 +20,7 @@ int main(int argc, char *argv[]) {
     }
     if(k > 32) RUNTIME_ERROR("k must be <= 32");
     bool small_idx = k < 17;
-    if(pos32) {
-        if(small_idx) {
-            bns::KmerIdx<uint32_t, uint32_t> idx(k, argv[optind]);
-            idx.write(argv[optind + 1]);
-        } else {
-            bns::KmerIdx<uint32_t, uint64_t> idx(k, argv[optind]);
-            idx.write(argv[optind + 1]);
-        }
-    }
-    else {
-        if(small_idx) {
-            bns::KmerIdx<uint64_t, uint32_t> idx(k, argv[optind]);
-            idx.write(argv[optind + 1]);
-        } else {
-            bns::KmerIdx<uint64_t, uint64_t> idx(k, argv[optind]);
-            idx.write(argv[optind + 1]);
-        }
-    }
+    auto fptr = pos32 ? (small_idx ? build_write<uint32_t, uint32_t>: build_write<uint32_t, uint64_t>)
+                      : (small_idx ? build_write<uint64_t, uint32_t>: build_write<uint64_t, uint64_t>);
+    fptr(k,argv[optind], argv[optind + 1] ? const_cast<const char *>(argv[optind + 1]): "/dev/stdout");
 }
