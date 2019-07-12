@@ -41,8 +41,13 @@ std::vector<khash_t(i16)> build_kmer_counts(const C &kmer_sizes, ArgType fp, boo
     return kmer_maps;
 }
 
+enum DumpFlags: int {
+    WRITE_SHS = 1,
+    WRITE_KVMAP = 2
+};
+
 template<typename C, typename IT=uint64_t, typename ArgType>
-void dump_maps(const char *prefix, const C &kmer_sizes, ArgType fp, bool canon=false, size_t presize=0) {
+void dump_maps(const char *prefix, const C &kmer_sizes, ArgType fp, bool canon=false, size_t presize=0, int flag=WRITE_SHS | WRITE_KVMAP) {
     auto maps = build_kmer_counts(kmer_sizes, fp, canon, presize);
     std::vector<IT> buf;
     std::vector<uint16_t> buf16;
@@ -56,18 +61,23 @@ void dump_maps(const char *prefix, const C &kmer_sizes, ArgType fp, bool canon=f
             if(kh_exist(&map, i))
                 buf[used] = map.keys[i], buf16[used] = map.vals[i], ++used;
         }
-        gzFile fp = gzopen((std::string(prefix) + "." + std::to_string(k) + ".bin").data(), "wb");
-        if(!fp) throw std::runtime_error("Could not open file.");
-        uint64_t count = used;
-        gzwrite(fp, &count, sizeof(count));
-        gzwrite(fp, buf.data(), buf.size() * sizeof(buf[0]));
-        gzwrite(fp, buf16.data(), buf16.size() * sizeof(buf16[0]));
-        gzclose(fp);
-        std::sort(buf.data(), buf.data() + buf.size());
-        fp = gzopen((std::string(prefix) + "." + std::to_string(k) + ".shs").data(), "wb");
-        gzwrite(fp, &count, sizeof(count));
-        gzwrite(fp, buf.data(), buf.size() * sizeof(buf[0]));
-        gzclose(fp);
+        const uint64_t count = used;
+        gzFile fp;
+        if(flag & WRITE_KVMAP) {
+            fp = gzopen((std::string(prefix) + "." + std::to_string(k) + ".bin").data(), "wb");
+            if(!fp) throw std::runtime_error("Could not open file.");
+            gzwrite(fp, &count, sizeof(count));
+            gzwrite(fp, buf.data(), buf.size() * sizeof(buf[0]));
+            gzwrite(fp, buf16.data(), buf16.size() * sizeof(buf16[0]));
+            gzclose(fp);
+        }
+        if(flag & WRITE_SHS) {
+            std::sort(buf.data(), buf.data() + buf.size());
+            fp = gzopen((std::string(prefix) + "." + std::to_string(k) + ".shs").data(), "wb");
+            gzwrite(fp, &count, sizeof(count));
+            gzwrite(fp, buf.data(), buf.size() * sizeof(buf[0]));
+            gzclose(fp);
+        }
         std::free(map.keys);
         std::free(map.vals);
         std::free(map.flags);
