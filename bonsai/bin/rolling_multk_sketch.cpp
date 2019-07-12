@@ -55,6 +55,9 @@ int main(int argc, char *argv[]) {
     if(prefix.empty()) prefix = argv[optind];
     gzFile fp = gzopen(argv[optind], "rb");
     auto sketches = build_multk_sketches(ks, fp, canon, l2sz);
-    for(const auto &s: sketches)
-        s.write((prefix + "." + std::to_string(ks[&s - &*sketches.begin()]) + ".sketch." + std::to_string(l2sz) + ".hll").data());
+    for(const auto &s: sketches) {
+        auto path = prefix + "." + std::to_string(ks[&s - &*sketches.begin()]) + ".sketch." + std::to_string(l2sz) + ".hll";
+        LOG_DEBUG("Writing to path %s\n", path.data());
+        s.write(path.data());
+    }
 }
