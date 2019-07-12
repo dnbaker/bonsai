@@ -1,4 +1,5 @@
 #include "bonsai/include/kmer_counter.h"
+#include "bonsai/include/util.h"
 #include <algorithm>
 #include <omp.h>
 
@@ -33,7 +34,8 @@ int main(int argc, char *argv[]) {
                 }
         }
     }
+    size_t presize = bns::filesize(argv[optind]);
     if(optind == argc) usage();
     if(prefix.empty()) prefix = argv[optind];
-    dump_maps(prefix.data(), ks, argv[optind], canon);
+    dump_maps(prefix.data(), ks, argv[optind], canon, presize);
 }

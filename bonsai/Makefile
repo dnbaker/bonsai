@@ -146,5 +146,7 @@ zunit: $(ZOBJS) $(ZTEST_OBJS)
 clean:
 	rm -f $(ZOBJS) $(ZTEST_OBJS) $(ZW_OBJS) $(OBJS) $(DEX) $(ZEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o
 
+rolling: rolling_multk rolling_multk_sketch
+
 mostlyclean:
 	rm -f $(ZOBJS) $(ZTEST_OBJS) $(ZW_OBJS) $(OBJS) $(DEX) $(ZEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o

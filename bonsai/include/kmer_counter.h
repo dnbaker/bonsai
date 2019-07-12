@@ -12,12 +12,15 @@ namespace kmerc {
 KHASH_MAP_INIT_INT64(i16, uint16_t)
 
 template<typename C, typename IT=uint64_t, typename ArgType>
-std::vector<khash_t(i16)> build_kmer_counts(const C &kmer_sizes, ArgType fp, bool canon=false) {
+std::vector<khash_t(i16)> build_kmer_counts(const C &kmer_sizes, ArgType fp, bool canon=false, size_t presize=0) {
     static_assert(std::is_same<ArgType, gzFile>::value  || std::is_same<ArgType, char *>::value || std::is_same<ArgType, const char *>::value, "Must be gzFile, char *, or const char *");
     bns::RollingHasherSet<IT> rhs(kmer_sizes, canon);
     using T = khash_t(i16);
     std::vector<T> kmer_maps(kmer_sizes.size());
     std::memset(&kmer_maps[0], 0, sizeof(kmer_maps[0]) * kmer_sizes.size());
+    if(presize)
+        for(auto &x: kmer_maps)
+            kh_resize(i16, &x, presize);
     rhs.for_each_hash([&kmer_maps](IT hashvalue, size_t idx){
         auto map_ptr = &kmer_maps[idx];
         if((idx = kh_get(i16, map_ptr, hashvalue)) != kh_end(map_ptr)) {
@@ -39,8 +42,8 @@ std::vector<khash_t(i16)> build_kmer_counts(const C &kmer_sizes, ArgType fp, boo
 }
 
 template<typename C, typename IT=uint64_t, typename ArgType>
-void dump_maps(const char *prefix, const C &kmer_sizes, ArgType fp, bool canon=false) {
-    auto maps = build_kmer_counts(kmer_sizes, fp, canon);
+void dump_maps(const char *prefix, const C &kmer_sizes, ArgType fp, bool canon=false, size_t presize=0) {
+    auto maps = build_kmer_counts(kmer_sizes, fp, canon, presize);
     std::vector<IT> buf;
     std::vector<uint16_t> buf16;
     for(size_t kszidx = 0; kszidx < kmer_sizes.size(); ++kszidx) {
