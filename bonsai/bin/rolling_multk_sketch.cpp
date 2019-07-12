@@ -51,6 +51,7 @@ int main(int argc, char *argv[]) {
                 }
         }
     }
+    if(optind == argc) usage();
     if(prefix.empty()) prefix = argv[optind];
     gzFile fp = gzopen(argv[optind], "rb");
     auto sketches = build_multk_sketches(ks, fp, canon, l2sz);
