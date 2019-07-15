@@ -12,7 +12,6 @@ struct fnode_t;
 using pop::vec_bitdiff;
 using pop::vec_popcnt;
 using NodeType = std::pair<const bitvec_t, fnode_t>;
-using namespace std::literals;
 
 struct fnode_t {
     u64                n_;  // Number of kmers at this point in tree.

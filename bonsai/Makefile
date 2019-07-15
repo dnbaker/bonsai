@@ -67,7 +67,7 @@ INCLUDE=-Iclhash/include -I. -I.. -I../libpopcnt -I.. -Iinclude -I../circularque
 
 
 
-all: update $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX)
+all: $(OBJS) $(EX) $(ZW_OBJS) unit lib/libbonsai.a $(DEX)
 ex: $(EX)
 
 
@@ -102,7 +102,7 @@ test/%.o: test/%.cpp
 test/%.zo: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(ZCOMPILE_FLAGS)
 
-%.o: %.cpp
+%.o: %.cpp $(shell ls include/*.h)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
 
 %.do: %.cpp
