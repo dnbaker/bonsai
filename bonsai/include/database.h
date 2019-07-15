@@ -7,8 +7,8 @@
 #include <forward_list>
 #include <unordered_set>
 
-#define __fr(item, fp) std::fread(&(item), 1, sizeof(item), fp)
-#define __fw(item, fp) std::fwrite(&(item), 1, sizeof(item), fp)
+#define __fr(item, fp) if(std::fread(&(item), 1, sizeof(item), fp) != sizeof(item)) throw std::runtime_error("Error: Could not read " #item);
+#define __fw(item, fp) if(std::fwrite(&(item), 1, sizeof(item), fp) != sizeof(item)) throw std::runtime_error("Error: Could not write " # item);
 
 namespace bns {
 
@@ -45,7 +45,8 @@ struct Database {
             __fr(w_, fp);
             s_ = spvec_t(k_ - 1);
             LOG_DEBUG("reading %zu bytes from file for vector, with %zu reserved\n", s_.size(), s_.capacity());
-            std::fread(s_.data(), s_.size(), sizeof(uint8_t), fp);
+            if(std::fread(s_.data(), s_.size(), sizeof(uint8_t), fp) != s_.size() * sizeof(uint8_t))
+                throw std::runtime_error("Error: Could not read spacing from file");
             db_ = khash_load_impl<T>(fp);
         } else LOG_EXIT("Could not open %s for reading.\n", fn);
         sp_ = make_sp();

@@ -16,7 +16,7 @@ TEST_CASE("Khash writes and reads correcly") {
     }
     khash_write(th, "__zomg__");
     ti = khash_load<khash_t(c)>("__zomg__");
-    system("rm __zomg__");
+    REQUIRE(system("rm __zomg__") == 0);
     for(size_t i(0); i < th->n_buckets; ++i) {
         REQUIRE(th->flags[__ac_fsize(i)] == ti->flags[__ac_fsize(i)]);
         REQUIRE(th->vals[i] == ti->vals[i]);
