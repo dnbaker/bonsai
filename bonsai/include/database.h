@@ -83,7 +83,7 @@ struct Database {
         if(write_gz) {
             gzFile ofp = gzopen(fn, "wb");
             if(!ofp) LOG_EXIT("Could not open %s for writing.\n", fn);
-#define gzw(_x, ofp) gzwrite(ofp, static_cast<const void *>(&_x), sizeof(_x));
+#define gzw(_x, ofp) if(gzwrite(ofp, static_cast<const void *>(&_x), sizeof(_x)) != sizeof(_x)) throw std::runtime_error("Error writing to file")
             gzw(k_, ofp);
             gzw(w_, ofp);
             gzwrite(ofp, static_cast<const void *>(s_.data()), s_.size() * sizeof(s_[0]));
@@ -96,24 +96,9 @@ struct Database {
         if(!ofp) LOG_EXIT("Could not open %s for writing.\n", fn);
         __fw(k_, ofp);
         __fw(w_, ofp);
-        std::fwrite(s_.data(), s_.size(), sizeof(uint8_t), ofp);
+        if(std::fwrite(s_.data(), s_.size(), sizeof(uint8_t), ofp) != s_.size()) throw std::runtime_error("Error writing database");
         khash_write_impl<T>(db_, ofp);
         std::fclose(ofp);
-#if TEST_IO
-        Database<T> test(fn);
-        assert(kh_size(test.db_) == kh_size(db_));
-        size_t ndiff(0);
-        for(khiter_t ki(0); ki != kh_end(test.db_); ++ki) {
-            if(kh_key(db_, ki) != kh_key(test.db_, ki))
-                std::fprintf(stderr, "key mismatch at %lu. key 1: %" PRIu64 ", key 2: %" PRIu64 ".\n", ki, (u64)kh_key(db_, ki), (u64)kh_key(test.db_, ki)), ++ndiff;
-            if(kh_val(db_, ki) != kh_val(test.db_, ki))
-                std::fprintf(stderr, "val mismatch at %lu. val 1: %" PRIu64 ", val 2: %" PRIu64 ".\n", ki, (u64)kh_val(db_, ki), (u64)kh_val(test.db_, ki)), ++ndiff;
-        }
-        for(u64 i(0); i < __ac_fsize(db_->n_buckets); ++i) {
-            if(db_->flags[i] != test.db_->flags[i])
-                std::fprintf(stderr, "flags mismatch at %" PRIu64 ". flags 1: %" PRIu64 ", flags 2: %" PRIu64 ".\n", i, (u64)db_->flags[i], (u64)test.db_->flags[i]), ++ndiff;
-        }
-#endif
     }
 
     template<typename Q=T>
