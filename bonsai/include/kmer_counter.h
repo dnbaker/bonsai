@@ -10,6 +10,7 @@
 namespace kmerc {
 
 KHASH_MAP_INIT_INT64(i16, uint16_t)
+KHASH_SET_INIT_INT64(i16s)
 
 template<typename C, typename IT=uint64_t, typename ArgType>
 std::vector<khash_t(i16)> build_kmer_counts(const C &kmer_sizes, ArgType fp, bool canon=false, size_t presize=0) {
@@ -41,13 +42,61 @@ std::vector<khash_t(i16)> build_kmer_counts(const C &kmer_sizes, ArgType fp, boo
     return kmer_maps;
 }
 
+template<typename C, typename IT=uint64_t, typename ArgType>
+std::vector<khash_t(i16s)> build_kmer_sets(const C &kmer_sizes, ArgType fp, bool canon=false, size_t presize=0) {
+    static_assert(std::is_same<ArgType, gzFile>::value  || std::is_same<ArgType, char *>::value || std::is_same<ArgType, const char *>::value, "Must be gzFile, char *, or const char *");
+    bns::RollingHasherSet<IT> rhs(kmer_sizes, canon);
+    using T = khash_t(i16s);
+    std::vector<T> kmer_sets(kmer_sizes.size());
+    std::memset(&kmer_sets[0], 0, sizeof(kmer_sets[0]) * kmer_sizes.size());
+    if(presize)
+        for(auto &x: kmer_sets)
+            kh_resize(i16s, &x, presize);
+    rhs.for_each_hash([&kmer_sets](IT hashvalue, size_t idx){
+        int khr;
+        kh_put(i16s, &kmer_sets[idx], hashvalue, &khr);
+    }, fp);
+    return kmer_sets;
+}
+
 enum DumpFlags: int {
     WRITE_SHS = 1,
     WRITE_KVMAP = 2
 };
 
+template<typename C, typename IT, typename ArgType>
+void dump_shs(const char *prefix, const C &kmer_sizes, ArgType cfp, bool canon, size_t presize=0) {
+    auto shsets = build_kmer_sets(kmer_sizes, cfp, canon, presize);
+    std::string fn;
+    std::vector<uint64_t> vec(std::accumulate(shsets.begin(), shsets.end(),size_t(0), [](auto old, const auto &nv) {return std::max(old, size_t(kh_size(&nv)));}));
+    for(size_t i = 0; i < kmer_sizes.size(); ++i) {
+        auto k = kmer_sizes[i];
+        fn = std::string(prefix) + "." + std::to_string(k) + ".shs";
+        gzFile fp = gzopen(fn.data(), "wb");
+        if(!fp) throw std::runtime_error(std::string("Could not open file at ") + fn + " for writing");
+        size_t nelem = kh_size(&shsets[i]);
+        vec.resize(nelem);
+        if(gzwrite(fp, &nelem, sizeof(nelem)) != sizeof(nelem)) goto fail;
+        size_t veci = 0;
+        for(khiter_t ki = 0; ki != kh_end(&shsets[i]); ++ki)
+            if(kh_exist(&shsets[i], ki))
+                vec[veci++] = kh_key(&shsets[i], ki);
+        ssize_t nb = sizeof(vec[0]) * vec.size();
+        if(gzwrite(fp, vec.data(), nb) != nb) goto fail;
+        assert(veci == kh_size(&shsets[i]));
+        std::free(shsets[i].keys);
+        std::free(shsets[i].flags);
+    }
+    if(0) {
+        fail: throw std::runtime_error("Failed to write");
+    }
+}
+
 template<typename C, typename IT=uint64_t, typename ArgType>
 void dump_maps(const char *prefix, const C &kmer_sizes, ArgType fp, bool canon=false, size_t presize=0, int flag=WRITE_SHS | WRITE_KVMAP) {
+    if(flag == WRITE_SHS) {
+        dump_shs<C, IT, ArgType>(prefix, kmer_sizes, fp, canon);
+    }
     auto maps = build_kmer_counts(kmer_sizes, fp, canon, presize);
     std::vector<IT> buf;
     std::vector<uint16_t> buf16;
