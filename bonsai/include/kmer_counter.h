@@ -67,11 +67,11 @@ enum DumpFlags: int {
 template<typename C, typename IT, typename ArgType>
 void dump_shs(const char *prefix, const C &kmer_sizes, ArgType cfp, bool canon, size_t presize=0) {
     auto shsets = build_kmer_sets(kmer_sizes, cfp, canon, presize);
-    std::string fn;
-    std::vector<uint64_t> vec(std::accumulate(shsets.begin(), shsets.end(),size_t(0), [](auto old, const auto &nv) {return std::max(old, size_t(kh_size(&nv)));}));
+    #pragma omp parallel for
     for(size_t i = 0; i < kmer_sizes.size(); ++i) {
+        std::vector<uint64_t> vec(kh_size(&shsets[i]));
         auto k = kmer_sizes[i];
-        fn = std::string(prefix) + "." + std::to_string(k) + ".shs";
+        std::string fn = std::string(prefix) + "." + std::to_string(k) + ".shs";
         gzFile fp = gzopen(fn.data(), "wb");
         if(!fp) throw std::runtime_error(std::string("Could not open file at ") + fn + " for writing");
         size_t nelem = kh_size(&shsets[i]);
@@ -86,6 +86,7 @@ void dump_shs(const char *prefix, const C &kmer_sizes, ArgType cfp, bool canon, 
         assert(veci == kh_size(&shsets[i]));
         std::free(shsets[i].keys);
         std::free(shsets[i].flags);
+        gzclose(fp);
     }
     if(0) {
         fail: throw std::runtime_error("Failed to write");
