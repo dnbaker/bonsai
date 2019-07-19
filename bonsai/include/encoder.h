@@ -590,7 +590,7 @@ struct RollingHasher {
     template<typename Functor>
     void for_each_hash(const Functor &func, const char *inpath, kseq_t *ks=nullptr) {
         gzFile fp = gzopen(inpath, "rb");
-        if(!fp) throw "a party";
+        if(!fp) throw file_open_error(inpath);
         for_each_hash<Functor>(func, fp, ks);
         gzclose(fp);
     }
@@ -726,7 +726,7 @@ struct RollingHasherSet {
     template<typename Functor>
     void for_each_hash(const Functor &func, const char *inpath, kseq_t *ks=nullptr) {
         gzFile fp = gzopen(inpath, "rb");
-        if(!fp) throw "a party";
+        if(!fp) throw file_open_error(inpath);
         for_each_hash<Functor>(func, fp, ks);
         gzclose(fp);
     }
