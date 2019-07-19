@@ -10,8 +10,9 @@ void usage() {
 
 template<typename Sketch>
 Sketch &fn2sketch(std::string fn, Sketch &sk) {
+    std::fprintf(stderr, "Attempting to open file at %s for reading");
     gzFile fp = gzopen(fn.data(), "rb");
-    if(!fp) throw std::runtime_error("Could not open file");
+    if(!fp) throw std::runtime_error(std::string("Could not open file at") + fn);
     uint64_t w;
     if(gzread(fp, &w, sizeof(w)) != sizeof(w)) throw 1;
     size_t nelem = w;

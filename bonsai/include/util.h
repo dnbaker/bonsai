@@ -584,6 +584,10 @@ public:
                                        detail::zerr2str.at(c), fn ? fn: "<no file provided>").data())
     {}
 };
+class file_open_error: public std::runtime_error {
+public:
+    file_open_error(std::string s): std::runtime_error(std::string("file_open_error: failed to open file at ") + s) {}
+};
 
 #ifndef RUNTIME_ERROR
 #define RUNTIME_ERROR(msg) \

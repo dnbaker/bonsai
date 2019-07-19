@@ -42,20 +42,24 @@ std::vector<khash_t(i16)> build_kmer_counts(const C &kmer_sizes, ArgType fp, boo
     return kmer_maps;
 }
 
-template<typename C, typename IT=uint64_t, typename ArgType>
-std::vector<khash_t(i16s)> build_kmer_sets(const C &kmer_sizes, ArgType fp, bool canon=false, size_t presize=0) {
+template<typename C, typename IT=uint64_t, typename ArgType,typename Allocator=sketch::common::Allocator<IT>>
+std::vector<std::vector<IT, Allocator>> build_kmer_sets(const C &kmer_sizes, ArgType fp, bool canon=false, size_t presize=0) {
     static_assert(std::is_same<ArgType, gzFile>::value  || std::is_same<ArgType, char *>::value || std::is_same<ArgType, const char *>::value, "Must be gzFile, char *, or const char *");
     bns::RollingHasherSet<IT> rhs(kmer_sizes, canon);
-    using T = khash_t(i16s);
+    using T = std::vector<IT, Allocator>;
     std::vector<T> kmer_sets(kmer_sizes.size());
-    std::memset(&kmer_sets[0], 0, sizeof(kmer_sets[0]) * kmer_sizes.size());
     if(presize)
         for(auto &x: kmer_sets)
-            kh_resize(i16s, &x, presize);
-    rhs.for_each_hash([&kmer_sets](IT hashvalue, size_t idx){
-        int khr;
-        kh_put(i16s, &kmer_sets[idx], hashvalue, &khr);
-    }, fp);
+            x.reserve(presize);
+    rhs.for_each_hash([&kmer_sets](IT hashvalue, size_t idx){kmer_sets[idx].push_back(hashvalue);}, fp);
+#ifdef _OPENMP
+    #pragma omp parallel for
+#endif
+    for(size_t i = 0; i < kmer_sizes.size(); ++i) {
+        auto &v = kmer_sets[i];
+        std::sort(v.begin(), v.end()); // TODO: provide support for other sorting methods
+        v.erase(std::unique(v.begin(), v.end()), v.end());
+    }
     return kmer_sets;
 }
 
@@ -64,32 +68,28 @@ enum DumpFlags: int {
     WRITE_KVMAP = 2
 };
 
+struct WriteFail {};
+struct OpenFail {};
+
 template<typename C, typename IT, typename ArgType>
 void dump_shs(const char *prefix, const C &kmer_sizes, ArgType cfp, bool canon, size_t presize=0) {
     auto shsets = build_kmer_sets(kmer_sizes, cfp, canon, presize);
-    #pragma omp parallel for
+    std::atomic<int> ret;
+    ret.store(0);
+    //#pragma omp parallel for
     for(size_t i = 0; i < kmer_sizes.size(); ++i) {
-        std::vector<uint64_t> vec(kh_size(&shsets[i]));
+        auto &vec = shsets[i];
         auto k = kmer_sizes[i];
         std::string fn = std::string(prefix) + "." + std::to_string(k) + ".shs";
         gzFile fp = gzopen(fn.data(), "wb");
         if(!fp) throw std::runtime_error(std::string("Could not open file at ") + fn + " for writing");
-        size_t nelem = kh_size(&shsets[i]);
-        vec.resize(nelem);
-        if(gzwrite(fp, &nelem, sizeof(nelem)) != sizeof(nelem)) goto fail;
-        size_t veci = 0;
-        for(khiter_t ki = 0; ki != kh_end(&shsets[i]); ++ki)
-            if(kh_exist(&shsets[i], ki))
-                vec[veci++] = kh_key(&shsets[i], ki);
+        uint64_t nelem = vec.size();
+        if(gzwrite(fp, &nelem, sizeof(nelem)) != sizeof(nelem)) ret.store(1 << (i % 64));
         ssize_t nb = sizeof(vec[0]) * vec.size();
-        if(gzwrite(fp, vec.data(), nb) != nb) goto fail;
-        assert(veci == kh_size(&shsets[i]));
-        std::free(shsets[i].keys);
-        std::free(shsets[i].flags);
-        gzclose(fp);
+        if(gzwrite(fp, vec.data(), nb) != nb) ret.store(1 << (i % 64));
     }
-    if(0) {
-        fail: throw std::runtime_error("Failed to write");
+    if(ret) {
+        throw WriteFail{};//std::runtime_error("Failed to write");
     }
 }
 
