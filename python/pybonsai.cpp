@@ -56,4 +56,25 @@ PYBIND11_MODULE(bns, m) {
         ret.resize({i});
         return ret;
     }, "return a numpy array of integers from the fasta", "str"_a, "k"_a=31, "spacing"_a=nullptr, "w"_a=0);
+    m.def("repack", [](py::list vallist, size_t ngenomes) -> py::array_t<float> {
+        size_t nks = vallist.size();
+        py::array_t<float> ret({(ngenomes * (ngenomes - 1)) >> 1, nks});
+        float *retp = (float *)ret.request().ptr;
+        assert(vallist.size() == nks);
+        size_t kind = 0;
+        for(py::handle ob: vallist) {
+            auto vals = ob.cast<py::array_t<float>>();
+            assert(vals.size()  == nks * ((ngenomes * (ngenomes - 1)) >> 1));
+            float *valp = (float *)vals.request().ptr;
+            for(size_t i = 0; i < ngenomes; ++i) {
+                for(size_t j = i + 1; j < ngenomes; ++j) {
+                    size_t offset = (i * (ngenomes * 2 - i - 1)) / 2 + j - (i + 1);
+                    size_t o_offset = (ngenomes * (ngenomes - 1) / 2) * kind;
+                    retp[offset + o_offset] = valp[offset];
+                }
+            }
+            ++kind;
+        }
+        return ret;
+    }, py::return_value_policy::take_ownership);
 }
