@@ -23,7 +23,7 @@ PYBIND11_MODULE(bns, m) {
         }, path);
         ret.resize({i});
         return ret;
-    }, "return a numpy array of integers from the fasta", "path"_a=nullptr, "k"_a=31);
+    }, py::return_value_policy::take_ownership, "return a numpy array of integers from the fasta", "path"_a=nullptr, "k"_a=31);
     m.def("from_fasta", [](const char *path, int k,  const char *spacing, int w) {
         Spacer sp(k, w, spacing && *spacing ? parse_spacing(spacing, k): spvec_t(k - 1, 0));
         Encoder<> enc(sp);
@@ -39,7 +39,7 @@ PYBIND11_MODULE(bns, m) {
         }, path);
         ret.resize({i});
         return ret;
-    }, "return a numpy array of integers from the fasta", "path"_a=nullptr, "k"_a=31, "spacing"_a=nullptr, "w"_a=0);
+    }, py::return_value_policy::take_ownership, "return a numpy array of integers from the fasta", "path"_a=nullptr, "k"_a=31, "spacing"_a=nullptr, "w"_a=0);
     m.def("from_str", [](const std::string &str, int k,  const char *spacing, int w) {
         Spacer sp(k, w, spacing && *spacing ? parse_spacing(spacing, k): spvec_t(k - 1, 0));
         Encoder<> enc(sp);
@@ -55,7 +55,7 @@ PYBIND11_MODULE(bns, m) {
         }, str.data(), str.size());
         ret.resize({i});
         return ret;
-    }, "return a numpy array of integers from the fasta", "str"_a, "k"_a=31, "spacing"_a=nullptr, "w"_a=0);
+    }, py::return_value_policy::take_ownership, "return a numpy array of integers from the fasta", "str"_a, "k"_a=31, "spacing"_a=nullptr, "w"_a=0);
     m.def("repack", [](py::list vallist, size_t ngenomes) -> py::array_t<float> {
         size_t nks = vallist.size();
         py::array_t<float> ret({(ngenomes * (ngenomes - 1)) >> 1, nks});
