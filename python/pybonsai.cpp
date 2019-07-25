@@ -25,7 +25,7 @@ PYBIND11_MODULE(bns, m) {
         return ret;
     }, "return a numpy array of integers from the fasta", "path"_a=nullptr, "k"_a=31);
     m.def("from_fasta", [](const char *path, int k,  const char *spacing, int w) {
-        Spacer sp(k, w, spacing && *spacing ? parse_spacing(spacing, k): spvec_t(1, k));
+        Spacer sp(k, w, spacing && *spacing ? parse_spacing(spacing, k): spvec_t(k - 1, 0));
         Encoder<> enc(sp);
         py::array_t<uint64_t> ret({1u << 16});
         ssize_t i = 0;
@@ -41,7 +41,7 @@ PYBIND11_MODULE(bns, m) {
         return ret;
     }, "return a numpy array of integers from the fasta", "path"_a=nullptr, "k"_a=31, "spacing"_a=nullptr, "w"_a=0);
     m.def("from_str", [](const std::string &str, int k,  const char *spacing, int w) {
-        Spacer sp(k, w, spacing && *spacing ? parse_spacing(spacing, k): spvec_t(1, k));
+        Spacer sp(k, w, spacing && *spacing ? parse_spacing(spacing, k): spvec_t(k - 1, 0));
         Encoder<> enc(sp);
         py::array_t<uint64_t> ret({1u << 16});
         ssize_t i = 0;
