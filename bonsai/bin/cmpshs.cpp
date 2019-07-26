@@ -53,25 +53,29 @@ void perform_work(const std::vector<std::string> &paths, std::string opath);
 
 int main(int argc, char *argv[]) {
     int c, nt = 1;
-    bool use_32bit = false;
+    bool use_32bit = false, use_16bit = false;
     std::string inpaths;
     std::string opath;
-    while((c = getopt(argc, argv, "h")) >= 0) {
+    while((c = getopt(argc, argv, "h36p:F:o:")) >= 0) {
         switch(c) {
             case 'p': nt = std::atoi(optarg); break;
             case 'F': inpaths = optarg; break;
             case '3': use_32bit = true; break;
+            case '6': use_16bit = true; break;
             case 'o': opath = optarg; break;
             default: case 'h': usage();
         }
     }
+    if(use_32bit && use_16bit) throw 7;
     nt = std::max(nt, 1);
     omp_set_num_threads(nt);
     if(inpaths.empty()) usage();
     std::vector<std::string> paths;
     std::ifstream ifs(argc == optind ? "/dev/stdin": (const char *)argv[optind]);
     for(std::string s; std::getline(ifs, s);paths.push_back(s));
-    auto fp = use_32bit ? perform_work<uint32_t>: perform_work<uint64_t>;
+    auto fp = use_32bit ? perform_work<uint32_t>
+                        : use_16bit ? perform_work<uint16_t>
+                                    : perform_work<uint64_t>;
     fp(paths, opath);
 }
 

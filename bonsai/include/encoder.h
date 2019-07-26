@@ -290,13 +290,44 @@ public:
         if(!sp_.unwindowed()) RUNTIME_ERROR("Can't for_each_hash for a windowed spacer");
         if(!sp_.unspaced()) RUNTIME_ERROR("Can't for_each_hash for a spaced spacer");
         if(l_ < k) return;
-        uint64_t fhv=0, rhv=0;
-        uint64_t hv = NTC64(s_, k, fhv, rhv);
+        size_t i = 0;
+        uint64_t fhv=0, rhv=0, hv;
+        const char *p, *p2;
+
+        start:
+        p = s_ + i;
+        while(*p && cstr_lut[*p] < 0) ++p;
+        for(;;) {
+            p2 = p;
+            while(cstr_lut[*p2] >= 0 and p2 - p < k) ++p2;
+            if(p2 - p == k) break;
+            p = p2 + 1;
+        }
+        i = p - s_;
+        hv = NTC64(s_ + i, k, fhv, rhv);
         func(canonicalize_ ? hv: fhv);
-        if(canonicalize_)
-            for(size_t i = 0; i < l_ - k; func(NTC64(s_[i], s_[i+k], k, fhv, rhv)), ++i);
-        else
-            for(size_t i = 0; i < l_ - k; fhv = NTF64(fhv, k, s_[i], s_[i+k]), func(fhv), ++i);
+        if(canonicalize_) {
+            for(; i < l_ - k; ++i) {
+                auto newc = s_[i + k];
+                if(cstr_lut[newc] < 0) {
+                    i += k;
+                    fhv = rhv = 0;
+                    goto start;
+                }
+                func(NTC64(s_[i], newc, k, fhv, rhv));
+            }
+        } else {
+            for(; i < l_ - k; ++i) {
+                auto newc = s_[i + k];
+                if(cstr_lut[newc] < 0) {
+                    i += k;
+                    fhv = rhv = 0;
+                    goto start;
+                }
+                fhv = NTF64(fhv, k, s_[i], newc);
+                func(i);
+            }
+        }
     }
     template<typename Functor>
     INLINE void for_each_hash(const Functor &func, kseq_t *ks) {
@@ -688,7 +719,7 @@ struct RollingHasherSet {
             } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
               // In the future, encode the side that is still valid
             else {
-                for(auto &h: hashers_) h.hasher_.eat(v1); 
+                for(auto &h: hashers_) h.hasher_.eat(v1);
                 ++nf;
             }
         }

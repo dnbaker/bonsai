@@ -124,7 +124,6 @@ public:
             LOG_DEBUG("Count %u appeared %u times\n", pair.first, pair.second);
         for(const auto &str: stringset) LOG_DEBUG("'%s' found\n", str.data());
 #endif
-        
     }
     bitmap_t(bitmap_t &&other)            = default;
     bitmap_t &operator=(bitmap_t &&other) = default;
