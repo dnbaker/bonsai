@@ -287,6 +287,9 @@ public:
     template<typename Functor>
     INLINE void for_each_hash(const Functor &func, unsigned k = 0) const {
         k = k > 0 ? k: sp_.k_;
+        if(k > 32 && (!sp_.unwindowed() ||  !sp_.unspaced())) {
+            for(const auto v: sp_) std::fprintf(stderr, "v: %d\n", v);
+        }
         if(!sp_.unwindowed()) RUNTIME_ERROR("Can't for_each_hash for a windowed spacer");
         if(!sp_.unspaced()) RUNTIME_ERROR("Can't for_each_hash for a spaced spacer");
         if(l_ < k) return;
@@ -299,7 +302,9 @@ public:
         while(*p && cstr_lut[*p] < 0) ++p;
         for(;;) {
             p2 = p;
-            while(cstr_lut[*p2] >= 0 and p2 - p < k) ++p2;
+            if(*p2 == 0) return;
+            while(*p2 && cstr_lut[*p2] >= 0 and p2 - p < k) ++p2;
+            if(*p2 == 0) return;
             if(p2 - p == k) break;
             p = p2 + 1;
         }
