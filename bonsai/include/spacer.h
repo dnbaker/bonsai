@@ -52,13 +52,13 @@ struct Spacer {
     static constexpr u32 max_k = sizeof(uint64_t) * CHAR_BIT / 2;
 
     // Instance variables
-    spvec_t          s_; // Spaces to skip
-    const uint8_t  k_:8;  // Kmer size
-    const u32     c_:16; // comb size
-    const u32     w_:16; // window size
+    spvec_t   s_; // Spaces to skip
+    const u32 k_; // Kmer size
+    const u32 c_; // comb size
+    const u32 w_; // window size
 
 public:
-    Spacer(unsigned k, std::uint16_t w, spvec_t spaces=spvec_t{}):
+    Spacer(unsigned k, uint32_t w, spvec_t spaces=spvec_t{}):
       s_(spaces.size() ? spaces: spvec_t(k - 1, 0)),
       k_(k),
       c_(comb_size(s_)),
@@ -71,7 +71,7 @@ public:
                      k, s_.size());
         }
     }
-    Spacer(unsigned k, std::uint16_t w, const char *space_string):
+    Spacer(unsigned k, uint32_t w, const char *space_string):
         Spacer(k, w, parse_spacing(space_string, k)) {}
     bool unspaced() const {
         return std::find_if(s_.begin(), s_.end(), [](auto x) {return x != 1;}) == s_.end();
