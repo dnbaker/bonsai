@@ -211,7 +211,7 @@ public:
         };
 #endif
         // 1. Make linear vector of pointers to objects.
-        // 2. 
+        // 2.
         for(ait = begin(subtree), eait = end(subtree); ait != eait; ++ait) {
             for(bit = ait, ++bit; bit != eait; ++bit) {
                 if((*ait)->second.added_|| (*bit)->second.added_) continue;
