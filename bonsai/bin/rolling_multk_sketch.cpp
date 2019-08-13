@@ -8,7 +8,7 @@ void usage() {
     std::exit(1);
 }
 
-template<typename C, typename Sketch=sketch::hll_t, typename IT=uint64_t, typename ArgType, typename ... Args>
+template<typename Sketch=sketch::hll_t, typename C, typename IT=uint64_t, typename ArgType, typename ... Args>
 std::vector<Sketch> build_multk_sketches(const C &kmer_sizes, ArgType fp, bool canon=false, Args &&... args) {
     static_assert(std::is_same<ArgType, gzFile>::value  || std::is_same<ArgType, char *>::value || std::is_same<ArgType, const char *>::value, "Must be gzFile, char *, or const char *");
     bns::RollingHasherSet<IT> rhs(kmer_sizes, canon);
@@ -17,10 +17,7 @@ std::vector<Sketch> build_multk_sketches(const C &kmer_sizes, ArgType fp, bool c
     sketches.reserve(nsk);
     while(sketches.size() < kmer_sizes.size())
         sketches.emplace_back(std::forward<Args>(args)...);
-    rhs.for_each_hash([&sketches](IT hashvalue, size_t idx) {
-        auto &sketch = sketches[idx];
-        sketch.add(hashvalue);
-    }, fp);
+    rhs.for_each_hash([&sketches](IT hashvalue, size_t idx) {sketches[idx].add(hashvalue);}, fp);
     return sketches;
 }
 
