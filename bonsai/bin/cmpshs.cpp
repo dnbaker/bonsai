@@ -10,7 +10,7 @@
 #include <zlib.h>
 
 void usage() {
-    std::fprintf(stderr, "Not written\n");
+    std::fprintf(stderr, "Usage: cmpshs -F fnames.txt > out.bin\n");
     std::exit(1);
 }
 
@@ -69,10 +69,10 @@ int main(int argc, char *argv[]) {
     if(use_32bit && use_16bit) throw 7;
     nt = std::max(nt, 1);
     omp_set_num_threads(nt);
-    if(inpaths.empty()) usage();
     std::vector<std::string> paths;
-    std::ifstream ifs(argc == optind ? "/dev/stdin": (const char *)argv[optind]);
+    std::ifstream ifs(inpaths.size() ? inpaths.data() : argc == optind ? "/dev/stdin": (const char *)argv[optind]);
     for(std::string s; std::getline(ifs, s);paths.push_back(s));
+    if(paths.empty()) usage();
     auto fp = use_32bit ? perform_work<uint32_t>
                         : use_16bit ? perform_work<uint16_t>
                                     : perform_work<uint64_t>;
