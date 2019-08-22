@@ -547,7 +547,7 @@ struct RollingHasher {
     {
         hasher_.seed(seed1, seed2);
         rchasher_.seed(seed2 * seed1, seed2 ^ seed1);
-        if(enc == PROTEIN_6_FRAME) throw sketch::common::NotImplementedError("Protein 6-frame not implemented.");
+        if(enc == PROTEIN_6_FRAME) throw NotImplementedError("Protein 6-frame not implemented.");
 #if VERBOSE_AF
         if(enc == DNA) if(k_ > sizeof(IntType) * CHAR_BIT / 2) LOG_WARNING("There will may be significant collisions, as k is greater than the universe size.\n");
         if(enc == PROTEIN) if(k_ > sizeof(IntType) * CHAR_BIT / 4) LOG_WARNING("There will may be significant collisions, as k is greater than the universe size.\n");
