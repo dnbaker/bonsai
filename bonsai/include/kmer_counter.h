@@ -29,10 +29,9 @@ std::vector<khash_t(i16)> build_kmer_counts(const C &kmer_sizes, ArgType fp, boo
             val += (val != std::numeric_limits<std::decay_t<decltype(*map_ptr->vals)>>::max());
         } else {
             int khr;
-            int rc;
             idx = kh_put(i16, map_ptr, hashvalue, &khr);
             if(khr < 0) {
-                std::fprintf(stderr, "Error: rc of %d, khr is %d\n", rc, khr);
+                std::fprintf(stderr, "Error: khr is %d\n", khr);
                 throw std::runtime_error("Failed to insert.");
             }
             LOG_ASSERT(idx < map_ptr->n_buckets);

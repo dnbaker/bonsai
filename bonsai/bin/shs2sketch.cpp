@@ -10,7 +10,7 @@ void usage() {
 
 template<typename Sketch>
 Sketch &fn2sketch(std::string fn, Sketch &sk) {
-    std::fprintf(stderr, "Attempting to open file at %s for reading");
+    std::fprintf(stderr, "Attempting to open file at %s for reading", fn.data());
     gzFile fp = gzopen(fn.data(), "rb");
     if(!fp) throw std::runtime_error(std::string("Could not open file at") + fn);
     uint64_t w;
