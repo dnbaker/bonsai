@@ -49,10 +49,14 @@ void build_multiset(IT k, std::vector<gzFile> &fps, std::vector<gzFile> &ofps, b
         gzwrite(fp, &nelem, sizeof(nelem));
         gzwrite(fp, &sum, sizeof(sum));
         gzwrite(fp, &sqsum, sizeof(sqsum));
-        for(const auto &p: tmp)
-            gzwrite(fp, &p.first, sizeof(p.first));
-        for(const auto &p: tmp)
-            gzwrite(fp, &p.second, sizeof(p.second));
+        std::vector<uint64_t> keys(tmp.size());
+        std::vector<uint32_t> vals(keys.size());
+        for(size_t i = 0; i < keys.size(); ++i) {
+            keys[i] = tmp[i].first;
+            vals[i] = tmp[i].second;
+        }
+        gzwrite(fp, keys.data(), sizeof(keys[0]) * keys.size());
+        gzwrite(fp, vals.data(), sizeof(vals[0]) * vals.size());
         // Clean up
         gzclose(fp);
         std::free(kh.keys);
