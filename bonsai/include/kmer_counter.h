@@ -51,9 +51,7 @@ std::vector<std::vector<IT, Allocator>> build_kmer_sets(const C &kmer_sizes, Arg
         for(auto &x: kmer_sets)
             x.reserve(presize);
     rhs.for_each_hash([&kmer_sets](IT hashvalue, size_t idx){kmer_sets[idx].push_back(hashvalue);}, fp);
-#ifdef _OPENMP
-    #pragma omp parallel for
-#endif
+    OMP_PRAGMA("omp parallel for")
     for(size_t i = 0; i < kmer_sizes.size(); ++i) {
         auto &v = kmer_sets[i];
         std::sort(v.begin(), v.end()); // TODO: provide support for other sorting methods

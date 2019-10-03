@@ -12,7 +12,7 @@ void usage() {
 
 template<typename IT=uint64_t, typename ... Args>
 void build_multiset(IT k, std::vector<gzFile> &fps, std::vector<gzFile> &ofps, bool canon=false, Args &&... args) {
-    #pragma omp parallel for
+    OMP_PRAGMA("omp parallel for")
     for(size_t i = 0; i < fps.size(); ++i) {
         auto fp = fps[i];
         bns::Encoder<> enc(k, canon);
@@ -38,7 +38,7 @@ void build_multiset(IT k, std::vector<gzFile> &fps, std::vector<gzFile> &ofps, b
             if(kh_exist(&kh, ki))
                 tmp.push_back(std::make_pair(kh_key(&kh, ki), kh_val(&kh, ki)));
         }
-        SORT(tmp.begin(), tmp.end(), [](auto x, auto y) {return x.first > y.first;});
+        sort::default_sort(tmp.begin(), tmp.end(), [](auto x, auto y) {return x.first > y.first;});
         // Reverse-sorted, like default in sketch library
         // Get summary infomation, write to file
         size_t sum = 0;

@@ -5,8 +5,12 @@
 #include <type_traits>
 #include <string>
 #include "libpopcnt.h"
-#include "hll/include/hll.h"
+#define NO_BLAZE
+#define NO_SLEEF
 #include "vec/vec.h"
+#undef NO_BLAZE
+#undef NO_SLEEF
+#include "hll/include/hll.h"
 
 
 #ifndef DO_DUFF

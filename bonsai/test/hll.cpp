@@ -53,7 +53,7 @@ TEST_CASE("hll") {
         size_t numlessmore[] {0, 0};
         double sumlessmore[] {0, 0};
         int localnp = 0;
-        #pragma omp parallel for
+        OMP_PRAGMA("omp parallel for")
         for(size_t j = 0; j < niter; ++j) {
             std::set<std::pair<uint64_t, uint64_t>> lset;
             RNGType gen(mt() + j * (j + 1)); // I'm okay with a race condition, because I'm salting with the value of j
@@ -70,7 +70,7 @@ TEST_CASE("hll") {
             auto diff = hll.report() - val; // For maximally mixed metaphors
             diffs[j] = diff;
             {
-                #pragma omp critical
+                OMP_PRAGMA("omp critical")
                 diffsum += diff;
                 ++numlessmore[diff > 0];
                 sumlessmore[diff > 0] += std::abs(diff);
@@ -99,7 +99,7 @@ TEST_CASE("hll") {
         size_t numlessmore[] {0, 0};
         double sumlessmore[] {0, 0};
         int localnp = 0;
-        #pragma omp parallel for
+        OMP_PRAGMA("omp parallel for")
         for(size_t j = 0; j < niter; ++j) {
             const size_t val(1ull << pair.second), hsz(pair.first);
             std::set<std::pair<uint64_t, uint64_t>> lset;
@@ -113,7 +113,7 @@ TEST_CASE("hll") {
             auto diff = hlf.report() - val; // For maximally mixed metaphors
             diffs[j] = diff;
             {
-                #pragma omp critical
+                OMP_PRAGMA("omp critical")
                 diffsum += diff;
                 ++numlessmore[diff > 0];
                 absdiffsum += std::abs(diff);
