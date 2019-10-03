@@ -4,9 +4,10 @@
 
 using namespace bns;
 
+static const char *ex = "nothing";
+
 void usage() {
-    std::fprintf(stderr, "rolling_multk_sketch <opts> in.fa\n-P: set prefix\n-p: set number of threads\n-k: Add kmer length\n-C: Do not canonicalize\n-r:  set START,END for kmer range (e.g., -r34,38 will use 34, 35, 36, 37]).\n");
-    std::fprintf(stderr, "-S: set log 2 sketch size (14)\n");
+    std::fprintf(stderr, "%s <opts> in.fa\n-P: set prefix\n-p: set number of threads\n-k: Set kmer length\n-C: Do not canonicalize\n.\n", ex);
     std::exit(1);
 }
 
@@ -67,6 +68,7 @@ void build_multiset(IT k, std::vector<gzFile> &fps, std::vector<gzFile> &ofps, b
 
 
 int main(int argc, char *argv[]) {
+    ex = argv[0];
     int c;
     std::string prefix;
     int canon = true;
