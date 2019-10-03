@@ -76,6 +76,7 @@
 
 
 #ifdef USE_PDQSORT
+#define SORT_ALGORITHM pdqsort
 # include "pdqsort/pdqsort.h"
 # ifndef SORT
 #  define SORT pdqsort

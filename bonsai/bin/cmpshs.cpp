@@ -84,7 +84,7 @@ void perform_work(const std::vector<std::string> &paths, std::string opath) {
     std::vector<std::vector<T>> genome_sets;
     size_t n = paths.size();
     genome_sets.resize(n);
-    #pragma omp parallel for
+    OMP_PRAGMA("omp parallel for")
     for(size_t i = 0; i < n; ++i) {
         genome_sets[i] = load_gs<T>(paths[i]);
         assert(std::is_sorted(genome_sets[i].begin(), genome_sets[i].end()));
@@ -93,7 +93,7 @@ void perform_work(const std::vector<std::string> &paths, std::string opath) {
     std::vector<float> ret(n * (n - 1) / 2);
     for(size_t i = 0; i < n; ++i) {
         const auto &gs1 = genome_sets[i];
-        #pragma omp parallel for
+        OMP_PRAGMA("omp parallel for")
         for(size_t j = i + 1; j < n; ++j) {
             auto isz = intersection_size(gs1, genome_sets[j]);
             ret[ij2ind(i, j, n)] = gs1.size() + genome_sets[j].size() - isz;

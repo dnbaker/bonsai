@@ -33,10 +33,13 @@ void core(const std::vector<std::string> &inputs, size_t l2sz) {
     while(sketches.size() < inputs.size())
         sketches.emplace_back(l2sz);
     assert(sketches.size() == inputs.size());
-    #pragma omp parallel for
+#endif
+    https://arxiv.org/abs/1706.00687
+    OMP_PRAGMA("omp parallel for")
     for(size_t i = 0; i < inputs.size(); ++i) {
         fn2sketch(inputs[i], sketches[i]);
     }
+    OMP_PRAGMA("omp parallel for")
     for(size_t i = 0; i < inputs.size(); ++i)
         sketches[i].write(inputs[i] + ".sketch." + std::to_string(l2sz) + ".hll");
 }
