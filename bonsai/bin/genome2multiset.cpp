@@ -39,8 +39,7 @@ void build_multiset(IT k, std::vector<gzFile> &fps, std::vector<gzFile> &ofps, b
             if(kh_exist(&kh, ki))
                 tmp.push_back(std::make_pair(kh_key(&kh, ki), kh_val(&kh, ki)));
         }
-        sort::default_sort(tmp.begin(), tmp.end(), [](auto x, auto y) {return x.first > y.first;});
-        // Reverse-sorted, like default in sketch library
+        sort::default_sort(tmp.begin(), tmp.end(), [](auto x, auto y) {return x.first < y.first;});
         // Get summary infomation, write to file
         size_t sum = 0;
         double sqsum = 0;
