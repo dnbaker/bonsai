@@ -1,5 +1,5 @@
 #pragma once
-#include "circular_buffer.h"
+#include "cq.h"
 #include "kmerutil.h"
 
 namespace bns {
