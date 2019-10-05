@@ -1,5 +1,6 @@
 #ifndef _EMP_ENCODER_H__
 #define _EMP_ENCODER_H__
+#include "./util.h"
 #include <thread>
 #include <future>
 #include <limits>

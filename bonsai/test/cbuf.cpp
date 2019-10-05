@@ -1,6 +1,6 @@
 #include "test/catch.hpp"
 #include "util.h"
-#include "circular_buffer.h"
+#include "cq.h"
 
 using namespace circ;
 using namespace bns;

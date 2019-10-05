@@ -79,7 +79,7 @@ update:
 obj: $(OBJS) $(DOBJS) $(ZOBJS) $(ZW_OBJS)
 
 ../zstd/lib:
-	cd .. && git clone --recursive https://github.com/facebook/zstd
+	cd .. && git clone --recursive --single-branch --branch dev https://github.com/facebook/zstd
 
 libzstd.a: ../zstd/lib
 	+cd ../zstd && $(MAKE) lib && mv lib/libzstd.a ../bonsai && cd ../bonsai
