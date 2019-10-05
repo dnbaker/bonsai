@@ -7093,7 +7093,9 @@ namespace Catch {
 #  include <stdbool.h>
 #  include <sys/types.h>
 #  include <unistd.h>
+#  define _Atomic volatile
 #  include <sys/sysctl.h>
+#  undef _Atomic
 #  include <cstddef>
 #  include <ostream>
 

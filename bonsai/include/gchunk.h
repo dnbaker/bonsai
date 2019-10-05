@@ -1,6 +1,5 @@
 #pragma once
 #include "encoder.h"
-#include "hll/hll.h"
 
 namespace bns {
 
