@@ -64,7 +64,7 @@ PYBIND11_MODULE(bns, m) {
         size_t kind = 0;
         for(py::handle ob: vallist) {
             auto vals = ob.cast<py::array_t<float>>();
-            assert(vals.size()  == nks * ((ngenomes * (ngenomes - 1)) >> 1));
+            assert(vals.size() == ssize_t(nks * ((ngenomes * (ngenomes - 1)) >> 1)));
             float *valp = (float *)vals.request().ptr;
             for(size_t i = 0; i < ngenomes; ++i) {
                 for(size_t j = i + 1; j < ngenomes; ++j) {

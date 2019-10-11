@@ -23,7 +23,8 @@ class get_pybind_include(object):
         return pybind11.get_include(self.user)
 
 
-extra_compile_args = ['-march=native', '-flto', '-Wno-char-subscripts', '-Wno-unused-function', '-Wno-strict-aliasing', '-Wno-ignored-attributes']
+extra_compile_args = ['-march=native', '-Wno-char-subscripts', '-Wno-unused-function', '-Wno-strict-aliasing', '-Wno-ignored-attributes', '-fno-wrapv']
+extra_compile_args += ['-D_GLIBCXX_USE_CXX11_ABI=0']
 
 ext_modules = [
     Extension(
@@ -91,7 +92,8 @@ class BuildExt(build_ext):
     }
 
     if sys.platform == 'darwin':
-        darwin_opts = ['-stdlib=libc++', '-mmacosx-version-min=10.7']
+        darwin_opts = ['-mmacosx-version-min=10.7', '-libstd=libc++']
+        # darwin_opts = []
         c_opts['unix'] += darwin_opts
         l_opts['unix'] += darwin_opts
 
