@@ -29,7 +29,7 @@ extra_compile_args += ['-D_GLIBCXX_USE_CXX11_ABI=0']
 ext_modules = [
     Extension(
         'bns',
-        ['pybonsai.cpp'],
+        ['bns.cpp'],
         include_dirs=[
             # Path to pybind11 headers
             get_pybind_include(),
@@ -92,7 +92,7 @@ class BuildExt(build_ext):
     }
 
     if sys.platform == 'darwin':
-        darwin_opts = ['-mmacosx-version-min=10.7', '-libstd=libc++']
+        darwin_opts = ['-mmacosx-version-min=10.7']# , '-libstd=libc++']
         # darwin_opts = []
         c_opts['unix'] += darwin_opts
         l_opts['unix'] += darwin_opts
