@@ -16,6 +16,12 @@ FLAGS=-O1 -funroll-loops -pipe -march=native -I. -Ivec/blaze -Ivec -Ipybind11/in
 CXXFLAGS=$(FLAGS) -Wreorder
 INCLUDES=-I. -I.. -I../hll -I../bonsai -I../hll/vec -I../hll/libpopcnt -I../circularqueue
 
+build: bns.cpython.so
+INSTALL_DIR=$(shell python -c 'import site; print(site.getsitepackages()[0])')
+
+install: bns.cpython.so
+	echo cp *.so $(INSTALL_DIR) &&\
+	cp *.so $(INSTALL_DIR)
 %.cpython.so: %.cpp
 	$(CXX) $(UNDEFSTR) $(INCLUDES) -fopenmp -O3 -Wall $(CXXFLAGS) -shared $(STD) -fPIC `python3 -m pybind11 --includes` $< -o $*$(SUF) -lz && \
     ln -fs $*$(SUF) $@
