@@ -24,7 +24,7 @@ class get_pybind_include(object):
 
 
 extra_compile_args = ['-march=native', '-Wno-char-subscripts', '-Wno-unused-function', '-Wno-strict-aliasing', '-Wno-ignored-attributes', '-fno-wrapv']
-extra_compile_args += ['-D_GLIBCXX_USE_CXX11_ABI=0']
+extra_compile_args += ['-D_GLIBCXX_USE_CXX11_ABI=0', '-shared', '-fPIC']
 
 ext_modules = [
     Extension(
