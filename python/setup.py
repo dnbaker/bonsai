@@ -23,8 +23,7 @@ class get_pybind_include(object):
         return pybind11.get_include(self.user)
 
 
-extra_compile_args = ['-march=native', '-Wno-char-subscripts', '-Wno-unused-function', '-Wno-strict-aliasing', '-Wno-ignored-attributes', '-fno-wrapv']
-extra_compile_args += ['-D_GLIBCXX_USE_CXX11_ABI=0', '-shared', '-fPIC']
+extra_compile_args = ['-march=native', '-Wno-char-subscripts', '-Wno-unused-function', '-Wno-strict-aliasing', '-Wno-ignored-attributes', '-fno-wrapv', '-lz', '-fopenmp']
 
 ext_modules = [
     Extension(
@@ -101,6 +100,7 @@ class BuildExt(build_ext):
         ct = self.compiler.compiler_type
         opts = self.c_opts.get(ct, [])
         link_opts = self.l_opts.get(ct, [])
+        link_opts.append("-lz")
         if ct == 'unix':
             opts.append('-DVERSION_INFO="%s"' % self.distribution.get_version())
             opts.append(cpp_flag(self.compiler))
