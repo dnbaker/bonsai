@@ -77,4 +77,53 @@ PYBIND11_MODULE(bns, m) {
         }
         return ret;
     }, py::return_value_policy::take_ownership);
+    m.def("seqdict_r", [](std::string path, int k) -> py::dict {
+        py::dict ret;
+        RollingHasher<uint64_t> enc(k);
+        gzFile fp = gzopen(path.data(), "rb");
+        if(!fp) throw std::runtime_error(std::string("Couldn't open file at ") + path);
+        kseq_t *ks = kseq_init(fp);
+        while(kseq_read(ks) >= 0) {
+            py::array_t<uint64_t> arr({1u << 8});
+            ssize_t i = 0;
+            uint64_t *p = static_cast<uint64_t *>(arr.request().ptr);
+            enc.for_each_hash([&](uint64_t x) {
+                if(i == arr.size()) {
+                    arr.resize({arr.size() << 1});
+                    p = static_cast<uint64_t *>(arr.request().ptr);
+                }
+                p[i++] = x;
+            }, path.data());
+            arr.resize({i});
+            ret[ks->name.s] = arr;
+        }
+        gzclose(fp);
+        kseq_destroy(ks);
+        return ret;
+    }, py::return_value_policy::take_ownership);
+    m.def("seqdict", [](std::string path, int k, const char *spacing, int w) -> py::dict {
+        py::dict ret;
+        Spacer sp(k, w, spacing && *spacing ? parse_spacing(spacing, k): spvec_t(k - 1, 0));
+        Encoder<> enc(sp);
+        gzFile fp = gzopen(path.data(), "rb");
+        if(!fp) throw std::runtime_error(std::string("Couldn't open file at ") + path);
+        kseq_t *ks = kseq_init(fp);
+        while(kseq_read(ks) >= 0) {
+            py::array_t<uint64_t> arr({1u << 8});
+            ssize_t i = 0;
+            uint64_t *p = static_cast<uint64_t *>(arr.request().ptr);
+            enc.for_each([&](uint64_t x) {
+                if(i == arr.size()) {
+                    arr.resize({arr.size() << 1});
+                    p = static_cast<uint64_t *>(arr.request().ptr);
+                }
+                p[i++] = x;
+            }, path.data());
+            arr.resize({i});
+            ret[ks->name.s] = arr;
+        }
+        gzclose(fp);
+        kseq_destroy(ks);
+        return ret;
+    }, py::return_value_policy::take_ownership);
 }
