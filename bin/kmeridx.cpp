@@ -1,4 +1,4 @@
-#include "bonsai/include/kmeridx.h"
+#include "bonsai/kmeridx.h"
 #include <getopt.h>
 
 template<typename T1, typename T2>

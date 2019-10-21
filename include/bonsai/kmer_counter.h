@@ -5,7 +5,7 @@
 #include <cstdlib>
 #include <type_traits>
 #include "khash64.h"
-#include "bonsai/include/encoder.h"
+#include "./encoder.h"
 
 namespace kmerc {
 
