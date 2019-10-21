@@ -40,7 +40,7 @@ ext_modules = [
            "../hll/libpopcnt",
            "../hll/include",
            "../hll/vec",
-           "../hll",
+           "../hll/sketch",
            "../hll/pybind11/include"
         ],
         language='c++',

@@ -1,9 +1,4 @@
 #pragma once
-#ifdef NDEBUG
-#  if NDEBUG == 0
-#    undef NDEBUG
-#  endif
-#endif
 #include <algorithm>
 #include <cassert>
 #include <chrono>

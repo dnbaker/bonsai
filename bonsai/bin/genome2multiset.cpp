@@ -1,4 +1,4 @@
-#include "hll/include/sketch.h"
+#include "sketch/sketch.h"
 #include "bonsai/include/encoder.h"
 #include "omp.h"
 
@@ -91,6 +91,6 @@ int main(int argc, char *argv[]) {
     }
     build_multiset(k, fps, ofps, canon);
     for(int i = optind; i < argc; ++i) {
-        mh::FinalCRMinHash<uint64_t, std::greater<>, uint32_t> ms((std::string(argv[i]) + ".multiset").data());
+        mh::FinalCRMinHash<uint64_t, uint32_t> ms((std::string(argv[i]) + ".multiset").data());
     }
 }

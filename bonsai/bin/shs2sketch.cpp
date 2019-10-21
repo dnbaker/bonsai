@@ -1,4 +1,4 @@
-#include "hll/include/sketch.h"
+#include "sketch/sketch.h"
 #include "bonsai/include/encoder.h"
 #include "omp.h"
 
@@ -33,8 +33,7 @@ void core(const std::vector<std::string> &inputs, size_t l2sz) {
     while(sketches.size() < inputs.size())
         sketches.emplace_back(l2sz);
     assert(sketches.size() == inputs.size());
-#endif
-    https://arxiv.org/abs/1706.00687
+    ///https://arxiv.org/abs/1706.00687
     OMP_PRAGMA("omp parallel for")
     for(size_t i = 0; i < inputs.size(); ++i) {
         fn2sketch(inputs[i], sketches[i]);

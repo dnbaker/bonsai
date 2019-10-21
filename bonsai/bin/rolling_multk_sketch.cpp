@@ -1,4 +1,4 @@
-#include "hll/include/sketch.h"
+#include "sketch/sketch.h"
 #include "bonsai/include/encoder.h"
 #include "omp.h"
 
