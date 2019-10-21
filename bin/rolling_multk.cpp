@@ -1,5 +1,5 @@
-#include "bonsai/include/kmer_counter.h"
-#include "bonsai/include/util.h"
+#include "bonsai/kmer_counter.h"
+#include "bonsai/util.h"
 #include <thread>
 #include <algorithm>
 #include <omp.h>

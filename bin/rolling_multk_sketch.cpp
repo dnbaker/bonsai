@@ -1,5 +1,5 @@
 #include "sketch/sketch.h"
-#include "bonsai/include/encoder.h"
+#include "bonsai/encoder.h"
 #include "omp.h"
 
 void usage() {

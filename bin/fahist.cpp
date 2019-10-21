@@ -14,7 +14,7 @@
 #else
 #  include <zlib.h>
 #endif
-#include "bonsai/include/util.h"
+#include "bonsai/util.h"
 
 
 struct kth {
