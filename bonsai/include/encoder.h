@@ -8,8 +8,7 @@
 #include <unistd.h>
 #include "klib/kstring.h"
 #include "hash.h"
-#include "hll/include/hll.h"
-#include "hll/include/filterhll.h"
+#include "sketch/filterhll.h"
 #include "entropy.h"
 #include "kseq_declare.h"
 #include "qmap.h"

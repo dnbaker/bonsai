@@ -10,10 +10,12 @@
 #define LOG_INFO(...) log_info(_FUNCTION_MACRO_, ##__VA_ARGS__)
 #define LOG_WARNING(...) log_warning(_FUNCTION_MACRO_, ##__VA_ARGS__)
 #define LOG_EXIT(...) log_error(_FUNCTION_MACRO_, __LINE__, ##__VA_ARGS__)
-#if !NDEBUG
-#    define LOG_DEBUG(...) log_debug(_FUNCTION_MACRO_, __LINE__, ##__VA_ARGS__)
-#else
-#    define LOG_DEBUG(...)
+#ifndef LOG_DEBUG
+#  if !NDEBUG
+#      define LOG_DEBUG(...) log_debug(_FUNCTION_MACRO_, __LINE__, ##__VA_ARGS__)
+#  else
+#      define LOG_DEBUG(...)
+#  endif
 #endif
 #define LOG_ASSERT(condition) log_assert(_FUNCTION_MACRO_, __LINE__, ((u64)(condition)), (#condition))
 

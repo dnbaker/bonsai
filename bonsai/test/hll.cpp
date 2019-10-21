@@ -5,7 +5,7 @@
 #include <string>
 #include <unordered_set>
 #include <thread>
-#include "hll/include/hll.h"
+#include "sketch/hll.h"
 #include "encoder.h"
 #include "omp.h"
 

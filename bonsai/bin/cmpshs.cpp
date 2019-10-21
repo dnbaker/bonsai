@@ -8,6 +8,7 @@
 #include <getopt.h>
 #include <omp.h>
 #include <zlib.h>
+#include "sketch/common.h"
 
 void usage() {
     std::fprintf(stderr, "Usage: cmpshs -F fnames.txt > out.bin\n");

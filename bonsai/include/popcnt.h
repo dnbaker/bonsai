@@ -10,7 +10,7 @@
 #include "vec/vec.h"
 #undef NO_BLAZE
 #undef NO_SLEEF
-#include "hll/include/hll.h"
+#include "sketch/hll.h"
 
 
 #ifndef DO_DUFF
