@@ -1,6 +1,6 @@
 #include "catch.hpp"
 #include "sketch/hll.h"
-#include "bonsai/include/util.h"
+#include "bonsai/util.h"
 
 using namespace sketch;
 
