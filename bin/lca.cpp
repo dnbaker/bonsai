@@ -29,7 +29,8 @@ int main(int argc, char *argv[]) {
     print_vec(names);
     khash_t(p) *tax(build_parent_map(argv[optind]));
     if(tax == nullptr) LOG_EXIT("Could not open taxmap. (See warning logs.)\n");
-    khash_t(name) *name_hash(argv[optind + 1] ? build_name_hash(argv[optind + 1]) : nullptr);
+    char *p = argv[optind + 1];
+    khash_t(name) *name_hash(p ? build_name_hash(p) : nullptr);
     // std::cerr << "Name hash size: " << kh_size(name_hash) << '\n';
     if(name_hash) {
         khiter_t ki;
@@ -53,7 +54,7 @@ int main(int argc, char *argv[]) {
             }
         }
     } else {
-        std::fprintf(stderr, "No name hash provided. (path: %s)\n", argv[optind + 1]);
+        std::fprintf(stderr, "No name hash provided. Not filtering by taxids\n");
     }
 #if 0
     tax_t current_lca(taxids[0]);

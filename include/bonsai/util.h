@@ -29,6 +29,7 @@
 #include "logutil.h"
 #include "popcnt.h"
 #include "sample_gen.h"
+#include "aesctr/wy.h"
 
 #ifdef __GNUC__
 #  ifndef likely
@@ -109,7 +110,7 @@ using namespace std::literals;
 #if __AES__
 using RNGType = aes::AesCtr<uint64_t, 8>;
 #else
-using RNGType = std::mt19937_64;
+using RNGType = wy::WyRand<uint64_t, 8>;
 #endif
 
 struct ForPool {
