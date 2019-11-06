@@ -107,11 +107,7 @@
 namespace bns {
 using namespace std::literals;
 
-#if __AES__
-using RNGType = aes::AesCtr<uint64_t, 8>;
-#else
-using RNGType = wy::WyRand<uint64_t, 8>;
-#endif
+using RNGType = wy::WyHash<uint64_t, 8>;
 
 struct ForPool {
     void *fp_;
