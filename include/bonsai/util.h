@@ -1206,7 +1206,9 @@ static lazy::vector<u64, size_t> load_binary_kmers(const char *path) {
 static std::vector<std::string> get_lines(const char *path) {
     std::ifstream is(path);
     std::vector<std::string> ret;
-    for(std::string line;std::getline(is, line);ret.emplace_back(std::move(line)));
+    for(std::string line;std::getline(is, line);)
+        if(line.size() && line.front() != '#')
+            ret.emplace_back(std::move(line));
     return ret;
 }
 static INLINE std::vector<std::string> get_paths(const char *path) {return get_lines(path);}
