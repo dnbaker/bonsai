@@ -103,13 +103,13 @@ test/%.o: test/%.cpp
 test/%.zo: test/%.cpp
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -c $< -o $@ $(ZCOMPILE_FLAGS)
 
-%.o: %.cpp $(shell ls include/bonsai/*.h)
+%.o: %.cpp $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG -c $< -o $@ $(LIB)
 
-%.do: %.cpp
+%.do: %.cpp $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -g -c $< -o $@ $(LIB)
 
-%.zo: %.cpp
+%.zo: %.cpp $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD)  -c $< -o $@ -DNDEBUG $(LIB) $(ZCOMPILE_FLAGS)
 
 src/popcnt.o: src/popcnt.cpp
@@ -121,10 +121,10 @@ src/popcnt.do: src/popcnt.cpp
 src/popcnt.zo: src/popcnt.cpp
 	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD)  -c $< -o $@ $(LIB)
 
-bin/%: bin/%.cpp clhash.o klib/kthread.o
+bin/%: bin/%.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB)
 
-bin/%_z: bin/%.cpp $(ALL_ZOBJS)
+bin/%_z: bin/%.cpp $(ALL_ZOBJS) $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) $(LIB)
 
 %_d: bin/%.cpp $(DOBJS)
