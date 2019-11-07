@@ -618,6 +618,11 @@ struct RollingHasher {
         }
     }
     template<typename Functor>
+    void for_each_hash(const Functor &func, const char *s, size_t l) {
+        if(canon_) for_each_canon<Functor>(func, s, l);
+        else       for_each_uncanon<Functor>(func, s, l);
+    }
+    template<typename Functor>
     void for_each_hash(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         if(canon_) for_each_canon<Functor>(func, fp, ks);
         else       for_each_uncanon<Functor>(func, fp, ks);
