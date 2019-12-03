@@ -583,8 +583,16 @@ public:
 };
 
 #ifndef RUNTIME_ERROR
-#define RUNTIME_ERROR(msg) \
-        throw std::runtime_error(std::string("[") + __FILE__ + ':' + __PRETTY_FUNCTION__ + std::to_string(__LINE__) + "] " + msg)
+#  if !defined(__clang__) && defined(__GNUC__)
+#    define RUNTIME_ERROR(msg) throw std::runtime_error(std::string("[") + __FILE__ + ':' + __PRETTY_FUNCTION__ + std::to_string(__LINE__) + "] " + msg)
+#  else
+#    define RUNTIME_ERROR(msg) \
+        do {\
+            const std::string msgstr = std::string("[") + __FILE__ + ':' + __PRETTY_FUNCTION__ + std::to_string(__LINE__) + "] " + msg; \
+            std::fprintf(stderr, "%s\n", msgstr.data()); \
+            throw std::runtime_error(msgstr); \
+        } while(0)
+#  endif
 #endif
 
 struct KSeqBufferHolder {
@@ -1206,9 +1214,10 @@ static lazy::vector<u64, size_t> load_binary_kmers(const char *path) {
 static std::vector<std::string> get_lines(const char *path) {
     std::ifstream is(path);
     std::vector<std::string> ret;
-    for(std::string line;std::getline(is, line);)
+    for(std::string line;std::getline(is, line);) {
         if(line.size() && line.front() != '#')
             ret.emplace_back(std::move(line));
+    }
     return ret;
 }
 static INLINE std::vector<std::string> get_paths(const char *path) {return get_lines(path);}
