@@ -594,6 +594,9 @@ public:
         } while(0)
 #  endif
 #endif
+#ifndef BNS_REQUIRE
+#  define BNS_REQUIRE(...) do {if(!(__VA_ARGS__)) RUNTIME_ERROR(__VA_ARGS__);} while(0)
+#endif
 
 struct KSeqBufferHolder {
     std::vector<kseq_t> kseqs_;
