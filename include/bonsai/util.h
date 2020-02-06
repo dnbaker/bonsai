@@ -584,11 +584,11 @@ public:
 
 #ifndef RUNTIME_ERROR
 #  if !defined(__clang__) && defined(__GNUC__)
-#    define RUNTIME_ERROR(msg) throw std::runtime_error(std::string("[") + __FILE__ + ':' + __PRETTY_FUNCTION__ + std::to_string(__LINE__) + "] " + msg)
+#    define RUNTIME_ERROR(msg) throw std::runtime_error(std::string("[") + __FILE__ + ':' + __PRETTY_FUNCTION__ + std::to_string(__LINE__) + "] " + #msg)
 #  else
 #    define RUNTIME_ERROR(msg) \
         do {\
-            const std::string msgstr = std::string("[") + __FILE__ + ':' + __PRETTY_FUNCTION__ + std::to_string(__LINE__) + "] " + msg; \
+            const std::string msgstr = std::string("[") + __FILE__ + ':' + __PRETTY_FUNCTION__ + std::to_string(__LINE__) + "] " + #msg; \
             std::fprintf(stderr, "%s\n", msgstr.data()); \
             throw std::runtime_error(msgstr); \
         } while(0)
