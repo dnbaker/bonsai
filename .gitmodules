@@ -54,3 +54,7 @@
 [submodule "ntHash"]
 	path = ntHash
 	url = https://github.com/bcgsc/ntHash
+[submodule "zstd"]
+	path = zstd
+	url = https://github.com/facebook/zstd
+	branch = dev
