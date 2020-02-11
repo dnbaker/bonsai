@@ -80,7 +80,7 @@ update:
 obj: $(OBJS) $(DOBJS) $(ZOBJS) $(ZW_OBJS)
 
 libzstd.a:
-	+cd zstd && $(MAKE) lib && mv lib/libzstd.a .. && cd ..
+	+cd zstd && $(MAKE) lib && cp lib/libzstd.a .. && cd ..
 
 clhash.o: clhash/src/clhash.c
 	ls $@ 2>/dev/null || mv clhash/clhash.o . 2>/dev/null || (cd clhash $(CLHASH_CHECKOUT) && $(MAKE) && cd .. && ln -s clhash/clhash.o .)
