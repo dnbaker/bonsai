@@ -48,19 +48,7 @@ print("    static const uint8_t lut []{\n        %s\n    };" % ", ".join(map(str
 
 template<>
 inline unsigned popcount(unsigned long long val) {
-#ifndef NO_USE_CQF_ASM
-// From cqf https://github.com/splatlab/cqf/
-    asm("popcnt %[val], %[val]"
-            : [val] "+r" (val)
-            :
-            : "cc");
-    return val;
-#else
-    // According to GodBolt, gcc7.3 fails to inline this function call even at -Ofast.
-    //
-    //
     return __builtin_popcountll(val);
-#endif
 }
 
 template<>
@@ -100,7 +88,7 @@ inline unsigned bitdiff(T a, T b) {
 }
 
 namespace detail {
-using sketch::common::popcnt_fn;
+using sketch::popcnt_fn;
 
 inline unsigned unrolled_bitdiff(const uint64_t *a, const uint64_t *b, size_t nbytes);
 inline unsigned byte_bitdiff(const uint8_t *a, const uint8_t *b, size_t nelem) {
