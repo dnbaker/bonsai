@@ -56,7 +56,7 @@ class FlexMap {
 public:
     std::string str() const {
         ks::string ks;
-        ks.sprintf("FlexMap:{id:%u;parent:%u;bitcount:%zu;n: %" PRIu64 ";map_(%zu);taxes(%zu): [", id_, parent_, bitcount_, n_, map_.size(), tax_.size());
+        ks.sprintf("FlexMap:{id:%u;parent:%u;bitcount:%u;n: %" PRIu64 ";map_(%zu);taxes(%zu): [", id_, parent_, bitcount_, n_, map_.size(), tax_.size());
         for(const auto tax: tax_) ks.putuw_(tax), ks.putc_(',');
         ks.back() = ']';
         ks.putc('}');

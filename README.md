@@ -1,4 +1,4 @@
-Bonsai: Flexible Taxonomic Analysis and Extension [![Build Status](https://travis-ci.com/dnbaker/bonsai.svg?branch=master)](https://travis-ci.com/dnbaker/bonsai)
+Bonsai: Flexible Taxonomic Analysis and Extension [![Build Status](https://travis-ci.com/dnbaker/bonsai.svg?branch=master)](https://travis-ci.com/dnbaker/bonsai) [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/dnbaker/bonsai.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/dnbaker/bonsai/context:cpp)
 ===============
 
 Bonsai contains varied utilities for taxonomic analysis and classification using exact subsequence matches. These include:

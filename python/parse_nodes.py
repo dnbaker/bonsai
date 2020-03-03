@@ -31,7 +31,7 @@ def get_levels(path):
     return Counter(get_level(line) for line in open(path))
 
 
-def generate_enum(clades=DEFAULT_CLADES):
+def generate_enum(clades=DEFAULT_CLADES, maxl=7):
     maxl = max(len(i) for i in clades)
     enum_str = "enum class ClassLevel:int {\n"
     enum_str += "\n".join("    %s%s= %i," % (umangle(clade),
@@ -86,8 +86,11 @@ def generate_code(clades=DEFAULT_CLADES):
     if not isinstance(clades,  list):
         try:
             clades = list(clades)
-        except:
+        except TypeError:
             raise RuntimeError("Clades is of type %s" % type(clades))
+        except:
+            print("Unexpected error!")
+            raise
     clades = [clade for clade in clades if clade not in
               ("no", "rank", "no rank", "root")]
     prefix = "namespace emp {\n"
@@ -152,7 +155,7 @@ def main():
     with open(argv[1]) if argv[1:] else sys.stdin as f:
         try:
             clades = [line.strip() for line in f]
-        except:
+        except FileNotFoundError:
             clades = DEFAULT_CLADES
     if python_outpath:
         print(generate_python_class_map(clades),
