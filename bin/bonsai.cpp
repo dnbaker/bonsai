@@ -243,7 +243,7 @@ int phase1_main(int argc, char *argv[]) {
         }
     }
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
-    if(wsz < 0) wsz = k;
+    wsz = k;
     khash_t(p) *taxmap(taxmap_preparsed ? khash_load<khash_t(p)>(argv[optind + 1])
                                         : build_parent_map(argv[optind + 1]));
     spvec_t sv(parse_spacing(spacing.data(), k));

@@ -127,8 +127,11 @@ public:
         for(const auto &pair: newid_path_map)
             ret.sprintf("%u\t%s\n", pair.first, pair.second.data());
         ret += "#(Original taxonomy)\n";
-        for(const auto &pair: path_map)
-            ret.sprintf("%u\t%s\n", pair.first, pair.second.data());
+        for(const auto &pair: path_map) {
+            for(const auto &subpath: pair.second) {
+                ret.sprintf("%u\t%s\n", pair.first, subpath.data());
+            }
+        }
         return ret;
     }
     void fnewtaxprintf(std::FILE *fp) {
