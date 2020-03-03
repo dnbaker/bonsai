@@ -52,7 +52,7 @@ def table2str(vals):
 
 
 if __name__ == "__main__":
-    from sys import argv, stderr
+    from sys import argv
     nnucs = int(argv[1]) if argv[1:] else 4
     vals = generate_table(nnucs)
     print(table2str(vals))
