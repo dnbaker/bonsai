@@ -230,7 +230,6 @@ def main():
             except FileNotFoundError:
                 if args.die:
                     raise
-                pass
         nameidmap.update(cladeidmap)
     print("Done with all clades", file=sys.stderr)
     with open(ref + "/" + args.idmap, "w") as f:
