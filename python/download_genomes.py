@@ -107,6 +107,7 @@ def parse_assembly(fn, fnidmap):
                 any(i in line.lower() for
                     i in ["contig", "supercontig"])):
             continue
+        print(s[19], file=sys.stderr)
         fn = "%s_genomic.fna.gz" % ([i for i in s[19].split("/") if i][-1])
         fnidmap[fn] = int(s[5])
         index = len(s) - 1
@@ -115,7 +116,9 @@ def parse_assembly(fn, fnidmap):
         if index:
             to_fetch.append(s[index] + "/" + fn)
         else:
-            raise RuntimeError("ftp link not found. line: %s" % line[:-1])
+            print("No link found, continue", file=sys.stderr)
+            continue
+            #raise RuntimeError("ftp link not found. line: %s" % line[:-1])
     return to_fetch
 
 
@@ -223,6 +226,7 @@ def main():
         # Replace pathnames with seqids
         for fn in list(cladeidmap.keys()):
             try:
+                #print(ref, clade, fn)
                 cladeidmap[xfirstline("/".join(
                     [ref, clade, fn]
                 )).decode().split()[0][1:]] = cladeidmap[fn]
