@@ -22,7 +22,7 @@ struct KmerIdx {
     ska::flat_hash_map<KmerType, lazy::vector<IT1>> map_;
 
     KmerIdx(unsigned k, const char *path=nullptr): k_(k) {
-        if(k > sizeof(KmerType) * CHAR_BIT / 2) RUNTIME_ERROR("Error: k must be <= bits per KmerType / 2.");
+        if(k > sizeof(KmerType) * CHAR_BIT / 2) UNRECOVERABLE_ERROR("Error: k must be <= bits per KmerType / 2.");
         cm_seqs_.emplace_back(0);
         if(path) make_idx(path);
     }
@@ -72,7 +72,7 @@ struct KmerIdx {
         KI_SWAP_DESTROY(cm_seqs_);
         KI_SWAP_DESTROY(map_);
         gzFile fp = gzopen(path, "rb");
-        if(!fp) RUNTIME_ERROR("ZOMG");
+        if(!fp) UNRECOVERABLE_ERROR("ZOMG");
         gzread(fp, &k_, sizeof(k_));
         uint32_t nnames;
         gzread(fp, &nnames, sizeof(nnames));
@@ -84,14 +84,14 @@ struct KmerIdx {
         std::string tmp;
         for(auto i = 0u; i < nnames; ++i) {
             char buf[1 << 12];
-            if(!gzgets(fp, buf, sizeof(buf))) RUNTIME_ERROR("ZOMG");
+            if(!gzgets(fp, buf, sizeof(buf))) UNRECOVERABLE_ERROR("ZOMG");
             tmp = buf;
             tmp.pop_back();
             refnames_.push_back(std::move(tmp));
         }
         for(auto i = 0u; i < nnames; ++i) {
             char buf[1 << 12];
-            if(!gzgets(fp, buf, sizeof(buf))) RUNTIME_ERROR("ZOMG");
+            if(!gzgets(fp, buf, sizeof(buf))) UNRECOVERABLE_ERROR("ZOMG");
             tmp = buf;
             tmp.pop_back();
             comments_.push_back(std::move(tmp));
@@ -99,8 +99,8 @@ struct KmerIdx {
         FOREVER {
             KmerType kmer;
             uint32_t nelem;
-            if(unlikely(gzread(fp,  &kmer, sizeof(kmer )) != sizeof(kmer)))  RUNTIME_ERROR("ZOMG");
-            if(unlikely(gzread(fp, &nelem, sizeof(nelem)) != sizeof(nelem))) RUNTIME_ERROR("ZOMG");
+            if(unlikely(gzread(fp,  &kmer, sizeof(kmer )) != sizeof(kmer)))  UNRECOVERABLE_ERROR("ZOMG");
+            if(unlikely(gzread(fp, &nelem, sizeof(nelem)) != sizeof(nelem))) UNRECOVERABLE_ERROR("ZOMG");
             auto it = map_.emplace(nelem, lazy::vector<IT1>()).first;
             IT1 tmp;
             it->second.reserve(nelem);

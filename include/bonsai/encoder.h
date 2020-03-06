@@ -153,7 +153,7 @@ public:
       canonicalize_(canonicalize)
     {
         if(std::is_same<ScoreType, score::Entropy>::value && sp_.unspaced() && !sp_.unwindowed()) {
-            if(data_) RUNTIME_ERROR("No data pointer must be provided for lex::Entropy minimization.");
+            if(data_) UNRECOVERABLE_ERROR("No data pointer must be provided for lex::Entropy minimization.");
             data_ = static_cast<void *>(new CircusEnt(sp_.k_));
         }
     }
@@ -287,8 +287,8 @@ public:
     template<typename Functor>
     INLINE void for_each_hash(const Functor &func, unsigned k = 0) const {
         k = k > 0 ? k: sp_.k_;
-        if(!sp_.unwindowed()) RUNTIME_ERROR("Can't for_each_hash for a windowed spacer");
-        if(!sp_.unspaced()) RUNTIME_ERROR("Can't for_each_hash for a spaced spacer");
+        if(!sp_.unwindowed()) UNRECOVERABLE_ERROR("Can't for_each_hash for a windowed spacer");
+        if(!sp_.unspaced()) UNRECOVERABLE_ERROR("Can't for_each_hash for a spaced spacer");
         if(l_ < k) return;
         size_t i = 0;
         uint64_t fhv=0, rhv=0, hv;
@@ -346,7 +346,7 @@ public:
     template<typename Functor>
     void for_each_hash(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
-        if(!fp) RUNTIME_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         for_each_hash<Functor>(func, fp, ks);
         gzclose(fp);
     }
@@ -409,14 +409,14 @@ public:
     template<typename Functor>
     void for_each_canon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
-        if(!fp) RUNTIME_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         for_each_canon<Functor>(func, fp, ks);
         gzclose(fp);
     }
     template<typename Functor>
     void for_each_uncanon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
-        if(!fp) RUNTIME_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         for_each_uncanon<Functor>(func, fp, ks);
         gzclose(fp);
     }
@@ -432,7 +432,7 @@ public:
     template<typename Functor>
     void for_each(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
-        if(!fp) RUNTIME_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         if(canonicalize_) for_each_canon<Functor>(func, fp, ks);
         else              for_each_uncanon<Functor>(func, fp, ks);
         gzclose(fp);
