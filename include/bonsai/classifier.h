@@ -69,7 +69,7 @@ INLINE void append_counts(u32 count, const char character, ks::string &ks) {
     }
 }
 
-inline void append_fastq_classification(const tax_counter &hit_counts,
+inline void append_fastq_classification(const tax_counter &,
                                  const std::vector<tax_t> &taxa,
                                  const tax_t taxon, const u32 ambig_count, const u32 missing_count,
                                  bseq1_t *bs, ks::string &bks, const int verbose, const int is_paired) {
@@ -109,7 +109,7 @@ inline void append_fastq_classification(const tax_counter &hit_counts,
 
 
 
-inline void append_kraken_classification(const tax_counter &hit_counts,
+inline void append_kraken_classification(const tax_counter &,
                                   const std::vector<tax_t> &taxa,
                                   const tax_t taxon, const u32 ambig_count, const u32 missing_count,
                                   bseq1_t *bs, ks::string &bks) {
@@ -251,7 +251,7 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType> &c,
 }
 
 
-inline void kt_for_helper(void *data_, long index, int tid) {
+inline void kt_for_helper(void *data_, long index, int) {
     kt_data *data((kt_data *)data_);
     size_t retstr_size(0);
     const int inc(!!data->is_paired_ + 1);
@@ -336,7 +336,7 @@ inline void process_dataset(const Classifier &c, const khash_t(p) *taxmap, const
     if(ifp2) gzclose(ifp2);
 }
 
-static void append_fastq_classification(const tax_counter &hit_counts,
+static void append_fastq_classification(const tax_counter &,
                                         const std::vector<tax_t> &taxa,
                                         const tax_t taxon, const u32 ambig_count, const u32 missing_count,
                                         bseq1_t *bs, kstring_t *bks, const int verbose, const int is_paired) {
@@ -374,7 +374,7 @@ static void append_fastq_classification(const tax_counter &hit_counts,
     bks->s[bks->l] = 0;
 }
 
-static void append_kraken_classification(const tax_counter &hit_counts,
+static void append_kraken_classification(const tax_counter &,
                                   const std::vector<tax_t> &taxa,
                                   const tax_t taxon, const u32 ambig_count, const u32 missing_count,
                                   bseq1_t *bs, kstring_t *bks) {
