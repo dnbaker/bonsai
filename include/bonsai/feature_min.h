@@ -38,28 +38,28 @@ inline void update_minimized_map(const khash_t(all) *set, const khash_t(64) *ful
 struct LcaMap {
     using ReturnType = khash_t(c) *;
     static constexpr size_t ValSize = sizeof(*(ReturnType{0})->vals);
-    static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *d64, khash_t(c) *r32, khash_t(64) *r64, tax_t taxid) {
+    static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *, khash_t(c) *r32, khash_t(64) *, tax_t taxid) {
         update_lca_map(r32, set, tax, taxid);
     }
 };
 struct TdMap {
     using ReturnType = khash_t(64) *;
     static constexpr size_t ValSize = sizeof(*(ReturnType{0})->vals);
-    static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *d64, khash_t(c) *r32, khash_t(64) *r64, tax_t taxid) {
+    static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *, khash_t(c) *, khash_t(64) *r64, tax_t taxid) {
         update_td_map(r64, set, tax, taxid);
     }
 };
 struct FcMap {
     using ReturnType = khash_t(64) *;
     static constexpr size_t ValSize = sizeof(*(ReturnType{0})->vals);
-    static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *d64, khash_t(c) *r32, khash_t(64) *r64, tax_t taxid) {
+    static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *, khash_t(c) *, khash_t(64) *r64, tax_t taxid) {
         update_feature_counter(r64, set, tax, taxid);
     }
 };
 struct MinMap {
     using ReturnType = khash_t(c) *;
     static constexpr size_t ValSize = sizeof(*(ReturnType{0})->vals);
-    static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *d64, khash_t(c) *r32, khash_t(64) *r64, tax_t taxid) {
+    static void update(const khash_t(p) *, const khash_t(all) *set, const khash_t(64) *d64, khash_t(c) *r32, khash_t(64) *, tax_t) {
         update_minimized_map(set, d64, r32);
     }
 };
