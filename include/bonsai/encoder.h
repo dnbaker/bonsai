@@ -23,32 +23,6 @@
 namespace bns {
 using namespace sketch;
 
-
-#if USE_HASH_FILLER
-namespace detail {
-template<typename SketchType, size_t UNROLL_COUNT=4>
-struct HashFiller {
-    using UType = typename vec::SIMDTypes<u64>::VType;
-    static constexpr size_t COUNT = vec::SIMDTypes<u64>::COUNT;
-    SketchType &ref_;
-    std::array<UType, UNROLL_COUNT> vec_;
-    unsigned int count_;
-    INLINE HashFiller(SketchType &ref): ref_(ref), count_(0) {}
-    INLINE void add(u64 val) {
-        vec_[count_ / COUNT].arr_[count_ % COUNT] = val;
-        if(++count_ == COUNT * UNROLL_COUNT) {
-            for(const auto el: vec_)
-                ref_.addh(el.simd_);
-            count_ = 0;
-        }
-    }
-    INLINE ~HashFiller() {
-        for(;count_;ref_.addh(vec_[count_ / COUNT].arr_[(count_ - 1) % COUNT]), --count_);
-    }
-};
-} // namespace detail
-#endif
-
 enum score_scheme {
     LEX = 0,
     ENTROPY,
