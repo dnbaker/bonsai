@@ -33,9 +33,10 @@ ext_modules = [
             # Path to pybind11 headers
             get_pybind_include(),
             get_pybind_include(user=True),
-           "../bonsai/include/",
-           "../bonsai/",
+           "../include/bonsai",
+           "../include/",
            "../",
+           "../hll",
            "../circularqueue",
            "../hll/libpopcnt",
            "../hll/include",
