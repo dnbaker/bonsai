@@ -35,6 +35,7 @@ ext_modules = [
             get_pybind_include(user=True),
            "../include/",
            "../",
+           "../hll",
            "../circularqueue",
            "../hll/libpopcnt",
            "../hll/include",

@@ -171,7 +171,7 @@ PYBIND11_MODULE(bns, m) {
         gzclose(fp);
         kseq_destroy(ks);
         return ret;
-    }, py::return_value_policy::take_ownership);
+    }, py::arg("path"), py::arg("k") = 31, py::return_value_policy::take_ownership);
     m.def("seqdict", [](std::string path, int k, const char *spacing, int w) -> py::dict {
         py::dict ret;
         Spacer sp(k, w, spacing && *spacing ? parse_spacing(spacing, k): spvec_t(k - 1, 0));
@@ -196,5 +196,5 @@ PYBIND11_MODULE(bns, m) {
         gzclose(fp);
         kseq_destroy(ks);
         return ret;
-    }, py::return_value_policy::take_ownership);
+    }, py::arg("path"), py::arg("k") = 31, py::arg("spacing") = "", py::arg("w") = 0, py::return_value_policy::take_ownership);
 }
