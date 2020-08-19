@@ -7,9 +7,6 @@
 [submodule "clhash"]
 	path = clhash
 	url = https://github.com/lemire/clhash
-[submodule "libpopcnt"]
-	path = libpopcnt
-	url = https://github.com/kimwalisch/libpopcnt
 [submodule "hll"]
 	path = hll
 	url = https://github.com/dnbaker/sketch
