@@ -62,7 +62,7 @@ ZSTD_INCLUDE=$(patsubst %,-I%,$(ZSTD_INCLUDE_DIRS))
 ZFLAGS=-DZWRAP_USE_ZSTD=1
 ZCOMPILE_FLAGS= $(ZFLAGS)
 ALL_ZOBJS=$(ZOBJS) $(ZW_OBJS)
-INCLUDE=-Iclhash/include -I. -I.. -Ilibpopcnt -I.. -Iinclude -Icircularqueue $(ZSTD_INCLUDE) $(INCPLUS) -Ihll/vec -Ihll -Ihll/include -Ipdqsort -Iinclude/bonsai -Iinclude \
+INCLUDE=-Iclhash/include -I. -I.. -Ihll/libpopcnt -I.. -Iinclude -Icircularqueue $(ZSTD_INCLUDE) $(INCPLUS) -Ihll/vec -Ihll -Ihll/include -Ipdqsort -Iinclude/bonsai -Iinclude \
     -Ihll/vec/blaze
 
 
