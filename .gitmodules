@@ -1,33 +1,9 @@
-[submodule "libcuckoo"]
-	path = libcuckoo
-	url = https://github.com/Efficient/libcuckoo
 [submodule "klib"]
 	path = klib
 	url = https://github.com/attractivechaos/klib
 [submodule "clhash"]
 	path = clhash
 	url = https://github.com/lemire/clhash
-[submodule "kraken"]
-	path = kraken
-	url = https://github.com/derrickwood/kraken
-[submodule "kspp"]
-	path = kspp
-	url = https://github.com/dnbaker/kspp
-[submodule "linear"]
-	path = linear
-	url = https://github.com/dnbaker/linear
-[submodule "libpopcnt"]
-	path = libpopcnt
-	url = https://github.com/kimwalisch/libpopcnt
-[submodule "circularqueue"]
-	path = circularqueue
-	url = https://github.com/dnbaker/circularqueue
-[submodule "pdqsort"]
-	path = pdqsort
-	url = https://github.com/orlp/pdqsort
-[submodule "lazy"]
-	path = lazy
-	url = https://github.com/dnbaker/lazy
 [submodule "hll"]
 	path = hll
 	url = https://github.com/dnbaker/sketch
