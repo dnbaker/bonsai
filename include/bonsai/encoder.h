@@ -282,27 +282,15 @@ public:
         i = p - s_;
         hv = NTC64(s_ + i, k, fhv, rhv);
         func(canonicalize_ ? hv: fhv);
-        if(canonicalize_) {
-            for(; i < l_ - k; ++i) {
-                auto newc = s_[i + k];
-                if(cstr_lut[newc] < 0) {
-                    i += k;
-                    fhv = rhv = 0;
-                    goto start;
-                }
-                func(NTC64(s_[i], newc, k, fhv, rhv));
+        for(; i < l_ - k; ++i) {
+            auto newc = s_[i + k];
+            if(cstr_lut[newc] < 0) {
+                i += k;
+                fhv = rhv = 0;
+                goto start;
             }
-        } else {
-            for(; i < l_ - k; ++i) {
-                auto newc = s_[i + k];
-                if(cstr_lut[newc] < 0) {
-                    i += k;
-                    fhv = rhv = 0;
-                    goto start;
-                }
-                fhv = NTF64(fhv, k, s_[i], newc);
-                func(i);
-            }
+            hv = NTC64(s_[i], newc, k, fhv, rhv);
+            func(canonicalize_ ? hv: fhv);
         }
     }
     template<typename Functor>
@@ -561,21 +549,27 @@ struct RollingHasher {
     void for_each_uncanon(const Functor &func, const char *s, size_t l) {
         if(l < k_) return;
         hasher_.reset();
+        rchasher_.reset();
         size_t i, nf;
         uint8_t v1;
-        for(i = nf = 0; i < l && nf < k_; ++i) {
+        for(i = nf = 0; nf < k_ && i < l; ++i) {
             if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
                 fixup:
-                if(i + k_ >= l) return;
-                nf = 0, hasher_.reset();
-            } else hasher_.eat(v1), ++nf;
+                if(i + 2 * k_ >= l) return;
+                i += k_;
+                nf = 0;
+                hasher_.reset();
+                rchasher_.reset();
+            } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
+              // In the future, encode the side that is still valid
+            else hasher_.eat(v1), rchasher_.eat(cstr_rc_lut[s[i - nf + k_ - 1]]), ++nf;
         }
-        if(nf < k_) return;
+        if(nf < k_) return; // All failed
         func(hasher_.hashvalue);
         for(;i < l; ++i) {
             if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
                 goto fixup;
-            hasher_.update(cstr_lut[s[i - k_]], cstr_lut[s[i]]);
+            hasher_.update(cstr_lut[s[i - k_]], v1);
             func(hasher_.hashvalue);
         }
     }
