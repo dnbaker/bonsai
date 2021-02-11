@@ -120,6 +120,12 @@ src/popcnt.zo: src/popcnt.cpp
 bin/%: bin/%.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
 
+bin/kmercnt: bin/kmercnt.cpp clhash.o klib/kthread.o
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
+
+kmercnt: bin/kmercnt
+	cp $< $@
+
 bin/%_z: bin/%.cpp $(ALL_ZOBJS) $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) $(LIB)
 
