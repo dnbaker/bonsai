@@ -11,7 +11,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
 		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
 		 -pedantic -DUSE_PDQSORT -Wunused-variable -Wno-attributes -Wno-cast-align \
-        -Wno-gnu-zero-variadic-macro-arguments -Wno-ignored-attributes -Wno-missing-braces
+        -Wno-ignored-attributes -Wno-missing-braces
 EXTRA?=
 INCPLUS?=
 EXTRA_LD?=
@@ -123,6 +123,8 @@ bin/%: bin/%.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildca
 bin/kmercnt: bin/kmercnt.cpp clhash.o klib/kthread.o
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
 
+stdin2ss: bin/stdin2ss
+	cp $< $@
 kmercnt: bin/kmercnt
 	cp $< $@
 

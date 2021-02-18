@@ -9,12 +9,12 @@
 
 using namespace bns;
 
+#ifndef VALUE_TYPE
+#define VALUE_TYPE uint32_t
+#endif
+using CType = ska::flat_hash_map<uint64_t, VALUE_TYPE>;
 
-using CType = ska::flat_hash_map<uint64_t, uint32_t>;
-
-bns::RollingHashingType
-
-void update_kmerc(CType &kmerc, const std::string &path, int k, bool canon, const int htype, kseq_t *kseq=static_cast<kseq_t*>(nullptr), RollingHashingType rht) {
+void update_kmerc(CType &kmerc, const std::string &path, int k, bool canon, const int htype, kseq_t *kseq=static_cast<kseq_t*>(nullptr), RollingHashingType rht=RollingHashingType::DNA) {
     Encoder<> enc(k, canon);
     RollingHasher<uint64_t> rolling_hasher(k, canon, rht);
     auto update_fn = [&kmerc](uint64_t x) {
@@ -59,6 +59,8 @@ void usage() {
                         "-S: sort by hash instead of count\n"
                         "-F: Load paths from <file> (in addition to positional arguments)\n"
                         "-P: Parse protein k-mers instead of DNA k-mers\n"
+                        "-B: emit binary (sparse vector) notation\n"
+                        "-b: emit binary stream of [uint64_t, uint64_t] k-mer/count pairs\n"
         );
 }
 
@@ -66,8 +68,9 @@ int main(int argc, char **argv) {
     std::string ofile = "/dev/stdout", fpaths;
     std::string kmerparsetype = "bns";
     bool canon = true, sort_by_hash = false, enable_protein = false;
+    int binary_output = false;
     int k = 31, nthreads = 1;
-    for(int c;(c = getopt(argc, argv, "k:F:o:p:cCNh?")) >= 0;) {
+    for(int c;(c = getopt(argc, argv, "k:F:o:p:bBcCNh?")) >= 0;) {
         switch(c) {
             case 'k': k = std::atoi(optarg); break;
             case 'o': ofile = optarg; break;
@@ -78,7 +81,9 @@ int main(int argc, char **argv) {
             case 'F': fpaths = optarg; break;
             case 'p': nthreads = std::atoi(optarg); break;
             case 'S': sort_by_hash = true; break;
-            case 'P': enable_protein = true; kmerparsetype = "cyclic";
+            case 'P': enable_protein = true; kmerparsetype = "cyclic"; break;
+            case 'B': binary_output = true; break;
+            case 'b': binary_output = 2; break;
             //case 'S': spacestr = optarg; break;
         }
     }
@@ -130,17 +135,46 @@ int main(int argc, char **argv) {
             else lhs.emplace(pair);
         }
     });
-    std::vector<std::pair<uint64_t, uint32_t>> res(kmerc.size());
+    std::vector<std::pair<uint64_t, VALUE_TYPE>> res(kmerc.size());
     std::copy(kmerc.begin(), kmerc.end(), res.begin());
     std::ios_base::sync_with_stdio(false);
-    std::ofstream ofs(ofile);
-    ofs << "ID\tCount\n";
+    const auto maxc = std::max_element(res.begin(), res.end(), [](auto x, auto y) {return x.second < y.second;})->second;
+    std::fprintf(stderr, "maxcount: %zu\n", size_t(maxc));
     if(sort_by_hash) {
         std::sort(res.begin(), res.end());
     } else {
         std::sort(res.begin(), res.end(), [](auto x, auto y) {return x.second > y.second;});
     }
-    for(const auto &pair: res) {
-        ofs << pair.first << '\t' << pair.second << '\n';
+    std::fprintf(stderr, "Counted %zu unique k-mers with max count %zu\n", res.size(), size_t(maxc));
+    if(binary_output == 1) {
+        if(ofile == "/dev/stdout") throw std::runtime_error("Must provide a path for binary output");
+        std::FILE *ofb = std::fopen((ofile + "hash").data(), "wb");
+        std::FILE *ofc = std::fopen((ofile + "count").data(), "wb");
+        for(const auto &pair: res) {
+            uint64_t h = pair.first;
+            uint32_t uv;
+            uint16_t us;
+            uint8_t ub;
+            std::fwrite(&h, 1, sizeof(h), ofb);
+            if(sizeof(VALUE_TYPE) > 4 && maxc > 0xFFFFFFFFull) {h = pair.second;std::fwrite(&h, 1, sizeof(h), ofc);}
+            else if(maxc > 0xFFFFull) {uv = pair.second;std::fwrite(&uv, 1, sizeof(uv), ofc);}
+            else if(maxc > 0xFFull) {us = pair.second;std::fwrite(&us, 1, sizeof(us), ofc);}
+            else {ub = pair.second; std::fwrite(&ub, 1, sizeof(ub), ofc);}
+        }
+        std::fclose(ofc); std::fclose(ofb);
+    } else if(binary_output == 2) {
+        std::FILE *ofp = std::fopen(ofile.data(), "wb");
+        uint64_t x[2];
+        for(const auto &pair: res) {
+            x[0] = pair.first, x[1] = pair.second;
+            std::fwrite(x, 1, sizeof(x), ofp);
+        }
+        std::fclose(ofp);
+    } else {
+        std::ofstream ofs(ofile);
+        ofs << "ID\tCount\n";
+        for(const auto &pair: res) {
+            ofs << pair.first << '\t' << pair.second << '\n';
+        }
     }
 }
