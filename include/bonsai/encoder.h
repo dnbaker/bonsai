@@ -16,8 +16,8 @@
 #include "util.h"
 #include "klib/kthread.h"
 #include <mutex>
-#include "rollinghashcpp/rabinkarphash.h"
-#include "rollinghashcpp/cyclichash.h"
+#include "rollinghash/rabinkarphash.h"
+#include "rollinghash/cyclichash.h"
 #include "ntHash/nthash.hpp"
 
 namespace bns {
