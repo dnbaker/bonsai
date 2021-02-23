@@ -20,7 +20,7 @@ struct kg_list_data {
     const bool                  canon_;
 };
 
-static void kg_helper(void *data_, long index, int tid) {
+static void kg_helper(void *data_, long index, int) {
     kg_data *data(reinterpret_cast<kg_data *>(data_));
     khash_t(all) *hash(&data->core_[index]);
     int khr;
@@ -33,7 +33,7 @@ static void kg_helper(void *data_, long index, int tid) {
     }, data->paths_[index].data());
 }
 
-static void kg_list_helper(void *data_, long index, int tid) {
+static void kg_list_helper(void *data_, long index, int) {
     kg_list_data &data(*reinterpret_cast<kg_list_data *>(data_));
     auto &list(*data.fl_[index]);
     khash_t(all) *hash(&data.core_[index]);
@@ -117,7 +117,7 @@ public:
         for(size_t i(1), e(core_.size()); i < e; ++i) ret += kh_size(&core_[i]);
         return ret;
     }
-    void print_weights(std::FILE *fp=stderr) const {
+    void print_weights(std::FILE *) const {
         //for(const auto &kh: core_)
             //std::fprintf(fp, "Occupancy of %zu\n", kh_size(&kh));
     }

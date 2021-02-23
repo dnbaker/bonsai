@@ -5,11 +5,11 @@
 #include <cstdio>
 #include <cinttypes>
 #include <map>
-#include "cq.h"
+#include "circularqueue/cq.h"
 #include <vector>
 
-#include "util.h"
-#include "kmerutil.h"
+#include "bonsai/util.h"
+#include "bonsai/kmerutil.h"
 
 namespace bns {
 
