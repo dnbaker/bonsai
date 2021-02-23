@@ -55,7 +55,7 @@ void par_reduce(T *x, size_t n, const Func &func=Func()) {
 
 void usage() {
     std::fprintf(stderr, "Usage: setsketcher <opts> (input paths) \n"
-                        " Opts: [-k [31] -o [/dev/stdout] -C [true] -N [use_nthash] -c [use_cyclic_hash] -p [1] <paths>\n"
+                        " Opts: [-k [31] -o [/dev/stdout] -C [true] -N [use_nthash] -c [use_cyclic_hash] -p [1]] <paths>\n"
                         "-k: set k-mer length\n"
                         "-C: do not canonicalize\n"
                         "-p: set number of threads\n"
