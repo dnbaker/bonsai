@@ -126,7 +126,7 @@ public:
         data_.get()[n_++] = val;
         return back();
     }
-    
+
     void zero()  {std::memset(data_.get(), 0, sizeof(T) * n_);} // DOES NOT CALL DESTRUCTORS
     void clear() {n_ = 0;}
     bool empty() const {return size() == 0;}
@@ -280,7 +280,6 @@ public:
     }
     template <typename K1, typename F, typename... Args>
         std::pair<size_type, bool> uprase_fn(K1 &&key, F fn, Args &&... val) {
-            
         auto it(std::find(keys_.begin(), keys_.end(), key));
         if(it == keys_.end()) {
             keys_.emplace_back(key);

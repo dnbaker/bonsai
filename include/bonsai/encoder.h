@@ -510,14 +510,13 @@ struct RollingHasher {
         hasher_.seed(seed1, seed2);
         rchasher_.seed(seed2 * seed1, seed2 ^ seed1);
         if(enc == PROTEIN_6_FRAME) throw NotImplementedError("Protein 6-frame not implemented.");
-#if VERBOSE_AF
-        if(enc == DNA) if(k_ > sizeof(IntType) * CHAR_BIT / 2) LOG_WARNING("There will may be significant collisions, as k is greater than the universe size.\n");
-        if(enc == PROTEIN) if(k_ > sizeof(IntType) * CHAR_BIT / 4) LOG_WARNING("There will may be significant collisions, as k is greater than the universe size.\n");
-        if(enc == PROTEIN_3BIT) if(k_ > sizeof(IntType) * CHAR_BIT / 3) LOG_WARNING("There will may be significant collisions, as k is greater than the universe size.\n");
-#endif
     }
     template<typename Functor>
     void for_each_canon(const Functor &func, const char *s, size_t l) {
+        if(enctype_ != DNA) {
+            for_each_uncanon<Functor>(func, s, l);
+            return;
+        }
         if(l < k_) return;
         hasher_.reset();
         rchasher_.reset();
@@ -549,28 +548,43 @@ struct RollingHasher {
     void for_each_uncanon(const Functor &func, const char *s, size_t l) {
         if(l < k_) return;
         hasher_.reset();
-        rchasher_.reset();
         size_t i, nf;
         uint8_t v1;
-        for(i = nf = 0; nf < k_ && i < l; ++i) {
-            if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
-                fixup:
-                if(i + 2 * k_ >= l) return;
-                i += k_;
-                nf = 0;
-                hasher_.reset();
-                rchasher_.reset();
-            } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
-              // In the future, encode the side that is still valid
-            else hasher_.eat(v1), rchasher_.eat(cstr_rc_lut[s[i - nf + k_ - 1]]), ++nf;
+        if(enctype_ != DNA) {
+            for(i = nf = 0; nf < k_ && i < l; ++i) {
+                if(unlikely((v1 = s[i]) == 0)) {
+                    fixup_protein:
+                    if(i + 2 * k_ >= l) return;
+                    i += k_; nf = 0; hasher_.reset();
+                } else hasher_.eat(v1), ++nf;
+            }
+        } else {
+            for(i = nf = 0; nf < k_ && i < l; ++i) {
+                if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
+                    fixup:
+                    if(i + 2 * k_ >= l) return;
+                    i += k_; nf = 0;
+                    hasher_.reset();
+                } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
+                  // In the future, encode the side that is still valid
+                else hasher_.eat(v1), ++nf;
+            }
         }
         if(nf < k_) return; // All failed
         func(hasher_.hashvalue);
-        for(;i < l; ++i) {
-            if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
-                goto fixup;
-            hasher_.update(cstr_lut[s[i - k_]], v1);
-            func(hasher_.hashvalue);
+        if(enctype_ != DNA)  {
+            for(;i < l; ++i) {
+                if((v1 = s[i]) == 0) goto fixup_protein;
+                hasher_.update(s[i - k_], v1);
+                func(hasher_.hashvalue);
+            }
+        } else {
+            for(;i < l; ++i) {
+                if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
+                    goto fixup;
+                hasher_.update(cstr_lut[s[i - k_]], v1);
+                func(hasher_.hashvalue);
+            }
         }
     }
     template<typename Functor>
