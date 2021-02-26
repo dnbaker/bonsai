@@ -14,6 +14,10 @@ using namespace bns;
 #define VALUE_TYPE uint32_t
 #endif
 
+#ifndef CSETFT
+#define CSETFT double
+#endif
+
 template<typename Sketch>
 void update_sketch(Encoder<> &enc, RollingHasher<uint64_t> &rolling_hasher, Sketch &sketch, const std::string &path, const int htype, kseq_t *kseq=static_cast<kseq_t*>(nullptr)) {
     auto update_fn = [&sketch](uint64_t x) {
@@ -55,7 +59,7 @@ void par_reduce(T *x, size_t n, const Func &func=Func()) {
 
 void usage() {
     std::fprintf(stderr, "Usage: setsketcher <opts> (input paths) \n"
-                        " Opts: [-k [31] -o [/dev/stdout] -C [true] -N [use_nthash] -c [use_cyclic_hash] -p [1]] <paths>\n"
+                        " Opts: [-k [31] -o [default.sketch] -C [true] -N [use_nthash] -c [use_cyclic_hash] -p [1]] <paths>\n"
                         "-k: Set k-mer length\n"
                         "-C: Do not canonicalize\n"
                         "-p: Set number of threads\n"
@@ -70,14 +74,14 @@ void usage() {
 }
 
 int main(int argc, char **argv) {
-    std::string ofile = "/dev/stdout", fpaths;
+    std::string ofile = "default.sketch", fpaths;
     std::string kmerparsetype = "bns";
     bool canon = true, enable_protein = false,
         save_kmers = 0, save_kmer_counts = 0,
         save_sketches = 1;
     int k = 31, nthreads = 1;
     size_t initsize = 1ull << 20, sketchsize = 4096;
-    double startmax = std::numeric_limits<double>::max();
+    CSETFT startmax = std::numeric_limits<CSETFT>::max();
     for(int c;(c = getopt(argc, argv, "Y:I:k:F:o:p:z:ZPsScCNh?")) >= 0;) {
         switch(c) {
             case 'Z': save_sketches = 0; break;
@@ -129,9 +133,9 @@ int main(int argc, char **argv) {
     RollingHasher<uint64_t> *rencoders = static_cast<RollingHasher<uint64_t> *>(std::malloc(sizeof(RollingHasher<uint64_t>) * nthreads));
     Encoder<> *encoders = static_cast<Encoder<> *>(std::malloc(sizeof(Encoder<>) * nthreads));
     kseq_t *kseqs = static_cast<kseq_t *>(std::calloc(nthreads, sizeof(kseq_t)));
-    CSetSketch<double> *sketches = static_cast<CSetSketch<double> *>(std::calloc(nthreads, sizeof(CSetSketch<double>)));
-    CSetSketch<double> *usketches = nullptr;
-    if(save_sketches) usketches = static_cast<CSetSketch<double> *>(std::calloc(nthreads, sizeof(CSetSketch<double>)));
+    CSetSketch<CSETFT> *sketches = static_cast<CSetSketch<CSETFT> *>(std::calloc(nthreads, sizeof(CSetSketch<CSETFT>)));
+    CSetSketch<CSETFT> *usketches = nullptr;
+    if(save_sketches) usketches = static_cast<CSetSketch<CSETFT> *>(std::calloc(nthreads, sizeof(CSetSketch<CSETFT>)));
 
     const RollingHashingType rht = enable_protein ? RollingHashingType::PROTEIN: RollingHashingType::DNA;
 #ifdef _OPENMP
@@ -143,38 +147,35 @@ int main(int argc, char **argv) {
         back.seq.s = static_cast<char *>(std::malloc(initsize));
         new (encoders + idx) Encoder<>(k, canon);
         new (rencoders + idx) RollingHasher<uint64_t>(k, canon, rht);
-        new (sketches + idx) CSetSketch<double>(sketchsize, save_kmers, save_kmer_counts, startmax);
+        new (sketches + idx) CSetSketch<CSETFT>(sketchsize, save_kmers, save_kmer_counts, startmax);
         if(usketches) {
-            new(usketches + idx) CSetSketch<double>(sketchsize, save_kmers, save_kmer_counts, startmax);
+            new(usketches + idx) CSetSketch<CSETFT>(sketchsize, save_kmers, save_kmer_counts, startmax);
         }
     }
     const int htype = kmerparsetype == "bns" ? 0: kmerparsetype == "cyclic"? 1: 2;
-    double maxv = 0., minv = std::numeric_limits<double>::max();
+    CSETFT maxv = 0., minv = std::numeric_limits<CSETFT>::max();
 #ifdef _OPENMP
     #pragma omp parallel for schedule(dynamic)
 #endif
     for(size_t i = 0; i < infiles.size(); ++i) {
-        int tid = 0;
-#ifdef _OPENMP
-        tid = omp_get_thread_num();
-#endif
+        const int tid = OMP_ELSE(omp_get_thread_num(), 0);
         auto &s = sketches[tid];
         if(s.total_updates()) s.clear();
-        //auto &s = sketches[tid];
         update_sketch(
                 encoders[tid], rencoders[tid], s, // Parsing/Sketching prep
                 infiles[i], htype, &kseqs[tid]    // Path/Sketch format/buffer
         );
+        std::fprintf(stderr, "%s\t%zu. Total updates %zu, inner loop updates: %zu, %zu floop\n", infiles[i].data(), size_t(s.cardinality()), s.total_updates(), s.inner_loop_updates(), s.floopupdates);
         if(save_sketches) {
             s.write(infiles[i] + "." + std::to_string(sketchsize) + ".ss");
-            maxv = std::max(maxv, double(s.max()));
-            minv = std::min(minv, double(s.min()));
+            maxv = std::max(maxv, CSETFT(s.max()));
+            minv = std::min(minv, CSETFT(s.min()));
             if(!usketches[tid].total_updates()) usketches[tid] = s;
             else usketches[tid] += s;
         }
-        std::fprintf(stderr, "%s has ~%zu cardinality\n", infiles[i].data(), size_t(s.cardinality()));
     }
     if(save_sketches) std::swap(sketches, usketches);
+    auto t = std::chrono::high_resolution_clock::now();
     par_reduce(sketches, nthreads);
     std::fprintf(stderr, "union cardinality: %g\n", sketches->cardinality());
     if(!save_kmers) {
@@ -207,6 +208,8 @@ int main(int argc, char **argv) {
             }
         }
     }
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::fprintf(stderr, "Subtract from the time to account for the parallel reduction/merging: %g\n", std::chrono::duration<double, std::milli>(t2 - t).count());
     std::fprintf(stderr, "min, max values are %0.20g, %0.20g\n", minv, maxv);
     size_t ind  = 0;
     std::vector<const char *> names {{"uint8", "uint16", "uint32", "uint64"}};
@@ -215,12 +218,17 @@ int main(int argc, char **argv) {
         const char *s = names[ind++];
         std::fprintf(stderr, "optimal a, b for %s are %0.22Lg and %0.22Lg\n", s, optm.first, optm.second);
     }
-    for(int i = 0; i < nthreads; ++i) kseq_destroy_stack(kseqs[i]);
+    OMP_PFOR
     for(int i = 0; i < nthreads; ++i) {
-        sketches[i].~CSetSketch<double>();
-        if(usketches) usketches[i].~CSetSketch<double>();
+        kseq_destroy_stack(kseqs[i]);
+        sketches[i].~CSetSketch<CSETFT>();
         encoders[i].~Encoder<>();
         rencoders[i].~RollingHasher<uint64_t>();
+    }
+    if(usketches) {
+        OMP_PFOR
+        for(int i = 0; i < nthreads; ++i)
+            usketches[i].~CSetSketch<CSETFT>();
     }
     std::free(kseqs);
     std::free(sketches);
