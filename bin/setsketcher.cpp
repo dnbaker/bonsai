@@ -56,26 +56,31 @@ void par_reduce(T *x, size_t n, const Func &func=Func()) {
 void usage() {
     std::fprintf(stderr, "Usage: setsketcher <opts> (input paths) \n"
                         " Opts: [-k [31] -o [/dev/stdout] -C [true] -N [use_nthash] -c [use_cyclic_hash] -p [1]] <paths>\n"
-                        "-k: set k-mer length\n"
-                        "-C: do not canonicalize\n"
-                        "-p: set number of threads\n"
-                        "-s: save kmers. This yields additional files consisting of sampled k-mers as well. (This can be used to build estimators for GC bias, Shannon entropy, and seeding)\n"
-                        "-S: save kmer counts [Implies -s]. This yields additional files describing multiplicities of k-mers.\n"
+                        "-k: Set k-mer length\n"
+                        "-C: Do not canonicalize\n"
+                        "-p: Set number of threads\n"
+                        "-s: Save kmers. This yields additional files consisting of sampled k-mers as well. (This can be used to build estimators for GC bias, Shannon entropy, and seeding)\n"
+                        "-S: Save kmer counts [Implies -s]. This yields additional files describing multiplicities of k-mers.\n"
                         "-z: Set sketch size (default: 4096)\n"
                         "-F: Load paths from <file> (in addition to positional arguments)\n"
                         "-P: Parse protein k-mers instead of DNA k-mers [this implies cyclic, avoiding direct encoding]\n"
-                        "-I: set initial buffer size for sequence parsing to [size_t] (4194304 = 4MiB)\n"
+                        "-I: Set initial buffer size for sequence parsing to [size_t] (4194304 = 4MiB)\n"
+                        "-Z: Do not save sketches for individual files. Default behavior saves sketches for each file and also emits the union sketch.\n"
         );
 }
 
 int main(int argc, char **argv) {
     std::string ofile = "/dev/stdout", fpaths;
     std::string kmerparsetype = "bns";
-    bool canon = true, enable_protein = false, save_kmers = 0, save_kmer_counts = 0;
+    bool canon = true, enable_protein = false,
+        save_kmers = 0, save_kmer_counts = 0,
+        save_sketches = 1;
     int k = 31, nthreads = 1;
-    size_t initsize = 1ull << 22, sketchsize = 4096;
-    for(int c;(c = getopt(argc, argv, "I:k:F:o:p:z:PsScCNh?")) >= 0;) {
+    size_t initsize = 1ull << 20, sketchsize = 4096;
+    double startmax = std::numeric_limits<double>::max();
+    for(int c;(c = getopt(argc, argv, "Y:I:k:F:o:p:z:ZPsScCNh?")) >= 0;) {
         switch(c) {
+            case 'Z': save_sketches = 0; break;
             case 'k': k = std::atoi(optarg); break;
             case 'o': ofile = optarg; break;
             case 'h': usage(); return EXIT_FAILURE;
@@ -89,6 +94,7 @@ int main(int argc, char **argv) {
             case 'p': nthreads = std::atoi(optarg); break;
             case 'P': enable_protein = true; kmerparsetype = "cyclic"; break;
             case 'I': initsize = std::strtoull(optarg, nullptr, 10); break;
+            case 'Y': startmax = std::atof(optarg); break;
             //case 'S': spacestr = optarg; break;
         }
     }
@@ -120,24 +126,30 @@ int main(int argc, char **argv) {
     omp_set_num_threads(nthreads);
 #endif
     std::fprintf(stderr, "Sketching %s %u-mers, %s\n", canon ? "canonical": "stranded", k, &kmerparsetype[0]);
-    std::vector<kseq_t> kseqs;
-    std::vector<Encoder<>> encoders;
-    std::vector<RollingHasher<uint64_t>> rencoders;
-    std::vector<sketch::CSetSketch<double>> sketches;
-#define RSV(x) x.reserve(nthreads);
-    RSV(kseqs)  RSV(encoders) RSV(rencoders) RSV(sketches)
-#undef RSV
+    RollingHasher<uint64_t> *rencoders = static_cast<RollingHasher<uint64_t> *>(std::malloc(sizeof(RollingHasher<uint64_t>) * nthreads));
+    Encoder<> *encoders = static_cast<Encoder<> *>(std::malloc(sizeof(Encoder<>) * nthreads));
+    kseq_t *kseqs = static_cast<kseq_t *>(std::calloc(nthreads, sizeof(kseq_t)));
+    CSetSketch<double> *sketches = static_cast<CSetSketch<double> *>(std::calloc(nthreads, sizeof(CSetSketch<double>)));
+    CSetSketch<double> *usketches = nullptr;
+    if(save_sketches) usketches = static_cast<CSetSketch<double> *>(std::calloc(nthreads, sizeof(CSetSketch<double>)));
+
     const RollingHashingType rht = enable_protein ? RollingHashingType::PROTEIN: RollingHashingType::DNA;
-    while(std::ptrdiff_t(kseqs.size()) < nthreads) {
-        kseqs.emplace_back(kseq_init_stack());
-        auto &back = kseqs.back();
+#ifdef _OPENMP
+    #pragma omp parallel for
+#endif
+    for(int idx = 0; idx < nthreads; ++idx) {
+        auto &back = kseqs[idx];
         back.seq.m = initsize;
         back.seq.s = static_cast<char *>(std::malloc(initsize));
-        encoders.emplace_back(k, canon);
-        rencoders.emplace_back(k, canon, rht);
-        sketches.emplace_back(sketchsize, save_kmers, save_kmer_counts);
+        new (encoders + idx) Encoder<>(k, canon);
+        new (rencoders + idx) RollingHasher<uint64_t>(k, canon, rht);
+        new (sketches + idx) CSetSketch<double>(sketchsize, save_kmers, save_kmer_counts, startmax);
+        if(usketches) {
+            new(usketches + idx) CSetSketch<double>(sketchsize, save_kmers, save_kmer_counts, startmax);
+        }
     }
     const int htype = kmerparsetype == "bns" ? 0: kmerparsetype == "cyclic"? 1: 2;
+    double maxv = 0., minv = std::numeric_limits<double>::max();
 #ifdef _OPENMP
     #pragma omp parallel for schedule(dynamic)
 #endif
@@ -146,16 +158,29 @@ int main(int argc, char **argv) {
 #ifdef _OPENMP
         tid = omp_get_thread_num();
 #endif
+        auto &s = sketches[tid];
+        if(s.total_updates()) s.clear();
+        //auto &s = sketches[tid];
         update_sketch(
-                encoders[tid], rencoders[tid], sketches[tid], // Parsing/Sketching prep
-                infiles[i], htype, &kseqs[tid]                // Path/Sketch format/buffer
+                encoders[tid], rencoders[tid], s, // Parsing/Sketching prep
+                infiles[i], htype, &kseqs[tid]    // Path/Sketch format/buffer
         );
+        if(save_sketches) {
+            s.write(infiles[i] + "." + std::to_string(sketchsize) + ".ss");
+            maxv = std::max(maxv, double(s.max()));
+            minv = std::min(minv, double(s.min()));
+            if(!usketches[tid].total_updates()) usketches[tid] = s;
+            else usketches[tid] += s;
+        }
+        std::fprintf(stderr, "%s has ~%zu cardinality\n", infiles[i].data(), size_t(s.cardinality()));
     }
-    par_reduce(&sketches[0], nthreads);
+    if(save_sketches) std::swap(sketches, usketches);
+    par_reduce(sketches, nthreads);
+    std::fprintf(stderr, "union cardinality: %g\n", sketches->cardinality());
     if(!save_kmers) {
-        sketches.front().write(ofile);
+        sketches->write(ofile);
     } else {
-        auto &f = sketches.front();
+        auto &f = *sketches;
         f.write(ofile + ".csketch");
         {
             {
@@ -168,7 +193,7 @@ int main(int argc, char **argv) {
                 const auto idcp = f.idcounts().data();
                 for(size_t i = 0; i < f.ids().size(); ++i) {
                     uint64_t id = idp[i];
-                    if(htype == 0) ofshr << encoders.front().sp_.to_string(id);
+                    if(htype == 0) ofshr << encoders->sp_.to_string(id);
                     else           ofshr << id;
                     if(f.idcounts().size()) {
                         ofshr << '\t' << idcp[i];
@@ -182,5 +207,25 @@ int main(int argc, char **argv) {
             }
         }
     }
+    std::fprintf(stderr, "min, max values are %0.20g, %0.20g\n", minv, maxv);
+    size_t ind  = 0;
+    std::vector<const char *> names {{"uint8", "uint16", "uint32", "uint64"}};
+    for(const auto sz: {255ul, 65535ul, 0xFFFFFFFFul}) {
+        auto optm = sketches->optimal_parameters(maxv, minv, sz);
+        const char *s = names[ind++];
+        std::fprintf(stderr, "optimal a, b for %s are %0.22Lg and %0.22Lg\n", s, optm.first, optm.second);
+    }
+    for(int i = 0; i < nthreads; ++i) kseq_destroy_stack(kseqs[i]);
+    for(int i = 0; i < nthreads; ++i) {
+        sketches[i].~CSetSketch<double>();
+        if(usketches) usketches[i].~CSetSketch<double>();
+        encoders[i].~Encoder<>();
+        rencoders[i].~RollingHasher<uint64_t>();
+    }
+    std::free(kseqs);
+    std::free(sketches);
+    std::free(usketches);
+    std::free(encoders);
+    std::free(rencoders);
     return EXIT_SUCCESS;
 }
