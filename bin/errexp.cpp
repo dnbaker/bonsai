@@ -6,7 +6,7 @@ using sketch::CSetSketch;
 using sketch::hll_t;
 
 void usage()  {
-    std::fprintf(stderr, "errexp <flags>\n-l <linspace = .1>. Set the spacing between 0 and 1 for Jaccard's to measure.\n");
+    std::fprintf(stderr, "errexp <flags>\n-l <linspace = .1>. Set the spacing between 0 and 1 for Jaccard's to measure. Emits max/min register values to stderr and a table to stdout\n");
 }
 
 
