@@ -125,6 +125,10 @@ setsketcher: bin/setsketcher.cpp clhash.o klib/kthread.o $(wildcard include/bons
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
 fsetsketcher: bin/setsketcher.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -DCSETFT=float
+setsketchindexer: bin/setsketchindexer.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
+fsetsketchindexer: bin/setsketchindexer.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -DCSETFT=float
 ad%: bin/%.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -fsanitize=address
 %: bin/%.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a

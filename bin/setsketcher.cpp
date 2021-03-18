@@ -10,10 +10,6 @@
 
 using namespace bns;
 
-#ifndef VALUE_TYPE
-#define VALUE_TYPE uint32_t
-#endif
-
 #ifndef CSETFT
 #define CSETFT double
 #endif
@@ -138,9 +134,7 @@ int main(int argc, char **argv) {
     if(save_sketches) usketches = static_cast<CSetSketch<CSETFT> *>(std::calloc(nthreads, sizeof(CSetSketch<CSETFT>)));
 
     const RollingHashingType rht = enable_protein ? RollingHashingType::PROTEIN: RollingHashingType::DNA;
-#ifdef _OPENMP
-    #pragma omp parallel for
-#endif
+    OMP_PFOR
     for(int idx = 0; idx < nthreads; ++idx) {
         auto &back = kseqs[idx];
         back.seq.m = initsize;
@@ -167,7 +161,7 @@ int main(int argc, char **argv) {
         );
         std::fprintf(stderr, "%s\t%zu. Total updates %zu, inner loop updates: %zu, %zu floop\n", infiles[i].data(), size_t(s.cardinality()), s.total_updates(), s.inner_loop_updates(), s.floopupdates);
         if(save_sketches) {
-            s.write(infiles[i] + "." + std::to_string(sketchsize) + ".ss");
+            s.write(infiles[i] + "." + std::to_string(k) + "." + std::to_string(sketchsize) + ".ss");
             maxv = std::max(maxv, CSETFT(s.max()));
             minv = std::min(minv, CSETFT(s.min()));
             if(!usketches[tid].total_updates()) usketches[tid] = s;
@@ -212,8 +206,8 @@ int main(int argc, char **argv) {
     std::fprintf(stderr, "Subtract from the time to account for the parallel reduction/merging: %g\n", std::chrono::duration<double, std::milli>(t2 - t).count());
     std::fprintf(stderr, "min, max values are %0.20g, %0.20g\n", minv, maxv);
     size_t ind  = 0;
-    std::vector<const char *> names {{"uint8", "uint16", "uint32", "uint64"}};
-    for(const auto sz: {255ul, 65535ul, 0xFFFFFFFFul}) {
+    std::vector<const char *> names {{"nibble", "uint8", "uint16", "uint32", "uint64"}};
+    for(const auto sz: {15ul, 255ul, 65535ul, 0xFFFFFFFFul}) {
         auto optm = sketches->optimal_parameters(maxv, minv, sz);
         const char *s = names[ind++];
         std::fprintf(stderr, "optimal a, b for %s are %0.22Lg and %0.22Lg\n", s, optm.first, optm.second);
