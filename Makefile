@@ -62,7 +62,7 @@ ZSTD_INCLUDE=$(patsubst %,-I%,$(ZSTD_INCLUDE_DIRS))
 ZFLAGS=-DZWRAP_USE_ZSTD=1
 ZCOMPILE_FLAGS= $(ZFLAGS)
 ALL_ZOBJS=$(ZOBJS) $(ZW_OBJS)
-INCLUDE=-Iclhash/include -I. -I.. -Ihll/libpopcnt -I.. -Iinclude -Icircularqueue $(ZSTD_INCLUDE) $(INCPLUS) -Ihll/vec -Ihll -Ihll/include -Ipdqsort -Iinclude/bonsai -Iinclude \
+INCLUDE=-Iclhash/include -I. -I.. -Ihll/include -Ihll/libpopcnt -I.. -Iinclude -Icircularqueue $(ZSTD_INCLUDE) $(INCPLUS) -Ihll/vec -Ihll -Ipdqsort -Iinclude/bonsai -Iinclude \
     -Ihll/vec/blaze
 
 
@@ -128,7 +128,7 @@ fsetsketcher: bin/setsketcher.cpp clhash.o klib/kthread.o $(wildcard include/bon
 ad%: bin/%.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -fsanitize=address
 %: bin/%.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
-	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -Ihll/include
 
 bin/kmercnt: bin/kmercnt.cpp clhash.o klib/kthread.o
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
