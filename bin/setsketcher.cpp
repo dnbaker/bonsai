@@ -1,7 +1,7 @@
 #include "bonsai/encoder.h"
 #include "bonsai/util.h"
 #include "kseq_declare.h"
-#include "hll/flat_hash_map/flat_hash_map.hpp"
+//#include "hll/flat_hash_map/flat_hash_map.hpp"
 #include <getopt.h>
 #ifdef _OPENMP
 #include <omp.h>
@@ -66,6 +66,7 @@ void usage() {
                         "-P: Parse protein k-mers instead of DNA k-mers [this implies cyclic, avoiding direct encoding]\n"
                         "-I: Set initial buffer size for sequence parsing to [size_t] (4194304 = 4MiB)\n"
                         "-Z: Do not save sketches for individual files. Default behavior saves sketches for each file and also emits the union sketch.\n"
+                        "-B: Store per-sample setsketches and k-mer samples in current directory instead of the file containing the sequence files\n"
         );
 }
 
@@ -77,19 +78,24 @@ int main(int argc, char **argv) {
         save_sketches = 1;
     int k = 31, nthreads = 1;
     size_t initsize = 1ull << 20, sketchsize = 4096;
+    std::FILE *logfp = stderr;
+    bool basename = false;
     CSETFT startmax = std::numeric_limits<CSETFT>::max();
-    for(int c;(c = getopt(argc, argv, "Y:I:k:F:o:p:z:ZPsScCNh?")) >= 0;) {
+    for(int c;(c = getopt(argc, argv, "BL:Y:I:k:F:o:p:z:ZPsScCNh?")) >= 0;) {
         switch(c) {
+            case 'B': basename = true; break;
             case 'Z': save_sketches = 0; break;
             case 'k': k = std::atoi(optarg); break;
             case 'o': ofile = optarg; break;
+            case 'L': if(!(logfp = std::fopen(optarg, "w"))) throw std::runtime_error("Failed to open logfile");
+                      break;
             case 'h': usage(); return EXIT_FAILURE;
             case 'N': kmerparsetype = "nthash"; break;
             case 'C': canon = false; break;
             case 'c': kmerparsetype = "cyclic"; break;
             case 'z': sketchsize = std::strtoull(optarg, nullptr, 10); break;
-            case 's': save_kmer_counts = true; [[fallthrough]];
             case 'S': save_kmers = true; break;
+            case 's': save_kmer_counts = save_kmers = true; break;
             case 'F': fpaths = optarg; break;
             case 'p': nthreads = std::atoi(optarg); break;
             case 'P': enable_protein = true; kmerparsetype = "cyclic"; break;
@@ -110,22 +116,22 @@ int main(int argc, char **argv) {
     }
     if(enable_protein) {
         if(kmerparsetype != "cyclic") {
-            std::fprintf(stderr, "Warning: enable_protein implies cyclic hashing.\n");
+            std::fprintf(logfp, "Warning: enable_protein implies cyclic hashing.\n");
             kmerparsetype = "cyclic";
         }
     } else if(k > 32 && kmerparsetype == "bns") {
-        std::fprintf(stderr, "Warning: k > 32 implies nthash-based rolling hashing.\n");
+        std::fprintf(logfp, "Warning: k > 32 implies nthash-based rolling hashing.\n");
         kmerparsetype = "nthash";
     }
     if((save_kmers || save_kmer_counts) && (ofile == "/dev/stdout" || ofile == "-")) {
-        std::fprintf(stderr, "Error: -o required if save_kmers or save_kmer_counts is set. (This yields multiple files using -o as a prefix.)");
+        std::fprintf(logfp, "Error: -o required if save_kmers or save_kmer_counts is set. (This yields multiple files using -o as a prefix.)");
         std::exit(EXIT_FAILURE);
     }
     nthreads = std::max(nthreads, 1);
 #ifdef _OPENMP
     omp_set_num_threads(nthreads);
 #endif
-    std::fprintf(stderr, "Sketching %s %u-mers, %s\n", canon ? "canonical": "stranded", k, &kmerparsetype[0]);
+    std::fprintf(logfp, "Sketching %s %u-mers, %s\n", canon ? "canonical": "stranded", k, &kmerparsetype[0]);
     RollingHasher<uint64_t> *rencoders = static_cast<RollingHasher<uint64_t> *>(std::malloc(sizeof(RollingHasher<uint64_t>) * nthreads));
     Encoder<> *encoders = static_cast<Encoder<> *>(std::malloc(sizeof(Encoder<>) * nthreads));
     kseq_t *kseqs = static_cast<kseq_t *>(std::calloc(nthreads, sizeof(kseq_t)));
@@ -159,19 +165,30 @@ int main(int argc, char **argv) {
                 encoders[tid], rencoders[tid], s, // Parsing/Sketching prep
                 infiles[i], htype, &kseqs[tid]    // Path/Sketch format/buffer
         );
-        std::fprintf(stderr, "%s\t%zu. Total updates %zu, inner loop updates: %zu, %zu floop\n", infiles[i].data(), size_t(s.cardinality()), s.total_updates(), s.inner_loop_updates(), s.floopupdates);
+        const size_t scard = s.cardinality();
+        std::fprintf(logfp, "%s\t%zu. Total updates %zu for %%%f unique \n", infiles[i].data(), scard, s.total_updates(), 100. * scard / s.total_updates());
+        std::string filebasename = infiles[i];
+        if(basename) {
+            auto pos = filebasename.find_last_of('/');
+            if(pos != std::string::npos) filebasename = std::string(&filebasename[pos + 1], &filebasename[filebasename.size()]);
+        }
         if(save_sketches) {
-            s.write(infiles[i] + "." + std::to_string(k) + "." + std::to_string(sketchsize) + ".ss");
+            s.write(filebasename + "." + std::to_string(k) + "." + std::to_string(sketchsize) + ".ss");
             maxv = std::max(maxv, CSETFT(s.max()));
             minv = std::min(minv, CSETFT(s.min()));
             if(!usketches[tid].total_updates()) usketches[tid] = s;
             else usketches[tid] += s;
         }
+        if(save_kmers) {
+            const std::string path = filebasename + "." + std::to_string(k) + "." + std::to_string(sketchsize) + ".u64.kmers";
+            std::ofstream ofs(path, std::ios::out | std::ios::binary);
+            ofs.write((const char *)s.ids().data(), s.ids().size() * sizeof(s.ids()[0]));
+        }
     }
     if(save_sketches) std::swap(sketches, usketches);
     auto t = std::chrono::high_resolution_clock::now();
     par_reduce(sketches, nthreads);
-    std::fprintf(stderr, "union cardinality: %g\n", sketches->cardinality());
+    std::fprintf(logfp, "union cardinality: %g\n", sketches->cardinality());
     if(!save_kmers) {
         sketches->write(ofile);
     } else {
@@ -179,7 +196,9 @@ int main(int argc, char **argv) {
         f.write(ofile + ".csketch");
         {
             {
-                std::ofstream ofs(ofile + ".u64.kmers", std::ios::out | std::ios::binary);
+                const std::string path = ofile + ".u64.kmers";
+                std::ofstream ofs(path, std::ios::out | std::ios::binary);
+                std::fprintf(logfp, "Writing k-mers to %s\n", path.data());
                 ofs.write((const char *)f.ids().data(), f.ids().size() * sizeof(f.ids()[0]));
             }
             {
@@ -190,9 +209,7 @@ int main(int argc, char **argv) {
                     uint64_t id = idp[i];
                     if(htype == 0) ofshr << encoders->sp_.to_string(id);
                     else           ofshr << id;
-                    if(f.idcounts().size()) {
-                        ofshr << '\t' << idcp[i];
-                    }
+                    if(f.idcounts().size()) ofshr << '\t' << idcp[i];
                     ofshr << '\n';
                 }
             }
@@ -203,14 +220,14 @@ int main(int argc, char **argv) {
         }
     }
     auto t2 = std::chrono::high_resolution_clock::now();
-    std::fprintf(stderr, "Subtract from the time to account for the parallel reduction/merging: %g\n", std::chrono::duration<double, std::milli>(t2 - t).count());
-    std::fprintf(stderr, "min, max values are %0.20g, %0.20g\n", minv, maxv);
+    std::fprintf(logfp, "Subtract from the time to account for the parallel reduction/merging: %g\n", std::chrono::duration<double, std::milli>(t2 - t).count());
+    std::fprintf(logfp, "min, max values are %0.20g, %0.20g\n", minv, maxv);
     size_t ind  = 0;
     std::vector<const char *> names {{"nibble", "uint8", "uint16", "uint32", "uint64"}};
     for(const auto sz: {15ul, 255ul, 65535ul, 0xFFFFFFFFul}) {
         auto optm = sketches->optimal_parameters(maxv, minv, sz);
         const char *s = names[ind++];
-        std::fprintf(stderr, "optimal a, b for %s are %0.22Lg and %0.22Lg\n", s, optm.first, optm.second);
+        std::fprintf(logfp, "optimal a, b for %s are %0.22Lg and %0.22Lg\n", s, optm.first, optm.second);
     }
     OMP_PFOR
     for(int i = 0; i < nthreads; ++i) {
@@ -229,5 +246,6 @@ int main(int argc, char **argv) {
     std::free(usketches);
     std::free(encoders);
     std::free(rencoders);
+    if(logfp != stderr) std::fclose(logfp);
     return EXIT_SUCCESS;
 }
