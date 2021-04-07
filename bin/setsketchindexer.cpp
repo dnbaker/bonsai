@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
         std::sort(c.begin(), c.end(), std::greater<void>());
         {
             std::lock_guard<std::mutex> lock(mut);
-            std::fprintf(stdout, "%u", i);
+            std::fprintf(stdout, "%zu", i);
             for(size_t j = 0; j < k; ++j) {
                 std::fprintf(stdout, "\t%u:%0.6g", c[j].second, c[j].first);
             }

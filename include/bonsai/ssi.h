@@ -4,6 +4,8 @@
 
 namespace bns {
 
+using sketch::setsketch::SetSketchIndex;
+#if 0
 template<typename FT=double, typename KeyT=uint64_t, typename IdT=uint32_t>
 struct SetSketchIndex {
 private:
@@ -86,6 +88,7 @@ public:
         return std::make_pair(passing_ids, items_per_row);
     }
 };
+#endif
 
 } // namespace bns
 
