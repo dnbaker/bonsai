@@ -112,6 +112,7 @@ int main(int argc, char **argv) {
         }
     }
     if(infiles.empty()) {
+        std::fprintf(stderr, "Reading from stdin. If this is unintended, see usage.\n");
         infiles.emplace_back("/dev/stdin");
     }
     if(enable_protein) {
