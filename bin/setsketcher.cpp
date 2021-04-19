@@ -227,8 +227,11 @@ int main(int argc, char **argv) {
     std::vector<const char *> names {{"nibble", "uint8", "uint16", "uint32", "uint64"}};
     for(const auto sz: {15ul, 255ul, 65535ul, 0xFFFFFFFFul}) {
         auto optm = sketches->optimal_parameters(maxv, minv, sz);
-        const char *s = names[ind++];
-        std::fprintf(logfp, "optimal a, b for %s are %0.22Lg and %0.22Lg\n", s, optm.first, optm.second);
+        const char *s = names[ind];
+        std::fprintf(logfp, "optimal a, b for %s are %0.22Lg and %0.22Lg", s, optm.second, optm.first);
+        optm = sketches->optimal_parameters(maxv + 0.4, minv, sz);
+        std::fprintf(logfp, ", or %0.22Lg and %0.22Lg, to get more information in general at the risk of saturation\n", optm.second, optm.first);
+        ++ind;
     }
     OMP_PFOR
     for(int i = 0; i < nthreads; ++i) {
