@@ -36,6 +36,15 @@ struct PlusEq {
     T &operator()(T &lhs, const T &rhs) const {return lhs += rhs;}
 };
 
+using namespace sketch;
+using namespace sketch::setsketch;
+
+#ifdef USE_OPH
+using SSType = CSetSketch<CSETFT>;
+#else
+using SSType = OPCSetSketch<CSETFT>;
+#endif
+
 template<typename T, typename Func=PlusEq>
 void par_reduce(T *x, size_t n, const Func &func=Func()) {
     const unsigned int ln = static_cast<int>(std::ceil(std::log2(n)));
@@ -136,9 +145,9 @@ int main(int argc, char **argv) {
     RollingHasher<uint64_t> *rencoders = static_cast<RollingHasher<uint64_t> *>(std::malloc(sizeof(RollingHasher<uint64_t>) * nthreads));
     Encoder<> *encoders = static_cast<Encoder<> *>(std::malloc(sizeof(Encoder<>) * nthreads));
     kseq_t *kseqs = static_cast<kseq_t *>(std::calloc(nthreads, sizeof(kseq_t)));
-    CSetSketch<CSETFT> *sketches = static_cast<CSetSketch<CSETFT> *>(std::calloc(nthreads, sizeof(CSetSketch<CSETFT>)));
-    CSetSketch<CSETFT> *usketches = nullptr;
-    if(save_sketches) usketches = static_cast<CSetSketch<CSETFT> *>(std::calloc(nthreads, sizeof(CSetSketch<CSETFT>)));
+    SSType *sketches = static_cast<SSType *>(std::calloc(nthreads, sizeof(SSType)));
+    SSType *usketches = nullptr;
+    if(save_sketches) usketches = static_cast<SSType *>(std::calloc(nthreads, sizeof(SSType)));
 
     const RollingHashingType rht = enable_protein ? RollingHashingType::PROTEIN: RollingHashingType::DNA;
     OMP_PFOR
@@ -148,13 +157,15 @@ int main(int argc, char **argv) {
         back.seq.s = static_cast<char *>(std::malloc(initsize));
         new (encoders + idx) Encoder<>(k, canon);
         new (rencoders + idx) RollingHasher<uint64_t>(k, canon, rht);
-        new (sketches + idx) CSetSketch<CSETFT>(sketchsize, save_kmers, save_kmer_counts, startmax);
+        new (sketches + idx) SSType(sketchsize, save_kmers, save_kmer_counts, startmax);
         if(usketches) {
-            new(usketches + idx) CSetSketch<CSETFT>(sketchsize, save_kmers, save_kmer_counts, startmax);
+            new(usketches + idx) SSType(sketchsize, save_kmers, save_kmer_counts, startmax);
         }
     }
     const int htype = kmerparsetype == "bns" ? 0: kmerparsetype == "cyclic"? 1: 2;
     CSETFT maxv = 0., minv = std::numeric_limits<CSETFT>::max();
+    std::atomic<uint64_t> total_processed;
+    total_processed.store(0);
 #ifdef _OPENMP
     #pragma omp parallel for schedule(dynamic)
 #endif
@@ -167,16 +178,17 @@ int main(int argc, char **argv) {
                 infiles[i], htype, &kseqs[tid]    // Path/Sketch format/buffer
         );
         const size_t scard = s.cardinality();
-        std::fprintf(logfp, "%s\t%zu. Total updates %zu for %%%f unique \n", infiles[i].data(), scard, s.total_updates(), 100. * scard / s.total_updates());
+        ++total_processed;
+        std::fprintf(logfp, "%s\t%zu. Total updates %zu for %%%f unique (%zu/%zu)\n", infiles[i].data(), scard, s.total_updates(), 100. * scard / s.total_updates(), total_processed.load(), infiles.size());
         std::string filebasename = infiles[i];
         if(basename) {
             auto pos = filebasename.find_last_of('/');
             if(pos != std::string::npos) filebasename = std::string(&filebasename[pos + 1], &filebasename[filebasename.size()]);
         }
+        maxv = std::max(maxv, CSETFT(s.max()));
+        minv = std::min(minv, CSETFT(s.min()));
         if(save_sketches) {
             s.write(filebasename + "." + std::to_string(k) + "." + std::to_string(sketchsize) + ".ss");
-            maxv = std::max(maxv, CSETFT(s.max()));
-            minv = std::min(minv, CSETFT(s.min()));
             if(!usketches[tid].total_updates()) usketches[tid] = s;
             else usketches[tid] += s;
         }
@@ -184,6 +196,11 @@ int main(int argc, char **argv) {
             const std::string path = filebasename + "." + std::to_string(k) + "." + std::to_string(sketchsize) + ".u64.kmers";
             std::ofstream ofs(path, std::ios::out | std::ios::binary);
             ofs.write((const char *)s.ids().data(), s.ids().size() * sizeof(s.ids()[0]));
+            if(save_kmer_counts) {
+                const std::string path = filebasename + "." + std::to_string(k) + "." + std::to_string(sketchsize) + ".u32.kmercounts";
+                std::ofstream ofs(path, std::ios::out | std::ios::binary);
+                ofs.write((const char *)s.idcounts().data(), s.idcounts().size() * sizeof(s.idcounts()[0]));
+            }
         }
     }
     if(save_sketches) std::swap(sketches, usketches);
@@ -236,14 +253,14 @@ int main(int argc, char **argv) {
     OMP_PFOR
     for(int i = 0; i < nthreads; ++i) {
         kseq_destroy_stack(kseqs[i]);
-        sketches[i].~CSetSketch<CSETFT>();
+        sketches[i].~SSType();
         encoders[i].~Encoder<>();
         rencoders[i].~RollingHasher<uint64_t>();
     }
     if(usketches) {
         OMP_PFOR
         for(int i = 0; i < nthreads; ++i)
-            usketches[i].~CSetSketch<CSETFT>();
+            usketches[i].~SSType();
     }
     std::free(kseqs);
     std::free(sketches);

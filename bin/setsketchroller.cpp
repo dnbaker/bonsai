@@ -20,6 +20,14 @@
 #include <zlib.h>
 #include "flat_hash_map/flat_hash_map.hpp"
 
+#if _OPENMP
+#define OMP_ELSE(x, y) x
+#define OMP_ONLY(...) __VA_ARGS__
+#else
+# define OMP_ELSE(x, y) y
+#define OMP_ONLY(...)
+#endif
+
 using std::uint64_t;
 using std::uint32_t;
 
@@ -37,9 +45,7 @@ void par_reduce(T *x, size_t n) {
         const size_t step_size = 1 << i;
         const size_t sweep_size = (i + 1) << 1;
         const size_t nsweeps = (n + (sweep_size - 1)) / sweep_size;
-        #if _OPENMP
-        #pragma omp parallel for
-        #endif
+        OMP_ONLY(_Pragma("omp parallel for"))
         for(size_t j = 0; j < nsweeps; ++j) {
             const auto lh = j * sweep_size, rh = lh + step_size;
             if(rh < n)
@@ -76,14 +82,12 @@ read_file(std::FILE *fp) {
     map.reserve(arr[0]);
     size_t total_ids_read = 0;
     for(size_t i = 0; i < arr[0]; ++i) {
-        //if(i % 256 == 0) std::fprintf(stderr, "%zu/%zu, read %zu\n", i + 1, size_t(arr[1]), total_ids_read);
         const auto nids = data[i];
         buffer.resize(nids);
         if((fret = std::fread(buffer.data(), sizeof(uint32_t), nids, fp)) != nids) {
             throw std::runtime_error(std::string("Expected to read ") + std::to_string(nids) + "-block of u32s and got " + std::to_string(fret));
         }
         total_ids_read += nids;
-        map[keys[i]] = buffer;
         map.emplace(keys[i], buffer);
     }
     std::fprintf(stderr, "Time to deserialize: %gms\n", std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - timestart).count());
@@ -145,9 +149,7 @@ int main(int argc, char **argv) {
     std::vector<uint64_t> sizes(nfiles);
     // Load files
     auto startload = std::chrono::high_resolution_clock::now();
-#ifdef _OPENMP
-    #pragma omp parallel for
-#endif
+    OMP_ONLY(_Pragma("omp parallel for"))
     for(size_t i = 0; i < nfiles; ++i) {
         std::FILE *fp;
         struct stat st;
@@ -191,12 +193,7 @@ int main(int argc, char **argv) {
     #pragma omp parallel for
 #endif
     for(uint32_t id = 0; id < nfiles; ++id) {
-        const int tid =
-#if _OPENMP
-                omp_get_thread_num();
-#else
-                0;
-#endif
+        const int tid = OMP_ELSE(omp_get_thread_num(), 0);
         auto &map = maps[tid];
         uint64_t *const eptr = data[id] + sizes[id];
         for(uint64_t *ptr = data[id]; ptr < eptr; ++ptr) {

@@ -1,7 +1,9 @@
 #include "bonsai/encoder.h"
 #include "bonsai/util.h"
 #include "kseq_declare.h"
-#include "hll/flat_hash_map/flat_hash_map.hpp"
+#include <queue>
+#include "sketch/setsketch.h"
+//#include "hll/flat_hash_map/flat_hash_map.hpp"
 #include <getopt.h>
 #ifdef _OPENMP
 #include <omp.h>

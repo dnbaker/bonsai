@@ -180,7 +180,7 @@ def main():
     ref = args.ref if args.ref else "ref"
     if argv[1:] and argv[1] == "nodes":
         if not os.path.isfile("%s/nodes.dmp" % ref):
-            cc("curl {tax_path} -o {ref}/"
+            cc("curl -s {tax_path} -o {ref}/"
                "taxdump.tgz && tar -zxvf {ref}/taxdump.tgz"
                " && mv nodes.dmp {ref}/nodes.dmp".format(**locals()),
                 shell=True)
@@ -203,7 +203,7 @@ def main():
         if not os.path.isdir(ref + "/" + clade):
             os.makedirs(ref + "/" + clade)
         if not os.path.isfile("%s/%s/as.%s.txt" % (ref, clade, clade)):
-            cstr = ("curl %s/assembly_summary.txt "
+            cstr = ("curl -s %s/assembly_summary.txt "
                     "-o %s/%s/as.%s.txt") % (to_dl[clade], ref, clade, clade)
             print(cstr)
             cc(cstr, shell=True)
@@ -213,13 +213,13 @@ def main():
         spoool.map(check_path_lazy if args.lazy else check_path,
                    ("/".join([ref, clade, s.split("/")[-1]]) for
                     s in to_dl[clade]))
-        cstrs = [("curl %s -o %s/%s/%s" %
+        cstrs = [("curl -s %s -o %s/%s/%s" %
                  (s, ref, clade, s.split("/")[-1])) for
                  s in to_dl[clade] if not os.path.isfile(
                      "%s/%s/%s" % (ref, clade, s.split("/")[-1]))]
         # If nodes.dmp hasn't been downloaded, grab it.
         if not os.path.isfile("%s/nodes.dmp" % ref):
-            cstrs.append("curl {tax_path} -o {ref}/"
+            cstrs.append("curl -s {tax_path} -o {ref}/"
                          "taxdump.tgz && tar -zxvf {ref}/taxdump.tgz"
                          " && mv nodes.dmp {ref}/nodes.dmp".format(**locals()))
         spoool.map(retry_cc, ((cs, args.die) for cs in cstrs))

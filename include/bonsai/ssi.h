@@ -1,10 +1,10 @@
 #ifndef BONSAI_SETSKETCHINDEX_H__
 #define BONSAI_SETSKETCHINDEX_H__
-#include "sketch/setsketch.h"
+#include "sketch/ssi.h"
 
 namespace bns {
 
-using sketch::setsketch::SetSketchIndex;
+using sketch::SetSketchIndex;
 
 } // namespace bns
 

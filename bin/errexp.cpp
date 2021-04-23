@@ -78,12 +78,11 @@ int main(int argc, char **argv) {
                 double cji = chit->jaccard_index(*fchit);
                 std::fprintf(stdout, "HLL\t%zu\t%zu\t%0.12g\t%0.12g\t%0.12g\n", sz, setsize, hji, exact_j, exact_j - hji);
                 std::fprintf(stdout, "CSSDouble\t%zu\t%zu\t%0.12g\t%0.12g\t%0.12g\n", sz, setsize, cji, exact_j, exact_j - cji);
-                auto lhc = chit->cardinality(), rhc = fchit->cardinality();
                 {
                     auto lhs = chit->to_setsketch<uint16_t>(1.0006, .001);
                     auto rhs = fchit->to_setsketch<uint16_t>(1.0006, .001);
                     std::fprintf(stderr, "lhs max, min %ld, %ld. rhs %ld/%ld\n", lhs.max(), lhs.min(), rhs.max(), rhs.min());
-                    auto abmu16 = lhs.alpha_beta_mu(rhs, lhc, rhc);
+                    auto abmu16 = lhs.alpha_beta_mu(rhs);
                     auto a16 = std::get<0>(abmu16);
                     auto b16 = std::get<1>(abmu16);
                     //auto mu16 = std::get<2>(abmu16);
@@ -94,7 +93,7 @@ int main(int argc, char **argv) {
                     auto lhs = chit->to_setsketch<uint8_t>(1.11, 100);
                     auto rhs = fchit->to_setsketch<uint8_t>(1.11, 100);
                     std::fprintf(stderr, "lhs max, min %ld, %ld. rhs %ld/%ld\n", lhs.max(), lhs.min(), rhs.max(), rhs.min());
-                    auto abmu8 = lhs.alpha_beta_mu(rhs, lhc, rhc);
+                    auto abmu8 = lhs.alpha_beta_mu(rhs);
                     auto a8 = std::get<0>(abmu8);
                     auto b8 = std::get<1>(abmu8);
                     //auto mu8 = std::get<2>(abmu8);

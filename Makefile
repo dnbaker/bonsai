@@ -51,7 +51,7 @@ ZTEST_OBJS=$(patsubst %.cpp,%.zo,$(wildcard test/*.cpp))
 EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard bin/*.cpp))
 ZW_OBJS=$(patsubst %.c,%.o,$(wildcard zstd/zlibWrapper/*.c)) libzstd.a
 
-EX=$(patsubst bin/%.cpp,bin/%,$(wildcard bin/*.cpp))
+EX=$(patsubst bin/%.cpp,bin/%,$(wildcard bin/*.cpp)) fsetsketcher fopsetsketcher opsetsketcher
 DEX=$(patsubst %_d,%,$(EX))
 STATEX=$(patsubst %,%_s,$(EX))
 STATEXZ=$(patsubst %,%_sz,$(EX))
@@ -125,6 +125,10 @@ setsketcher: bin/setsketcher.cpp clhash.o klib/kthread.o $(wildcard include/bons
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
 fsetsketcher: bin/setsketcher.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -DCSETFT=float
+opsetsketcher: bin/setsketcher.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -DUSE_OPH
+fopsetsketcher: bin/setsketcher.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -DCSETFT=float -DUSE_OPH
 setsketchindexer: bin/setsketchindexer.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
 fsetsketchindexer: bin/setsketchindexer.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
@@ -132,6 +136,8 @@ fsetsketchindexer: bin/setsketchindexer.cpp clhash.o klib/kthread.o $(wildcard i
 ad%: bin/%.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -fsanitize=address
 %: bin/%.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -Ihll/include
+bin/errexp: bin/errexp.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -Ihll/include
 
 bin/kmercnt: bin/kmercnt.cpp clhash.o klib/kthread.o

@@ -26,29 +26,29 @@ int usage() {
 
 // Step 1: load k-mer files
 // Step 2: invert matrix
-ska::flat_hash_map<uint64_t, std::vector<uint32_t>> load_map(std::string path) {
-    std::FILE *fp = std::fopen(path.data(), "rb");
+ska::flat_hash_map<uint64_t, std::vector<uint32_t>>
+read_file(gzFile fp) {
+    auto timestart = std::chrono::high_resolution_clock::now();
     uint64_t arr[2];
-    std::fread(arr, sizeof(arr), 1, fp);
-    uint64_t totalkmers = arr[0], totalids = arr[1];
-    std::unique_ptr<uint32_t[]> ids, idn;
-    std::unique_ptr<uint64_t[]> kmers(new uint64_t[totalkmers]);
-    idn.reset(new uint32_t[totalkmers]);
-
-    if(std::fread(idn.get(), sizeof(uint32_t), totalkmers, fp) != totalkmers) throw 1;
-    if(std::fread(kmers.get(), sizeof(uint64_t), totalkmers, fp) != totalkmers) throw 1;
-
-    ids.reset(new uint32_t[totalids]);
-    
-    if(std::fread(ids.get(), sizeof(uint32_t), totalkmers, fp) != totalkmers) throw 1;
-    ska::flat_hash_map<uint64_t, std::vector<uint32_t>> ret;
-    ret.reserve(totalkmers);
-    size_t idstart = 0;
-    for(size_t i = 0; i < totalkmers; ++i) {
-        ret.emplace(kmers[i], std::vector<uint32_t>(&ids[idstart], &ids[idstart + idn[i]]));
-        idstart += idn[i];
+    gzread(fp, arr, sizeof(arr));
+    std::unique_ptr<uint32_t[]> data(new uint32_t[arr[0]]);
+    gzread(fp, data.get(), sizeof(uint32_t) * arr[0]);
+    std::unique_ptr<uint64_t[]> keys(new uint64_t[arr[0]]);
+    gzread(fp, data.get(), sizeof(uint64_t) * arr[0]);
+    ska::flat_hash_map<uint64_t, std::vector<uint32_t>> map;
+    std::vector<uint32_t> buffer;
+    map.reserve(arr[0]);
+    size_t total_ids_read = 0;
+    for(size_t i = 0; i < arr[0]; ++i) {
+        //if(i % 256 == 0) std::fprintf(stderr, "%zu/%zu, read %zu\n", i + 1, size_t(arr[1]), total_ids_read);
+        const auto nids = data[i];
+        buffer.resize(nids);
+        gzread(fp, buffer.data(), sizeof(uint32_t) * nids);
+        total_ids_read += nids;
+        map.emplace(keys[i], buffer);
     }
-    return ret;
+    std::fprintf(stderr, "Time to deserialize: %gms\n", std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - timestart).count());
+    return map;
 }
 
 int main(int argc, char **argv) {
@@ -70,7 +70,13 @@ int main(int argc, char **argv) {
     const size_t nfiles = names.size();
     if(argc == optind) throw 1;
     auto map = load_map(argv[optind]);
+    ska::flat_hash_map<uint64_t, uint32_t> counter;
+    counter.reserve(map.size());
+    for(const auto &pair: map) counter.emplace(pair.first, 0u);
     std::fprintf(stderr, "map size %zu and total number of ids %zu\n", map.size(), std::accumulate(map.begin(), map.end(), size_t(0), [](size_t x, auto &y) {return x + y.second.size();}));
     if(names.empty()) return usage();
+    for(const auto &fn: names) {
+        
+    }
     return 0;
 }
