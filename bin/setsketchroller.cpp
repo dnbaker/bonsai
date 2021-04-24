@@ -18,7 +18,7 @@
 #include <omp.h>
 #endif
 #include <zlib.h>
-#include "flat_hash_map/flat_hash_map.hpp"
+#include "bonsai/ssi.h"
 
 #if _OPENMP
 #define OMP_ELSE(x, y) x
@@ -30,11 +30,14 @@
 
 using std::uint64_t;
 using std::uint32_t;
+using namespace bns::lsh;
 
 int usage() {
-    std::fprintf(stderr, "setsketchfolder <flags> sketch1.kmers sketch2.kmers...\n"
+    std::fprintf(stderr, "setsketchroller <flags> sketch1.kmers sketch2.kmers...\n"
                          "-b\tTrim folder path from filenames\n"
-                         "-F\tRead paths from <file> instesad of positional arguments\n");
+                         "-F\tRead paths from <file> instesad of positional arguments\n"
+                         "-k\tProvide k for database.\n"
+                         "-o\tWrite database to file instead of stdout\n");
     return 1;
 }
 
@@ -54,89 +57,31 @@ void par_reduce(T *x, size_t n) {
     }
 }
 
-ska::flat_hash_map<uint64_t, std::vector<uint32_t>> &operator+=(ska::flat_hash_map<uint64_t, std::vector<uint32_t>> &lhs, const ska::flat_hash_map<uint64_t, std::vector<uint32_t>> &rhs) {
-    for(auto &&pair: rhs) {
-        auto it = lhs.find(pair.first);
-        if(it == lhs.end()) it = lhs.emplace(pair).first;
-        else it->second.insert(it->second.end(), pair.second.begin(), pair.second.end());
-    }
-    return lhs;
-}
-
-
-// You can use this database for inverted screen sweeps
-ska::flat_hash_map<uint64_t, std::vector<uint32_t>>
-read_file(std::FILE *fp) {
-    auto timestart = std::chrono::high_resolution_clock::now();
-    uint64_t arr[2];
-    uint64_t fret;
-    if((fret = std::fread(arr, 16, 1, fp)) != 1) {throw std::runtime_error(std::string("Expected to read 1 16-byte block and got ") + std::to_string(fret));}
-    std::unique_ptr<uint32_t[]> data(new uint32_t[arr[0]]);
-    if((fret = std::fread(data.get(), sizeof(uint32_t), arr[0], fp)) != arr[0]) {
-        throw std::runtime_error(std::string("Expected to read ") + std::to_string(arr[0]) + "-block of u32s and got " + std::to_string(fret));
-    }
-    std::unique_ptr<uint64_t[]> keys(new uint64_t[arr[0]]);
-    if(std::fread(keys.get(), sizeof(uint64_t), arr[0], fp) != arr[0]) throw 3;
-    ska::flat_hash_map<uint64_t, std::vector<uint32_t>> map;
-    std::vector<uint32_t> buffer;
-    map.reserve(arr[0]);
-    size_t total_ids_read = 0;
-    for(size_t i = 0; i < arr[0]; ++i) {
-        const auto nids = data[i];
-        buffer.resize(nids);
-        if((fret = std::fread(buffer.data(), sizeof(uint32_t), nids, fp)) != nids) {
-            throw std::runtime_error(std::string("Expected to read ") + std::to_string(nids) + "-block of u32s and got " + std::to_string(fret));
-        }
-        total_ids_read += nids;
-        map.emplace(keys[i], buffer);
-    }
-    std::fprintf(stderr, "Time to deserialize: %gms\n", std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - timestart).count());
-    return map;
-}
-ska::flat_hash_map<uint64_t, std::vector<uint32_t>>
-read_file(gzFile fp) {
-    auto timestart = std::chrono::high_resolution_clock::now();
-    uint64_t arr[2];
-    gzread(fp, arr, sizeof(arr));
-    std::unique_ptr<uint32_t[]> data(new uint32_t[arr[0]]);
-    gzread(fp, data.get(), sizeof(uint32_t) * arr[0]);
-    std::unique_ptr<uint64_t[]> keys(new uint64_t[arr[0]]);
-    gzread(fp, data.get(), sizeof(uint64_t) * arr[0]);
-    ska::flat_hash_map<uint64_t, std::vector<uint32_t>> map;
-    std::vector<uint32_t> buffer;
-    map.reserve(arr[0]);
-    size_t total_ids_read = 0;
-    for(size_t i = 0; i < arr[0]; ++i) {
-        //if(i % 256 == 0) std::fprintf(stderr, "%zu/%zu, read %zu\n", i + 1, size_t(arr[1]), total_ids_read);
-        const auto nids = data[i];
-        buffer.resize(nids);
-        gzread(fp, buffer.data(), sizeof(uint32_t) * nids);
-        total_ids_read += nids;
-        map.emplace(keys[i], buffer);
-    }
-    std::fprintf(stderr, "Time to deserialize: %gms\n", std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - timestart).count());
-    return map;
-}
 // Step 1: load k-mer files
 // Step 2: invert matrix
 
 int main(int argc, char **argv) {
     bool basename = false;
     int ret = 0, nthreads = 1;
-    std::vector<std::string> names;
+    std::vector<std::string> names, qnames;
     uint64_t kmer_size_in_bytes = 8;
     std::FILE *ofp = stdout;
     std::string ofname;
-    for(int c;(c = getopt(argc, argv, "p:o:F:bh")) >= 0;) switch(c) {
+    int k = -1;
+    for(int c;(c = getopt(argc, argv, "k:p:o:F:bh")) >= 0;) switch(c) {
         case 'b': basename = true; break;
         case 'h': case '?': return usage();
         case 'o': ofname = optarg; if(!(ofp = std::fopen(optarg, "w"))) {std::fprintf(stderr, "Could not open file at %s\n", optarg); std::abort();}
                   break;
         case 'p': nthreads = std::atoi(optarg); break;
+        case 'k': k = std::atoi(optarg); break;
         case 'F': {
             std::ifstream ifs(optarg);
             for(std::string s; std::getline(ifs, s);)
                 names.push_back(s);
+        }
+        case 'q': {
+            qnames.push_back(optarg);
         }
     }
     if(nthreads < 0) nthreads = std::thread::hardware_concurrency();
@@ -189,9 +134,7 @@ int main(int argc, char **argv) {
     }
     assert(maps.size());
     auto &main_map = maps.front();
-#if _OPENMP
-    #pragma omp parallel for
-#endif
+    OMP_ONLY(_Pragma("omp parallel for"))
     for(uint32_t id = 0; id < nfiles; ++id) {
         const int tid = OMP_ELSE(omp_get_thread_num(), 0);
         auto &map = maps[tid];
@@ -204,48 +147,21 @@ int main(int argc, char **argv) {
             else
                 it->second.push_back(id);
         }
-        //std::fprintf(stderr, "After %u/%zu, %zu total keys\n", id + 1, nfiles, map.size());
     }
     par_reduce(maps.data(), maps.size());
     auto stop = std::chrono::high_resolution_clock::now();
     std::fprintf(stderr, "Index for %zu sequence files created in %fms, %zu (%%%g possible) total k-mers in the index\n", nfiles, std::chrono::duration<double, std::milli>(stop - start).count(),
                  main_map.size(), 100. * main_map.size() / total_samples);
-    uint64_t total_vals  = main_map.size();
-    std::vector<uint32_t> nids_per_kmer(total_vals);
-    {
-        auto mit = main_map.begin();
-        for(auto vit = nids_per_kmer.begin(), vie = nids_per_kmer.end(); vit != vie; ++mit, ++vit)
-            *vit = mit->second.size();
-    }
-    const uint64_t total_ids = std::accumulate(main_map.begin(), main_map.end(), uint64_t(0), [](uint64_t x, auto &pair) {return x + pair.second.size();});
-    {
-        uint64_t arr [] {total_vals, total_ids};
-        if(std::fwrite(arr, 16, 1, ofp) != 1)
-            goto write_error;
-        if(std::fwrite(nids_per_kmer.data(), sizeof(uint32_t), nids_per_kmer.size(), ofp) != nids_per_kmer.size())
-            goto write_error;
-        // Write keys
-        for(const auto &pair: main_map)
-            if(std::fwrite(&pair.first, sizeof(uint64_t), 1, ofp) != 1)
-                goto write_error; 
-        static_assert(sizeof(main_map.begin()->first) == sizeof(uint64_t), "sanity check");
-        for(const auto &pair: main_map) {
-            if(std::fwrite(pair.second.data(), sizeof(uint32_t), pair.second.size(), ofp) != pair.second.size())
-                goto write_error; 
-        }
-        if(0) {
-             write_error: {
-                 std::fprintf(stderr, "Failed to write to file");
-                 ret = 1;
-             }
-        }
-    }
+    if(k < 0) std::fprintf(stderr, "Warning: k not provided. This will need to be passed at query time for accurate processing.\n");
+    ret = bns::lsh::write_database(main_map, ofp, k);
     if(ofp != stdout) std::fclose(ofp);
     for(auto p: data) std::free(p);
 #if !defined(NDEBUG)
     if(ofp != stdout) {
         std::FILE *tfp = std::fopen(ofname.data(), "rb");
-        auto matcpy = read_file(tfp);
+        auto matcpypair = bns::lsh::read_database(tfp);
+        assert(matcpypair.second == k);
+        auto matcpy = std::move(matcpypair.first);
         std::fclose(tfp);
         std::fprintf(stderr, "Sizes: %zu/%zu\n", matcpy.size(), main_map.size());
         assert(matcpy == main_map);
