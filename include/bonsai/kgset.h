@@ -117,7 +117,7 @@ public:
         for(size_t i(1), e(core_.size()); i < e; ++i) ret += kh_size(&core_[i]);
         return ret;
     }
-    void print_weights(std::FILE *) const {
+    void print_weights(std::FILE *fp=stderr) const {
         //for(const auto &kh: core_)
             //std::fprintf(fp, "Occupancy of %zu\n", kh_size(&kh));
     }

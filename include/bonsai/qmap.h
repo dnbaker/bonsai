@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cinttypes>
-#include <map>
+#include "btree/map.h"
 #include "circularqueue/cq.h"
 #include <vector>
 
@@ -31,16 +31,14 @@ struct ElScore {
 
 template<typename T, typename ScoreType>
 class QueueMap {
-    // I could make this more efficient by using pointers instead of
-    // ElScore structs.
-    //
     using PairType           = ElScore<T, ScoreType>;
-    using map_iterator       = typename std::map<ElScore<T, ScoreType>, unsigned>::iterator;
-    using const_map_iterator = typename std::map<ElScore<T, ScoreType>, unsigned>::const_iterator;
+    using MapType = btree::map<PairType, unsigned>;
+    using map_iterator = typename MapType::iterator;
+    using const_map_iterator = typename MapType::const_iterator;
     using list_type = circ::deque<ElScore<T, ScoreType>, u32>;
 
     list_type list_;
-    std::map<ElScore<T, ScoreType>, u32> map_;
+    MapType map_;
     const size_t                         wsz_;  // window size to keep
     public:
     QueueMap(size_t wsz): list_(wsz), wsz_(wsz) {}
