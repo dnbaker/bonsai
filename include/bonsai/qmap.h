@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <cinttypes>
 #include <map>
-#include "cq.h"
+#include "circularqueue/cq.h"
 #include <vector>
 
 #include "util.h"

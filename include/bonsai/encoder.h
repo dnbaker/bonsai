@@ -99,20 +99,6 @@ private:
     qmap_t     qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
     const ScoreType  scorer_; // scoring struct
     bool canonicalize_;
-#if 0
-template<unsigned b1, unsigned b2, unsigned range=1>
-INLINE uint64_t swapbits(uint64_t x) {
-template<size_t lbits>
-INLINE uint64_t rol(uint64_t x, unsigned s) {
-template<size_t n>
-INLINE uint64_t lrot(uint64_t x) {
-    return (x << n) | (x >> (64 - n));
-}
-template<size_t n>
-INLINE uint64_t rrot(uint64_t x) {
-    return (x >> n) | (x << (64 - n));
-}
-#endif
 
 public:
     Encoder(char *s, u64 l, const Spacer &sp, void *data=nullptr,
@@ -497,7 +483,7 @@ enum RollingHashingType {
 
 template<typename IntType, typename HashClass=CyclicHash<IntType>>
 struct RollingHasher {
-    static_assert(std::is_integral<IntType>::value || std::is_same<IntType, __uint128_t>::value || std::is_same<IntType, __int128_t>::value, "Must be integral");
+    static_assert(std::is_integral<IntType>::value || sizeof(IntType) > 8, "Must be integral (or by uint128/int128");
     const unsigned k_;
     RollingHashingType enctype_;
     bool canon_;
@@ -507,6 +493,10 @@ struct RollingHasher {
                    RollingHashingType enc=DNA, uint64_t seed1=1337, uint64_t seed2=137):
         k_(k), enctype_(enc), canon_(canon), hasher_(k, sizeof(IntType) * CHAR_BIT), rchasher_(k, sizeof(IntType) * CHAR_BIT)
     {
+        if(canon_ && enc != RollingHashingType::DNA) {
+            std::fprintf(stderr, "Note: RollingHasher with Protein alphabet does not support reverse-complementing.\n");
+            canon_ = false;
+        }
         hasher_.seed(seed1, seed2);
         rchasher_.seed(seed2 * seed1, seed2 ^ seed1);
         if(enc == PROTEIN_6_FRAME) throw NotImplementedError("Protein 6-frame not implemented.");
@@ -549,20 +539,18 @@ struct RollingHasher {
     void for_each_uncanon(const Functor &func, const char *s, size_t l) {
         if(l < k_) return;
         hasher_.reset();
-        rchasher_.reset();
         size_t i, nf;
         uint8_t v1;
         for(i = nf = 0; nf < k_ && i < l; ++i) {
-            if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
+            if((v1 = cstr_lut[static_cast<uint8_t>(s[i])]) == uint8_t(-1)) {
                 fixup:
                 if(i + 2 * k_ >= l) return;
                 i += k_;
                 nf = 0;
                 hasher_.reset();
-                rchasher_.reset();
             } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
               // In the future, encode the side that is still valid
-            else hasher_.eat(v1), rchasher_.eat(cstr_rc_lut[s[i - nf + k_ - 1]]), ++nf;
+            else hasher_.eat(v1), ++nf;
         }
         if(nf < k_) return; // All failed
         func(hasher_.hashvalue);
@@ -685,7 +673,7 @@ struct RollingHasherSet {
         size_t i = 0, nf = 0;
         uint8_t v1;
         for(; nf < mink && i < l; ++i) {
-            if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
+            if((v1 = cstr_lut[static_cast<uint8_t>(s[i])]) == uint8_t(-1)) {
                 fixup:
                 if(i + 2 * mink >= l) return;
                 i += mink;
@@ -704,7 +692,7 @@ struct RollingHasherSet {
                 func(h.hasher_.hashvalue, i);
         }
         for(;i < l; ++i) {
-            if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
+            if((v1 = cstr_lut[uint8_t(s[i])]) == uint8_t(-1))
                 goto fixup;
             for(size_t hi = 0; hi < hashers_.size(); ++hi) {
                 auto &h(hashers_[hi]);
