@@ -628,7 +628,7 @@ struct RollingHasherSet {
     bool canon_;
     template<typename C>
     RollingHasherSet(const C &c, bool canon=false, RollingHashingType enc=DNA, uint64_t seedseed=1337u): canon_(canon) {
-        std::mt19937_64 mt;
+        std::mt19937_64 mt(seedseed);
         hashers_.reserve(c.size());
         for(const auto k: c)
             hashers_.emplace_back(k, canon, enc, mt(), mt());
@@ -846,7 +846,7 @@ void fill_lmers(SketchType &sketch, const std::string &path, const Spacer &space
 template<typename ScoreType>
 void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &space, bool canonicalize=true,
                     void *data=nullptr, kseq_t *ks=nullptr) {
-    fill_lmers<ScoreType>(hll, path, space, canonicalize, data, nullptr);
+    fill_lmers<ScoreType>(hll, path, space, canonicalize, data, ks);
 }
 
 #define SUB_CALL \

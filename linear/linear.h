@@ -48,7 +48,7 @@ public:
             n_{0}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
         if(data_ == nullptr)
             throw std::bad_alloc();
-        if(init) while(n_ < m_) new(data_.get() + n_++) T();
+        if(init) while(n_ < m_) new(data_.get() + n_++) T(std::forward<FactoryArgs>(args)...);
     }
     set(std::initializer_list<T> l): n_(l.size()), m_(n_), data_{static_cast<T *>(std::malloc(sizeof(T) * n_))} {
         if(data_ == nullptr)

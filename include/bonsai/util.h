@@ -180,7 +180,7 @@ static INLINE auto roundup64(T x) noexcept {
 }
 
 template <typename T>
-static void khash_destroy(T *map) noexcept {
+static void khash_destroy(T *) noexcept {
     LOG_EXIT("NotImplementedError");
 }
 
