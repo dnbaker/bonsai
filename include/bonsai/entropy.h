@@ -1,6 +1,7 @@
 #pragma once
 #include "hll/circularqueue/cq.h"
 #include "bonsai/kmerutil.h"
+#include "circularqueue/cq.h"
 
 namespace bns {
 
