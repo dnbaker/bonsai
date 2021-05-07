@@ -84,7 +84,7 @@ public:
         return std::find(begin(), end(), val);
     }
     template<typename Predicate>
-    auto find_if(const T &val, Predicate p) const {
+    auto find_if(Predicate p) const {
         return std::find_if(begin(), end(), p);
     }
     bool contains(const T &val) const {
