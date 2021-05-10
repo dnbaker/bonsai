@@ -4,7 +4,7 @@
 #include <vector>
 #include <type_traits>
 #include <string>
-#include "libpopcnt.h"
+#include "libpopcnt/libpopcnt.h"
 #define NO_BLAZE
 #define NO_SLEEF
 #include "vec/vec.h"
