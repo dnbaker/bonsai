@@ -1,11 +1,11 @@
 #include "test/catch.hpp"
+#include "sketch/hll.h"
 #include <cstdlib>
 #include <cstdio>
 #include <cmath>
 #include <string>
 #include <unordered_set>
 #include <thread>
-#include "sketch/hll.h"
 #include "encoder.h"
 #include "omp.h"
 

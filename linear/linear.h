@@ -48,7 +48,7 @@ public:
             n_{0}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
         if(data_ == nullptr)
             throw std::bad_alloc();
-        if(init) while(n_ < m_) new(data_.get() + n_++) T();
+        if(init) while(n_ < m_) new(data_.get() + n_++) T(std::forward<FactoryArgs>(args)...);
     }
     set(std::initializer_list<T> l): n_(l.size()), m_(n_), data_{static_cast<T *>(std::malloc(sizeof(T) * n_))} {
         if(data_ == nullptr)
@@ -84,7 +84,7 @@ public:
         return std::find(begin(), end(), val);
     }
     template<typename Predicate>
-    auto find_if(const T &val, Predicate p) const {
+    auto find_if(Predicate p) const {
         return std::find_if(begin(), end(), p);
     }
     bool contains(const T &val) const {
@@ -126,7 +126,7 @@ public:
         data_.get()[n_++] = val;
         return back();
     }
-    
+
     void zero()  {std::memset(data_.get(), 0, sizeof(T) * n_);} // DOES NOT CALL DESTRUCTORS
     void clear() {n_ = 0;}
     bool empty() const {return size() == 0;}
@@ -280,7 +280,6 @@ public:
     }
     template <typename K1, typename F, typename... Args>
         std::pair<size_type, bool> uprase_fn(K1 &&key, F fn, Args &&... val) {
-            
         auto it(std::find(keys_.begin(), keys_.end(), key));
         if(it == keys_.end()) {
             keys_.emplace_back(key);

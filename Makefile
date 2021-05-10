@@ -11,7 +11,7 @@ WARNINGS=-Wall -Wextra -Wno-char-subscripts \
 		 -Wpointer-arith -Wwrite-strings -Wdisabled-optimization \
 		 -Wformat -Wcast-align -Wno-unused-function -Wno-unused-parameter \
 		 -pedantic -DUSE_PDQSORT -Wunused-variable -Wno-attributes -Wno-cast-align \
-        -Wno-gnu-zero-variadic-macro-arguments -Wno-ignored-attributes -Wno-missing-braces
+        -Wno-ignored-attributes -Wno-missing-braces
 EXTRA?=
 INCPLUS?=
 EXTRA_LD?=
@@ -51,7 +51,7 @@ ZTEST_OBJS=$(patsubst %.cpp,%.zo,$(wildcard test/*.cpp))
 EXEC_OBJS=$(patsubst %.cpp,%.o,$(wildcard bin/*.cpp))
 ZW_OBJS=$(patsubst %.c,%.o,$(wildcard zstd/zlibWrapper/*.c)) libzstd.a
 
-EX=$(patsubst bin/%.cpp,bin/%,$(wildcard bin/*.cpp))
+EX=$(patsubst bin/%.cpp,bin/%,$(wildcard bin/*.cpp)) fsetsketcher fopsetsketcher opsetsketcher
 DEX=$(patsubst %_d,%,$(EX))
 STATEX=$(patsubst %,%_s,$(EX))
 STATEXZ=$(patsubst %,%_sz,$(EX))
@@ -62,7 +62,7 @@ ZSTD_INCLUDE=$(patsubst %,-I%,$(ZSTD_INCLUDE_DIRS))
 ZFLAGS=-DZWRAP_USE_ZSTD=1
 ZCOMPILE_FLAGS= $(ZFLAGS)
 ALL_ZOBJS=$(ZOBJS) $(ZW_OBJS)
-INCLUDE=-Iclhash/include -I. -I.. -Ihll/libpopcnt -I.. -Iinclude -Icircularqueue $(ZSTD_INCLUDE) $(INCPLUS) -Ihll/vec -Ihll -Ihll/include -Ipdqsort -Iinclude/bonsai -Iinclude \
+INCLUDE=-Iclhash/include -I. -I.. -Ihll/include -Ihll/libpopcnt -I.. -Iinclude -Icircularqueue $(ZSTD_INCLUDE) $(INCPLUS) -Ihll/vec -Ihll -Ipdqsort -Iinclude/bonsai -Iinclude \
     -Ihll/vec/blaze
 
 
@@ -117,14 +117,31 @@ src/popcnt.do: src/popcnt.cpp
 src/popcnt.zo: src/popcnt.cpp
 	$(POPCNT_CXX) $(CXXFLAGS_MINUS_OPENMP) $(DBG) $(INCLUDE) $(LD)  -c $< -o $@ $(LIB)
 
-bin/%: bin/%.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h)
+adsetsketcher: bin/setsketcher.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -fsanitize=address -DBLAZE_SHAE
+pgsetsketcher: bin/setsketcher.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -pg
+setsketcher: bin/setsketcher.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
+fsetsketcher: bin/setsketcher.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -DCSETFT=float
+opsetsketcher: bin/setsketcher.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -DUSE_OPH
+fopsetsketcher: bin/setsketcher.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -DCSETFT=float -DUSE_OPH
+setsketchindexer: bin/setsketchindexer.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
+fsetsketchindexer: bin/setsketchindexer.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -DCSETFT=float
+ad%: bin/%.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -fsanitize=address
+%: bin/%.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -Ihll/include
+bin/errexp: bin/errexp.cpp clhash.o klib/kthread.o $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a -Ihll/include
 
 bin/kmercnt: bin/kmercnt.cpp clhash.o klib/kthread.o
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) clhash.o klib/kthread.o -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
-
-kmercnt: bin/kmercnt
-	cp $< $@
 
 bin/%_z: bin/%.cpp $(ALL_ZOBJS) $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h)
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) $(ALL_ZOBJS) -DNDEBUG $< -o $@ $(ZCOMPILE_FLAGS) $(LIB)

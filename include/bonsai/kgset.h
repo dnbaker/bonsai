@@ -20,7 +20,7 @@ struct kg_list_data {
     const bool                  canon_;
 };
 
-static void kg_helper(void *data_, long index, int tid) {
+static void kg_helper(void *data_, long index, int) {
     kg_data *data(reinterpret_cast<kg_data *>(data_));
     khash_t(all) *hash(&data->core_[index]);
     int khr;
@@ -33,7 +33,7 @@ static void kg_helper(void *data_, long index, int tid) {
     }, data->paths_[index].data());
 }
 
-static void kg_list_helper(void *data_, long index, int tid) {
+static void kg_list_helper(void *data_, long index, int) {
     kg_list_data &data(*reinterpret_cast<kg_list_data *>(data_));
     auto &list(*data.fl_[index]);
     khash_t(all) *hash(&data.core_[index]);

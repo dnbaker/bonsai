@@ -30,6 +30,7 @@
 #include "popcnt.h"
 #include "sample_gen.h"
 #include "aesctr/wy.h"
+#include "pdqsort/pdqsort.h"
 
 #ifdef __GNUC__
 #  ifndef likely
@@ -71,20 +72,9 @@
 #endif
 
 
-#ifdef USE_PDQSORT
 #define SORT_ALGORITHM pdqsort
-# include "pdqsort/pdqsort.h"
-# ifndef SORT
-#  define SORT pdqsort
-# endif
-# define SORT_BRANCHLESS ::pdqsort_branchless
-#else
-# ifndef SORT
-#  define SORT ::std::sort
-# endif
-# define SORT_BRANCHLESS ::std::sort
-#endif
-// SORT_BRANCHLESS is a lie for std::sort.
+#define SORT pdqsort
+#define SORT_BRANCHLESS ::pdqsort_branchless
 
 #ifndef HAS_KPUTUW__
 #define kputuw_ kputuw
@@ -190,7 +180,7 @@ static INLINE auto roundup64(T x) noexcept {
 }
 
 template <typename T>
-static void khash_destroy(T *map) noexcept {
+static void khash_destroy(T *) noexcept {
     LOG_EXIT("NotImplementedError");
 }
 
