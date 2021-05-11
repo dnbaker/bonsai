@@ -481,17 +481,19 @@ enum RollingHashingType {
 
 template<typename IntType, typename HashClass=CyclicHash<IntType>>
 struct RollingHasher {
-    static_assert(std::is_integral<IntType>::value || sizeof(IntType) > 8, "Must be integral (or by uint128/int128");
+    static_assert(std::is_integral<IntType>::value || sizeof(IntType) > 8, "Must be integral (or by uint128/int128)");
     long long int k_;
     long long int w_;
     RollingHashingType enctype_;
     bool canon_;
     HashClass hasher_;
     HashClass rchasher_;
+    uint64_t seed1_, seed2_;
     QueueMap<IntType, uint64_t> qmap_;
     RollingHasher(unsigned k, bool canon=false,
                    RollingHashingType enc=DNA, long long int wsz = -1, uint64_t seed1=1337, uint64_t seed2=137):
         k_(k), enctype_(enc), canon_(canon), hasher_(k, sizeof(IntType) * CHAR_BIT), rchasher_(k, sizeof(IntType) * CHAR_BIT)
+        , seed1_(seed1), seed2_(seed2)
     {
         if(canon_ && enc != RollingHashingType::DNA) {
             std::fprintf(stderr, "Note: RollingHasher with Protein alphabet does not support reverse-complementing.\n");
@@ -506,6 +508,7 @@ struct RollingHasher {
         rchasher_.seed(seed2 * seed1, seed2 ^ seed1);
         if(enc == PROTEIN_6_FRAME) throw NotImplementedError("Protein 6-frame not implemented.");
     }
+    RollingHasher(const RollingHasher &o): RollingHasher(o.k_, o.canon_, o.enctype_, o.w_, o.seed1_, o.seed2_) {}
     template<typename Functor>
     void for_each_canon(const Functor &func, const char *s, size_t l) {
         if(enctype_ != DNA) {
