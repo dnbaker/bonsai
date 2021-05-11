@@ -458,9 +458,7 @@ public:
         const u64 k(canonical_representation(kmer(pos_++), sp_.k_)), kscore(scorer_(k, data_));
         return qmap_.next_value(k, kscore);
     }
-    elscore_t max_in_queue() const {
-        return qmap_.begin()->first;
-    }
+    auto max_in_queue() const {return qmap_.begin()->first;}
     bool canonicalize() const {return canonicalize_;}
     void set_canonicalize(bool value) {canonicalize_ = value;}
     auto pos()   const {return pos_;}
@@ -484,18 +482,25 @@ enum RollingHashingType {
 template<typename IntType, typename HashClass=CyclicHash<IntType>>
 struct RollingHasher {
     static_assert(std::is_integral<IntType>::value || sizeof(IntType) > 8, "Must be integral (or by uint128/int128");
-    const unsigned k_;
+    long long int k_;
+    long long int w_;
     RollingHashingType enctype_;
     bool canon_;
     HashClass hasher_;
     HashClass rchasher_;
+    QueueMap<IntType, uint64_t> qmap_;
     RollingHasher(unsigned k, bool canon=false,
-                   RollingHashingType enc=DNA, uint64_t seed1=1337, uint64_t seed2=137):
+                   RollingHashingType enc=DNA, long long int wsz = -1, uint64_t seed1=1337, uint64_t seed2=137):
         k_(k), enctype_(enc), canon_(canon), hasher_(k, sizeof(IntType) * CHAR_BIT), rchasher_(k, sizeof(IntType) * CHAR_BIT)
     {
         if(canon_ && enc != RollingHashingType::DNA) {
             std::fprintf(stderr, "Note: RollingHasher with Protein alphabet does not support reverse-complementing.\n");
             canon_ = false;
+        }
+        if(wsz <= k) wsz = -1;
+        w_ = wsz;
+        if(wsz > 0) { // Windowing is enabled
+            qmap_.resize(w_ - k + 1);
         }
         hasher_.seed(seed1, seed2);
         rchasher_.seed(seed2 * seed1, seed2 ^ seed1);
@@ -507,38 +512,71 @@ struct RollingHasher {
             for_each_uncanon<Functor>(func, s, l);
             return;
         }
-        if(l < k_) return;
+        if(l < uint32_t(k_)) return;
         hasher_.reset();
         rchasher_.reset();
-        size_t i, nf;
+        size_t i;
+        long long int nf;
         uint8_t v1;
-        for(i = nf = 0; nf < k_ && i < l; ++i) {
-            if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
-                fixup:
-                if(i + 2 * k_ >= l) return;
-                i += k_;
-                nf = 0;
-                hasher_.reset();
-                rchasher_.reset();
-            } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
-              // In the future, encode the side that is still valid
-            else hasher_.eat(v1), rchasher_.eat(cstr_rc_lut[s[i - nf + k_ - 1]]), ++nf;
-        }
-        if(nf < k_) return; // All failed
-        func(std::min(hasher_.hashvalue, rchasher_.hashvalue));
-        for(;i < l; ++i) {
-            if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
-                goto fixup;
-            hasher_.update(cstr_lut[s[i - k_]], v1);
-            rchasher_.reverse_update(cstr_rc_lut[s[i]], cstr_rc_lut[s[i - k_]]);
+        IntType nextv;
+        if(qmap_.size() > 1) {
+            auto add_hashes =  [&](auto &hasher) {
+            if((nextv = qmap_.next_value(hasher.hashvalue, hasher.hashvalue)) != BF)
+                func(nextv);
+            };
+            for(i = nf = 0; nf < k_ && i < l; ++i) {
+                if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
+                    fixup_minimizer:
+                    if(i + 2 * k_ >= l) return;
+                    i += k_;
+                    nf = 0;
+                    hasher_.reset();
+                    rchasher_.reset();
+                } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
+                  // In the future, encode the side that is still valid
+                else hasher_.eat(v1), rchasher_.eat(cstr_rc_lut[s[i - nf + k_ - 1]]), ++nf;
+            }
+            if(nf < k_) return; // All failed
+            add_hashes(hasher_);
+            add_hashes(rchasher_);
+            for(;i < l; ++i) {
+                if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
+                    goto fixup_minimizer;
+                hasher_.update(cstr_lut[s[i - k_]], v1);
+                rchasher_.reverse_update(cstr_rc_lut[s[i]], cstr_rc_lut[s[i - k_]]);
+                add_hashes(hasher_);
+                add_hashes(rchasher_);
+            }
+        } else {
+            for(i = nf = 0; nf < k_ && i < l; ++i) {
+                if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
+                    fixup:
+                    if(i + 2 * k_ >= l) return;
+                    i += k_;
+                    nf = 0;
+                    hasher_.reset();
+                    rchasher_.reset();
+                } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
+                  // In the future, encode the side that is still valid
+                else hasher_.eat(v1), rchasher_.eat(cstr_rc_lut[s[i - nf + k_ - 1]]), ++nf;
+            }
+            if(nf < k_) return; // All failed
             func(std::min(hasher_.hashvalue, rchasher_.hashvalue));
+            for(;i < l; ++i) {
+                if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
+                    goto fixup;
+                hasher_.update(cstr_lut[s[i - k_]], v1);
+                rchasher_.reverse_update(cstr_rc_lut[s[i]], cstr_rc_lut[s[i - k_]]);
+                func(std::min(hasher_.hashvalue, rchasher_.hashvalue));
+            }
         }
     }
     template<typename Functor>
     void for_each_uncanon(const Functor &func, const char *s, size_t l) {
-        if(l < k_) return;
+        if(l < size_t(k_)) return;
         hasher_.reset();
-        size_t i, nf;
+        size_t i;
+        long long int nf;
         uint8_t v1;
         if(enctype_ != DNA) {
             for(i = nf = 0; nf < k_ && i < l; ++i) {
@@ -561,17 +599,25 @@ struct RollingHasher {
             }
         }
         if(nf < k_) return; // All failed
-        func(hasher_.hashvalue);
+        IntType nextv;
+        auto use_val = [&](auto v) {
+            if(qmap_.size() > 1) {
+                if((nextv = qmap_.next_value(v, v)) != BF)
+                    func(nextv);
+            } else func(v);
+        };
+        use_val(hasher_.hashvalue);
         for(;i < l; ++i) {
+            const auto c = s[i - k_], si = s[i];
             if(enctype_ != DNA) {
-                if((v1 = s[i]) == 0) goto fixup_protein;
-                hasher_.update(s[i - k_], v1);
+                if((v1 = si) == 0) goto fixup_protein;
+                hasher_.update(c, v1);
             } else {
-                if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
+                if((v1 = cstr_lut[si]) == uint8_t(-1))
                     goto fixup;
-                hasher_.update(cstr_lut[s[i - k_]], v1);
+                hasher_.update(cstr_lut[c], v1);
             }
-            func(hasher_.hashvalue);
+            use_val(hasher_.hashvalue);
         }
     }
     template<typename Functor>
@@ -638,7 +684,8 @@ struct RollingHasherSet {
         const auto mink = get_mink();
         if(l < mink) return;
         for(auto &h: hashers_) h.reset();
-        size_t i = 0, nf = 0;
+        size_t i = 0;
+        long long int nf = 0;
         uint8_t v1;
         for(; nf < mink && i < l; ++i) {
             if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
@@ -677,13 +724,14 @@ struct RollingHasherSet {
             ++nf;
         }
     }
-    uint32_t get_mink() const {return std::accumulate(hashers_.begin(), hashers_.end(), unsigned(-1), [](unsigned x, const auto & y) {return std::min(x, y.k_);});}
+    uint32_t get_mink() const {return std::accumulate(hashers_.begin(), hashers_.end(), unsigned(-1), [](unsigned x, const auto & y) {return std::min(x, unsigned(y.k_));});}
     template<typename Functor>
     void for_each_uncanon(const Functor &func, const char *s, size_t l) {
         const auto mink = get_mink();
         if(l < mink) return;
         for(auto &h: hashers_) h.reset();
-        size_t i = 0, nf = 0;
+        size_t i = 0;
+        long long int nf = 0;
         uint8_t v1;
         for(; nf < mink && i < l; ++i) {
             if((v1 = cstr_lut[static_cast<uint8_t>(s[i])]) == uint8_t(-1)) {
@@ -799,56 +847,6 @@ khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
     return ret;
 }
 
-template<typename ScoreType>
-void add_to_hll(hll::hll_t &hll, kseq_t *ks, Encoder<ScoreType> &enc) {
-    u64 min(BF);
-    if(enc.sp_.unwindowed()) {
-        if(enc.sp_.unspaced()) {
-            while(kseq_read(ks) >= 0) {
-                enc.assign(ks);
-                while(enc.has_next_kmer())
-                    if((min = enc.next_unspaced_kmer(min)) != BF)
-                        hll.addh(min);
-            }
-        } else {
-            while(kseq_read(ks) >= 0) {
-                enc.assign(ks);
-                while(enc.has_next_kmer())
-                    if((min = enc.next_kmer()) != BF)
-                        hll.addh(min);
-            }
-        }
-    } else {
-        while(kseq_read(ks) >= 0) {
-            enc.assign(ks);
-            while(enc.has_next_kmer())
-                if((min = enc.next_minimizer()) != BF)
-                    hll.addh(min);
-        }
-    }
-}
-
-template<typename ScoreType, typename SketchType>
-void fill_lmers(SketchType &sketch, const std::string &path, const Spacer &space, bool canonicalize=true,
-                void *data=nullptr, kseq_t *ks=nullptr) {
-#if USE_HASH_FILLER
-    detail::HashFiller<SketchType> hf(sketch);
-#endif
-    sketch.not_ready();
-    Encoder<ScoreType> enc(nullptr, 0, space, data, canonicalize);
-#if USE_HASH_FILLER
-    enc.for_each([&](u64 min) {hf.add(min);}, path.data(), ks);
-#else
-    enc.for_each([&](u64 min) {sketch.addh(min);}, path.data(), ks);
-#endif
-}
-
-template<typename ScoreType>
-void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &space, bool canonicalize=true,
-                    void *data=nullptr, kseq_t *ks=nullptr) {
-    fill_lmers<ScoreType>(hll, path, space, canonicalize, data, ks);
-}
-
 #define SUB_CALL \
     std::async(std::launch::async,\
                hashcount_lmers<ScoreType>, paths[submitted], space, canonicalize, data)
@@ -925,6 +923,21 @@ struct est_helper {
     kseq_t                            *ks_;
 };
 
+template<typename ScoreType, typename SketchType>
+void fill_lmers(SketchType &sketch, const std::string &path, const Spacer &space, bool canonicalize=true,
+                void *data=nullptr, kseq_t *ks=nullptr) {
+#if USE_HASH_FILLER
+    detail::HashFiller<SketchType> hf(sketch);
+#endif
+    sketch.not_ready();
+    Encoder<ScoreType> enc(nullptr, 0, space, data, canonicalize);
+#if USE_HASH_FILLER
+    enc.for_each([&](u64 min) {hf.add(min);}, path.data(), ks);
+#else
+    enc.for_each([&](u64 min) {sketch.addh(min);}, path.data(), ks);
+#endif
+}
+
 template<typename SketchType, typename ScoreType=score::Lex>
 void est_helper_fn(void *data_, long index, int tid) {
     est_helper<SketchType> &h(*(est_helper<SketchType> *)(data_));
@@ -957,16 +970,6 @@ void fill_sketch(SketchType &ret, const std::vector<std::string> &paths,
         auto &rhll = get_hll(ret);
         for(auto &sketch: sketches) rhll += get_hll(sketch);
     }
-}
-
-template<typename T>
-void hll_from_khash(hll::hll_t &ret, const T *kh, bool clear=true) {
-    if(clear) {
-        ret.clear();
-    }
-    for(khiter_t i(0); i < kh_size(kh); ++i)
-        if(kh_exist(kh, i))
-            ret.addh(kh->keys[i]);
 }
 
 template<typename ScoreType=score::Lex>

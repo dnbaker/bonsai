@@ -49,7 +49,7 @@ inline spvec_t sub1(const spvec_t &spaces) {
 }
 
 struct Spacer {
-    static constexpr u32 max_k = sizeof(uint64_t) * CHAR_BIT / 2;
+    //static constexpr u32 max_k = sizeof(uint64_t) * CHAR_BIT / 2;
 
     // Instance variables
     spvec_t   s_; // Spaces to skip
@@ -64,7 +64,7 @@ public:
       c_(comb_size(s_)),
       w_(std::max((int)c_, (int)w))
     {
-        if(k > max_k) LOG_WARNING("Provided k %u greater than can uniquely be described by 64-bit integers (%u).\n", k_, max_k);
+        //if(k > max_k) LOG_WARNING("Provided k %u greater than can uniquely be described by 64-bit integers (%u).\n", k_, max_k);
         for(auto &i: s_) ++i; // Convert differences into offsets
         if(s_.size() + 1 != k) {
             LOG_EXIT("Error: input vector must have size 1 less than k. k: %u. size: %zu.\n",

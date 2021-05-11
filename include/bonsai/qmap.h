@@ -29,7 +29,7 @@ struct ElScore {
 };
 
 
-template<typename T, typename ScoreType>
+template<typename T, typename ScoreType, typename Compare=std::less<void>>
 class QueueMap {
     using PairType           = ElScore<T, ScoreType>;
     using MapType = btree::map<PairType, unsigned>;
@@ -39,9 +39,13 @@ class QueueMap {
 
     list_type list_;
     MapType map_;
-    const size_t                         wsz_;  // window size to keep
+    size_t wsz_;  // window size to keep
     public:
-    QueueMap(size_t wsz): list_(wsz), wsz_(wsz) {}
+    QueueMap(size_t wsz=1): list_(wsz), wsz_(wsz) {}
+    void resize(size_t newsz) {
+        wsz_ = newsz;
+        list_.resize(newsz);
+    }
     INLINE void add(const PairType &el) {
         auto it(map_.lower_bound(el));
         if(it != map_.end()) {
@@ -68,9 +72,13 @@ class QueueMap {
         list_.clear();
         map_.clear();
     }
+    size_t size() const {return wsz_;}
 };
 
 using qmap_t = QueueMap<u64, u64>;
+using qmapf_t = QueueMap<u64, double>;
+using qmap128_t = QueueMap<u128, u64>;
+using qmap128f_t = QueueMap<u128, double>;
 using elscore_t = ElScore<u64, u64>;
 
 } // namespace bns
