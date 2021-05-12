@@ -476,6 +476,19 @@ enum RollingHashingType {
     PROTEIN_3BIT,
     PROTEIN_6_FRAME
 };
+using RollingHashType = RollingHashingType;
+using RHT = RollingHashingType;
+
+static inline std::string to_string(RollingHashingType rht) {
+    switch(rht) {
+        case DNA: return "DNA";
+        case PROTEIN: return "PROTEIN";
+        case PROTEIN_3BIT: return "PROTEIN_3BIT";
+        case PROTEIN_6_FRAME: return "PROTEIN_6_FRAME";
+        default:;
+    }
+    return "unknown";
+}
 
 
 
@@ -490,6 +503,15 @@ struct RollingHasher {
     HashClass rchasher_;
     uint64_t seed1_, seed2_;
     QueueMap<IntType, uint64_t> qmap_;
+    long long int window() const {return w_;}
+    void window(long long int w) {
+        if(w <= k_) w = -1;
+        if(w <= 0) std::fprintf(stderr, "w <= 0 (%lld), doing nothing\n", w);
+        else w_ = w;
+        if(w_ > 0) {
+            qmap_.resize(w_ - k_ + 1);
+        }
+    }
     RollingHasher(unsigned k, bool canon=false,
                    RollingHashingType enc=DNA, long long int wsz = -1, uint64_t seed1=1337, uint64_t seed2=137):
         k_(k), enctype_(enc), canon_(canon), hasher_(k, sizeof(IntType) * CHAR_BIT), rchasher_(k, sizeof(IntType) * CHAR_BIT)
@@ -499,11 +521,7 @@ struct RollingHasher {
             std::fprintf(stderr, "Note: RollingHasher with Protein alphabet does not support reverse-complementing.\n");
             canon_ = false;
         }
-        if(wsz <= k) wsz = -1;
-        w_ = wsz;
-        if(wsz > 0) { // Windowing is enabled
-            qmap_.resize(w_ - k + 1);
-        }
+        window(wsz);
         hasher_.seed(seed1, seed2);
         rchasher_.seed(seed2 * seed1, seed2 ^ seed1);
         if(enc == PROTEIN_6_FRAME) throw NotImplementedError("Protein 6-frame not implemented.");

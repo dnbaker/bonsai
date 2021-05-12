@@ -53,9 +53,9 @@ struct Spacer {
 
     // Instance variables
     spvec_t   s_; // Spaces to skip
-    const u32 k_; // Kmer size
-    const u32 c_; // comb size
-    const u32 w_; // window size
+    u32 k_; // Kmer size
+    u32 c_; // comb size
+    u32 w_; // window size
 
 public:
     Spacer(unsigned k, uint32_t w, spvec_t spaces=spvec_t{}):
@@ -70,6 +70,10 @@ public:
             LOG_EXIT("Error: input vector must have size 1 less than k. k: %u. size: %zu.\n",
                      k, s_.size());
         }
+    }
+    Spacer& operator=(const Spacer &o) = default;
+    void resize(unsigned k, unsigned w, std::string space_string="") {
+        *this = Spacer(k, w, space_string.data());
     }
     Spacer(unsigned k, uint32_t w, const char *space_string):
         Spacer(k, w, parse_spacing(space_string, k)) {}
