@@ -505,8 +505,7 @@ struct RollingHasher {
     QueueMap<IntType, uint64_t> qmap_;
     long long int window() const {return w_;}
     void window(long long int w) {
-        if(w <= k_) w = -1;
-        if(w <= 0) std::fprintf(stderr, "w <= 0 (%lld), doing nothing\n", w);
+        if(w <= k_) w_ = -1;
         else w_ = w;
         if(w_ > 0) {
             qmap_.resize(w_ - k_ + 1);
