@@ -511,7 +511,7 @@ struct RollingHasher {
             qmap_.resize(w_ - k_ + 1);
         }
     }
-    RollingHasher(unsigned k, bool canon=false,
+    RollingHasher(unsigned k=21, bool canon=false,
                    RollingHashingType enc=DNA, long long int wsz = -1, uint64_t seed1=1337, uint64_t seed2=137):
         k_(k), enctype_(enc), canon_(canon), hasher_(k, sizeof(IntType) * CHAR_BIT), rchasher_(k, sizeof(IntType) * CHAR_BIT)
         , seed1_(seed1), seed2_(seed2)
@@ -524,6 +524,12 @@ struct RollingHasher {
         hasher_.seed(seed1, seed2);
         rchasher_.seed(seed2 * seed1, seed2 ^ seed1);
         if(enc == PROTEIN_6_FRAME) throw NotImplementedError("Protein 6-frame not implemented.");
+    }
+    RollingHasher& operator=(const RollingHasher &o) {
+        k_ = o.k_; canon_ = o.canon_; enctype_ = o.enctype_; w_ = o.w_; seed1_ = o.seed1_; seed2_ = o.seed2_;
+        if(w_ <= k_) w_ = -1;
+        if(w_ > 0) qmap_.resize(w_ - k_ + 1);
+        return *this;
     }
     RollingHasher(const RollingHasher &o): RollingHasher(o.k_, o.canon_, o.enctype_, o.w_, o.seed1_, o.seed2_) {}
     template<typename Functor>

@@ -145,11 +145,11 @@ public:
 
     hashvaluetype hashvalue;
     int n;
-    const int wordsize;
+    int wordsize;
     CharacterHash<hashvaluetype,chartype> hasher;
-    const hashvaluetype mask1;
-    const int myr;
-    const hashvaluetype maskn;
+    hashvaluetype mask1;
+    int myr;
+    hashvaluetype maskn;
 
 };
 
