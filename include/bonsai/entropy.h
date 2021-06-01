@@ -16,7 +16,7 @@ public:
     CircusEnt(unsigned qsz): q_(qsz), counts_{0}, cqsz_(0), qsz_(qsz), qszinv_(1./qsz) {
         if(qsz == 0 || qsz > 255) RUNTIME_ERROR(std::string("Illegal queue size with qsz = " + std::to_string(qsz) + " and maximum value " + std::to_string(std::numeric_limits<uint8_t>::max())));
     }
-    CircusEnt(const CircusEnt &other): q_(other.q_), qsz_(other.qsz_), qszinv_(other.qszinv_) {
+    CircusEnt(const CircusEnt &other): q_(other.q_), cqsz_(other.cqsz_), qsz_(other.qsz_), qszinv_(other.qszinv_) {
         std::memcpy(counts_, other.counts_, sizeof(counts_));
     }
     CircusEnt(CircusEnt &&other) = default;
