@@ -214,6 +214,7 @@ struct btree_key_compare_to_adapter : Compare {
 	btree_key_compare_to_adapter(const btree_key_compare_to_adapter<Compare>& c)
 		: Compare(c) {
 	}
+    btree_key_compare_to_adapter &operator=(const btree_key_compare_to_adapter<Compare> &o) = default;
 };
 
 template <>
