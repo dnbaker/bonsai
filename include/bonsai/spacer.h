@@ -66,6 +66,10 @@ public:
                      k, s_.size());
         }
     }
+    u32 k() const {return k_;}
+    u32 w() const {return w_;}
+    u32 c() const {return c_;}
+    spvec_t spaces() const {return s_;}
     Spacer& operator=(const Spacer &o) = default;
     void resize(unsigned k, unsigned w, std::string space_string="") {
         *this = Spacer(k, w, space_string.data());

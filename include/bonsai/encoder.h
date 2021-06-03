@@ -124,6 +124,7 @@ public:
     Encoder(const Encoder &other): Encoder(other.sp_, other.data_) {
         canonicalize_ = other.canonicalize_;
     }
+    Encoder(Encoder<ScoreType, KmerT> &&o) = default;
     Encoder(unsigned k, bool canonicalize=true): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize) {}
     Encoder<ScoreType, u128> to_u128() const {
         return Encoder<ScoreType, u128>(sp_, data_, canonicalize_);

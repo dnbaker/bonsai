@@ -227,8 +227,12 @@ public:
     }
     deque(deque &&other) {
         if(&other == this) return;
-        std::memcpy(this, &other, sizeof(*this));
-        std::memset(&other, 0, sizeof(other));
+        mask_ = other.mask_;
+        start_ = other.start_;
+        stop_ = other.stop_;
+        data_ = other.data_;
+        other.mask_ = other.start_ = other.stop_ = 0;
+        other.data_ = 0;
     }
     deque(const deque &other) {
         if(&other == this) return;
