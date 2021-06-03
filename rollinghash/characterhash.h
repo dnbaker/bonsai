@@ -90,35 +90,43 @@ public:
     void seed(hashvaluetype maxval, uint32_t seed1) {
         seed_ = seed1;
         maxval_ = maxval;
-        if constexpr(nbrofchars) {
-            wy::WyRand<uint64_t> randomgenerator(seed1);
-            hashvaluetype tmaxval = roundup(maxval) - 1;
-            for(size_t k =0; k<nbrofchars; ++k) {
-                hashvaluetype next;
-                do { hack(next, randomgenerator); next &= tmaxval;} while(next > maxval);
-                hashvalues[k] = next;
-            }
+        clear_hashvalues(std::integral_constant<bool, (nbrofchars > 0)>());
+    }
+    void clear_hashvalues(std::true_type) {
+        wy::WyRand<uint64_t> randomgenerator(seed_);
+        hashvaluetype tmaxval = roundup(maxval_) - 1;
+        for(size_t k =0; k<nbrofchars; ++k) {
+            hashvaluetype next;
+            do { hack(next, randomgenerator); next &= tmaxval;} while(next > maxval_);
+            hashvalues[k] = next;
+        }
+    }
+    void clear_hashvalues(std::false_type) {
+        hashvalues.clear();
+    }
+    hashvaluetype access(chartype i, std::true_type) {
+        return hashvalues[i];
+    }
+    hashvaluetype access(chartype i, std::false_type) {
+        auto it = hashvalues.find(i);
+        if(it != hashvalues.end()) {
+             return it->second;
         } else {
-            hashvalues.clear();
+            hashvaluetype tmaxval = roundup(maxval_) - 1;
+            wy::WyRand<uint64_t> randomgenerator(seed_ + i);
+            hashvaluetype next;
+            do { hack(next, randomgenerator); next &= tmaxval;} while(next > maxval_);
+            hashvalues[i] = next;
+            return next;
         }
     }
 
     hashvaluetype operator[](chartype i) {
-        if constexpr(nbrofchars) {
+        return access(i, std::integral_constant<bool, (nbrofchars > 0)>());
+        if(nbrofchars) {
             assert(i < hashvalues.size());
             return hashvalues[i];
         } else {
-            auto it = hashvalues.find(i);
-            if(it != hashvalues.end()) {
-                 return it->second;
-            } else {
-                hashvaluetype tmaxval = roundup(maxval_) - 1;
-                wy::WyRand<uint64_t> randomgenerator(seed_ + i);
-                hashvaluetype next;
-                do { hack(next, randomgenerator); next &= tmaxval;} while(next > maxval_);
-                hashvalues[i] = next;
-                return next;
-            }
         }
     }
 
