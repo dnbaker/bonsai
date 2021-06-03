@@ -301,6 +301,7 @@ public:
     void for_each_hash(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        gzbuffer(fp, 1<<18);
         for_each_hash<Functor>(func, fp, ks);
         gzclose(fp);
     }
@@ -364,6 +365,7 @@ public:
     void for_each_canon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        gzbuffer(fp, 1<<18);
         for_each_canon<Functor>(func, fp, ks);
         gzclose(fp);
     }
@@ -371,6 +373,7 @@ public:
     void for_each_uncanon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        gzbuffer(fp, 1<<18);
         for_each_uncanon<Functor>(func, fp, ks);
         gzclose(fp);
     }
@@ -387,6 +390,7 @@ public:
     void for_each(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        gzbuffer(fp, 1<<18);
         if(canonicalize_) for_each_canon<Functor>(func, fp, ks);
         else              for_each_uncanon<Functor>(func, fp, ks);
         gzclose(fp);
@@ -655,6 +659,7 @@ struct RollingHasher {
     void for_each_hash(const Functor &func, const char *inpath, kseq_t *ks=nullptr) {
         gzFile fp = gzopen(inpath, "rb");
         if(!fp) throw file_open_error(inpath);
+        gzbuffer(fp, 1<<18);
         for_each_hash<Functor>(func, fp, ks);
         gzclose(fp);
     }
@@ -793,6 +798,7 @@ struct RollingHasherSet {
     void for_each_hash(const Functor &func, const char *inpath, kseq_t *ks=nullptr) {
         gzFile fp = gzopen(inpath, "rb");
         if(!fp) throw file_open_error(inpath);
+        gzbuffer(fp, 1<<18);
         for_each_hash<Functor>(func, fp, ks);
         gzclose(fp);
     }

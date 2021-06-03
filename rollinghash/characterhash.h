@@ -104,10 +104,10 @@ public:
     void clear_hashvalues(std::false_type) {
         hashvalues.clear();
     }
-    hashvaluetype access(chartype i, std::true_type) {
+    hashvaluetype access(chartype i, std::true_type) const {
         return hashvalues[i];
     }
-    hashvaluetype access(chartype i, std::false_type) {
+    hashvaluetype access(chartype i, std::false_type) const {
         auto it = hashvalues.find(i);
         if(it != hashvalues.end()) {
              return it->second;
@@ -121,13 +121,8 @@ public:
         }
     }
 
-    hashvaluetype operator[](chartype i) {
+    hashvaluetype operator[](chartype i) const {
         return access(i, std::integral_constant<bool, (nbrofchars > 0)>());
-        if(nbrofchars) {
-            assert(i < hashvalues.size());
-            return hashvalues[i];
-        } else {
-        }
     }
 
     std::conditional_t<(nbrofchars > 0), std::array<hashvaluetype, nbrofchars>, ska::flat_hash_map<chartype, hashvaluetype>>
