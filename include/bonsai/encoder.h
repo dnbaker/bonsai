@@ -445,9 +445,12 @@ public:
         return qmap_.next_value(k, kscore);
     }
     auto max_in_queue() const {return qmap_.begin()->first;}
+
     bool canonicalize() const {return canonicalize_;}
-    void set_canonicalize(bool value) {canonicalize_ = value;}
-    auto pos()   const {return pos_;}
+    void canonicalize(bool value) {canonicalize_ = value;}
+
+    auto pos() const {return pos_;}
+    void pos(uint64_t v) {pos_ = v;}
     uint32_t k() const {return sp_.k_;}
     ~Encoder() {
         if(std::is_same<ScoreType, score::Entropy>::value && sp_.unspaced() && !sp_.unwindowed()) {
