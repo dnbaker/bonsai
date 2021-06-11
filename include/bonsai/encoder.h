@@ -121,8 +121,9 @@ public:
     }
     Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data, canonicalize) {}
     Encoder(const Spacer &sp, bool canonicalize=true): Encoder(sp, nullptr, canonicalize) {}
-    Encoder(const Encoder &other): Encoder(other.sp_, other.data_) {
-        canonicalize_ = other.canonicalize_;
+    Encoder(const Encoder &o): s_(o.s_), l_(o.l_), sp_(o.sp_), pos_(o.pos_), data_(o.data_), scorer_(o.scorer_), canonicalize_(o.canonicalize_){
+        if(sp_.w_ > sp_.c_)
+            qmap_.resize(sp_.w_ - sp_.c_ + 1);
     }
     Encoder(Encoder<ScoreType, KmerT> &&o) = default;
     Encoder(unsigned k, bool canonicalize=true): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize) {}
