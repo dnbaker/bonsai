@@ -42,6 +42,20 @@ class QueueMap {
     size_t wsz_;  // window size to keep
     public:
     QueueMap(size_t wsz=1): list_(wsz), wsz_(wsz) {}
+    QueueMap(QueueMap &&o): list_(std::move(o.list_)), map_(std::move(o.map_)), wsz_(o.wsz_) {}
+    QueueMap(const QueueMap &&o): list_(o.list_), map_(o.map_), wsz_(o.wsz_) {}
+    QueueMap &operator=(QueueMap &&o) {
+        list_ = std::move(o.list_);
+        map_ = std::move(o.map_);
+        wsz_ = std::move(o.wsz_);
+        return *this;
+    }
+    QueueMap &operator=(const QueueMap &o) {
+        list_ = o.list_;
+        map_ = o.map_;
+        wsz_ = o.wsz_;
+        return *this;
+    }
     void resize(size_t newsz) {
         wsz_ = newsz;
         list_.resize(newsz);

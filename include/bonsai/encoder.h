@@ -92,7 +92,7 @@ class Encoder {
     const char   *s_; // String from which we are encoding our kmers.
     u64           l_; // Length of the string
 public:
-    const Spacer sp_; // Defines window size, spacing, and kmer size.
+    Spacer sp_; // Defines window size, spacing, and kmer size.
 private:
     u64         pos_; // Current position within the string s_ we're working with.
     void      *data_; // A void pointer for using with scoring. Needed for hash_score.
@@ -125,7 +125,18 @@ public:
         if(sp_.w_ > sp_.c_)
             qmap_.resize(sp_.w_ - sp_.c_ + 1);
     }
-    Encoder(Encoder<ScoreType, KmerT> &&o) = default;
+    Encoder(Encoder<ScoreType, KmerT> &&o): s_(o.s_), l_(o.l_), sp_(o.sp_), pos_(o.pos_), data_(o.data_),
+            qmap_(std::move(o.qmap_)), scorer_{}, canonicalize_(o.canonicalize_) {
+    }
+    Encoder &operator=(const Encoder<ScoreType, KmerT> &o) {
+        s_ = o.s_; l_ = o.l_;
+        sp_ = o.sp_;
+        pos_ = o.pos_;
+        data_ = o.data_;
+        qmap_ = o.qmap_;
+        canonicalize_ = o.canonicalize_;
+        return *this;
+    }
     Encoder(unsigned k, bool canonicalize=true): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize) {}
     Encoder<ScoreType, u128> to_u128() const {
         return Encoder<ScoreType, u128>(sp_, data_, canonicalize_);

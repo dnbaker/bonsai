@@ -227,12 +227,28 @@ public:
     }
     deque(deque &&other) {
         if(&other == this) return;
-        mask_ = other.mask_;
+        std::memcpy(this, &other, sizeof(*this));
+        other.mask_ = other.start_ = other.stop_ = SizeType(0);
+        other.data_ = nullptr;
+    }
+    deque &operator=(deque &&other) {
         start_ = other.start_;
-        stop_ = other.stop_;
+        stop_  = other.stop_;
+        mask_  = other.mask_;
         data_ = other.data_;
-        other.mask_ = other.start_ = other.stop_ = 0;
-        other.data_ = 0;
+        other.mask_ = other.start_ = other.stop_ = SizeType(0);
+        other.data_ = nullptr;
+        return *this;
+    }
+    deque &operator=(const deque &other) {
+        start_ = other.start_;
+        stop_  = other.stop_;
+        mask_  = other.mask_;
+        auto tmp = static_cast<T *>(std::malloc(sizeof(T) * (mask_ + 1)));
+        if(__builtin_expect(tmp == nullptr, 0)) throw std::bad_alloc();
+        data_ = tmp;
+        for(auto i(other.start_); i != other.stop_; data_[i] = other.data_[i], i = (i+1) & mask_);
+        return *this;
     }
     deque(const deque &other) {
         if(&other == this) return;

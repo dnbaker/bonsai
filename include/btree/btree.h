@@ -2760,6 +2760,9 @@ public:
 	btree_container(const self_type& x)
 		: __tree(x.__tree) {
 	}
+    btree_container &operator=(const btree_container &o) {
+        __tree = o.__tree;
+    }
 
 	// Iterator routines.
 	iterator begin() {
@@ -2935,6 +2938,16 @@ public:
 		: super_type(comp, alloc) {
 		insert(b, e);
 	}
+#if 1
+    btree_unique_container &operator=(const btree_unique_container &o) {
+        erase(this->__tree.begin(), this->__tree.end());
+        auto f = o.begin(), l = o.end();
+		for (const_iterator end = this->cend(); f != l; ++f) {
+			insert(end, *f);
+		}
+        return *this;
+    }
+#endif
 
 	// Lookup routines.
 	iterator find(const key_type& key) {
