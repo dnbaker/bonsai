@@ -482,6 +482,7 @@ public:
             delete static_cast<CircusEnt *>(data_);
         }
     }
+    size_t n_in_queue() const {return qmap_.n_in_queue();}
 };
 
 enum RollingHashingType {
