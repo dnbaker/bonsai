@@ -36,6 +36,7 @@ static INLINE int is_lt(T i, T j, void *) {
 }
 
 using ScoringFunction = u64 (*)(u64, void*);
+using FRev64 = sketch::hash::CEIFused<CEIXOR<0x533f8c2151b20f97>, CEIMul<0x9a98567ed20c127d>, RotL<31>, CEIXOR<0x691a9d706391077a>>;
 
 static INLINE u128 lex_score(u128 i, void *) {
     return sketch::hash::CEHasher()(i);
@@ -45,7 +46,7 @@ static INLINE u128 ent_score(u128 i, void *data) {
     return i / (kmer_entropy(i, *(unsigned *)data) + .001);
     //return u128(-1) - (u128(0x3739e7bd7416f000) << 64) * kmer_entropy(i, *(unsigned *)data);
 }
-static INLINE u64 lex_score(u64 i, void *) {return sketch::hash::CEHasher()(i);}
+static INLINE u64 lex_score(u64 i, void *) {return FRev64()(i);}
 static INLINE u64 ent_score(u64 i, void *data) {
     // For this, the highest-entropy kmers will be selected as "minimizers".
     //return UINT64_C(-1) - static_cast<u64>(UINT64_C(7958933093282078720) * kmer_entropy(i, *(unsigned *)data));
