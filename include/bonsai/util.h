@@ -520,7 +520,8 @@ INLINE double kmer_entropy(uint64_t kmer, unsigned k) {
     double tmp(div * (counts >> 24)),    sum(tmp * std::log2(tmp));
     tmp = div * ((counts >> 16) & 0xFF), sum += tmp * std::log2(tmp);
     tmp = div * ((counts >> 8) & 0xFF),  sum += tmp * std::log2(tmp);
-    return tmp = div * (counts & 0xFF),  sum += tmp * std::log2(tmp);
+    tmp = div * (counts & 0xFF),  sum += tmp * std::log2(tmp);
+    return sum;
 }
 
 template<typename T> INLINE const char *get_cstr(const T &str) {return str.data();}
