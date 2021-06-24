@@ -87,6 +87,7 @@ class QueueMap {
         map_.clear();
     }
     size_t size() const {return wsz_;}
+    size_t n_in_queue() const {return list_.size();}
 };
 
 using qmap_t = QueueMap<u64, u64>;
