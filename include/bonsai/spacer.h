@@ -7,8 +7,9 @@
 #include "kmerutil.h"
 
 namespace bns {
+using std::uint16_t;
 
-using spvec_t = std::vector<u8>;
+using spvec_t = std::vector<uint16_t>;
 
 inline u32 comb_size(const spvec_t &spaces) {
     u32 ret(spaces.size() + 1); // Since there's 1 fewer entry in spaces
@@ -42,20 +43,14 @@ static spvec_t parse_spacing(const char *ss, unsigned k) {
     return ret;
 }
 
-inline spvec_t sub1(const spvec_t &spaces) {
-    auto ret = spaces;
-    for(auto &el: ret) --el;
-    return ret;
-}
-
 struct Spacer {
-    static constexpr u32 max_k = sizeof(uint64_t) * CHAR_BIT / 2;
+    //static constexpr u32 max_k = sizeof(uint64_t) * CHAR_BIT / 2;
 
     // Instance variables
     spvec_t   s_; // Spaces to skip
-    const u32 k_; // Kmer size
-    const u32 c_; // comb size
-    const u32 w_; // window size
+    u32 k_; // Kmer size
+    u32 c_; // comb size
+    u32 w_; // window size
 
 public:
     Spacer(unsigned k, uint32_t w, spvec_t spaces=spvec_t{}):
@@ -64,12 +59,20 @@ public:
       c_(comb_size(s_)),
       w_(std::max((int)c_, (int)w))
     {
-        if(k > max_k) LOG_WARNING("Provided k %u greater than can uniquely be described by 64-bit integers (%u).\n", k_, max_k);
+        //if(k > max_k) LOG_WARNING("Provided k %u greater than can uniquely be described by 64-bit integers (%u).\n", k_, max_k);
         for(auto &i: s_) ++i; // Convert differences into offsets
         if(s_.size() + 1 != k) {
             LOG_EXIT("Error: input vector must have size 1 less than k. k: %u. size: %zu.\n",
                      k, s_.size());
         }
+    }
+    u32 k() const {return k_;}
+    u32 w() const {return w_;}
+    u32 c() const {return c_;}
+    spvec_t spaces() const {return s_;}
+    Spacer& operator=(const Spacer &o) = default;
+    void resize(unsigned k, unsigned w, std::string space_string="") {
+        *this = Spacer(k, w, space_string.data());
     }
     Spacer(unsigned k, uint32_t w, const char *space_string):
         Spacer(k, w, parse_spacing(space_string, k)) {}
@@ -81,6 +84,23 @@ public:
     }
     Spacer(unsigned k): Spacer(k, k) {}
     Spacer(const Spacer &other): s_(other.s_), k_(other.k_), c_(other.c_), w_(other.w_) {}
+    auto write(u128 kmer, std::FILE *fp=stdout) const {
+        char static_buf[256];
+        char *buf = c_ <= sizeof(static_buf) ? static_buf: static_cast<char *>(std::malloc(c_));
+        char *bp = buf;
+        auto offset = ((k_ - 1) * 2);
+        auto it = s_.begin();
+        *bp++ = num2nuc((kmer >> offset) & 0x3u);
+        do {
+            offset -= 2;
+            for(int i = *it++; i-- > 1; *bp++ = '-');
+            *bp++ = num2nuc((kmer >> offset) & 0x3u);
+        } while(it != s_.end());
+
+        const int ret = std::fwrite(buf, 1, c_, fp);
+        if(c_ > sizeof(static_buf)) std::free(buf);
+        return ret;
+    }
     auto write(u64 kmer, std::FILE *fp=stdout) const {
         char static_buf[256];
         char *buf = c_ <= sizeof(static_buf) ? static_buf: static_cast<char *>(std::malloc(c_));
@@ -98,6 +118,19 @@ public:
         if(c_ > sizeof(static_buf)) std::free(buf);
         return ret;
     }
+    std::string to_string(u128 kmer) const {
+        std::string ret;
+        ret.reserve(c_ - k_ + 1);
+        int offset = ((k_ - 1) << 1);
+        ret.push_back(num2nuc((kmer >> offset) & 0x3u));
+        for(auto s: s_) {
+            assert(offset >= 0);
+            offset -= 2;
+            while(s-->1) ret.push_back('-');
+            ret.push_back(num2nuc((kmer >> offset) & 0x3u));
+        }
+        return ret;
+    }
     std::string to_string(u64 kmer) const {
         std::string ret;
         ret.reserve(c_ - k_ + 1);
@@ -112,6 +145,7 @@ public:
         return ret;
     }
     ~Spacer() {}
+    spvec_t sub1() const {spvec_t ret(s_);std::transform(ret.begin(), ret.end(), ret.begin(), [](auto x) {return x - 1;}); return ret;}
 };
 
 } // namespace bns

@@ -56,6 +56,10 @@ public:
 	btree_map_container(const self_type& x)
 			: super_type(x) {
 	}
+    btree_map_container &operator=(const self_type &x) {
+        super_type::operator=(static_cast<const super_type &>(x));
+        return *this;
+    }
 
 	// Range constructor.
 	template <class InputIterator>
@@ -146,6 +150,10 @@ public:
 		const allocator_type& alloc = allocator_type())
 		: super_type(comp, alloc) {
 	}
+    map &operator=(const map &o) {
+        super_type::operator=(static_cast<const super_type &>(o));
+        return *this;
+    }
 
 	// Copy constructor.
 	map(const self_type& x)

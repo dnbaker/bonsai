@@ -52,8 +52,9 @@ public:
             throw "abord";
         }
     }
-    void seed(uint64_t s1, uint64_t s2) {
-        hasher.seed(maskfnc<hashvaluetype>(wordsize), s1, s2);
+    void seed(uint64_t s1, uint64_t s2=0) {
+        s1 ^= s2;
+        hasher.seed(maskfnc<hashvaluetype>(wordsize), s1);
     }
 
     void fastleftshiftn(hashvaluetype & x) const {
@@ -84,13 +85,13 @@ public:
         hashvaluetype answer(0);
         for(uint k = 0; k<c.size(); ++k) {
             fastleftshift1(answer);
-            answer ^= hasher.hashvalues[static_cast<unsigned int>(c[k])];
+            answer ^= hasher[static_cast<unsigned int>(c[k])];
         }
         return answer;
     }
 
     hashvaluetype  hashz(chartype outchar,uint n) {
-        hashvaluetype answer = hasher.hashvalues[static_cast<unsigned int>(outchar)];
+        hashvaluetype answer = hasher[static_cast<unsigned int>(outchar)];
         for(uint k = 0; k<n; ++k) {
             fastleftshift1(answer);
         }
@@ -101,20 +102,20 @@ public:
     // add inchar as an input and remove outchar, the hashvalue is updated
     // this function can be used to update the hash value from the hash value of [outchar]ABC to the hash value of ABC[inchar]
     void update(chartype outchar, chartype inchar) {
-        hashvaluetype z (hasher.hashvalues[outchar]);
+        hashvaluetype z (hasher[outchar]);
         fastleftshiftn(z);
         hashvalue =  getfastleftshift1(hashvalue)
                      ^ z
-                     ^ hasher.hashvalues[inchar];
+                     ^ hasher[inchar];
 
     }
 
     // this is the reverse of the update function.
     // this function can be used to update the hash value from the hash value of ABC[inchar] to the hash value of [outchar]ABC
     void reverse_update(chartype outchar, chartype inchar) {
-        hashvaluetype z (hasher.hashvalues[outchar]);
+        hashvaluetype z (hasher[outchar]);
         fastleftshiftn(z);
-        hashvalue ^=   z ^ hasher.hashvalues[inchar];
+        hashvalue ^=   z ^ hasher[inchar];
         hashvalue = getfastrightshift1(hashvalue);
     }
 
@@ -122,17 +123,17 @@ public:
     // the hash value is updated to that of a longer string (one where inchar was appended)
     void eat(chartype inchar) {
         fastleftshift1(hashvalue);
-        hashvalue ^= hasher.hashvalues[inchar];
+        hashvalue ^= hasher[inchar];
     }
 
     //for an n-gram X it returns hash value of (n + 1)-gram XY without changing the object X. For example, if X = "ABC", then X.hash_extend("D") returns value of "ABCD" without changing the state of X
     hashvaluetype hash_extend(chartype Y) {
-        return getfastleftshift1(hashvalue) ^ hasher.hashvalues[Y];
+        return getfastleftshift1(hashvalue) ^ hasher[Y];
     }
 
     //  same as hash_extend, but with prepending the n-gram with character Y. If X = "ABC", then X.hash_prepend("D") returns value of "DABC" without changing the state of X
     hashvaluetype hash_prepend(chartype Y) {
-        hashvaluetype z (hasher.hashvalues[Y]);
+        hashvaluetype z (hasher[Y]);
         fastleftshiftn(z);
         return z ^ hashvalue;
     }
@@ -144,11 +145,11 @@ public:
 
     hashvaluetype hashvalue;
     int n;
-    const int wordsize;
+    int wordsize;
     CharacterHash<hashvaluetype,chartype> hasher;
-    const hashvaluetype mask1;
-    const int myr;
-    const hashvaluetype maskn;
+    hashvaluetype mask1;
+    int myr;
+    hashvaluetype maskn;
 
 };
 

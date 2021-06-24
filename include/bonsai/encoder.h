@@ -31,16 +31,26 @@ enum score_scheme {
 };
 
 template<typename T>
-static INLINE int is_lt(T i, T j, UNUSED(void *data)) {
+static INLINE int is_lt(T i, T j, void *) {
     return i < j;
 }
 
 using ScoringFunction = u64 (*)(u64, void*);
+using FRev64 = sketch::hash::CEIFused<CEIXOR<0x533f8c2151b20f97>, CEIMul<0x9a98567ed20c127d>, RotL<31>, CEIXOR<0x691a9d706391077a>>;
 
-static INLINE u64 lex_score(u64 i, UNUSED(void *data)) {return i ^ XOR_MASK;}
+static INLINE u128 lex_score(u128 i, void *) {
+    return sketch::hash::CEHasher()(i);
+}
+static INLINE u128 ent_score(u128 i, void *data) {
+    // For this, the highest-entropy kmers will be selected as "minimizers".
+    return i / (kmer_entropy(i, *(unsigned *)data) + .001);
+    //return u128(-1) - (u128(0x3739e7bd7416f000) << 64) * kmer_entropy(i, *(unsigned *)data);
+}
+static INLINE u64 lex_score(u64 i, void *) {return FRev64()(i);}
 static INLINE u64 ent_score(u64 i, void *data) {
     // For this, the highest-entropy kmers will be selected as "minimizers".
-    return UINT64_C(-1) - static_cast<u64>(UINT64_C(7958933093282078720) * kmer_entropy(i, *(unsigned *)data));
+    //return UINT64_C(-1) - static_cast<u64>(UINT64_C(7958933093282078720) * kmer_entropy(i, *(unsigned *)data));
+    return i / (kmer_entropy(i, *(unsigned *)data) + .001);
 }
 static INLINE u64 hash_score(u64 i, void *data) {
     khint_t k1;
@@ -58,7 +68,10 @@ static INLINE u64 hash_score(u64 i, void *data) {
 }
 
 namespace score {
-#define DECHASH(name, fn) struct name {u64 operator()(u64 i, void *data) const {return fn(i, data);}}
+#define DECHASH(name, fn) struct name {\
+        u64 operator()(u64 i, void *data) const {return fn(i, data);}\
+        u128 operator()(u128 i, void *data) const {return fn(i, data);}\
+}
 DECHASH(Lex, lex_score);
 DECHASH(Entropy, ent_score);
 DECHASH(Hash, hash_score);
@@ -85,20 +98,22 @@ static std::array<u64, 256> make_nthash_lut(u64 seedseed) {
  * It keeps a sliding window of best-scoring kmers and their scores.
  * To switch between sequences, use the assign functions.
  *
- * BF signals overflow.
+ * ENCODE_OVERFLOW signals overflow.
  */
-template<typename ScoreType=score::Lex>
+template<typename ScoreType=score::Lex, typename KmerT=uint64_t>
 class Encoder {
     const char   *s_; // String from which we are encoding our kmers.
     u64           l_; // Length of the string
 public:
-    const Spacer sp_; // Defines window size, spacing, and kmer size.
+    Spacer sp_; // Defines window size, spacing, and kmer size.
 private:
     u64         pos_; // Current position within the string s_ we're working with.
     void      *data_; // A void pointer for using with scoring. Needed for hash_score.
-    qmap_t     qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
+    QueueMap<KmerT, uint64_t> qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
     const ScoreType  scorer_; // scoring struct
     bool canonicalize_;
+    static constexpr KmerT ENCODE_OVERFLOW = static_cast<KmerT>(-1);
+    static_assert(std::is_unsigned<KmerT>::value || std::is_same<KmerT, u128>::value, "Must be unsigned integers");
 
 public:
     Encoder(char *s, u64 l, const Spacer &sp, void *data=nullptr,
@@ -119,10 +134,26 @@ public:
     }
     Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data, canonicalize) {}
     Encoder(const Spacer &sp, bool canonicalize=true): Encoder(sp, nullptr, canonicalize) {}
-    Encoder(const Encoder &other): Encoder(other.sp_, other.data_) {
-        canonicalize_ = other.canonicalize_;
+    Encoder(const Encoder &o): s_(o.s_), l_(o.l_), sp_(o.sp_), pos_(o.pos_), data_(o.data_), scorer_(o.scorer_), canonicalize_(o.canonicalize_){
+        if(sp_.w_ > sp_.c_)
+            qmap_.resize(sp_.w_ - sp_.c_ + 1);
+    }
+    Encoder(Encoder<ScoreType, KmerT> &&o): s_(o.s_), l_(o.l_), sp_(o.sp_), pos_(o.pos_), data_(o.data_),
+            qmap_(std::move(o.qmap_)), scorer_{}, canonicalize_(o.canonicalize_) {
+    }
+    Encoder &operator=(const Encoder<ScoreType, KmerT> &o) {
+        s_ = o.s_; l_ = o.l_;
+        sp_ = o.sp_;
+        pos_ = o.pos_;
+        data_ = o.data_;
+        qmap_ = o.qmap_;
+        canonicalize_ = o.canonicalize_;
+        return *this;
     }
     Encoder(unsigned k, bool canonicalize=true): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize) {}
+    Encoder<ScoreType, u128> to_u128() const {
+        return Encoder<ScoreType, u128>(sp_, data_, canonicalize_);
+    }
 
     // Assign functions: These tell the encoder to fetch kmers from this string.
     // kstring and kseq are overloads which call assign(char *s, u64 l) on
@@ -139,40 +170,40 @@ public:
 
     template<typename Functor>
     INLINE void for_each_canon_windowed(const Functor &func) {
-        u64 min;
+        KmerT min;
         while(likely(has_next_kmer()))
-            if((min = next_canonicalized_minimizer()) != BF)
+            if((min = next_canonicalized_minimizer()) != ENCODE_OVERFLOW)
                 func(min);
     }
     template<typename Functor>
     INLINE void for_each_canon_unwindowed(const Functor &func) {
         if(sp_.unspaced())
-            for_each_uncanon_unspaced_unwindowed([&](u64 min) {return func(canonical_representation(min, sp_.k_));});
+            for_each_uncanon_unspaced_unwindowed([&](KmerT min) {return func(canonical_representation(min, sp_.k_));});
         else {
-            u64 min;
+            KmerT min;
             while(likely(has_next_kmer()))
-                if((min = next_kmer()) != BF)
+                if((min = next_kmer()) != ENCODE_OVERFLOW)
                     func(canonical_representation(min, sp_.k_));
         }
     }
     template<typename Functor>
     INLINE void for_each_uncanon_spaced(const Functor &func) {
-        u64 min;
+        KmerT min;
         while(likely(has_next_kmer()))
-            if((min = next_minimizer()) != BF)
+            if((min = next_minimizer()) != ENCODE_OVERFLOW)
                 func(min);
     }
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_unwindowed(const Functor &func) {
-        const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
-        u64 min;
+        const KmerT mask((static_cast<KmerT>(-1)) >> (sizeof(KmerT) * 8 - (sp_.k_ << 1)));
+        KmerT min;
         unsigned filled;
         loop_start:
         min = filled = 0;
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 min <<= 2;
-                if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF) && (sp_.k_ < 32 || cstr_lut[s_[pos_ - 1]] != 'T')) {
+                if(unlikely((min |= cstr_lut[s_[pos_++]]) == ENCODE_OVERFLOW) && (sp_.k_ < sizeof(KmerT) * 4 || cstr_lut[s_[pos_ - 1]] != 'T')) {
                     goto loop_start;
                 }
                 ++filled;
@@ -186,22 +217,22 @@ public:
     }
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_windowed(const Functor &func) {
-        const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
-        u64 min, kmer;
+        const KmerT mask((static_cast<KmerT>(-1)) >> (sizeof(KmerT) * 8 - (sp_.k_ << 1)));
+        KmerT min, kmer;
         unsigned filled;
         windowed_loop_start:
         min = filled = 0;
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 min <<= 2;
-                if(unlikely((min |= cstr_lut[s_[pos_++]]) == BF) && likely(sp_.k_ < 32 || cstr_lut[s_[pos_ - 1]] != 'T')) {
+                if(unlikely((min |= cstr_lut[s_[pos_++]]) == ENCODE_OVERFLOW) && likely(sp_.k_ < sizeof(KmerT) * 4 || cstr_lut[s_[pos_ - 1]] != 'T')) {
                     goto windowed_loop_start;
                 }
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
                 min &= mask;
-                if((kmer = qmap_.next_value(min, scorer_(min, data_))) != BF) func(kmer);
+                if((kmer = qmap_.next_value(min, scorer_(min, data_))) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
             }
         }
@@ -210,8 +241,8 @@ public:
     INLINE void for_each_uncanon_unspaced_windowed_entropy_(const Functor &func) {
         // NEVER CALL THIS DIRECTLY.
         // This contains instructions for generating uncanonicalized but windowed entropy-minimized kmers.
-        const u64 mask((UINT64_C(-1)) >> (64 - (sp_.k_ << 1)));
-        u64 min, kmer;
+        const KmerT mask((static_cast<KmerT>(-1)) >> (sizeof(KmerT) * 8 - (sp_.k_ << 1)));
+        KmerT min, kmer;
         unsigned filled;
         CircusEnt &ent = *(static_cast<CircusEnt *>(data_));
         windowed_loop_start:
@@ -219,7 +250,7 @@ public:
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 min <<= 2;
-                if(unlikely((min |= cstr_lut[s_[pos_]]) == BF) && likely(sp_.k_ < 31 || cstr_lut[s_[pos_]] != 'T')) {
+                if(unlikely((min |= cstr_lut[s_[pos_]]) == ENCODE_OVERFLOW) && likely(sp_.k_ < 31 || cstr_lut[s_[pos_]] != 'T')) {
                     ++pos_;
                     goto windowed_loop_start;
                 }
@@ -229,14 +260,14 @@ public:
             }
             if(likely(filled == sp_.k_)) {
                 min &= mask;
-                if((kmer = qmap_.next_value(min, ent.score())) != BF) func(kmer);
+                if((kmer = qmap_.next_value(min, ent.score())) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
             }
         }
     }
     template<typename Functor>
     INLINE void for_each_canon_unspaced_windowed_entropy_(const Functor &func) {
-        this->for_each_uncanon_unspaced_windowed_entropy_([&](u64 &min) {return func(canonical_representation(min, sp_.k_));});
+        this->for_each_uncanon_unspaced_windowed_entropy_([&](KmerT &min) {return func(canonical_representation(min, sp_.k_));});
     }
     // Utility 'for-each'-like functions.
     template<typename Functor>
@@ -295,6 +326,7 @@ public:
     void for_each_hash(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        gzbuffer(fp, 1<<18);
         for_each_hash<Functor>(func, fp, ks);
         gzclose(fp);
     }
@@ -358,6 +390,7 @@ public:
     void for_each_canon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        gzbuffer(fp, 1<<18);
         for_each_canon<Functor>(func, fp, ks);
         gzclose(fp);
     }
@@ -365,6 +398,7 @@ public:
     void for_each_uncanon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        gzbuffer(fp, 1<<18);
         for_each_uncanon<Functor>(func, fp, ks);
         gzclose(fp);
     }
@@ -381,6 +415,7 @@ public:
     void for_each(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
+        gzbuffer(fp, 1<<18);
         if(canonicalize_) for_each_canon<Functor>(func, fp, ks);
         else              for_each_uncanon<Functor>(func, fp, ks);
         gzclose(fp);
@@ -396,39 +431,15 @@ public:
         }
     }
 
-    template<typename Target>
-    void add(hll::hll_t &hll, const Target &target, kseq_t *ks=nullptr) {
-        this->for_each([&](u64 min) {hll.addh(min);}, target, ks);
-    }
-
-    template<typename Target, typename HashType>
-    void add(fhll::fhllbase_t<HashType> &hll, const Target &target, kseq_t *ks=nullptr) {
-        this->for_each([&](u64 min) {hll.addh(min);}, target, ks);
-    }
-
-    template<typename Target>
-    void add(khash_t(all) *set, const Target &target, kseq_t *ks=nullptr) {
-        int khr;
-        this->for_each([&] (u64 min) {
-            kh_put(all, set, min, &khr);
-            if(unlikely(khr < 0)) throw std::runtime_error(ks::sprintf("Failed to insert key %" PRIu64 " into hash map. Size of map: %zu\n", min, kh_size(set)).data());
-        }, target, ks);
-    }
-
-    template<typename ContainerType>
-    void add(ContainerType &con, ContainerType &strcon, kseq_t *ks=nullptr) {
-        for(const auto &el: strcon) add(get_cstr(con, get_cstr(el), ks));
-    }
-
     // Encodes a kmer starting at `start` within string `s_`.
-    INLINE u64 kmer(unsigned start) {
+    INLINE KmerT kmer(unsigned start) {
         assert(start <= l_ - sp_.c_ + 1);
-        if(l_ < sp_.c_)    return BF;
-        u64 new_kmer(cstr_lut[s_[start]]);
-        if(new_kmer == BF) return BF;
+        if(l_ < sp_.c_)    return ENCODE_OVERFLOW;
+        KmerT new_kmer(cstr_lut[s_[start]]);
+        if(new_kmer == ENCODE_OVERFLOW) return ENCODE_OVERFLOW;
         u64 len(sp_.s_.size());
-        const u8 *spaces(sp_.s_.data());
-#define ITER do {new_kmer <<= 2, start += *spaces++; if((new_kmer |= cstr_lut[s_[start]]) == BF) return new_kmer;} while(0);
+        auto spaces(sp_.s_.data());
+#define ITER do {new_kmer <<= 2, start += *spaces++; if((new_kmer |= cstr_lut[s_[start]]) == ENCODE_OVERFLOW) return new_kmer;} while(0);
         DO_DUFF(len, ITER);
 #undef ITER
         return new_kmer;
@@ -441,29 +452,30 @@ public:
     // This fetches our next kmer for our window. It is immediately placed in the qmap_t,
     // which is a tree map containing kmers and scores so we can keep track of the best-scoring
     // kmer in the window.
-    INLINE u64 next_kmer() {
+    INLINE KmerT next_kmer() {
         assert(has_next_kmer());
         return kmer(pos_++);
     }
     // This is the actual point of entry for fetching our minimizers.
     // It wraps encoding and scoring a kmer, updates qmap, and returns the minimizer
     // for the next window.
-    INLINE u64 next_minimizer() {
-        //if(unlikely(!has_next_kmer())) return BF;
-        const u64 k(kmer(pos_++)), kscore(scorer_(k, data_));
+    INLINE KmerT next_minimizer() {
+        //if(unlikely(!has_next_kmer())) return ENCODE_OVERFLOW;
+        const KmerT k(kmer(pos_++)), kscore(scorer_(k, data_));
         return qmap_.next_value(k, kscore);
     }
-    INLINE u64 next_canonicalized_minimizer() {
+    INLINE KmerT next_canonicalized_minimizer() {
         assert(has_next_kmer());
-        const u64 k(canonical_representation(kmer(pos_++), sp_.k_)), kscore(scorer_(k, data_));
+        const KmerT k(canonical_representation(kmer(pos_++), sp_.k_)), kscore(scorer_(k, data_));
         return qmap_.next_value(k, kscore);
     }
-    elscore_t max_in_queue() const {
-        return qmap_.begin()->first;
-    }
+    auto max_in_queue() const {return qmap_.begin()->first;}
+
     bool canonicalize() const {return canonicalize_;}
-    void set_canonicalize(bool value) {canonicalize_ = value;}
-    auto pos()   const {return pos_;}
+    void canonicalize(bool value) {canonicalize_ = value;}
+
+    auto pos() const {return pos_;}
+    void pos(uint64_t v) {pos_ = v;}
     uint32_t k() const {return sp_.k_;}
     ~Encoder() {
         if(std::is_same<ScoreType, score::Entropy>::value && sp_.unspaced() && !sp_.unwindowed()) {
@@ -478,67 +490,134 @@ enum RollingHashingType {
     PROTEIN_3BIT,
     PROTEIN_6_FRAME
 };
+using RollingHashType = RollingHashingType;
+using RHT = RollingHashingType;
+
+static inline std::string to_string(RollingHashingType rht) {
+    switch(rht) {
+        case DNA: return "DNA";
+        case PROTEIN: return "PROTEIN";
+        case PROTEIN_3BIT: return "PROTEIN_3BIT";
+        case PROTEIN_6_FRAME: return "PROTEIN_6_FRAME";
+        default:;
+    }
+    return "unknown";
+}
 
 
 
 template<typename IntType, typename HashClass=CyclicHash<IntType>>
 struct RollingHasher {
-    static_assert(std::is_integral<IntType>::value || sizeof(IntType) > 8, "Must be integral (or by uint128/int128");
-    const unsigned k_;
+    static_assert(std::is_integral<IntType>::value || sizeof(IntType) > 8, "Must be integral (or by uint128/int128)");
+    long long int k_;
+    long long int w_;
     RollingHashingType enctype_;
     bool canon_;
     HashClass hasher_;
     HashClass rchasher_;
-    RollingHasher(unsigned k, bool canon=false,
-                   RollingHashingType enc=DNA, uint64_t seed1=1337, uint64_t seed2=137):
+    uint64_t seed1_, seed2_;
+    QueueMap<IntType, uint64_t> qmap_;
+    long long int window() const {return w_;}
+    void window(long long int w) {
+        if(w <= k_) w_ = -1;
+        else w_ = w;
+        if(w_ > 0) {
+            qmap_.resize(w_ - k_ + 1);
+        }
+    }
+    static constexpr IntType ENCODE_OVERFLOW = static_cast<IntType>(-1);
+    RollingHasher(unsigned k=21, bool canon=false,
+                   RollingHashingType enc=DNA, long long int wsz = -1, uint64_t seed1=1337, uint64_t seed2=137):
         k_(k), enctype_(enc), canon_(canon), hasher_(k, sizeof(IntType) * CHAR_BIT), rchasher_(k, sizeof(IntType) * CHAR_BIT)
+        , seed1_(seed1), seed2_(seed2)
     {
         if(canon_ && enc != RollingHashingType::DNA) {
             std::fprintf(stderr, "Note: RollingHasher with Protein alphabet does not support reverse-complementing.\n");
             canon_ = false;
         }
+        window(wsz);
         hasher_.seed(seed1, seed2);
         rchasher_.seed(seed2 * seed1, seed2 ^ seed1);
         if(enc == PROTEIN_6_FRAME) throw NotImplementedError("Protein 6-frame not implemented.");
     }
+    RollingHasher& operator=(const RollingHasher &o) {
+        k_ = o.k_; canon_ = o.canon_; enctype_ = o.enctype_; w_ = o.w_; seed1_ = o.seed1_; seed2_ = o.seed2_;
+        if(w_ <= k_) w_ = -1;
+        if(w_ > 0) qmap_.resize(w_ - k_ + 1);
+        return *this;
+    }
+    RollingHasher(const RollingHasher &o): RollingHasher(o.k_, o.canon_, o.enctype_, o.w_, o.seed1_, o.seed2_) {}
     template<typename Functor>
     void for_each_canon(const Functor &func, const char *s, size_t l) {
         if(enctype_ != DNA) {
             for_each_uncanon<Functor>(func, s, l);
             return;
         }
-        if(l < k_) return;
+        if(l < uint32_t(k_)) return;
         hasher_.reset();
         rchasher_.reset();
-        size_t i, nf;
+        size_t i;
+        long long int nf;
         uint8_t v1;
-        for(i = nf = 0; nf < k_ && i < l; ++i) {
-            if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
-                fixup:
-                if(i + 2 * k_ >= l) return;
-                i += k_;
-                nf = 0;
-                hasher_.reset();
-                rchasher_.reset();
-            } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
-              // In the future, encode the side that is still valid
-            else hasher_.eat(v1), rchasher_.eat(cstr_rc_lut[s[i - nf + k_ - 1]]), ++nf;
-        }
-        if(nf < k_) return; // All failed
-        func(std::min(hasher_.hashvalue, rchasher_.hashvalue));
-        for(;i < l; ++i) {
-            if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
-                goto fixup;
-            hasher_.update(cstr_lut[s[i - k_]], v1);
-            rchasher_.reverse_update(cstr_rc_lut[s[i]], cstr_rc_lut[s[i - k_]]);
+        IntType nextv;
+        if(qmap_.size() > 1) {
+            auto add_hashes =  [&](auto &hasher) {
+            if((nextv = qmap_.next_value(hasher.hashvalue, hasher.hashvalue)) != ENCODE_OVERFLOW)
+                func(nextv);
+            };
+            for(i = nf = 0; nf < k_ && i < l; ++i) {
+                if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
+                    fixup_minimizer:
+                    if(i + 2 * k_ >= l) return;
+                    i += k_;
+                    nf = 0;
+                    hasher_.reset();
+                    rchasher_.reset();
+                } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
+                  // In the future, encode the side that is still valid
+                else hasher_.eat(v1), rchasher_.eat(cstr_rc_lut[s[i - nf + k_ - 1]]), ++nf;
+            }
+            if(nf < k_) return; // All failed
+            add_hashes(hasher_);
+            add_hashes(rchasher_);
+            for(;i < l; ++i) {
+                if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
+                    goto fixup_minimizer;
+                hasher_.update(cstr_lut[s[i - k_]], v1);
+                rchasher_.reverse_update(cstr_rc_lut[s[i]], cstr_rc_lut[s[i - k_]]);
+                add_hashes(hasher_);
+                add_hashes(rchasher_);
+            }
+        } else {
+            for(i = nf = 0; nf < k_ && i < l; ++i) {
+                if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
+                    fixup:
+                    if(i + 2 * k_ >= l) return;
+                    i += k_;
+                    nf = 0;
+                    hasher_.reset();
+                    rchasher_.reset();
+                } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
+                  // In the future, encode the side that is still valid
+                else hasher_.eat(v1), rchasher_.eat(cstr_rc_lut[s[i - nf + k_ - 1]]), ++nf;
+            }
+            if(nf < k_) return; // All failed
             func(std::min(hasher_.hashvalue, rchasher_.hashvalue));
+            for(;i < l; ++i) {
+                if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
+                    goto fixup;
+                hasher_.update(cstr_lut[s[i - k_]], v1);
+                rchasher_.reverse_update(cstr_rc_lut[s[i]], cstr_rc_lut[s[i - k_]]);
+                func(std::min(hasher_.hashvalue, rchasher_.hashvalue));
+            }
         }
     }
     template<typename Functor>
     void for_each_uncanon(const Functor &func, const char *s, size_t l) {
-        if(l < k_) return;
+        if(l < size_t(k_)) return;
         hasher_.reset();
-        size_t i, nf;
+        size_t i;
+        long long int nf;
         uint8_t v1;
         if(enctype_ != DNA) {
             for(i = nf = 0; nf < k_ && i < l; ++i) {
@@ -561,17 +640,25 @@ struct RollingHasher {
             }
         }
         if(nf < k_) return; // All failed
-        func(hasher_.hashvalue);
+        IntType nextv;
+        auto use_val = [&](auto v) {
+            if(qmap_.size() > 1) {
+                if((nextv = qmap_.next_value(v, v)) != ENCODE_OVERFLOW)
+                    func(nextv);
+            } else func(v);
+        };
+        use_val(hasher_.hashvalue);
         for(;i < l; ++i) {
+            const auto c = s[i - k_], si = s[i];
             if(enctype_ != DNA) {
-                if((v1 = s[i]) == 0) goto fixup_protein;
-                hasher_.update(s[i - k_], v1);
+                if((v1 = si) == 0) goto fixup_protein;
+                hasher_.update(c, v1);
             } else {
-                if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
+                if((v1 = cstr_lut[si]) == uint8_t(-1))
                     goto fixup;
-                hasher_.update(cstr_lut[s[i - k_]], v1);
+                hasher_.update(cstr_lut[c], v1);
             }
-            func(hasher_.hashvalue);
+            use_val(hasher_.hashvalue);
         }
     }
     template<typename Functor>
@@ -600,6 +687,7 @@ struct RollingHasher {
     void for_each_hash(const Functor &func, const char *inpath, kseq_t *ks=nullptr) {
         gzFile fp = gzopen(inpath, "rb");
         if(!fp) throw file_open_error(inpath);
+        gzbuffer(fp, 1<<18);
         for_each_hash<Functor>(func, fp, ks);
         gzclose(fp);
     }
@@ -638,7 +726,8 @@ struct RollingHasherSet {
         const auto mink = get_mink();
         if(l < mink) return;
         for(auto &h: hashers_) h.reset();
-        size_t i = 0, nf = 0;
+        size_t i = 0;
+        long long int nf = 0;
         uint8_t v1;
         for(; nf < mink && i < l; ++i) {
             if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
@@ -677,13 +766,14 @@ struct RollingHasherSet {
             ++nf;
         }
     }
-    uint32_t get_mink() const {return std::accumulate(hashers_.begin(), hashers_.end(), unsigned(-1), [](unsigned x, const auto & y) {return std::min(x, y.k_);});}
+    uint32_t get_mink() const {return std::accumulate(hashers_.begin(), hashers_.end(), unsigned(-1), [](unsigned x, const auto & y) {return std::min(x, unsigned(y.k_));});}
     template<typename Functor>
     void for_each_uncanon(const Functor &func, const char *s, size_t l) {
         const auto mink = get_mink();
         if(l < mink) return;
         for(auto &h: hashers_) h.reset();
-        size_t i = 0, nf = 0;
+        size_t i = 0;
+        long long int nf = 0;
         uint8_t v1;
         for(; nf < mink && i < l; ++i) {
             if((v1 = cstr_lut[static_cast<uint8_t>(s[i])]) == uint8_t(-1)) {
@@ -736,6 +826,7 @@ struct RollingHasherSet {
     void for_each_hash(const Functor &func, const char *inpath, kseq_t *ks=nullptr) {
         gzFile fp = gzopen(inpath, "rb");
         if(!fp) throw file_open_error(inpath);
+        gzbuffer(fp, 1<<18);
         for_each_hash<Functor>(func, fp, ks);
         gzclose(fp);
     }
@@ -795,58 +886,9 @@ khash_t(all) *hashcount_lmers(const std::string &path, const Spacer &space,
 
     Encoder<ScoreType> enc(nullptr, 0, space, data, canonicalize);
     khash_t(all) *ret(kh_init(all));
-    enc.add(ret, path.data());
+    enc.for_each([ret](auto x) {int khr; auto it = kh_get(all, ret, x); if(it == ret->n_buckets) {kh_put(all, ret, x, &khr); if(khr < 0) throw std::runtime_error("Error adding to hash table");}}
+                 , path.data());
     return ret;
-}
-
-template<typename ScoreType>
-void add_to_hll(hll::hll_t &hll, kseq_t *ks, Encoder<ScoreType> &enc) {
-    u64 min(BF);
-    if(enc.sp_.unwindowed()) {
-        if(enc.sp_.unspaced()) {
-            while(kseq_read(ks) >= 0) {
-                enc.assign(ks);
-                while(enc.has_next_kmer())
-                    if((min = enc.next_unspaced_kmer(min)) != BF)
-                        hll.addh(min);
-            }
-        } else {
-            while(kseq_read(ks) >= 0) {
-                enc.assign(ks);
-                while(enc.has_next_kmer())
-                    if((min = enc.next_kmer()) != BF)
-                        hll.addh(min);
-            }
-        }
-    } else {
-        while(kseq_read(ks) >= 0) {
-            enc.assign(ks);
-            while(enc.has_next_kmer())
-                if((min = enc.next_minimizer()) != BF)
-                    hll.addh(min);
-        }
-    }
-}
-
-template<typename ScoreType, typename SketchType>
-void fill_lmers(SketchType &sketch, const std::string &path, const Spacer &space, bool canonicalize=true,
-                void *data=nullptr, kseq_t *ks=nullptr) {
-#if USE_HASH_FILLER
-    detail::HashFiller<SketchType> hf(sketch);
-#endif
-    sketch.not_ready();
-    Encoder<ScoreType> enc(nullptr, 0, space, data, canonicalize);
-#if USE_HASH_FILLER
-    enc.for_each([&](u64 min) {hf.add(min);}, path.data(), ks);
-#else
-    enc.for_each([&](u64 min) {sketch.addh(min);}, path.data(), ks);
-#endif
-}
-
-template<typename ScoreType>
-void hll_fill_lmers(hll::hll_t &hll, const std::string &path, const Spacer &space, bool canonicalize=true,
-                    void *data=nullptr, kseq_t *ks=nullptr) {
-    fill_lmers<ScoreType>(hll, path, space, canonicalize, data, ks);
 }
 
 #define SUB_CALL \
@@ -925,6 +967,21 @@ struct est_helper {
     kseq_t                            *ks_;
 };
 
+template<typename ScoreType, typename SketchType>
+void fill_lmers(SketchType &sketch, const std::string &path, const Spacer &space, bool canonicalize=true,
+                void *data=nullptr, kseq_t *ks=nullptr) {
+#if USE_HASH_FILLER
+    detail::HashFiller<SketchType> hf(sketch);
+#endif
+    sketch.not_ready();
+    Encoder<ScoreType> enc(nullptr, 0, space, data, canonicalize);
+#if USE_HASH_FILLER
+    enc.for_each([&](u64 min) {hf.add(min);}, path.data(), ks);
+#else
+    enc.for_each([&](u64 min) {sketch.addh(min);}, path.data(), ks);
+#endif
+}
+
 template<typename SketchType, typename ScoreType=score::Lex>
 void est_helper_fn(void *data_, long index, int tid) {
     est_helper<SketchType> &h(*(est_helper<SketchType> *)(data_));
@@ -957,16 +1014,6 @@ void fill_sketch(SketchType &ret, const std::vector<std::string> &paths,
         auto &rhll = get_hll(ret);
         for(auto &sketch: sketches) rhll += get_hll(sketch);
     }
-}
-
-template<typename T>
-void hll_from_khash(hll::hll_t &ret, const T *kh, bool clear=true) {
-    if(clear) {
-        ret.clear();
-    }
-    for(khiter_t i(0); i < kh_size(kh); ++i)
-        if(kh_exist(kh, i))
-            ret.addh(kh->keys[i]);
 }
 
 template<typename ScoreType=score::Lex>

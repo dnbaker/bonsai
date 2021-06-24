@@ -169,7 +169,8 @@ TODO: Add SSO to avoid allocating for small strings, which we currently do
     operator const char *() const {return s;}
 
     inline string(uint64_t used, uint64_t max, const char *str):
-        l(used), m(max)  {
+        l(used), m(max), s(static_cast<char *>(std::malloc(max * sizeof(char))))
+    {
         if((s = static_cast<char *>(std::malloc(m * sizeof(char)))) == nullptr) throw std::bad_alloc();
         std::memcpy(s, str, (l + 1) * sizeof(char));
         default_allocate();

@@ -144,22 +144,27 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
             size_t olap(0);
             for(const auto k: kmers) olap += (okmers.find(k) != okmers.end());
             LOG_DEBUG("Size of each: kmers %zu, okmers %zu, olap %zu\n", kmers.size(), okmers.size(), olap);
-#if 0
-            if(olap != kmers.size()) {
-                if(okmers.size() != olap) RUNTIME_ERROR("I can't even try to help you this is so broken.");
-                LOG_DEBUG("Number of missing kmers: %zu\n", size_t(kmers.size() - olap));
-                for(const auto kmer: kmers)
-                    if(okmers.find(kmer) == okmers.end())
-                        std::fprintf(stderr, "Kmer: %s. RC: %s\n", sp.to_string(kmer).data(), sp.to_string(reverse_complement(kmer, 31)).data());
-                LOG_DEBUG("Number of missing kmers: %zu\n", size_t(kmers.size() - olap));
-            }
-#endif
             REQUIRE(olap == kmers.size());
             REQUIRE(kmers.size() == okmers.size());
             gzclose(fp);
             kseq_destroy(ks);
         }
     }
+}
+TEST_CASE("rollin_spaced") {
+    RollingHasher<__uint128_t, CyclicHash<__uint128_t>> enc(100, /*canon = */false, /*alphabet=*/bns::PROTEIN, /*wsz=*/200);
+    gzFile fp = gzopen("test/phix.fa", "rb");
+    if(!fp) throw "a party!";
+    __uint128_t total_hash = 0;
+    enc.for_each_hash([&total_hash](auto) {++total_hash;}, fp);
+    REQUIRE(uint64_t(total_hash) == uint64_t(5386 - 200 + 1));
+    gzrewind(fp);
+    size_t xor_red = 0;
+    Encoder<> enc3(31);
+    enc3.for_each_hash([&](uint64_t x) {xor_red |= x;}, fp);
+    Encoder<> enc4(147);
+    enc3.for_each_hash([&](uint64_t x) {xor_red |= x;}, fp);
+    gzclose(fp);
 }
 TEST_CASE("rollin") {
     RollingHasher<__uint128_t, CyclicHash<__uint128_t>> enc(100);

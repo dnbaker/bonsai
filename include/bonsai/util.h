@@ -119,6 +119,7 @@ using i8  = std::uint8_t;
 using u16 = std::uint16_t;
 using u32 = std::uint32_t;
 using u64 = std::uint64_t;
+using u128 = __uint128_t;
 using u8  = std::uint8_t;
 using std::size_t;
 using tax_t = u32;
@@ -494,7 +495,9 @@ static INLINE void kseq_assign(kseq_t *ks, gzFile fp) {
     if(!ks->f) {
         ks->f = (kstream_t*)calloc(1, sizeof(kstream_t));
         ks->f->buf = (unsigned char*)malloc(KSTREAM_SIZE);
-    } else ks->f->is_eof = ks->f->begin = ks->f->end = 0;
+    } else {
+        ks->f->is_eof = ks->f->begin = ks->f->end = 0;
+    }
     ks->f->f = fp;
 }
 
@@ -517,7 +520,8 @@ INLINE double kmer_entropy(uint64_t kmer, unsigned k) {
     double tmp(div * (counts >> 24)),    sum(tmp * std::log2(tmp));
     tmp = div * ((counts >> 16) & 0xFF), sum += tmp * std::log2(tmp);
     tmp = div * ((counts >> 8) & 0xFF),  sum += tmp * std::log2(tmp);
-    return tmp = div * (counts & 0xFF),  sum += tmp * std::log2(tmp);
+    tmp = div * (counts & 0xFF),  sum += tmp * std::log2(tmp);
+    return sum;
 }
 
 template<typename T> INLINE const char *get_cstr(const T &str) {return str.data();}
