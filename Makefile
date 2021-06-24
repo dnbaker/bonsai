@@ -1,6 +1,6 @@
 .PHONY=all tests clean obj update
-CXX=g++
-CC=gcc
+CXX?=g++
+CC?=gcc
 
 MAKE?=make
 

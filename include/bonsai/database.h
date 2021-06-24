@@ -59,7 +59,7 @@ struct Database {
     {
     }
     Database(Spacer sp, unsigned owns=1, T *db=nullptr):
-        Database(sp.k_, sp.w_, sub1(sp.s_), owns, db)
+        Database(sp.k_, sp.w_, sp.sub1(), owns, db)
     {
     }
 

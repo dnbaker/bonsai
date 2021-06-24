@@ -1,5 +1,7 @@
 #ifndef CHARACTERHASH
 #define CHARACTERHASH
+#include "aesctr/wy.h"
+#include "flat_hash_map/flat_hash_map.hpp"
 
 typedef unsigned long long uint64;
 typedef unsigned int uint32;
@@ -64,36 +66,67 @@ template<> inline int32_t roundup(int32_t v) {return roundup(uint32_t(v));}
 template<> inline int64_t roundup(int64_t v) {return roundup(uint64_t(v));}
 template<> inline __int128_t roundup(__int128_t v) {return roundup(__uint128_t(v));}
 
+using RNG = wy::WyRand<uint64_t>;
+
 template<typename T>
-inline void hack(T &x, std::mt19937_64 &rng) {x = rng();}
-template<> inline void hack(__uint128_t &x, std::mt19937_64 &rng) {
+inline void hack(T &x, RNG &rng) {x = rng();}
+template<> inline void hack(__uint128_t &x, RNG &rng) {
     x = rng(); x <<= 64; x |= rng();
 }
 
-template <typename hashvaluetype = uint32, typename chartype =  unsigned char>
+template <typename hashvaluetype = uint32, typename chartype =  unsigned char,
+         size_t nbrofchars=1ull<< ( sizeof(chartype)*8 )>
 class CharacterHash {
 public:
 
     static constexpr size_t HVSIZE = sizeof(hashvaluetype);
     static_assert(HVSIZE == 2 || HVSIZE == 1 || HVSIZE == 4 || HVSIZE == 8 || HVSIZE == 16, "Must be a supported type");
-    CharacterHash(hashvaluetype maxval, uint32 seed1=0, uint32 seed2=0x1337) {
+    uint64_t maxval_, seed_;
+    CharacterHash(hashvaluetype maxval, uint32 seed1=0, uint32 seed2=0x1337): maxval_(maxval), seed_(seed1) {
+        seed1 ^= seed2;
         if(seed1 == 0) seed1 = std::rand();
-        seed(maxval, seed1, seed2);
+        seed(maxval, seed1);
     }
-    void seed(hashvaluetype maxval, uint32_t seed1, uint64_t seed2=0) {
-        std::mt19937_64 randomgenerator(seed1), randomgeneratorbase(seed2);
-        randomgenerator.seed(seed1);
-        hashvaluetype tmaxval = roundup(maxval) - 1;
+    void seed(hashvaluetype maxval, uint32_t seed1) {
+        seed_ = seed1;
+        maxval_ = maxval;
+        clear_hashvalues(std::integral_constant<bool, (nbrofchars > 0)>());
+    }
+    void clear_hashvalues(std::true_type) {
+        wy::WyRand<uint64_t> randomgenerator(seed_);
+        hashvaluetype tmaxval = roundup(maxval_) - 1;
         for(size_t k =0; k<nbrofchars; ++k) {
             hashvaluetype next;
-            do { hack(next, randomgenerator); next &= tmaxval;} while(next > maxval);
+            do { hack(next, randomgenerator); next &= tmaxval;} while(next > maxval_);
             hashvalues[k] = next;
         }
     }
+    void clear_hashvalues(std::false_type) {
+        hashvalues.clear();
+    }
+    hashvaluetype access(chartype i, std::true_type) const {
+        return hashvalues[i];
+    }
+    hashvaluetype access(chartype i, std::false_type) const {
+        auto it = hashvalues.find(i);
+        if(it != hashvalues.end()) {
+             return it->second;
+        } else {
+            hashvaluetype tmaxval = roundup(maxval_) - 1;
+            wy::WyRand<uint64_t> randomgenerator(seed_ + i);
+            hashvaluetype next;
+            do { hack(next, randomgenerator); next &= tmaxval;} while(next > maxval_);
+            hashvalues[i] = next;
+            return next;
+        }
+    }
 
-    enum {nbrofchars = 1 << ( sizeof(chartype)*8 )};
+    hashvaluetype operator[](chartype i) const {
+        return access(i, std::integral_constant<bool, (nbrofchars > 0)>());
+    }
 
-    hashvaluetype hashvalues[nbrofchars];
+    std::conditional_t<(nbrofchars > 0), std::array<hashvaluetype, nbrofchars>, ska::flat_hash_map<chartype, hashvaluetype>>
+        hashvalues;
 };
 
 #endif
