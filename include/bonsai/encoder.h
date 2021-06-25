@@ -709,6 +709,8 @@ struct RollingHasher {
         if(destroy) kseq_destroy(ks);
     }
     void reset() {hasher_.reset(); rchasher_.reset();}
+    size_t n_in_queue() const {return qmap_.n_in_queue();}
+    auto max_in_queue() const {return qmap_.begin()->first;}
 };
 
 template<typename IType>
