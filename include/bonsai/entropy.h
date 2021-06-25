@@ -43,7 +43,7 @@ public:
     double value() const {
         if(unlikely(cqsz_ < qsz_)) return NOT_FULL;
         return std::accumulate(counts_.begin(), counts_.end(), 0.,
-               [qi=qszinv_](double s, std::pair<char, size_t> v) {const auto v2 = v.second * qi; return v2 * std::log(v2);});
+               [qi=qszinv_](double s, auto v) {return s + v.second * qi * std::log(v.second * qi);});
     }
     double next_ent(char c) {
         push(c);
