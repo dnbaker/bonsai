@@ -139,7 +139,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
             }
             kseq_rewind(ks);
             gzrewind(fp);
-            enc.set_canonicalize(false);
+            enc.canonicalize(false);
             enc.for_each([&](auto km) {okmers.insert(canonical_representation(km, 31));}, ks);
             size_t olap(0);
             for(const auto k: kmers) olap += (okmers.find(k) != okmers.end());
