@@ -109,7 +109,7 @@ public:
 private:
     u64         pos_; // Current position within the string s_ we're working with.
     void      *data_; // A void pointer for using with scoring. Needed for hash_score.
-    QueueMap<KmerT, uint64_t> qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
+    QueueMap<KmerT, KmerT> qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
     const ScoreType  scorer_; // scoring struct
     bool canonicalize_;
     static constexpr KmerT ENCODE_OVERFLOW = static_cast<KmerT>(-1);
@@ -246,21 +246,21 @@ public:
         unsigned filled;
         CircusEnt &ent = *(static_cast<CircusEnt *>(data_));
         windowed_loop_start:
+        ent.clear();
         filled = min = 0;
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 min <<= 2;
-                if(unlikely((min |= cstr_lut[s_[pos_]]) == ENCODE_OVERFLOW) && likely(sp_.k_ < 31 || cstr_lut[s_[pos_]] != 'T')) {
+                if(unlikely((min |= cstr_lut[s_[pos_]]) == ENCODE_OVERFLOW) && likely(sp_.k_ < (sizeof(KmerT) * 4 - 1) || cstr_lut[s_[pos_]] != 'T')) {
                     ++pos_;
                     goto windowed_loop_start;
                 }
-                ent.push(s_[pos_]);
-                ++pos_;
+                ent.push(s_[pos_++]);
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
                 min &= mask;
-                if((kmer = qmap_.next_value(min, ent.score())) != ENCODE_OVERFLOW) func(kmer);
+                if((kmer = qmap_.next_value(min, min / (ent.value() + .001))) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
             }
         }
@@ -482,6 +482,7 @@ public:
             delete static_cast<CircusEnt *>(data_);
         }
     }
+    size_t n_in_queue() const {return qmap_.n_in_queue();}
 };
 
 enum RollingHashingType {
@@ -708,6 +709,8 @@ struct RollingHasher {
         if(destroy) kseq_destroy(ks);
     }
     void reset() {hasher_.reset(); rchasher_.reset();}
+    size_t n_in_queue() const {return qmap_.n_in_queue();}
+    auto max_in_queue() const {return qmap_.begin()->first;}
 };
 
 template<typename IType>

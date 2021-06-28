@@ -76,17 +76,17 @@ class QueueMap {
     map_iterator       end()       {return map_.end();}
     const_map_iterator end() const {return map_.cend();}
     // Do a std::enable_if that involves moving the element if it's by reference?
-    u64 next_value(const T el, const u64 score) {
+    T next_value(const T el, const T score) {
         add(list_.emplace_back(el, score));
         if(list_.size() > wsz_) del(list_.pop_front());
-        return list_.size() == wsz_ ? map_.begin()->first.el_: BF;
+        return list_.size() == wsz_ ? map_.begin()->first.el_: std::numeric_limits<T>::max();
         // Signal a window that is not filled by 0xFFFFFFFFFFFFFFFF
     }
     void reset() {
-        list_.clear();
-        map_.clear();
+        list_.clear(); map_.clear();
     }
     size_t size() const {return wsz_;}
+    size_t n_in_queue() const {return list_.size();}
 };
 
 using qmap_t = QueueMap<u64, u64>;
