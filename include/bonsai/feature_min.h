@@ -70,7 +70,13 @@ size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, si
     LOG_DEBUG("Filling from genome at path %s. kseq is pre-allocated ? %s. %p\n", path, ks ? "true": "false", (void *)ks);
 
     Encoder<ScoreType> enc(0, 0, sp, data, canon);
-    enc.add(ret, path, ks);
+    enc.for_each([&](auto x) {
+        auto it = kh_get(all, ret, x);
+        if(it == kh_end(ret)) {
+            int khr;
+            kh_put(all, ret, x, &khr);
+        }
+    }, path, ks);
     LOG_DEBUG("Set of size %lu filled from genome at path %s\n", kh_size(ret), path);
     return index;
 }
