@@ -63,7 +63,8 @@ ALL_CLADES_MAP = {
     "protozoa": FTP_BASENAME + "protozoa/",
     "human": FTP_BASENAME + "vertebrate_mammalian/Homo_sapiens",
     "vertebrate_mammalian": FTP_BASENAME + "vertebrate_mammalian/",
-    "vertebrate_other": FTP_BASENAME + "vertebrate_other/"
+    "vertebrate_other": FTP_BASENAME + "vertebrate_other/",
+    "invertebrate": FTP_BASENAME + "invertebrate/"
 }
 
 DEFAULT_CLADES = [
