@@ -153,18 +153,14 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
 }
 TEST_CASE("rollin_spaced") {
     RollingHasher<__uint128_t, CyclicHash<__uint128_t>> enc(100, /*canon = */false, /*alphabet=*/bns::PROTEIN, /*wsz=*/200);
-    gzFile fp = gzopen("test/phix.fa", "rb");
-    if(!fp) throw "a party!";
     __uint128_t total_hash = 0;
-    enc.for_each_hash([&total_hash](auto) {++total_hash;}, fp);
+    enc.for_each_hash([&total_hash](auto) {++total_hash;}, "test/phix.fa");
     REQUIRE(uint64_t(total_hash) == uint64_t(5386 - 200 + 1));
-    gzrewind(fp);
     size_t xor_red = 0;
     Encoder<> enc3(31);
-    enc3.for_each_hash([&](uint64_t x) {xor_red |= x;}, fp);
+    enc3.for_each_hash([&](uint64_t x) {xor_red |= x;}, "test/phix.fa");
     Encoder<> enc4(147);
-    enc3.for_each_hash([&](uint64_t x) {xor_red |= x;}, fp);
-    gzclose(fp);
+    enc3.for_each_hash([&](uint64_t x) {xor_red |= x;}, "test/phix.fa");
 }
 TEST_CASE("rollin") {
     RollingHasher<__uint128_t, CyclicHash<__uint128_t>> enc(100);
@@ -187,8 +183,10 @@ TEST_CASE("rollin") {
 }
 TEST_CASE("rhs") {
     RollingHasherSet<uint64_t> rhs(std::vector<int>{16,32,64,128});
-    rhs.for_each_hash([](uint64_t kmer, size_t hashnum) {std::fprintf(stderr, "%" PRIu64 ": %zu\n", kmer, hashnum);},
+    std::FILE *ofp = std::fopen("/dev/null", "wb");
+    rhs.for_each_hash([ofp](uint64_t kmer, size_t hashnum) {std::fprintf(ofp, "%" PRIu64 ": %zu\n", kmer, hashnum);},
                       "test/phix.fa");
+    std::fclose(ofp);
 }
 TEST_CASE("entmin") {
     Spacer sp(31, 60);

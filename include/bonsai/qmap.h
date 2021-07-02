@@ -79,7 +79,10 @@ class QueueMap {
     T next_value(const T el, const T score) {
         add(list_.emplace_back(el, score));
         if(list_.size() > wsz_) del(list_.pop_front());
-        return list_.size() == wsz_ ? map_.begin()->first.el_: std::numeric_limits<T>::max();
+        if(list_.size() == wsz_) return map_.begin()->first.el_;
+        if(std::is_same<T, u128>::value)
+            return u128(-1);
+        return std::numeric_limits<T>::max();
         // Signal a window that is not filled by 0xFFFFFFFFFFFFFFFF
     }
     void reset() {
@@ -87,6 +90,11 @@ class QueueMap {
     }
     size_t size() const {return wsz_;}
     size_t n_in_queue() const {return list_.size();}
+    bool partially_full() const {
+        const auto n = n_in_queue();
+        return n > 0u && n < wsz_;
+    }
+    const auto &max_in_queue() const {return begin()->first;}
 };
 
 using qmap_t = QueueMap<u64, u64>;

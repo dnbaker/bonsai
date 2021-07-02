@@ -236,6 +236,8 @@ public:
                 --filled;
             }
         }
+        if(qmap_.partially_full())
+            func(qmap_.max_in_queue().el_);
     }
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_windowed_entropy_(const Functor &func) {
@@ -264,10 +266,12 @@ public:
                 --filled;
             }
         }
+        if(qmap_.partially_full())
+            func(max_in_queue().el_);
     }
     template<typename Functor>
     INLINE void for_each_canon_unspaced_windowed_entropy_(const Functor &func) {
-        this->for_each_uncanon_unspaced_windowed_entropy_([&](KmerT &min) {return func(canonical_representation(min, sp_.k_));});
+        this->for_each_uncanon_unspaced_windowed_entropy_([&](KmerT min) {return func(canonical_representation(min, sp_.k_));});
     }
     // Utility 'for-each'-like functions.
     template<typename Functor>
@@ -550,6 +554,7 @@ struct RollingHasher {
     RollingHasher(const RollingHasher &o): RollingHasher(o.k_, o.canon_, o.enctype_, o.w_, o.seed1_, o.seed2_) {}
     template<typename Functor>
     void for_each_canon(const Functor &func, const char *s, size_t l) {
+        qmap_.reset();
         if(enctype_ != DNA) {
             for_each_uncanon<Functor>(func, s, l);
             return;
@@ -569,7 +574,7 @@ struct RollingHasher {
             for(i = nf = 0; nf < k_ && i < l; ++i) {
                 if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
                     fixup_minimizer:
-                    if(i + 2 * k_ >= l) return;
+                    if(i + 2 * k_ >= l) goto end;
                     i += k_;
                     nf = 0;
                     hasher_.reset();
@@ -578,7 +583,7 @@ struct RollingHasher {
                   // In the future, encode the side that is still valid
                 else hasher_.eat(v1), rchasher_.eat(cstr_rc_lut[s[i - nf + k_ - 1]]), ++nf;
             }
-            if(nf < k_) return; // All failed
+            if(nf < k_) goto end; // All failed
             add_hashes(hasher_);
             add_hashes(rchasher_);
             for(;i < l; ++i) {
@@ -589,6 +594,9 @@ struct RollingHasher {
                 add_hashes(hasher_);
                 add_hashes(rchasher_);
             }
+            end:
+            if(qmap_.partially_full())
+                func(max_in_queue().el_);
         } else {
             for(i = nf = 0; nf < k_ && i < l; ++i) {
                 if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
@@ -617,6 +625,7 @@ struct RollingHasher {
     void for_each_uncanon(const Functor &func, const char *s, size_t l) {
         if(l < size_t(k_)) return;
         hasher_.reset();
+        qmap_.reset();
         size_t i;
         long long int nf;
         uint8_t v1;
@@ -644,9 +653,10 @@ struct RollingHasher {
         IntType nextv;
         auto use_val = [&](auto v) {
             if(qmap_.size() > 1) {
-                if((nextv = qmap_.next_value(v, v)) != ENCODE_OVERFLOW)
+                if((nextv = qmap_.next_value(v, v)) != ENCODE_OVERFLOW) {
                     func(nextv);
-            } else func(v);
+                }
+            } else if(v != ENCODE_OVERFLOW) func(v);
         };
         use_val(hasher_.hashvalue);
         for(;i < l; ++i) {
@@ -661,6 +671,8 @@ struct RollingHasher {
             }
             use_val(hasher_.hashvalue);
         }
+        if(qmap_.partially_full())
+            func(max_in_queue().el_);
     }
     template<typename Functor>
     void for_each_canon(const Functor &func, kseq_t *ks) {

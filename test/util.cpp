@@ -4,7 +4,7 @@ using namespace bns;
 
 #define is_pow2(x) ((x & (x - 1)) == 0)
 
-TEST_CASE("Khash writes and reads correcly") {
+TEST_CASE("KhashSerial") {
     khash_t(c) *th(kh_init(c)), *ti(nullptr);
     khint_t ki;
     int khr;
