@@ -131,6 +131,10 @@ public:
             if(data_) UNRECOVERABLE_ERROR("No data pointer must be provided for lex::Entropy minimization.");
             data_ = static_cast<void *>(new CircusEnt(sp_.k_));
         }
+        if(!sp_.unspaced() && canonicalize_) {
+            std::fprintf(stderr, "If a spaced seed is set, k-mers cannot be canonicalized\n");
+            canonicalize_ = false;
+        }
     }
     Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data, canonicalize) {}
     Encoder(const Spacer &sp, bool canonicalize=true): Encoder(sp, nullptr, canonicalize) {}
@@ -355,7 +359,10 @@ public:
                         for_each_uncanon_unspaced_windowed_entropy_(func);
                     else for_each_uncanon_unspaced_windowed(func);
                 }
-            } else for_each_uncanon_spaced(func);
+            } else {
+                if(canonicalize_) for_each_uncanon_spaced(func);
+                //else              for_each_canon_spaced(func); Unless the spaced seed is symmetric, we can't do this
+            }
         }
     }
     template<typename Functor>
