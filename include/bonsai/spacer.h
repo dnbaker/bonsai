@@ -26,19 +26,22 @@ inline ks::string str(const spvec_t &vec) {
     return ret;
 }
 
-static spvec_t parse_spacing(const char *ss, unsigned k) {
+static spvec_t parse_spacing(const char *sss, unsigned k) {
+    char *ss = const_cast<char *>(sss);
     if(!ss || *ss == '\0') return spvec_t(k - 1, 0); // No spaces
-
     spvec_t ret;
-    while(ss && *ss) {
-        int j(atoi(ss));
+    for(;*ss;++ss) {
+        const int j = strtoul(ss, &ss, 10);
         ret.emplace_back(j);
 
-        if(strchr(ss, 'x')) {
+        if(*ss == 'x') {
             ss = strchr(ss, 'x') + 1;
-            for(int k(atoi(ss) - 1); k; k--) ret.emplace_back(j);
+            auto n = std::max(int(strtoul(ss, &ss, 10)) - 1, 0);
+            if(n > 0)
+                ret.insert(ret.end(), n, j);
         }
-        ss = strchr(ss, ',') + 1;
+        ss = strchr(ss, ',');
+        if(!ss) break;
     }
     return ret;
 }
