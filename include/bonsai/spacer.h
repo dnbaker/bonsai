@@ -31,16 +31,16 @@ static spvec_t parse_spacing(const char *sss, unsigned k) {
     if(!ss || *ss == '\0') return spvec_t(k - 1, 0); // No spaces
     spvec_t ret;
     for(;*ss;++ss) {
-        const int j = strtoul(ss, &ss, 10);
+        const int j = std::strtoul(ss, &ss, 10);
         ret.emplace_back(j);
 
         if(*ss == 'x') {
-            ss = strchr(ss, 'x') + 1;
-            auto n = std::max(int(strtoul(ss, &ss, 10)) - 1, 0);
+            ss = std::strchr(ss, 'x') + 1;
+            auto n = std::max(int(std::strtoul(ss, &ss, 10)) - 1, 0);
             if(n > 0)
                 ret.insert(ret.end(), n, j);
         }
-        ss = strchr(ss, ',');
+        ss = std::strchr(ss, ',');
         if(!ss) break;
     }
     return ret;
