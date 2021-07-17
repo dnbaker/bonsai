@@ -25,16 +25,20 @@ namespace bns {
 using namespace sketch;
 
 
-enum RollingHashingType {
+enum InputType {
     DNA,
     PROTEIN,      // Treats all characters as valid
     PROTEIN20,    // Corresponds to AMINO20, which masks unexpected characters
     PROTEIN_3BIT, // Corresponds to SEB8, which can hold 22 in 64-bits and 42 in 128-bits
     PROTEIN_14,   // Corresponds to SEB14, which can hold up to 16 in 64 bits and 33 in 128-bits
     PROTEIN_6,    // Corresponds to SEB6, which can hold up to 24 in 64 bits and 49 in 128-bits
-    PROTEIN_6_FRAME
+    DNA2,         // Purines and Pyrimidines, corresponds to DNA2PYRPUR
+    PROTEIN_6_FRAME,
 };
-using RollingHashType = RollingHashingType;
+// Aliases
+using RollingHashingType = InputType;
+using RollingHashType = InputType;
+static inline std::string to_string(InputType it);
 
 enum score_scheme {
     LEX = 0,
@@ -152,12 +156,12 @@ public:
     }
     Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data, canonicalize) {}
     Encoder(const Spacer &sp, bool canonicalize=true): Encoder(sp, nullptr, canonicalize) {}
-    Encoder(const Encoder &o): s_(o.s_), l_(o.l_), sp_(o.sp_), pos_(o.pos_), data_(o.data_), scorer_(o.scorer_), canonicalize_(o.canonicalize_){
+    Encoder(const Encoder &o): s_(o.s_), l_(o.l_), sp_(o.sp_), pos_(o.pos_), data_(o.data_), scorer_(o.scorer_), canonicalize_(o.canonicalize_), rht(o.rht) {
         if(sp_.w_ > sp_.c_)
             qmap_.resize(sp_.w_ - sp_.c_ + 1);
     }
     Encoder(Encoder<ScoreType, KmerT> &&o): s_(o.s_), l_(o.l_), sp_(o.sp_), pos_(o.pos_), data_(o.data_),
-            qmap_(std::move(o.qmap_)), scorer_{}, canonicalize_(o.canonicalize_) {
+            qmap_(std::move(o.qmap_)), scorer_{}, canonicalize_(o.canonicalize_), rht(o.rht) {
     }
     Encoder &operator=(const Encoder<ScoreType, KmerT> &o) {
         s_ = o.s_; l_ = o.l_;
@@ -166,12 +170,14 @@ public:
         data_ = o.data_;
         qmap_ = o.qmap_;
         canonicalize_ = o.canonicalize_;
+        rht = o.rht;
         return *this;
     }
     void hashtype(RollingHashType newrht) {rht = newrht;}
     Encoder(unsigned k, bool canonicalize=true): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize) {}
     Encoder<ScoreType, u128> to_u128() const {
-        return Encoder<ScoreType, u128>(sp_, data_, canonicalize_);
+        Encoder<ScoreType, u128> ret(sp_, data_, canonicalize_);
+        ret.hashtype(this->rht);
     }
 
     // Assign functions: These tell the encoder to fetch kmers from this string.
@@ -462,13 +468,31 @@ public:
     INLINE KmerT kmer(unsigned start) {
         assert(start <= l_ - sp_.c_ + 1);
         if(l_ < sp_.c_)    return ENCODE_OVERFLOW;
-        KmerT new_kmer(cstr_lut[s_[start]]);
+        const uint8_t *lutptr = rht == DNA ? (const uint8_t *)cstr_lut:
+                                rht == PROTEIN ? (const uint8_t *)BYTES.data():
+                                rht == PROTEIN20 ? (const uint8_t *)AMINO20.data():
+                                rht == PROTEIN_14 ? (const uint8_t *)SEB14.data():
+                                rht == PROTEIN_3BIT ? (const uint8_t *)SEB8.data():
+                                rht == PROTEIN_6 ? (const uint8_t *)SEB6.data():
+                                rht == DNA2 ? (const uint8_t *)DNA2PYRPUR.data()
+                           : (const uint8_t *)DNA5.data();
+                           // Default to DNA5
+        KmerT new_kmer(lutptr[s_[start]]);
         if(new_kmer == ENCODE_OVERFLOW) return ENCODE_OVERFLOW;
         u64 len(sp_.s_.size());
         auto spaces(sp_.s_.data());
-#define ITER do {new_kmer <<= 2, start += *spaces++; if((new_kmer |= cstr_lut[s_[start]]) == ENCODE_OVERFLOW) return new_kmer;} while(0);
-        DO_DUFF(len, ITER);
+        if(rht == DNA || rht == PROTEIN || rht == PROTEIN_3BIT || rht == DNA2) {
+            const int shift = rht == DNA ? 2: rht == PROTEIN ? 8: rht == DNA2 ? 1: 3;
+#define ITER do {new_kmer <<= shift, start += *spaces++; if((new_kmer |= lutptr[s_[start]]) == ENCODE_OVERFLOW) goto rnk;} while(0);
+            DO_DUFF(len, ITER);
 #undef ITER
+        } else if(rht == PROTEIN20 || rht == PROTEIN_14 || rht == PROTEIN_6) {
+            const size_t mul = rht == PROTEIN20 ? 20: rht == PROTEIN_14 ? 14: 6;
+#define ITER do {new_kmer *= mul, start += *spaces++; if((new_kmer |= lutptr[s_[start]]) == ENCODE_OVERFLOW) goto rnk;} while(0);
+            DO_DUFF(len, ITER);
+#undef ITER
+        }
+        rnk:
         return new_kmer;
     }
     // Whether or not an additional kmer is present in the sequence being encoded.
@@ -555,10 +579,17 @@ template<> struct RHTraits<PROTEIN_6> {
     static constexpr size_t nper128 = 49;
     static constexpr const alph::Alphabet &table = alph::SEB6;
 };
+template<> struct RHTraits<DNA2> {
+    static constexpr size_t alphsize = 2;
+    static constexpr size_t nper64 = 32;
+    static constexpr size_t nper128 = 64;
+    static constexpr const alph::Alphabet &table = alph::DNA2PYRPUR;
+};
 static constexpr inline size_t rh2n(RollingHashType rht, bool is128) {
     switch(rht) {
 #define CASE(x) case x: return is128 ? RHTraits<x>::nper128: RHTraits<x>::nper64;
         CASE(DNA)
+        CASE(DNA2)
         CASE(PROTEIN)
         CASE(PROTEIN20)
         CASE(PROTEIN_3BIT)
@@ -572,7 +603,7 @@ static constexpr inline size_t rh2n(RollingHashType rht, bool is128) {
 using RollingHashType = RollingHashingType;
 using RHT = RollingHashingType;
 
-static inline std::string to_string(RollingHashingType rht) {
+static inline std::string to_string(InputType rht) {
     switch(rht) {
         case DNA: return "DNA";
         case PROTEIN: return "PROTEIN";
@@ -581,6 +612,7 @@ static inline std::string to_string(RollingHashingType rht) {
         case PROTEIN_14: return "PROTEIN_14";
         case PROTEIN_6: return "PROTEIN_6";
         case PROTEIN_6_FRAME: return "PROTEIN_6_FRAME";
+        case DNA2: return "DNA2PurinePyrimidines";
         default:;
     }
     return "unknown";
@@ -706,7 +738,8 @@ struct RollingHasher {
             enctype_ == PROTEIN ? alph::BYTES:
             enctype_ == PROTEIN20 ? alph::AMINO20:
             enctype_ == PROTEIN_3BIT ? alph::SEB8:
-            enctype_ == PROTEIN_14 ? alph::SEB14: alph::SEB6;
+            enctype_ == PROTEIN_14 ? alph::SEB14:
+            alph::SEB6;
         hasher_.reset();
         qmap_.reset();
         size_t i;
