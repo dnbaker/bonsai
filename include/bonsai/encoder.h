@@ -19,9 +19,22 @@
 #include "rollinghash/rabinkarphash.h"
 #include "rollinghash/cyclichash.h"
 #include "ntHash/nthash.hpp"
+#include "alphabet.h"
 
 namespace bns {
 using namespace sketch;
+
+
+enum RollingHashingType {
+    DNA,
+    PROTEIN,      // Treats all characters as valid
+    PROTEIN20,    // Corresponds to AMINO20, which masks unexpected characters
+    PROTEIN_3BIT, // Corresponds to SEB8, which can hold 22 in 64-bits and 42 in 128-bits
+    PROTEIN_14,   // Corresponds to SEB14, which can hold up to 16 in 64 bits and 33 in 128-bits
+    PROTEIN_6,    // Corresponds to SEB6, which can hold up to 24 in 64 bits and 49 in 128-bits
+    PROTEIN_6_FRAME
+};
+using RollingHashType = RollingHashingType;
 
 enum score_scheme {
     LEX = 0,
@@ -113,6 +126,7 @@ private:
     const ScoreType  scorer_; // scoring struct
     bool canonicalize_;
     static constexpr KmerT ENCODE_OVERFLOW = static_cast<KmerT>(-1);
+    RollingHashingType rht = RollingHashType::DNA;
     static_assert(std::is_unsigned<KmerT>::value || std::is_same<KmerT, u128>::value, "Must be unsigned integers");
 
 public:
@@ -154,6 +168,7 @@ public:
         canonicalize_ = o.canonicalize_;
         return *this;
     }
+    void hashtype(RollingHashType newrht) {rht = newrht;}
     Encoder(unsigned k, bool canonicalize=true): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize) {}
     Encoder<ScoreType, u128> to_u128() const {
         return Encoder<ScoreType, u128>(sp_, data_, canonicalize_);
@@ -342,6 +357,7 @@ public:
     INLINE void for_each(const Functor &func, const char *str, u64 l) {
         this->assign(str, l);
         if(!has_next_kmer()) return;
+        if(rht != DNA) {std::fprintf(stderr, "Can't reverse-complement protein\n"); canonicalize_ = false;}
         if(canonicalize_) {
             if(sp_.unwindowed()) {
                  for_each_canon_unwindowed(func);
@@ -496,12 +512,63 @@ public:
     size_t n_in_queue() const {return qmap_.n_in_queue();}
 };
 
-enum RollingHashingType {
-    DNA,
-    PROTEIN,
-    PROTEIN_3BIT,
-    PROTEIN_6_FRAME
+
+template<RollingHashType rht> struct RHTraits {
+    static constexpr size_t alphsize = 0;
+    static constexpr size_t nper64 = 0;
+    static constexpr size_t nper128 = 0;
+    static constexpr const alph::Alphabet &table = alph::BYTES;
 };
+template<> struct RHTraits<DNA> {
+    static constexpr size_t alphsize = 4;
+    static constexpr size_t nper64 = 32;
+    static constexpr size_t nper128 = 64;
+    static constexpr const alph::Alphabet &table = alph::DNA4;
+};
+template<> struct RHTraits<PROTEIN> {
+    static constexpr size_t alphsize = 256;
+    static constexpr size_t nper64 = 8;
+    static constexpr size_t nper128 = 16;
+    static constexpr const alph::Alphabet &table = alph::BYTES;
+};
+template<> struct RHTraits<PROTEIN20> {
+    static constexpr size_t alphsize = 20;
+    static constexpr size_t nper64 = 14;
+    static constexpr size_t nper128 = 29;
+    static constexpr const alph::Alphabet &table = alph::AMINO20;
+};
+template<> struct RHTraits<PROTEIN_3BIT> {
+    static constexpr size_t alphsize = 8;
+    static constexpr size_t nper64 = 22;
+    static constexpr size_t nper128 = 42;
+    static constexpr const alph::Alphabet &table = alph::SEB8;
+};
+template<> struct RHTraits<PROTEIN_14> {
+    static constexpr size_t alphsize = 14;
+    static constexpr size_t nper64 = 16;
+    static constexpr size_t nper128 = 33;
+    static constexpr const alph::Alphabet &table = alph::SEB14;
+};
+template<> struct RHTraits<PROTEIN_6> {
+    static constexpr size_t alphsize = 6;
+    static constexpr size_t nper64 = 24;
+    static constexpr size_t nper128 = 49;
+    static constexpr const alph::Alphabet &table = alph::SEB6;
+};
+static constexpr inline size_t rh2n(RollingHashType rht, bool is128) {
+    switch(rht) {
+#define CASE(x) case x: return is128 ? RHTraits<x>::nper128: RHTraits<x>::nper64;
+        CASE(DNA)
+        CASE(PROTEIN)
+        CASE(PROTEIN20)
+        CASE(PROTEIN_3BIT)
+        CASE(PROTEIN_14)
+        CASE(PROTEIN_6)
+        case PROTEIN_6_FRAME: return -1;
+#undef CASE
+    }
+    return 0;
+}
 using RollingHashType = RollingHashingType;
 using RHT = RollingHashingType;
 
@@ -509,7 +576,10 @@ static inline std::string to_string(RollingHashingType rht) {
     switch(rht) {
         case DNA: return "DNA";
         case PROTEIN: return "PROTEIN";
+        case PROTEIN20: return "PROTEIN20";
         case PROTEIN_3BIT: return "PROTEIN_3BIT";
+        case PROTEIN_14: return "PROTEIN_14";
+        case PROTEIN_6: return "PROTEIN_6";
         case PROTEIN_6_FRAME: return "PROTEIN_6_FRAME";
         default:;
     }
@@ -631,6 +701,12 @@ struct RollingHasher {
     template<typename Functor>
     void for_each_uncanon(const Functor &func, const char *s, size_t l) {
         if(l < size_t(k_)) return;
+        auto &alph =
+            enctype_ == DNA ? alph::DNA4:
+            enctype_ == PROTEIN ? alph::BYTES:
+            enctype_ == PROTEIN20 ? alph::AMINO20:
+            enctype_ == PROTEIN_3BIT ? alph::SEB8:
+            enctype_ == PROTEIN_14 ? alph::SEB14: alph::SEB6;
         hasher_.reset();
         qmap_.reset();
         size_t i;
@@ -638,9 +714,8 @@ struct RollingHasher {
         uint8_t v1;
         if(enctype_ != DNA) {
             for(i = nf = 0; nf < k_ && i < l; ++i) {
-                if(unlikely((v1 = s[i]) == 0)) {
+                if(unlikely((v1 = alph.translate(s[i])) == int8_t(-1))) {
                     fixup_protein:
-                    if(i + 2 * k_ >= l) return;
                     i += k_; nf = 0; hasher_.reset();
                 } else hasher_.eat(v1), ++nf;
             }
@@ -669,7 +744,7 @@ struct RollingHasher {
         for(;i < l; ++i) {
             const auto c = s[i - k_], si = s[i];
             if(enctype_ != DNA) {
-                if((v1 = si) == 0) goto fixup_protein;
+                if((v1 = si) == -1) goto fixup_protein;
                 hasher_.update(c, v1);
             } else {
                 if((v1 = cstr_lut[si]) == uint8_t(-1))
