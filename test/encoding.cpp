@@ -202,3 +202,41 @@ TEST_CASE("entmin") {
     }
     LOG_INFO("kmers2 size: %zu\n", kmers2.size());
 }
+TEST_CASE("parseasprot") {
+    Spacer sp(31, 31);
+    for(const InputType rv: {bns::DNA, bns::PROTEIN, bns::PROTEIN20, bns::PROTEIN_3BIT, bns::PROTEIN_14, bns::PROTEIN_6, bns::DNA2}) {
+        Encoder<score::Lex> enc(sp, true);
+        enc.hashtype(rv);
+        gzFile fp(gzopen("test/phix.fa", "rb"));
+        LOG_DEBUG("Opened fp\n");
+        if(fp == nullptr) RUNTIME_ERROR("ZOMG fp is null for file at test/phix.fa");
+        kseq_t *ks(kseq_init(fp));
+        LOG_INFO("Opened kseq\n");
+        if(ks == nullptr) RUNTIME_ERROR("ks is null for fp");
+        std::unordered_set<u64> kmers, okmers;
+        u64 k(BF);
+        while(kseq_read(ks) >= 0) {
+            enc.assign(ks);
+            while(enc.has_next_kmer())
+                if((k = enc.next_kmer()) != BF) kmers.insert(k);
+        }
+        LOG_INFO("Filled kmers\n");
+        kseq_rewind(ks);
+        gzrewind(fp);
+        while(kseq_read(ks) >= 0) {
+            LOG_INFO("reading seq\n");
+            enc.assign(ks);
+            while(enc.has_next_kmer()) {
+                if((k = enc.next_kmer()) != BF) {
+                    okmers.insert(k);
+                }
+            }
+        }
+        size_t olap(0);
+        for(const auto k: kmers) olap += (okmers.find(k) != okmers.end());
+        LOG_INFO("Size of each: kmers %zu, okmers %zu\n", kmers.size(), okmers.size());
+        gzclose(fp);
+        kseq_destroy(ks);
+        std::fprintf(stderr, "Finished for %s\n", bns::to_string(rv).data());
+    }
+}

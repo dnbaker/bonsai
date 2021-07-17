@@ -4,6 +4,8 @@
 #include <map>
 #include <cstdint>
 #include <string>
+#include <climits>
+#include <type_traits>
 
 namespace bns {
 namespace alph {
@@ -14,7 +16,10 @@ using std::size_t;
  * This 
  */
 
-struct Alphabet {
+template<typename VT=int8_t, size_t NCHAR=size_t(1) << (sizeof(VT) * CHAR_BIT)>
+struct TAlphabet {
+    static_assert(NCHAR > 1, "Nchar must be positive");
+    static_assert(std::is_integral<VT>::value, "VT must be integral");
     const char *name;
     const char *setstr;
 private:
@@ -22,7 +27,7 @@ private:
 public:
     bool padding;
     size_t nchars() const {return nc + 1;} // One for padding
-    using LUType = std::array<int8_t, 256>;
+    using LUType = std::array<VT, NCHAR>;
     LUType lut;
     static constexpr LUType make_lut(const char *s, const size_t nc, bool padding=false) {
         LUType arr{-1};
@@ -40,23 +45,30 @@ public:
         if(arr['U'] == 0) arr['U'] = arr['u'] = arr['C'];
         return arr;
     }
-    constexpr uint8_t translate(char x) const {return lut[static_cast<uint8_t>(x)];}
+    using SignedVT = typename std::make_signed<VT>::type;
+    constexpr VT translate(VT x) const {return lut[static_cast<SignedVT>(x)];}
+    constexpr VT *data() {return lut.data();}
+    constexpr const VT *data() const {return lut.data();}
+    static constexpr size_t size() {return NCHAR;}
     static constexpr size_t ncommas(const char *s) {
         size_t ret = 0, i = 0;
         while(s[i]) ret += (s[i] == ','), ++i;
         return ret;
     }
-    constexpr Alphabet(const Alphabet &) = default;
-    constexpr Alphabet(Alphabet &&) = default;
-    constexpr Alphabet(const char *name, const char *s, bool padding=false): name(name), setstr(s), nc(ncommas(s)), padding(padding), lut(make_lut(s, nc, padding)) {
+    constexpr TAlphabet(const TAlphabet &) = default;
+    constexpr TAlphabet(TAlphabet &&) = default;
+    constexpr TAlphabet(const char *name, const char *s, bool padding=false): name(name), setstr(s), nc(ncommas(s)), padding(padding), lut(make_lut(s, nc, padding)) {
     }
     static constexpr LUType emptylut(bool padding) {
         LUType tlut{-1};
-        for(int i = 0; i < 256; ++i) tlut[i] = i + padding;
+        for(size_t i = 0; i < NCHAR; ++i) tlut[i] = i + padding;
         return tlut;
     }
-    constexpr Alphabet(bool padding=false): name("Bytes"), setstr(""), nc(255 + padding), padding(padding), lut(emptylut(padding)) {
+    constexpr TAlphabet(bool padding=false): name("Bytes"), setstr(""), nc(NCHAR - 1 + padding), padding(padding), lut(emptylut(padding)) {
     }
+};
+struct Alphabet: public TAlphabet<int8_t> {
+    template<typename...Args> constexpr Alphabet(Args &&...args): TAlphabet(std::forward<Args>(args)...) {}
 };
 
 // Protein Alphabets
@@ -111,6 +123,25 @@ static const std::map<std::string, const Alphabet *> CAMAP {
 };
 
 } // alph
+
+using alph::Alphabet;
+using alph::BYTES;
+using alph::AMINO20;
+using alph::SEB14;
+using alph::SEB10;
+using alph::SEB6;
+using alph::SEB8;
+using alph::SEV10;
+using alph::SOLISD;
+using alph::SOLISG;
+using alph::MURPHY;
+using alph::LIA10;
+using alph::LIB10;
+using alph::DAYHOFF;
+using alph::DNA5;
+using alph::DNA4;
+using alph::DNA2KETAMINE;
+using alph::DNA2PYRPUR;
 
 } // namespace bns
 
