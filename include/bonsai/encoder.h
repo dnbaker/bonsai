@@ -228,9 +228,9 @@ public:
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 min <<= 2;
-                if(unlikely((min |= cstr_lut[s_[pos_++]]) == ENCODE_OVERFLOW) && (sp_.k_ < sizeof(KmerT) * 4 || cstr_lut[s_[pos_ - 1]] != 'T')) {
-                    goto loop_start;
-                }
+                auto nv = cstr_lut[s_[pos_++]];
+                if(nv == int8_t(-1)) {min = ENCODE_OVERFLOW; goto loop_start;}
+                min |= nv;
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
@@ -463,36 +463,58 @@ public:
             for_each<Functor>(func, get_cstr(el), ks);
         }
     }
+    const int8_t *getlutptr() {
+        const int8_t *lutptr = rht == DNA ? (const int8_t *)cstr_lut:
+                                rht == PROTEIN ? (const int8_t *)BYTES.data():
+                                rht == PROTEIN20 ? (const int8_t *)AMINO20.data():
+                                rht == PROTEIN_14 ? (const int8_t *)SEB14.data():
+                                rht == PROTEIN_3BIT ? (const int8_t *)SEB8.data():
+                                rht == PROTEIN_6 ? (const int8_t *)SEB6.data():
+                                rht == DNA2 ? (const int8_t *)DNA2PYRPUR.data()
+                           : (const int8_t *)DNA5.data();
+        //std::fprintf(stderr, "Using rht %s\n", to_string(rht).data());
+#if 0
+        for(size_t i = 0; i < 256; ++i) {
+            std::fprintf(stderr, "%d/%c -> %d\n", int(i), char(i), int(lutptr[i]));
+        }
+#endif
+        return lutptr;
+        // Default to DNA5 if unexpected
+    }
 
     // Encodes a kmer starting at `start` within string `s_`.
     INLINE KmerT kmer(unsigned start) {
         assert(start <= l_ - sp_.c_ + 1);
         if(l_ < sp_.c_)    return ENCODE_OVERFLOW;
-        const uint8_t *lutptr = rht == DNA ? (const uint8_t *)cstr_lut:
-                                rht == PROTEIN ? (const uint8_t *)BYTES.data():
-                                rht == PROTEIN20 ? (const uint8_t *)AMINO20.data():
-                                rht == PROTEIN_14 ? (const uint8_t *)SEB14.data():
-                                rht == PROTEIN_3BIT ? (const uint8_t *)SEB8.data():
-                                rht == PROTEIN_6 ? (const uint8_t *)SEB6.data():
-                                rht == DNA2 ? (const uint8_t *)DNA2PYRPUR.data()
-                           : (const uint8_t *)DNA5.data();
-                           // Default to DNA5
+        const int8_t *lutptr = getlutptr();
         KmerT new_kmer(lutptr[s_[start]]);
         if(new_kmer == ENCODE_OVERFLOW) return ENCODE_OVERFLOW;
         u64 len(sp_.s_.size());
+        int8_t nextc;
         auto spaces(sp_.s_.data());
         if(rht == DNA || rht == PROTEIN || rht == PROTEIN_3BIT || rht == DNA2) {
             const int shift = rht == DNA ? 2: rht == PROTEIN ? 8: rht == DNA2 ? 1: 3;
-#define ITER do {new_kmer <<= shift, start += *spaces++; if((new_kmer |= lutptr[s_[start]]) == ENCODE_OVERFLOW) goto rnk;} while(0);
+            /*std::fprintf(stderr, "Shift %d\n", shift);*/
+#define ITER do {\
+            start += *spaces++;\
+            nextc = lutptr[s_[start]];\
+            if(nextc == int8_t(-1)) {new_kmer = ENCODE_OVERFLOW; goto rnk;}\
+            new_kmer = (new_kmer << shift) | nextc;\
+        } while(0);
             DO_DUFF(len, ITER);
 #undef ITER
         } else if(rht == PROTEIN20 || rht == PROTEIN_14 || rht == PROTEIN_6) {
             const size_t mul = rht == PROTEIN20 ? 20: rht == PROTEIN_14 ? 14: 6;
-#define ITER do {new_kmer *= mul, start += *spaces++; if((new_kmer |= lutptr[s_[start]]) == ENCODE_OVERFLOW) goto rnk;} while(0);
+#define ITER do {new_kmer *= mul, start += *spaces++;\
+            nextc = lutptr[s_[start]];\
+            if(nextc == int8_t(-1)) {new_kmer = ENCODE_OVERFLOW; goto rnk;}\
+            new_kmer = (new_kmer * mul) | nextc;\
+        } while(0);
             DO_DUFF(len, ITER);
 #undef ITER
         }
         rnk:
+        //std::fprintf(stderr, "Returning k-mer %zu\n", size_t(new_kmer));
         return new_kmer;
     }
     // Whether or not an additional kmer is present in the sequence being encoded.
@@ -730,41 +752,28 @@ struct RollingHasher {
             }
         }
     }
+    const int8_t *getlutptr() {
+        const int8_t *lutptr = enctype_ == DNA ? (const int8_t *)cstr_lut:
+                                enctype_ == PROTEIN ? (const int8_t *)BYTES.data():
+                                enctype_ == PROTEIN20 ? (const int8_t *)AMINO20.data():
+                                enctype_ == PROTEIN_14 ? (const int8_t *)SEB14.data():
+                                enctype_ == PROTEIN_3BIT ? (const int8_t *)SEB8.data():
+                                enctype_ == PROTEIN_6 ? (const int8_t *)SEB6.data():
+                                enctype_ == DNA2 ? (const int8_t *)DNA2PYRPUR.data()
+                           : (const int8_t *)DNA5.data();
+        return lutptr;
+        // Default to DNA5 if unexpected
+    }
+
     template<typename Functor>
     void for_each_uncanon(const Functor &func, const char *s, size_t l) {
         if(l < size_t(k_)) return;
-        auto &alph =
-            enctype_ == DNA ? alph::DNA4:
-            enctype_ == PROTEIN ? alph::BYTES:
-            enctype_ == PROTEIN20 ? alph::AMINO20:
-            enctype_ == PROTEIN_3BIT ? alph::SEB8:
-            enctype_ == PROTEIN_14 ? alph::SEB14:
-            alph::SEB6;
         hasher_.reset();
         qmap_.reset();
         size_t i;
         long long int nf;
-        uint8_t v1;
-        if(enctype_ != DNA) {
-            for(i = nf = 0; nf < k_ && i < l; ++i) {
-                if(unlikely((v1 = alph.translate(s[i])) == int8_t(-1))) {
-                    fixup_protein:
-                    i += k_; nf = 0; hasher_.reset();
-                } else hasher_.eat(v1), ++nf;
-            }
-        } else {
-            for(i = nf = 0; nf < k_ && i < l; ++i) {
-                if((v1 = cstr_lut[s[i]]) == uint8_t(-1)) {
-                    fixup:
-                    if(i + 2 * k_ >= l) return;
-                    i += k_; nf = 0;
-                    hasher_.reset();
-                } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
-                  // In the future, encode the side that is still valid
-                else hasher_.eat(v1), ++nf;
-            }
-        }
-        if(nf < k_) return; // All failed
+        int8_t v1;
+        auto lutptr = getlutptr();
         IntType nextv;
         auto use_val = [&](auto v) {
             if(qmap_.size() > 1) {
@@ -773,17 +782,17 @@ struct RollingHasher {
                 }
             } else if(v != ENCODE_OVERFLOW) func(v);
         };
+        for(i = nf = 0; nf < k_ && i < l; ++i) {
+            if(unlikely((v1 = lutptr[s[i]]) == int8_t(-1))) {
+                fixup:
+                i += k_; nf = 0; hasher_.reset();
+            } else hasher_.eat(v1), ++nf;
+        }
+        if(nf < k_) return; // All failed
         use_val(hasher_.hashvalue);
         for(;i < l; ++i) {
-            const auto c = s[i - k_], si = s[i];
-            if(enctype_ != DNA) {
-                if((v1 = si) == -1) goto fixup_protein;
-                hasher_.update(c, v1);
-            } else {
-                if((v1 = cstr_lut[si]) == uint8_t(-1))
-                    goto fixup;
-                hasher_.update(cstr_lut[c], v1);
-            }
+            if((v1 = lutptr[s[i]]) == int8_t(-1)) goto fixup;
+            hasher_.update(lutptr[s[i - k_]], v1);
             use_val(hasher_.hashvalue);
         }
         if(qmap_.partially_full())
