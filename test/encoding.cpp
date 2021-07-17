@@ -21,7 +21,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         while(v.size() < 30) v.push_back(0);
         Spacer sp(31, 31, v);
         EncType enc(&test[0], 34, sp, nullptr, true);
-        REQUIRE(enc.canonicalize());
+        REQUIRE(!enc.canonicalize()); // Spaced can't be canon
         REQUIRE(sp.s_.size() == 30);
         REQUIRE(std::accumulate(sp.s_.begin(), sp.s_.end(), 0u) == sp.s_.size() + std::accumulate(v.begin(), v.end(), 0));
         std::string to_use = test;
@@ -36,7 +36,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         while(v.size() < 30) v.push_back(0);
         Spacer sp(31, 31, v);
         EncType enc(&test[0], 34, sp, nullptr, true);
-        REQUIRE(enc.canonicalize());
+        REQUIRE(!enc.canonicalize()); // Spaced kmers cannot be canonicalized (unless they're palindromic, but I haven't enabled that edge case.)
         REQUIRE(sp.s_.size() == 30);
         REQUIRE(std::accumulate(sp.s_.begin(), sp.s_.end(), 0u) == sp.s_.size() + std::accumulate(v.begin(), v.end(), 0));
         std::string to_use = test;
@@ -49,7 +49,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         while(v.size() < 30) v.push_back(0);
         Spacer sp(31, 31, v);
         EncType enc(nullptr, 34, sp, nullptr, true);
-        REQUIRE(enc.canonicalize());
+        REQUIRE(!enc.canonicalize());
         gzFile fp(gzopen("test/small_genome.fa", "rb"));
         kseq_t *ks(kseq_init(fp));
         kseq_read(ks);
@@ -73,7 +73,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
             Spacer sp(31, window_size, v);
             window_size = std::max(window_size, (int)sp.c_);
             EncType enc(ks->seq.s, ks->seq.l, sp, nullptr, true);
-            REQUIRE(enc.canonicalize());
+            REQUIRE(!enc.canonicalize());
             uint64_t km, n(0);
             while(enc.has_next_kmer()) {
                 ++n;
@@ -94,27 +94,29 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         kseq_t *ks(kseq_init(fp));
         LOG_DEBUG("Opened kseq\n");
         if(ks == nullptr) RUNTIME_ERROR("ks is null for fp");
-        std::unordered_set<u64> kmers, okmers;
+        std::unordered_map<u64, u32> kmers, okmers;
         u64 k(BF);
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
             while(enc.has_next_kmer())
-                if((k = enc.next_kmer()) != BF) kmers.insert(k);
+                if((k = enc.next_kmer()) != BF) ++kmers[k];
         }
+        kseq_destroy(ks);
+        gzclose(fp);
+        fp = gzopen("test/phix.fa", "rb");
+        ks = kseq_init(fp);
         LOG_DEBUG("Filled kmers\n");
-        kseq_rewind(ks);
-        gzrewind(fp);
         while(kseq_read(ks) >= 0) {
             LOG_DEBUG("reading seq\n");
             enc.assign(ks);
+            std::fprintf(stderr, "Seq %s\n", ks->name.s);
             while(enc.has_next_kmer()) {
-                if((k = enc.next_kmer()) != BF) {
-                    okmers.insert(k);
-                }
+                if((k = enc.next_kmer()) != BF)
+                    ++okmers[k];
             }
         }
         size_t olap(0);
-        for(const auto k: kmers) olap += (okmers.find(k) != okmers.end());
+        for(const auto &k: kmers) olap += (okmers.find(k.first) != okmers.end());
         LOG_DEBUG("Size of each: kmers %zu, okmers %zu\n", kmers.size(), okmers.size());
         REQUIRE(kmers.size() == okmers.size());
         REQUIRE(olap == kmers.size());
@@ -125,22 +127,31 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
     SECTION("space_case_jump") {
         for(const char *SPACED_FN: {"test/phix.fa", "test/ec/GCF_000007445.1_ASM744v1_genomic.fna.gz"}) {
             Spacer sp(31, 31);
-            Encoder<score::Entropy> enc(sp, true);
+            Encoder<score::Entropy> enc(sp);
             gzFile fp(gzopen(SPACED_FN, "rb"));
             if(fp == nullptr) RUNTIME_ERROR("Could not open file at "s + SPACED_FN);
             kseq_t *ks(kseq_init(fp));
             std::unordered_set<u64> kmers, okmers;
             u64 k(BF);
+            enc.for_each_canon([&](auto km) {kmers.insert(km);}, ks);
+#if 0
             while(kseq_read(ks) >= 0) {
                 enc.assign(ks);
+#if 1
+                std::fprintf(stderr, "seq %s %s\n", ks->name.s, ks->comment.s ? ks->comment.s: (char *)"nocomment");
+#else
                 while(enc.has_next_kmer())
                     if((k = enc.next_kmer()) != BF)
                         kmers.insert(canonical_representation(k, 31));
+#endif
             }
-            kseq_rewind(ks);
-            gzrewind(fp);
-            enc.canonicalize(false);
-            enc.for_each([&](auto km) {okmers.insert(canonical_representation(km, 31));}, ks);
+#endif
+            kseq_destroy(ks);
+            gzclose(fp);
+            fp = gzopen(SPACED_FN, "rb");
+            ks = kseq_init(fp);
+            //enc.canonicalize(false);
+            enc.for_each_uncanon([&](auto km) {okmers.insert(canonical_representation(km, 31));}, ks);
             size_t olap(0);
             for(const auto k: kmers) olap += (okmers.find(k) != okmers.end());
             LOG_DEBUG("Size of each: kmers %zu, okmers %zu, olap %zu\n", kmers.size(), okmers.size(), olap);
@@ -213,12 +224,12 @@ TEST_CASE("parseasprot") {
         kseq_t *ks(kseq_init(fp));
         LOG_INFO("Opened kseq\n");
         if(ks == nullptr) RUNTIME_ERROR("ks is null for fp");
-        std::unordered_set<u64> kmers, okmers;
+        std::unordered_map<u64, u32> kmers, okmers;
         u64 k(BF);
         while(kseq_read(ks) >= 0) {
             enc.assign(ks);
             while(enc.has_next_kmer())
-                if((k = enc.next_kmer()) != BF) kmers.insert(k);
+                if((k = enc.next_kmer()) != BF) ++kmers[k];
         }
         LOG_INFO("Filled kmers\n");
         kseq_rewind(ks);
@@ -227,13 +238,11 @@ TEST_CASE("parseasprot") {
             LOG_INFO("reading seq\n");
             enc.assign(ks);
             while(enc.has_next_kmer()) {
-                if((k = enc.next_kmer()) != BF) {
-                    okmers.insert(k);
-                }
+                if((k = enc.next_kmer()) != BF) { ++okmers[k];}
             }
         }
         size_t olap(0);
-        for(const auto k: kmers) olap += (okmers.find(k) != okmers.end());
+        for(const auto &pair: kmers) olap += (okmers.find(pair.first) != okmers.end());
         LOG_INFO("Size of each: kmers %zu, okmers %zu\n", kmers.size(), okmers.size());
         gzclose(fp);
         kseq_destroy(ks);
