@@ -35,6 +35,30 @@ enum InputType {
     DNA2,         // Purines and Pyrimidines, corresponds to DNA2PYRPUR
     PROTEIN_6_FRAME,
 };
+template<typename KmerT>
+KmerT rhmask(InputType it, int k) {
+    if(it == DNA) return 1 + (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 1)));
+    if(it == DNA2) return 1 + (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - k));
+    if(it == PROTEIN20) return std::pow(20, k);
+    if(it == PROTEIN_6) return std::pow(6, k);
+    if(it == PROTEIN_3BIT) return std::pow(8, k);
+    if(it == PROTEIN_14) return std::pow(14, k);
+    if(it == PROTEIN) return std::pow(256, k);
+    return KmerT(-1);
+}
+static constexpr inline size_t mul(InputType it) {
+    switch(it) {
+        case DNA: return 4;
+        case PROTEIN: return 256;
+        case PROTEIN20: return 20;
+        case PROTEIN_3BIT: return 8;
+        case PROTEIN_14: return 14;
+        case PROTEIN_6: return 6;
+        case DNA2: return 2;
+        case PROTEIN_6_FRAME: default: return 4;
+    }
+    return 2; //Should never happen
+}
 // Aliases
 using RollingHashingType = InputType;
 using RollingHashType = InputType;
@@ -220,43 +244,53 @@ public:
     }
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_unwindowed(const Functor &func) {
-        const KmerT mask((static_cast<KmerT>(-1)) >> (sizeof(KmerT) * 8 - (sp_.k_ << 1)));
+        const KmerT mask(rhmask<KmerT>(rht, sp_.k_));
+        schism::Schismatic<KmerT> div(mask);
         KmerT min;
         unsigned filled;
+        const auto lutptr = getlutptr();
+        const size_t mul = rhmul();
+        int8_t nv;
         loop_start:
         min = filled = 0;
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
-                min <<= 2;
-                auto nv = cstr_lut[s_[pos_++]];
+                nv = lutptr[s_[pos_++]];
                 if(nv == int8_t(-1)) {min = ENCODE_OVERFLOW; goto loop_start;}
-                min |= nv;
+                min = (min * mul) | nv;
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                min &= mask;
-                func(min);
+                if(sizeof(KmerT) == 16) {
+                    min %= mask;
+                } else {min = div.mod(min);}
+                func(rht == DNA || rht == DNA2 ? min & mask: min % mask);
                 --filled;
             }
         }
     }
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_windowed(const Functor &func) {
-        const KmerT mask((static_cast<KmerT>(-1)) >> (sizeof(KmerT) * 8 - (sp_.k_ << 1)));
+        const KmerT mask(rhmask<KmerT>(rht, sp_.k_));
+        schism::Schismatic<KmerT> div(mask);
         KmerT min, kmer;
         unsigned filled;
+        const auto lutptr = getlutptr();
+        const size_t mul = rhmul();
         windowed_loop_start:
         min = filled = 0;
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
-                min <<= 2;
-                if(unlikely((min |= cstr_lut[s_[pos_++]]) == ENCODE_OVERFLOW) && likely(sp_.k_ < sizeof(KmerT) * 4 || cstr_lut[s_[pos_ - 1]] != 'T')) {
+                min *= mul;
+                if(unlikely((min |= lutptr[s_[pos_++]]) == ENCODE_OVERFLOW) && likely(sp_.k_ < sizeof(KmerT) * 4 || lutptr[s_[pos_ - 1]] != 'T')) {
                     goto windowed_loop_start;
                 }
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                min &= mask;
+                if(sizeof(KmerT) == 16) {
+                    min %= mask;
+                } else {min = div.mod(min);}
                 if((kmer = qmap_.next_value(min, scorer_(min, data_))) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
             }
@@ -268,25 +302,29 @@ public:
     INLINE void for_each_uncanon_unspaced_windowed_entropy_(const Functor &func) {
         // NEVER CALL THIS DIRECTLY.
         // This contains instructions for generating uncanonicalized but windowed entropy-minimized kmers.
-        const KmerT mask((static_cast<KmerT>(-1)) >> (sizeof(KmerT) * 8 - (sp_.k_ << 1)));
+        const KmerT mask(rhmask<KmerT>(rht, sp_.k_));
         KmerT min, kmer;
         unsigned filled;
+        schism::Schismatic<KmerT> div(mask);
         CircusEnt &ent = *(static_cast<CircusEnt *>(data_));
+        const auto lutptr = getlutptr();
         windowed_loop_start:
         ent.clear();
+        const size_t mul = rhmul();
         filled = min = 0;
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
-                min <<= 2;
-                if(unlikely((min |= cstr_lut[s_[pos_]]) == ENCODE_OVERFLOW) && likely(sp_.k_ < (sizeof(KmerT) * 4 - 1) || cstr_lut[s_[pos_]] != 'T')) {
-                    ++pos_;
-                    goto windowed_loop_start;
-                }
-                ent.push(s_[pos_++]);
+                min *= mul;
+                const auto nc = lutptr[s_[pos_++]];
+                if(nc == int8_t(-1)) {min = ENCODE_OVERFLOW; goto windowed_loop_start;}
+                min |= nc;
+                ent.push(nc);
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                min &= mask;
+                if(sizeof(KmerT) == 16) {
+                    min %= mask;
+                } else {min = div.mod(min);}
                 if((kmer = qmap_.next_value(min, min / (ent.value() + .001))) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
             }
@@ -462,6 +500,10 @@ public:
         for(const auto &el: strcon) {
             for_each<Functor>(func, get_cstr(el), ks);
         }
+    }
+
+    size_t rhmul() const {
+        return mul(rht);
     }
     const int8_t *getlutptr() {
         const int8_t *lutptr = rht == DNA ? (const int8_t *)cstr_lut:

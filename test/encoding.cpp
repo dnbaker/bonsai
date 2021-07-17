@@ -132,7 +132,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
             if(fp == nullptr) RUNTIME_ERROR("Could not open file at "s + SPACED_FN);
             kseq_t *ks(kseq_init(fp));
             std::unordered_set<u64> kmers, okmers;
-            u64 k(BF);
+            //u64 k(BF);
             enc.for_each_canon([&](auto km) {kmers.insert(km);}, ks);
 #if 0
             while(kseq_read(ks) >= 0) {
