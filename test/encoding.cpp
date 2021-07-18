@@ -107,9 +107,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         ks = kseq_init(fp);
         LOG_DEBUG("Filled kmers\n");
         while(kseq_read(ks) >= 0) {
-            LOG_DEBUG("reading seq\n");
             enc.assign(ks);
-            std::fprintf(stderr, "Seq %s\n", ks->name.s);
             while(enc.has_next_kmer()) {
                 if((k = enc.next_kmer()) != BF)
                     ++okmers[k];
@@ -227,7 +225,6 @@ TEST_CASE("parseasprot") {
         std::unordered_map<u64, u32> kmers, okmers;
         u64 k(BF);
         while(kseq_read(ks) >= 0) {
-            LOG_INFO("reading seq in part 1, name = %s\n", ks->name.s);
             enc.assign(ks);
             while(enc.has_next_kmer())
                 if((k = enc.next_kmer()) != BF) ++kmers[k];
@@ -237,7 +234,6 @@ TEST_CASE("parseasprot") {
         fp = gzopen("test/phix.fa", "rb");
         ks = kseq_init(fp);
         while(kseq_read(ks) >= 0) {
-            LOG_INFO("reading seq, comment = %s\n", ks->comment.s);
             enc.assign(ks);
             while(enc.has_next_kmer()) {
                 if((k = enc.next_kmer()) != BF) { ++okmers[k];}

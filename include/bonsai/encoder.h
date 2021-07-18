@@ -32,13 +32,14 @@ enum InputType {
     PROTEIN_3BIT, // Corresponds to SEB8, which can hold 22 in 64-bits and 42 in 128-bits
     PROTEIN_14,   // Corresponds to SEB14, which can hold up to 16 in 64 bits and 33 in 128-bits
     PROTEIN_6,    // Corresponds to SEB6, which can hold up to 24 in 64 bits and 49 in 128-bits
-    DNA2,         // Purines and Pyrimidines, corresponds to DNA2PYRPUR
+    DNA2,         // AT vs GC, corresponds to DNA2PYR
+    DNAC,         // corresponds to DNA2C, C vs otherwise
     PROTEIN_6_FRAME,
 };
 template<typename KmerT>
 KmerT rhmask(InputType it, int k) {
     if(it == DNA) return 1 + (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 1)));
-    if(it == DNA2) return 1 + (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - k));
+    if(it == DNA2 || it == DNAC) return 1 + (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - k));
     if(it == PROTEIN20) return std::pow(20, k);
     if(it == PROTEIN_6) return std::pow(6, k);
     if(it == PROTEIN_3BIT) return std::pow(8, k);
@@ -54,14 +55,14 @@ static constexpr inline size_t mul(InputType it) {
         case PROTEIN_3BIT: return 8;
         case PROTEIN_14: return 14;
         case PROTEIN_6: return 6;
-        case DNA2: return 2;
+        case DNAC: case DNA2: return 2;
         case PROTEIN_6_FRAME: default: return 4;
     }
     return 2; //Should never happen
 }
 // Aliases
-using RollingHashingType = InputType;
 using RollingHashType = InputType;
+static constexpr inline size_t rh2n(RollingHashType rht, size_t itemsize);
 static inline std::string to_string(InputType it);
 
 enum score_scheme {
@@ -147,18 +148,20 @@ class Encoder {
     u64           l_; // Length of the string
 public:
     Spacer sp_; // Defines window size, spacing, and kmer size.
+    static constexpr KmerT ENCODE_OVERFLOW = static_cast<KmerT>(-1);
 private:
     u64         pos_; // Current position within the string s_ we're working with.
     void      *data_; // A void pointer for using with scoring. Needed for hash_score.
     QueueMap<KmerT, KmerT> qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
     const ScoreType  scorer_; // scoring struct
     bool canonicalize_;
-    static constexpr KmerT ENCODE_OVERFLOW = static_cast<KmerT>(-1);
     RollingHashingType rht = RollingHashType::DNA;
-    const int8_t *lutptr = (const int8_t *)cstr_lut;
+    const int8_t *lutptr = (const int8_t *)DNA4.data();
+    size_t nremper = sizeof(KmerT) * 4;
     static_assert(std::is_unsigned<KmerT>::value || std::is_same<KmerT, u128>::value, "Must be unsigned integers");
 
 public:
+
     Encoder(char *s, u64 l, const Spacer &sp, void *data=nullptr,
             bool canonicalize=true):
       s_(s),
@@ -198,7 +201,11 @@ public:
         rht = o.rht;
         return *this;
     }
-    void hashtype(RollingHashType newrht) {rht = newrht; lutptr = getlutptr();}
+    void hashtype(RollingHashType newrht) {
+        rht = newrht; lutptr = rh2lp(rht);
+        nremper = rh2n(rht, sizeof(KmerT));
+    }
+    size_t nremperres() const {return nremper;}
     Encoder(unsigned k, bool canonicalize=true): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize) {}
     Encoder<ScoreType, u128> to_u128() const {
         Encoder<ScoreType, u128> ret(sp_, data_, canonicalize_);
@@ -257,7 +264,6 @@ public:
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 nv = lutptr[s_[pos_++]];
                 if(nv == int8_t(-1)) {min = ENCODE_OVERFLOW; std::fprintf(stderr, "last char %c led to underflow...\n", s_[pos_ - 1]); goto loop_start;}
-                std::fprintf(stderr, "Old minnizer %zu is being replaced by %zu after mul by %zu and or with %d\n", size_t(min), size_t(min * mul) | nv, mul, int(nv));
                 min = (min * mul) | nv;
                 ++filled;
             }
@@ -265,7 +271,7 @@ public:
                 if(sizeof(KmerT) == 16) {
                     min %= mask;
                 } else {min = div.mod(min);}
-                func(rht == DNA || rht == DNA2 ? min & mask: min % mask);
+                func(rht == DNA || rht == DNA2 || rht == DNAC ? min & mask: min % mask);
                 --filled;
             }
         }
@@ -314,7 +320,6 @@ public:
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 const auto nc = lutptr[s_[pos_++]];
-                std::fprintf(stderr, "Old minnizer %zu is being replaced by %zu after mul by %zu and or with %d\n", size_t(min), size_t(min * mul) | nc, mul, int(nc));
                 if(nc == int8_t(-1)) {min = ENCODE_OVERFLOW; goto windowed_loop_start;}
                 min = (mul * min) | nc;
                 ent.push(nc);
@@ -504,24 +509,6 @@ public:
     size_t rhmul() const {
         return mul(rht);
     }
-    const int8_t *getlutptr() {
-        const int8_t *lutptr = rht == DNA ? (const int8_t *)cstr_lut:
-                                rht == PROTEIN ? (const int8_t *)BYTES.data():
-                                rht == PROTEIN20 ? (const int8_t *)AMINO20.data():
-                                rht == PROTEIN_14 ? (const int8_t *)SEB14.data():
-                                rht == PROTEIN_3BIT ? (const int8_t *)SEB8.data():
-                                rht == PROTEIN_6 ? (const int8_t *)SEB6.data():
-                                rht == DNA2 ? (const int8_t *)DNA2PYRPUR.data()
-                           : (const int8_t *)DNA5.data();
-        //std::fprintf(stderr, "Using rht %s\n", to_string(rht).data());
-#if 0
-        for(size_t i = 0; i < 256; ++i) {
-            std::fprintf(stderr, "%d/%c -> %d\n", int(i), char(i), int(lutptr[i]));
-        }
-#endif
-        return lutptr;
-        // Default to DNA5 if unexpected
-    }
 
     // Encodes a kmer starting at `start` within string `s_`.
     INLINE KmerT kmer(unsigned start) {
@@ -532,13 +519,16 @@ public:
         u64 len(sp_.s_.size());
         int8_t nextc;
         auto spaces(sp_.s_.data());
-        if(rht == DNA || rht == PROTEIN || rht == PROTEIN_3BIT || rht == DNA2) {
-            const int shift = rht == DNA ? 2: rht == PROTEIN ? 8: rht == DNA2 ? 1: 3;
+        if(rht == DNA || rht == PROTEIN || rht == PROTEIN_3BIT || rht == DNA2 || rht == DNAC) {
+            const int shift = rht == DNA ? 2: rht == PROTEIN ? 8: (rht == DNA2 || rht == DNAC) ? 1: 3;
             /*std::fprintf(stderr, "Shift %d\n", shift);*/
 #define ITER do {\
             start += *spaces++;\
             nextc = lutptr[s_[start]];\
-            if(nextc == int8_t(-1)) {std::fprintf(stderr, "char %c was missing shift = %d, emptying now...\n", s_[start], shift); new_kmer = ENCODE_OVERFLOW; goto rnk;}\
+            if(nextc == int8_t(-1)) {\
+                new_kmer = ENCODE_OVERFLOW;\
+                goto rnk;\
+            }\
             new_kmer = (new_kmer << shift) | nextc;\
         } while(0);
             DO_DUFF(len, ITER);
@@ -547,19 +537,21 @@ public:
             const size_t mul = rht == PROTEIN20 ? 20: rht == PROTEIN_14 ? 14: 6;
 #define ITER do {new_kmer *= mul, start += *spaces++;\
             nextc = lutptr[s_[start]];\
-            if(nextc == int8_t(-1)) {std::fprintf(stderr, "char %c was missing mul = %zu, emptying now...\n", s_[start], mul); new_kmer = ENCODE_OVERFLOW; goto rnk;}\
+            if(nextc == int8_t(-1)) {\
+                /*std::fprintf(stderr, "char %c was missing mul = %zu, emptying now...\n", s_[start], mul);*/\
+                new_kmer = ENCODE_OVERFLOW;\
+                goto rnk;\
+            }\
             new_kmer = (new_kmer * mul) | nextc;\
         } while(0);
             DO_DUFF(len, ITER);
 #undef ITER
         }
         rnk:
-        //std::fprintf(stderr, "Returning k-mer %zu\n", size_t(new_kmer));
         return new_kmer;
     }
     // Whether or not an additional kmer is present in the sequence being encoded.
     INLINE int has_next_kmer() const {
-        std::fprintf(stderr, "Checking if there's a kmer left: Comb size is %d, k = %d, %zu as pos (%d)\n", sp_.c_, sp_.k_, pos_, int((pos_ + sp_.c_ - 1) < l_));
         static_assert(std::is_same<decltype((std::int64_t)l_ - sp_.c_ + 1), std::int64_t>::value, "is not same");
         return (pos_ + sp_.c_ - 1) < l_;
     }
@@ -602,66 +594,85 @@ public:
 
 template<RollingHashType rht> struct RHTraits {
     static constexpr size_t alphsize = 0;
+    static constexpr size_t nper32 = 0;
     static constexpr size_t nper64 = 0;
     static constexpr size_t nper128 = 0;
     static constexpr const alph::Alphabet &table = alph::BYTES;
 };
 template<> struct RHTraits<DNA> {
     static constexpr size_t alphsize = 4;
+    static constexpr size_t nper32 = 16;
     static constexpr size_t nper64 = 32;
     static constexpr size_t nper128 = 64;
     static constexpr const alph::Alphabet &table = alph::DNA4;
 };
 template<> struct RHTraits<PROTEIN> {
     static constexpr size_t alphsize = 256;
+    static constexpr size_t nper32 = 4;
     static constexpr size_t nper64 = 8;
     static constexpr size_t nper128 = 16;
     static constexpr const alph::Alphabet &table = alph::BYTES;
 };
 template<> struct RHTraits<PROTEIN20> {
     static constexpr size_t alphsize = 20;
+    static constexpr size_t nper32 = 7;
     static constexpr size_t nper64 = 14;
     static constexpr size_t nper128 = 29;
     static constexpr const alph::Alphabet &table = alph::AMINO20;
 };
 template<> struct RHTraits<PROTEIN_3BIT> {
     static constexpr size_t alphsize = 8;
+    static constexpr size_t nper32 = 10;
     static constexpr size_t nper64 = 22;
     static constexpr size_t nper128 = 42;
     static constexpr const alph::Alphabet &table = alph::SEB8;
 };
 template<> struct RHTraits<PROTEIN_14> {
     static constexpr size_t alphsize = 14;
+    static constexpr size_t nper32 = 8;
     static constexpr size_t nper64 = 16;
     static constexpr size_t nper128 = 33;
     static constexpr const alph::Alphabet &table = alph::SEB14;
 };
 template<> struct RHTraits<PROTEIN_6> {
     static constexpr size_t alphsize = 6;
+    static constexpr size_t nper32 = 12;
     static constexpr size_t nper64 = 24;
     static constexpr size_t nper128 = 49;
     static constexpr const alph::Alphabet &table = alph::SEB6;
 };
 template<> struct RHTraits<DNA2> {
     static constexpr size_t alphsize = 2;
+    static constexpr size_t nper32 = 32;
     static constexpr size_t nper64 = 32;
     static constexpr size_t nper128 = 64;
-    static constexpr const alph::Alphabet &table = alph::DNA2PYRPUR;
+    static constexpr const alph::Alphabet &table = alph::DNA2KETAMINE;
 };
-static constexpr inline size_t rh2n(RollingHashType rht, bool is128) {
+template<> struct RHTraits<DNAC> {
+    static constexpr size_t alphsize = 2;
+    static constexpr size_t nper32 = 32;
+    static constexpr size_t nper64 = 32;
+    static constexpr size_t nper128 = 64;
+    static constexpr const alph::Alphabet &table = alph::DNA2C;
+};
+static constexpr inline size_t rh2n(RollingHashType rht, size_t itemsize) {
     switch(rht) {
-#define CASE(x) case x: return is128 ? RHTraits<x>::nper128: RHTraits<x>::nper64;
-        CASE(DNA)
-        CASE(DNA2)
-        CASE(PROTEIN)
-        CASE(PROTEIN20)
-        CASE(PROTEIN_3BIT)
-        CASE(PROTEIN_14)
-        CASE(PROTEIN_6)
+#define CASE(x) case x: return itemsize == 16 ? RHTraits<x>::nper128: itemsize == 8 ? RHTraits<x>::nper64: RHTraits<x>::nper32;
+        CASE(DNA) CASE(DNA2)
+
+        CASE(PROTEIN) CASE(PROTEIN20) CASE(PROTEIN_3BIT) CASE(PROTEIN_14) CASE(PROTEIN_6) 
         case PROTEIN_6_FRAME: return -1;
 #undef CASE
     }
     return 0;
+}
+static constexpr int8_t *rh2lp(RollingHashType rht) {
+    switch(rht) {
+#define CASE(x) case x: return RHTraits<x>::table.data();
+        default: ;
+    }
+    return RHTraits<PROTEIN>::table..data();
+    return static_cast<int8_t *>(nullptr);
 }
 using RollingHashType = RollingHashingType;
 using RHT = RollingHashingType;
@@ -675,7 +686,8 @@ static inline std::string to_string(InputType rht) {
         case PROTEIN_14: return "PROTEIN_14";
         case PROTEIN_6: return "PROTEIN_6";
         case PROTEIN_6_FRAME: return "PROTEIN_6_FRAME";
-        case DNA2: return "DNA2PurinePyrimidines";
+        case DNA2: return "DNA2_AT_GC";
+        case DNAC: return "DNA_C_ATG";
         default:;
     }
     return "unknown";
@@ -699,7 +711,9 @@ public:
     const int8_t *lutptr = (const int8_t *)cstr_lut;
     long long int window() const {return w_;}
     RollingHashingType hashtype() const {return enctype_;}
-    RollingHasher &hashtype(RollingHashingType rht) {enctype_ = rht; lutptr = getlutptr(); return *this;}
+    RollingHasher &hashtype(RollingHashingType rht) {
+        enctype_ = rht; lutptr = rh2lp(rht); return *this;
+    }
     void window(long long int w) {
         if(w <= k_) w_ = -1;
         else w_ = w;
@@ -796,17 +810,6 @@ public:
                 func(std::min(hasher_.hashvalue, rchasher_.hashvalue));
             }
         }
-    }
-    const int8_t *getlutptr() const {
-        return enctype_ == DNA ? (const int8_t *)cstr_lut:
-                                enctype_ == PROTEIN ? (const int8_t *)BYTES.data():
-                                enctype_ == PROTEIN20 ? (const int8_t *)AMINO20.data():
-                                enctype_ == PROTEIN_14 ? (const int8_t *)SEB14.data():
-                                enctype_ == PROTEIN_3BIT ? (const int8_t *)SEB8.data():
-                                enctype_ == PROTEIN_6 ? (const int8_t *)SEB6.data():
-                                enctype_ == DNA2 ? (const int8_t *)DNA2PYRPUR.data()
-                           : (const int8_t *)DNA5.data();
-        // Default to DNA5 if unexpected
     }
 
     template<typename Functor>
