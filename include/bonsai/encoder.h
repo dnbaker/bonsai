@@ -20,50 +20,16 @@
 #include "rollinghash/cyclichash.h"
 #include "ntHash/nthash.hpp"
 #include "alphabet.h"
+#include "rhtraits.h"
 
 namespace bns {
 using namespace sketch;
 
 
-enum InputType {
-    DNA,
-    PROTEIN,      // Treats all characters as valid
-    PROTEIN20,    // Corresponds to AMINO20, which masks unexpected characters
-    PROTEIN_3BIT, // Corresponds to SEB8, which can hold 22 in 64-bits and 42 in 128-bits
-    PROTEIN_14,   // Corresponds to SEB14, which can hold up to 16 in 64 bits and 33 in 128-bits
-    PROTEIN_6,    // Corresponds to SEB6, which can hold up to 24 in 64 bits and 49 in 128-bits
-    DNA2,         // AT vs GC, corresponds to DNA2PYR
-    DNAC,         // corresponds to DNA2C, C vs otherwise
-    PROTEIN_6_FRAME,
-};
-template<typename KmerT>
-KmerT rhmask(InputType it, int k) {
-    if(it == DNA) return 1 + (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 1)));
-    if(it == DNA2 || it == DNAC) return 1 + (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - k));
-    if(it == PROTEIN20) return std::pow(20, k);
-    if(it == PROTEIN_6) return std::pow(6, k);
-    if(it == PROTEIN_3BIT) return std::pow(8, k);
-    if(it == PROTEIN_14) return std::pow(14, k);
-    if(it == PROTEIN) return std::pow(256, k);
-    return KmerT(-1);
-}
-static constexpr inline size_t mul(InputType it) {
-    switch(it) {
-        case DNA: return 4;
-        case PROTEIN: return 256;
-        case PROTEIN20: return 20;
-        case PROTEIN_3BIT: return 8;
-        case PROTEIN_14: return 14;
-        case PROTEIN_6: return 6;
-        case DNAC: case DNA2: return 2;
-        case PROTEIN_6_FRAME: default: return 4;
-    }
-    return 2; //Should never happen
-}
 // Aliases
 using RollingHashType = InputType;
-static constexpr inline size_t rh2n(RollingHashType rht, size_t itemsize);
-static inline std::string to_string(InputType it);
+using RollingHashingType = InputType;
+using RHT = InputType;
 
 enum score_scheme {
     LEX = 0,
@@ -155,7 +121,7 @@ private:
     QueueMap<KmerT, KmerT> qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
     const ScoreType  scorer_; // scoring struct
     bool canonicalize_;
-    RollingHashingType rht = RollingHashType::DNA;
+    InputType rht = InputType::DNA;
     const int8_t *lutptr = (const int8_t *)DNA4.data();
     size_t nremper = sizeof(KmerT) * 4;
     static_assert(std::is_unsigned<KmerT>::value || std::is_same<KmerT, u128>::value, "Must be unsigned integers");
@@ -206,10 +172,13 @@ public:
         nremper = rh2n(rht, sizeof(KmerT));
     }
     size_t nremperres() const {return nremper;}
+    size_t nremperres64() const {return rh2n(rht, 8);}
+    size_t nremperres128() const {return rh2n(rht, 16);}
     Encoder(unsigned k, bool canonicalize=true): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize) {}
     Encoder<ScoreType, u128> to_u128() const {
         Encoder<ScoreType, u128> ret(sp_, data_, canonicalize_);
         ret.hashtype(this->rht);
+        return ret;
     }
 
     // Assign functions: These tell the encoder to fetch kmers from this string.
@@ -253,7 +222,7 @@ public:
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_unwindowed(const Functor &func) {
         const KmerT mask(rhmask<KmerT>(rht, sp_.k_));
-        schism::Schismatic<KmerT> div(mask);
+        schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
         KmerT min;
         unsigned filled;
         const size_t mul = rhmul();
@@ -268,10 +237,9 @@ public:
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                if(sizeof(KmerT) == 16) {
-                    min %= mask;
-                } else {min = div.mod(min);}
-                func(rht == DNA || rht == DNA2 || rht == DNAC ? min & mask: min % mask);
+                if constexpr(sizeof(KmerT) == 16) min %= mask;
+                else                              min = div.mod(min);
+                func(min);
                 --filled;
             }
         }
@@ -279,7 +247,7 @@ public:
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_windowed(const Functor &func) {
         const KmerT mask(rhmask<KmerT>(rht, sp_.k_));
-        schism::Schismatic<KmerT> div(mask);
+        schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
         KmerT min, kmer;
         unsigned filled;
         const size_t mul = rhmul();
@@ -294,9 +262,8 @@ public:
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                if(sizeof(KmerT) == 16) {
-                    min %= mask;
-                } else {min = div.mod(min);}
+                if constexpr(sizeof(KmerT) == 16) min %= mask;
+                else                              min = div.mod(min);
                 if((kmer = qmap_.next_value(min, scorer_(min, data_))) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
             }
@@ -311,7 +278,7 @@ public:
         const KmerT mask(rhmask<KmerT>(rht, sp_.k_));
         KmerT min, kmer;
         unsigned filled;
-        schism::Schismatic<KmerT> div(mask);
+        schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
         CircusEnt &ent = *(static_cast<CircusEnt *>(data_));
         windowed_loop_start:
         ent.clear();
@@ -326,9 +293,8 @@ public:
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                if(sizeof(KmerT) == 16) {
-                    min %= mask;
-                } else {min = div.mod(min);}
+                if constexpr(sizeof(KmerT) == 16) min %= mask;
+                else                              min = div.mod(min);
                 if((kmer = qmap_.next_value(min, min / (ent.value() + .001))) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
             }
@@ -592,106 +558,6 @@ public:
 };
 
 
-template<RollingHashType rht> struct RHTraits {
-    static constexpr size_t alphsize = 0;
-    static constexpr size_t nper32 = 0;
-    static constexpr size_t nper64 = 0;
-    static constexpr size_t nper128 = 0;
-    static constexpr const alph::Alphabet &table = alph::BYTES;
-};
-template<> struct RHTraits<DNA> {
-    static constexpr size_t alphsize = 4;
-    static constexpr size_t nper32 = 16;
-    static constexpr size_t nper64 = 32;
-    static constexpr size_t nper128 = 64;
-    static constexpr const alph::Alphabet &table = alph::DNA4;
-};
-template<> struct RHTraits<PROTEIN> {
-    static constexpr size_t alphsize = 256;
-    static constexpr size_t nper32 = 4;
-    static constexpr size_t nper64 = 8;
-    static constexpr size_t nper128 = 16;
-    static constexpr const alph::Alphabet &table = alph::BYTES;
-};
-template<> struct RHTraits<PROTEIN20> {
-    static constexpr size_t alphsize = 20;
-    static constexpr size_t nper32 = 7;
-    static constexpr size_t nper64 = 14;
-    static constexpr size_t nper128 = 29;
-    static constexpr const alph::Alphabet &table = alph::AMINO20;
-};
-template<> struct RHTraits<PROTEIN_3BIT> {
-    static constexpr size_t alphsize = 8;
-    static constexpr size_t nper32 = 10;
-    static constexpr size_t nper64 = 22;
-    static constexpr size_t nper128 = 42;
-    static constexpr const alph::Alphabet &table = alph::SEB8;
-};
-template<> struct RHTraits<PROTEIN_14> {
-    static constexpr size_t alphsize = 14;
-    static constexpr size_t nper32 = 8;
-    static constexpr size_t nper64 = 16;
-    static constexpr size_t nper128 = 33;
-    static constexpr const alph::Alphabet &table = alph::SEB14;
-};
-template<> struct RHTraits<PROTEIN_6> {
-    static constexpr size_t alphsize = 6;
-    static constexpr size_t nper32 = 12;
-    static constexpr size_t nper64 = 24;
-    static constexpr size_t nper128 = 49;
-    static constexpr const alph::Alphabet &table = alph::SEB6;
-};
-template<> struct RHTraits<DNA2> {
-    static constexpr size_t alphsize = 2;
-    static constexpr size_t nper32 = 32;
-    static constexpr size_t nper64 = 32;
-    static constexpr size_t nper128 = 64;
-    static constexpr const alph::Alphabet &table = alph::DNA2KETAMINE;
-};
-template<> struct RHTraits<DNAC> {
-    static constexpr size_t alphsize = 2;
-    static constexpr size_t nper32 = 32;
-    static constexpr size_t nper64 = 32;
-    static constexpr size_t nper128 = 64;
-    static constexpr const alph::Alphabet &table = alph::DNA2C;
-};
-static constexpr inline size_t rh2n(RollingHashType rht, size_t itemsize) {
-    switch(rht) {
-#define CASE(x) case x: return itemsize == 16 ? RHTraits<x>::nper128: itemsize == 8 ? RHTraits<x>::nper64: RHTraits<x>::nper32;
-        CASE(DNA) CASE(DNA2)
-
-        CASE(PROTEIN) CASE(PROTEIN20) CASE(PROTEIN_3BIT) CASE(PROTEIN_14) CASE(PROTEIN_6) 
-        case PROTEIN_6_FRAME: return -1;
-#undef CASE
-    }
-    return 0;
-}
-static constexpr int8_t *rh2lp(RollingHashType rht) {
-    switch(rht) {
-#define CASE(x) case x: return RHTraits<x>::table.data();
-        default: ;
-    }
-    return RHTraits<PROTEIN>::table..data();
-    return static_cast<int8_t *>(nullptr);
-}
-using RollingHashType = RollingHashingType;
-using RHT = RollingHashingType;
-
-static inline std::string to_string(InputType rht) {
-    switch(rht) {
-        case DNA: return "DNA";
-        case PROTEIN: return "PROTEIN";
-        case PROTEIN20: return "PROTEIN20";
-        case PROTEIN_3BIT: return "PROTEIN_3BIT";
-        case PROTEIN_14: return "PROTEIN_14";
-        case PROTEIN_6: return "PROTEIN_6";
-        case PROTEIN_6_FRAME: return "PROTEIN_6_FRAME";
-        case DNA2: return "DNA2_AT_GC";
-        case DNAC: return "DNA_C_ATG";
-        default:;
-    }
-    return "unknown";
-}
 
 
 
@@ -701,7 +567,7 @@ struct RollingHasher {
     long long int k_;
     long long int w_;
 private:
-    RollingHashingType enctype_;
+    InputType enctype_;
 public:
     bool canon_;
     HashClass hasher_;
@@ -710,8 +576,8 @@ public:
     QueueMap<IntType, uint64_t> qmap_;
     const int8_t *lutptr = (const int8_t *)cstr_lut;
     long long int window() const {return w_;}
-    RollingHashingType hashtype() const {return enctype_;}
-    RollingHasher &hashtype(RollingHashingType rht) {
+    InputType hashtype() const {return enctype_;}
+    RollingHasher &hashtype(InputType rht) {
         enctype_ = rht; lutptr = rh2lp(rht); return *this;
     }
     void window(long long int w) {
@@ -723,11 +589,11 @@ public:
     }
     static constexpr IntType ENCODE_OVERFLOW = static_cast<IntType>(-1);
     RollingHasher(unsigned k=21, bool canon=false,
-                   RollingHashingType enc=DNA, long long int wsz = -1, uint64_t seed1=1337, uint64_t seed2=137):
+                   InputType enc=DNA, long long int wsz = -1, uint64_t seed1=1337, uint64_t seed2=137):
         k_(k), enctype_(enc), canon_(canon), hasher_(k, sizeof(IntType) * CHAR_BIT), rchasher_(k, sizeof(IntType) * CHAR_BIT)
         , seed1_(seed1), seed2_(seed2)
     {
-        if(canon_ && enc != RollingHashingType::DNA) {
+        if(canon_ && enc != InputType::DNA) {
             std::fprintf(stderr, "Note: RollingHasher with Protein alphabet does not support reverse-complementing.\n");
             canon_ = false;
         }
@@ -893,6 +759,8 @@ public:
     void reset() {hasher_.reset(); rchasher_.reset();}
     size_t n_in_queue() const {return qmap_.n_in_queue();}
     auto max_in_queue() const {return qmap_.begin()->first;}
+    bool canonicalize() const {return canon_;}
+    void canonicalize(bool value) {canon_ = value;}
 };
 
 template<typename IType>
@@ -900,7 +768,7 @@ struct RollingHasherSet {
     std::vector<RollingHasher<IType>> hashers_;
     bool canon_;
     template<typename C>
-    RollingHasherSet(const C &c, bool canon=false, RollingHashingType enc=DNA, uint64_t seedseed=1337u): canon_(canon) {
+    RollingHasherSet(const C &c, bool canon=false, InputType enc=DNA, uint64_t seedseed=1337u): canon_(canon) {
         std::mt19937_64 mt(seedseed);
         hashers_.reserve(c.size());
         for(const auto k: c)
