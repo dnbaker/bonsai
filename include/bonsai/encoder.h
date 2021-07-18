@@ -155,6 +155,7 @@ private:
     bool canonicalize_;
     static constexpr KmerT ENCODE_OVERFLOW = static_cast<KmerT>(-1);
     RollingHashingType rht = RollingHashType::DNA;
+    const int8_t *lutptr = (const int8_t *)cstr_lut;
     static_assert(std::is_unsigned<KmerT>::value || std::is_same<KmerT, u128>::value, "Must be unsigned integers");
 
 public:
@@ -197,7 +198,7 @@ public:
         rht = o.rht;
         return *this;
     }
-    void hashtype(RollingHashType newrht) {rht = newrht;}
+    void hashtype(RollingHashType newrht) {rht = newrht; lutptr = getlutptr();}
     Encoder(unsigned k, bool canonicalize=true): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize) {}
     Encoder<ScoreType, u128> to_u128() const {
         Encoder<ScoreType, u128> ret(sp_, data_, canonicalize_);
@@ -248,7 +249,6 @@ public:
         schism::Schismatic<KmerT> div(mask);
         KmerT min;
         unsigned filled;
-        const auto lutptr = getlutptr();
         const size_t mul = rhmul();
         int8_t nv;
         loop_start:
@@ -256,7 +256,8 @@ public:
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 nv = lutptr[s_[pos_++]];
-                if(nv == int8_t(-1)) {min = ENCODE_OVERFLOW; goto loop_start;}
+                if(nv == int8_t(-1)) {min = ENCODE_OVERFLOW; std::fprintf(stderr, "last char %c led to underflow...\n", s_[pos_ - 1]); goto loop_start;}
+                std::fprintf(stderr, "Old minnizer %zu is being replaced by %zu after mul by %zu and or with %d\n", size_t(min), size_t(min * mul) | nv, mul, int(nv));
                 min = (min * mul) | nv;
                 ++filled;
             }
@@ -275,7 +276,6 @@ public:
         schism::Schismatic<KmerT> div(mask);
         KmerT min, kmer;
         unsigned filled;
-        const auto lutptr = getlutptr();
         const size_t mul = rhmul();
         windowed_loop_start:
         min = filled = 0;
@@ -307,17 +307,16 @@ public:
         unsigned filled;
         schism::Schismatic<KmerT> div(mask);
         CircusEnt &ent = *(static_cast<CircusEnt *>(data_));
-        const auto lutptr = getlutptr();
         windowed_loop_start:
         ent.clear();
         const size_t mul = rhmul();
         filled = min = 0;
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
-                min *= mul;
                 const auto nc = lutptr[s_[pos_++]];
+                std::fprintf(stderr, "Old minnizer %zu is being replaced by %zu after mul by %zu and or with %d\n", size_t(min), size_t(min * mul) | nc, mul, int(nc));
                 if(nc == int8_t(-1)) {min = ENCODE_OVERFLOW; goto windowed_loop_start;}
-                min |= nc;
+                min = (mul * min) | nc;
                 ent.push(nc);
                 ++filled;
             }
@@ -528,7 +527,6 @@ public:
     INLINE KmerT kmer(unsigned start) {
         assert(start <= l_ - sp_.c_ + 1);
         if(l_ < sp_.c_)    return ENCODE_OVERFLOW;
-        const int8_t *lutptr = getlutptr();
         KmerT new_kmer(lutptr[s_[start]]);
         if(new_kmer == ENCODE_OVERFLOW) return ENCODE_OVERFLOW;
         u64 len(sp_.s_.size());
@@ -540,7 +538,7 @@ public:
 #define ITER do {\
             start += *spaces++;\
             nextc = lutptr[s_[start]];\
-            if(nextc == int8_t(-1)) {new_kmer = ENCODE_OVERFLOW; goto rnk;}\
+            if(nextc == int8_t(-1)) {std::fprintf(stderr, "char %c was missing shift = %d, emptying now...\n", s_[start], shift); new_kmer = ENCODE_OVERFLOW; goto rnk;}\
             new_kmer = (new_kmer << shift) | nextc;\
         } while(0);
             DO_DUFF(len, ITER);
@@ -549,7 +547,7 @@ public:
             const size_t mul = rht == PROTEIN20 ? 20: rht == PROTEIN_14 ? 14: 6;
 #define ITER do {new_kmer *= mul, start += *spaces++;\
             nextc = lutptr[s_[start]];\
-            if(nextc == int8_t(-1)) {new_kmer = ENCODE_OVERFLOW; goto rnk;}\
+            if(nextc == int8_t(-1)) {std::fprintf(stderr, "char %c was missing mul = %zu, emptying now...\n", s_[start], mul); new_kmer = ENCODE_OVERFLOW; goto rnk;}\
             new_kmer = (new_kmer * mul) | nextc;\
         } while(0);
             DO_DUFF(len, ITER);
@@ -561,6 +559,7 @@ public:
     }
     // Whether or not an additional kmer is present in the sequence being encoded.
     INLINE int has_next_kmer() const {
+        std::fprintf(stderr, "Checking if there's a kmer left: Comb size is %d, k = %d, %zu as pos (%d)\n", sp_.c_, sp_.k_, pos_, int((pos_ + sp_.c_ - 1) < l_));
         static_assert(std::is_same<decltype((std::int64_t)l_ - sp_.c_ + 1), std::int64_t>::value, "is not same");
         return (pos_ + sp_.c_ - 1) < l_;
     }
@@ -689,13 +688,18 @@ struct RollingHasher {
     static_assert(std::is_integral<IntType>::value || sizeof(IntType) > 8, "Must be integral (or by uint128/int128)");
     long long int k_;
     long long int w_;
+private:
     RollingHashingType enctype_;
+public:
     bool canon_;
     HashClass hasher_;
     HashClass rchasher_;
     uint64_t seed1_, seed2_;
     QueueMap<IntType, uint64_t> qmap_;
+    const int8_t *lutptr = (const int8_t *)cstr_lut;
     long long int window() const {return w_;}
+    RollingHashingType hashtype() const {return enctype_;}
+    RollingHasher &hashtype(RollingHashingType rht) {enctype_ = rht; lutptr = getlutptr(); return *this;}
     void window(long long int w) {
         if(w <= k_) w_ = -1;
         else w_ = w;
@@ -720,8 +724,7 @@ struct RollingHasher {
     }
     RollingHasher& operator=(const RollingHasher &o) {
         k_ = o.k_; canon_ = o.canon_; enctype_ = o.enctype_; w_ = o.w_; seed1_ = o.seed1_; seed2_ = o.seed2_;
-        if(w_ <= k_) w_ = -1;
-        if(w_ > 0) qmap_.resize(w_ - k_ + 1);
+        window(o.w_);
         return *this;
     }
     RollingHasher(const RollingHasher &o): RollingHasher(o.k_, o.canon_, o.enctype_, o.w_, o.seed1_, o.seed2_) {}
@@ -794,8 +797,8 @@ struct RollingHasher {
             }
         }
     }
-    const int8_t *getlutptr() {
-        const int8_t *lutptr = enctype_ == DNA ? (const int8_t *)cstr_lut:
+    const int8_t *getlutptr() const {
+        return enctype_ == DNA ? (const int8_t *)cstr_lut:
                                 enctype_ == PROTEIN ? (const int8_t *)BYTES.data():
                                 enctype_ == PROTEIN20 ? (const int8_t *)AMINO20.data():
                                 enctype_ == PROTEIN_14 ? (const int8_t *)SEB14.data():
@@ -803,7 +806,6 @@ struct RollingHasher {
                                 enctype_ == PROTEIN_6 ? (const int8_t *)SEB6.data():
                                 enctype_ == DNA2 ? (const int8_t *)DNA2PYRPUR.data()
                            : (const int8_t *)DNA5.data();
-        return lutptr;
         // Default to DNA5 if unexpected
     }
 
@@ -815,7 +817,6 @@ struct RollingHasher {
         size_t i;
         long long int nf;
         int8_t v1;
-        auto lutptr = getlutptr();
         IntType nextv;
         auto use_val = [&](auto v) {
             if(qmap_.size() > 1) {

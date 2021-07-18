@@ -227,15 +227,17 @@ TEST_CASE("parseasprot") {
         std::unordered_map<u64, u32> kmers, okmers;
         u64 k(BF);
         while(kseq_read(ks) >= 0) {
+            LOG_INFO("reading seq in part 1, name = %s\n", ks->name.s);
             enc.assign(ks);
             while(enc.has_next_kmer())
                 if((k = enc.next_kmer()) != BF) ++kmers[k];
         }
         LOG_INFO("Filled kmers\n");
-        kseq_rewind(ks);
-        gzrewind(fp);
+        kseq_destroy(ks); gzclose(fp);
+        fp = gzopen("test/phix.fa", "rb");
+        ks = kseq_init(fp);
         while(kseq_read(ks) >= 0) {
-            LOG_INFO("reading seq\n");
+            LOG_INFO("reading seq, comment = %s\n", ks->comment.s);
             enc.assign(ks);
             while(enc.has_next_kmer()) {
                 if((k = enc.next_kmer()) != BF) { ++okmers[k];}
