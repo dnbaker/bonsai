@@ -11,10 +11,6 @@ namespace bns {
 namespace alph {
 using std::size_t;
 
-/*
- *
- * This 
- */
 
 template<typename VT=int8_t, size_t NCHAR=size_t(1) << (sizeof(VT) * CHAR_BIT)>
 struct TAlphabet {
@@ -32,17 +28,21 @@ public:
     static constexpr LUType make_lut(const char *s, const size_t nc, bool padding=false) {
         LUType arr{-1};
         int id = padding;
-        for(size_t ci = 0, i = 0; i < nc; ++i, ++id) {
+        size_t ci = 0;
+        for(size_t i = 0; i < nc; ++i, ++id, ++ci) {
             while(s[ci] && s[ci] != ',') {
                 const auto v = s[ci++];
                 arr[v | 32] = arr[v & static_cast<uint8_t>(0xdf)] = id; // lower-case and upper-case
             }
-            if(s[ci] == ',') ++ci;
+        }
+        while(s[ci]) {
+            const auto v = s[ci++];
+            arr[v | 32] = arr[v & static_cast<uint8_t>(0xdf)] = id; // lower-case and upper-case
         }
         // Handle Pyrrolysine (P) by mapping it to Lysine (K) if unhandled
-        if(arr['P'] == 0) arr['P'] = arr['p'] = arr['K'];
+        if(arr['P'] == VT(-1)) arr['P'] = arr['p'] = arr['K'];
         // Handle SelenoCysteine (U) by mapping it to Cysteine if unhandled
-        if(arr['U'] == 0) arr['U'] = arr['u'] = arr['C'];
+        if(arr['U'] == VT(-1)) arr['U'] = arr['u'] = arr['C'];
         return arr;
     }
     using SignedVT = typename std::make_signed<VT>::type;
@@ -90,6 +90,7 @@ static constexpr const Alphabet SEB6("SE-B(6)","AST,CP,DHNEKQR,FWY,G,ILMV");
 
 static constexpr const Alphabet DAYHOFF("Dayhoff","AGPST,C,DENQ,FWY,HKR,ILMV");
 
+
 // DNA alphabets
 
 static constexpr const Alphabet DNA4("DNA4", "A,C,G,T");
@@ -97,6 +98,7 @@ static constexpr const Alphabet DNA5("DNA5", "A,C,G,T,NMRWSYKVHDB");
 
 static constexpr const Alphabet DNA2KETAMINE("DNA2", "ACM,KGT"); // Amino/Ketones
 static constexpr const Alphabet DNA2PYRPUR("DNA2", "AGR,YCT"); // Purines/Pyrimidines
+static constexpr const Alphabet DNA2METHYL("DNAMETH", "C,AGT"); // Purines/Pyrimidines
 
 
 // Source: Reference
@@ -115,10 +117,14 @@ static const std::map<std::string, const Alphabet *> CAMAP {
     {"SEB6", &SEB6},
     {"DAYHOFF", &DAYHOFF},
 
+    {"DNAMETH", &DNA2METHYL},
+    {"C", &DNA2METHYL},
     {"KETO", &DNA2KETAMINE},
     {"PURPYR", &DNA2PYRPUR},
+
     {"DNA4", &DNA4},
     {"DNA", &DNA4},
+
     {"DNA5", &DNA5}
 };
 
@@ -142,6 +148,7 @@ using alph::DNA5;
 using alph::DNA4;
 using alph::DNA2KETAMINE;
 using alph::DNA2PYRPUR;
+
 
 } // namespace bns
 
