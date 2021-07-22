@@ -25,6 +25,7 @@ template<InputType rht> struct RHTraits {
     static constexpr size_t nper64 = 0;
     static constexpr size_t nper128 = 0;
     static constexpr const alph::Alphabet &table = alph::BYTES;
+    static constexpr const char *name = "Empty";
 };
 template<> struct RHTraits<DNA> {
     static constexpr size_t alphsize = 4;
@@ -32,6 +33,7 @@ template<> struct RHTraits<DNA> {
     static constexpr size_t nper64 = 32;
     static constexpr size_t nper128 = 64;
     static constexpr const alph::Alphabet &table = alph::DNA4;
+    static constexpr const char *name = "DNA";
 };
 template<> struct RHTraits<PROTEIN> {
     static constexpr size_t alphsize = 256;
@@ -39,6 +41,7 @@ template<> struct RHTraits<PROTEIN> {
     static constexpr size_t nper64 = 8;
     static constexpr size_t nper128 = 16;
     static constexpr const alph::Alphabet &table = alph::BYTES;
+    static constexpr const char *name = "BYTES";
 };
 
 static constexpr inline size_t rh2n(InputType rht, size_t itemsize);
@@ -47,14 +50,16 @@ static inline std::string to_string(InputType it);
 
 template<typename KmerT>
 KmerT rhmask(InputType it, int k) {
-    if(it == DNA) return 1 + (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 1)));
-    if(it == DNA2 || it == DNAC) return 1 + (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - k));
-    if(it == PROTEIN20) return std::pow(20, k);
-    if(it == PROTEIN_6) return std::pow(6, k);
-    if(it == PROTEIN_3BIT) return std::pow(8, k);
-    if(it == PROTEIN_14) return std::pow(14, k);
-    if(it == PROTEIN) return std::pow(256, k);
-    return KmerT(-1);
+    KmerT ret;
+    if(it == DNA) ret =  (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 1)));
+    else if(it == DNA2 || it == DNAC) ret = (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - k));
+    else if(it == PROTEIN20) ret =  std::pow(20, k);
+    else if(it == PROTEIN_6) ret =  std::pow(6, k);
+    else if(it == PROTEIN_3BIT) ret =  std::pow(8, k);
+    else if(it == PROTEIN_14) ret =  std::pow(14, k);
+    else if(it == PROTEIN) ret = (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 8)));
+    else ret =  KmerT(-1);
+    return ret;
 }
 static constexpr inline size_t mul(InputType it) {
     switch(it) {
@@ -76,6 +81,7 @@ template<> struct RHTraits<PROTEIN20> {
     static constexpr size_t nper64 = 14;
     static constexpr size_t nper128 = 29;
     static constexpr const alph::Alphabet &table = alph::AMINO20;
+    static constexpr const char *name = "PROTEIN20";
 };
 template<> struct RHTraits<PROTEIN_3BIT> {
     static constexpr size_t alphsize = 8;
@@ -83,6 +89,7 @@ template<> struct RHTraits<PROTEIN_3BIT> {
     static constexpr size_t nper64 = 22;
     static constexpr size_t nper128 = 42;
     static constexpr const alph::Alphabet &table = alph::SEB8;
+    static constexpr const char *name = "PROTEIN3BIT";
 };
 template<> struct RHTraits<PROTEIN_14> {
     static constexpr size_t alphsize = 14;
@@ -90,6 +97,7 @@ template<> struct RHTraits<PROTEIN_14> {
     static constexpr size_t nper64 = 16;
     static constexpr size_t nper128 = 33;
     static constexpr const alph::Alphabet &table = alph::SEB14;
+    static constexpr const char *name = "PROTEIN14";
 };
 template<> struct RHTraits<PROTEIN_6> {
     static constexpr size_t alphsize = 6;
@@ -97,6 +105,7 @@ template<> struct RHTraits<PROTEIN_6> {
     static constexpr size_t nper64 = 24;
     static constexpr size_t nper128 = 49;
     static constexpr const alph::Alphabet &table = alph::SEB6;
+    static constexpr const char *name = "PROTEIN6";
 };
 template<> struct RHTraits<DNA2> {
     static constexpr size_t alphsize = 2;
@@ -104,6 +113,7 @@ template<> struct RHTraits<DNA2> {
     static constexpr size_t nper64 = 32;
     static constexpr size_t nper128 = 64;
     static constexpr const alph::Alphabet &table = alph::DNA2KETAMINE;
+    static constexpr const char *name = "DNA2";
 };
 template<> struct RHTraits<DNAC> {
     static constexpr size_t alphsize = 2;
@@ -111,11 +121,14 @@ template<> struct RHTraits<DNAC> {
     static constexpr size_t nper64 = 32;
     static constexpr size_t nper128 = 64;
     static constexpr const alph::Alphabet &table = alph::DNA2METHYL;
+    static constexpr const char *name = "DNAC";
 };
 
+#define constexpr
 static constexpr const int8_t *rh2lp(InputType rht) {
+#undef constexpr
     switch(rht) {
-#define CASE(x) case x: return RHTraits<x>::table.data();
+#define CASE(x) case x: std::fprintf(stderr, "Converting %d to use table %s\n", int(x), RHTraits<x>::name); return RHTraits<x>::table.data();
         CASE(DNA) CASE(DNA2) CASE(PROTEIN) CASE(PROTEIN20) CASE(PROTEIN_3BIT) CASE(PROTEIN_14) CASE(PROTEIN_6) CASE(DNAC)
         default: ;
 #undef CASE
