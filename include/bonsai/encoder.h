@@ -223,7 +223,7 @@ public:
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_unwindowed(const Functor &func) {
         const KmerT mask(rhmask<KmerT>(rht, sp_.k_));
-        //schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
+        schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
         KmerT min;
         unsigned filled;
         const size_t mul = rhmul();
@@ -238,9 +238,14 @@ public:
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                if(rht == DNA || rht == DNA2) min &= mask;
+                if(rht == DNA || rht == DNA2 || rht == PROTEIN_3BIT) min &= mask;
                 else {
-                    min %= mask;
+                    assert(div.mod(min) == min % mask);
+                    if constexpr(sizeof(KmerT) <= 8) {
+                        min = div.mod(min);
+                    } else {
+                        min %= mask;
+                    }
                 }
                 func(min);
                 --filled;
@@ -250,7 +255,7 @@ public:
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_windowed(const Functor &func) {
         const KmerT mask(rhmask<KmerT>(rht, sp_.k_));
-        //schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
+        schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
         KmerT min, kmer;
         unsigned filled;
         const size_t mul = rhmul();
@@ -265,9 +270,14 @@ public:
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                if(rht == DNA || rht == DNA2) min &= mask;
+                if(rht == DNA || rht == DNA2 || rht == PROTEIN_3BIT) min &= mask;
                 else {
-                    min %= mask;
+                    assert(div.mod(min) == min % mask);
+                    if constexpr(sizeof(KmerT) <= 8) {
+                        min = div.mod(min);
+                    } else {
+                        min %= mask;
+                    }
                 }
                 if((kmer = qmap_.next_value(min, scorer_(min, data_))) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
@@ -283,7 +293,7 @@ public:
         const KmerT mask(rhmask<KmerT>(rht, sp_.k_));
         KmerT min, kmer;
         unsigned filled;
-        //schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
+        schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
         CircusEnt &ent = *(static_cast<CircusEnt *>(data_));
         windowed_loop_start:
         ent.clear();
@@ -298,9 +308,17 @@ public:
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                if(rht == DNA || rht == DNA2) min &= mask;
+                if(rht == DNA || rht == DNA2 || rht == PROTEIN_3BIT) min &= mask;
                 else {
-                    min %= mask;
+                    if constexpr(sizeof(KmerT) <= 8) {
+                        min = div.mod(min);
+                    } else {
+                    assert(div.mod(min) == min % mask);
+                    if constexpr(sizeof(KmerT) <= 8) {
+                        min = div.mod(min);
+                    } else {
+                        min %= mask;
+                    }
                 }
                 if((kmer = qmap_.next_value(min, min / (ent.value() + .001))) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
@@ -688,14 +706,6 @@ public:
 
     template<typename Functor>
     void for_each_uncanon(const Functor &func, const char *s, size_t l) {
-#if 0
-        std::fprintf(stderr, "Getting uncanonical minimizers from %s\n", s);
-        std::vector<char> ne;
-        for(size_t i = 0; i < 256; ++i) if(lutptr[i] > 0) ne.push_back(i);
-        for(const auto id: ne) {
-            assert(lutptr[id] == lutptr[std::toupper(id)]);
-        }
-#endif
         if(l < size_t(k_)) return;
         hasher_.reset();
         qmap_.reset();
