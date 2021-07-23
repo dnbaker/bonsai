@@ -55,7 +55,7 @@ KmerT rhmask(InputType it, int k) {
     else if(it == DNA2 || it == DNAC) ret = (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - k));
     else if(it == PROTEIN20) ret =  std::pow(20, k);
     else if(it == PROTEIN_6) ret =  std::pow(6, k);
-    else if(it == PROTEIN_3BIT) ret =  std::pow(8, k);
+    else if(it == PROTEIN_3BIT) ret = static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 3));
     else if(it == PROTEIN_14) ret =  std::pow(14, k);
     else if(it == PROTEIN) ret = (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 8)));
     else ret =  KmerT(-1);
