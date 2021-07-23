@@ -124,13 +124,14 @@ template<> struct RHTraits<DNAC> {
     static constexpr const char *name = "DNAC";
 };
 
-#define constexpr
-static constexpr const int8_t *rh2lp(InputType rht) {
-#undef constexpr
-    switch(rht) {
-#define CASE(x) case x: std::fprintf(stderr, "Converting %d to use table %s\n", int(x), RHTraits<x>::name); return RHTraits<x>::table.data();
+#define ALL_CASES\
         CASE(DNA) CASE(DNA2) CASE(PROTEIN) CASE(PROTEIN20) CASE(PROTEIN_3BIT) CASE(PROTEIN_14) CASE(PROTEIN_6) CASE(DNAC)
-        default: ;
+
+static constexpr const int8_t *rh2lp(InputType rht) {
+    switch(rht) {
+#define CASE(x) case x: return RHTraits<x>::table.data();
+        ALL_CASES
+        case PROTEIN_6_FRAME: default: ;
 #undef CASE
     }
     return RHTraits<PROTEIN>::table.data();
@@ -139,7 +140,7 @@ static constexpr const int8_t *rh2lp(InputType rht) {
 static constexpr inline size_t rh2n(InputType rht, size_t itemsize) {
     switch(rht) {
 #define CASE(x) case x: return itemsize == 16 ? RHTraits<x>::nper128: itemsize == 8 ? RHTraits<x>::nper64: RHTraits<x>::nper32;
-        CASE(DNA) CASE(DNA2) CASE(PROTEIN) CASE(PROTEIN20) CASE(PROTEIN_3BIT) CASE(PROTEIN_14) CASE(PROTEIN_6) CASE(DNAC)
+        ALL_CASES
         case PROTEIN_6_FRAME: return -1;
 #undef CASE
     }
