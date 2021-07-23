@@ -11,7 +11,6 @@ namespace bns {
 namespace alph {
 using std::size_t;
 
-
 template<typename VT=int8_t, size_t NCHAR=size_t(1) << (sizeof(VT) * CHAR_BIT)>
 struct TAlphabet {
     static_assert(NCHAR > 1, "Nchar must be positive");
@@ -26,7 +25,7 @@ public:
     using LUType = std::array<VT, NCHAR>;
     LUType lut;
     static constexpr LUType make_lut(const char *s, const size_t nc, bool padding=false) {
-        LUType arr{-1};
+        LUType arr{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
         int id = padding;
         size_t ci = 0;
         for(size_t i = 0; i < nc; ++i, ++id, ++ci) {
@@ -104,6 +103,7 @@ static constexpr const Alphabet DNA2METHYL("DNAMETH", "C,AGT"); // Purines/Pyrim
 // Source: Reference
 // Edgar, RC (2004) Local homology recognition and distance measures in linear time using compressed amino acid alphabets, NAR 32(1), 380-385. doi: 10.1093/nar/gkh180
 static const std::map<std::string, const Alphabet *> CAMAP {
+    {"BYTES", &BYTES},
     {"AMINO20", &AMINO20},
     {"AMINO", &AMINO20},
     {"PROTEIN", &AMINO20},
@@ -148,7 +148,6 @@ using alph::DNA5;
 using alph::DNA4;
 using alph::DNA2KETAMINE;
 using alph::DNA2PYRPUR;
-
 
 } // namespace bns
 

@@ -171,6 +171,7 @@ public:
         rht = newrht; lutptr = rh2lp(rht);
         nremper = rh2n(rht, sizeof(KmerT));
     }
+    RollingHashType hashtype() const {return rht;}
     size_t nremperres() const {return nremper;}
     size_t nremperres64() const {return rh2n(rht, 8);}
     size_t nremperres128() const {return rh2n(rht, 16);}
@@ -222,7 +223,7 @@ public:
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_unwindowed(const Functor &func) {
         const KmerT mask(rhmask<KmerT>(rht, sp_.k_));
-        schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
+        //schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
         KmerT min;
         unsigned filled;
         const size_t mul = rhmul();
@@ -232,13 +233,15 @@ public:
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 nv = lutptr[s_[pos_++]];
-                if(nv == int8_t(-1)) {min = ENCODE_OVERFLOW; std::fprintf(stderr, "last char %c led to underflow...\n", s_[pos_ - 1]); goto loop_start;}
+                if(nv == int8_t(-1)) {min = ENCODE_OVERFLOW;goto loop_start;}
                 min = (min * mul) | nv;
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                if constexpr(sizeof(KmerT) == 16) min %= mask;
-                else                              min = div.mod(min);
+                if(rht == DNA || rht == DNA2) min &= mask;
+                else {
+                    min %= mask;
+                }
                 func(min);
                 --filled;
             }
@@ -247,7 +250,7 @@ public:
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_windowed(const Functor &func) {
         const KmerT mask(rhmask<KmerT>(rht, sp_.k_));
-        schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
+        //schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
         KmerT min, kmer;
         unsigned filled;
         const size_t mul = rhmul();
@@ -262,8 +265,10 @@ public:
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                if constexpr(sizeof(KmerT) == 16) min %= mask;
-                else                              min = div.mod(min);
+                if(rht == DNA || rht == DNA2) min &= mask;
+                else {
+                    min %= mask;
+                }
                 if((kmer = qmap_.next_value(min, scorer_(min, data_))) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
             }
@@ -278,7 +283,7 @@ public:
         const KmerT mask(rhmask<KmerT>(rht, sp_.k_));
         KmerT min, kmer;
         unsigned filled;
-        schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
+        //schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
         CircusEnt &ent = *(static_cast<CircusEnt *>(data_));
         windowed_loop_start:
         ent.clear();
@@ -293,8 +298,10 @@ public:
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                if constexpr(sizeof(KmerT) == 16) min %= mask;
-                else                              min = div.mod(min);
+                if(rht == DNA || rht == DNA2) min &= mask;
+                else {
+                    min %= mask;
+                }
                 if((kmer = qmap_.next_value(min, min / (ent.value() + .001))) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
             }
@@ -371,7 +378,7 @@ public:
     INLINE void for_each(const Functor &func, const char *str, u64 l) {
         this->assign(str, l);
         if(!has_next_kmer()) return;
-        if(rht != DNA) {std::fprintf(stderr, "Can't reverse-complement protein\n"); canonicalize_ = false;}
+        if(rht != DNA && canonicalize_) {canonicalize_ = false;}
         if(canonicalize_) {
             if(sp_.unwindowed()) {
                  for_each_canon_unwindowed(func);
@@ -578,7 +585,8 @@ public:
     long long int window() const {return w_;}
     InputType hashtype() const {return enctype_;}
     RollingHasher &hashtype(InputType rht) {
-        enctype_ = rht; lutptr = rh2lp(rht); return *this;
+        enctype_ = rht; lutptr = rh2lp(rht);
+        return *this;
     }
     void window(long long int w) {
         if(w <= k_) w_ = -1;
@@ -680,6 +688,14 @@ public:
 
     template<typename Functor>
     void for_each_uncanon(const Functor &func, const char *s, size_t l) {
+#if 0
+        std::fprintf(stderr, "Getting uncanonical minimizers from %s\n", s);
+        std::vector<char> ne;
+        for(size_t i = 0; i < 256; ++i) if(lutptr[i] > 0) ne.push_back(i);
+        for(const auto id: ne) {
+            assert(lutptr[id] == lutptr[std::toupper(id)]);
+        }
+#endif
         if(l < size_t(k_)) return;
         hasher_.reset();
         qmap_.reset();
@@ -696,6 +712,7 @@ public:
         };
         for(i = nf = 0; nf < k_ && i < l; ++i) {
             if(unlikely((v1 = lutptr[s[i]]) == int8_t(-1))) {
+                //std::fprintf(stderr, "Char %c/%d was missing... %d\n", s[i], s[i], lutptr[s[i]]);
                 fixup:
                 i += k_; nf = 0; hasher_.reset();
             } else hasher_.eat(v1), ++nf;
@@ -703,8 +720,10 @@ public:
         if(nf < k_) return; // All failed
         use_val(hasher_.hashvalue);
         for(;i < l; ++i) {
-            if((v1 = lutptr[s[i]]) == int8_t(-1)) goto fixup;
-            hasher_.update(lutptr[s[i - k_]], v1);
+            if(lutptr[s[i]] == int8_t(-1)) goto fixup;
+            //auto ov = hasher_.hashvalue;
+            hasher_.update(lutptr[s[i - k_]], lutptr[s[i]]);
+            //std::fprintf(stderr, "Updating with new char %c, which is translated to %d, which will replcae old %zu with %zu\n", s[i], int(lutptr[s[i]]), size_t(ov), size_t(hasher_.hashvalue));
             use_val(hasher_.hashvalue);
         }
         if(qmap_.partially_full())
@@ -755,6 +774,10 @@ public:
         else            kseq_assign(ks, fp), destroy = false;
         for_each_canon<Functor>(func, ks);
         if(destroy) kseq_destroy(ks);
+    }
+    template<typename...Args>
+    void for_each(Args &&...args) {
+        for_each_hash(std::forward<Args>(args)...);
     }
     void reset() {hasher_.reset(); rchasher_.reset();}
     size_t n_in_queue() const {return qmap_.n_in_queue();}
