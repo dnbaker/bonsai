@@ -49,16 +49,21 @@ static inline std::string to_string(InputType it);
 
 
 template<typename KmerT>
-KmerT rhmask(InputType it, int k) {
-    KmerT ret;
-    if(it == DNA) ret =  (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 1)));
-    else if(it == DNA2 || it == DNAC) ret = (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - k));
-    else if(it == PROTEIN20) ret =  std::pow(20, k);
-    else if(it == PROTEIN_6) ret =  std::pow(6, k);
-    else if(it == PROTEIN_3BIT) ret = static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 3));
-    else if(it == PROTEIN_14) ret =  std::pow(14, k);
-    else if(it == PROTEIN) ret = (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 8)));
-    else ret =  KmerT(-1);
+static inline KmerT rhmask(InputType it, int k) {
+    KmerT ret = KmerT(-1);
+    switch(it) {
+        case DNA: ret = static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 1)); break;
+        case DNA2: case DNAC:
+            ret = static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - k); break;
+        case PROTEIN_3BIT:
+            ret = static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - k); break;
+        case PROTEIN20: ret =  std::pow(20, k); break;
+        case PROTEIN6: ret =  std::pow(6, k); break;
+        case PROTEIN14: ret =  std::pow(14, k); break;
+        case PROTEIN: ret = (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 8))); break;
+        default:;
+    }
+    // else, stays at -1
     return ret;
 }
 static constexpr inline size_t mul(InputType it) {

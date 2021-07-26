@@ -311,10 +311,7 @@ public:
                 if(rht == DNA || rht == DNA2 || rht == PROTEIN_3BIT) min &= mask;
                 else {
                     if constexpr(sizeof(KmerT) <= 8) {
-                        min = div.mod(min);
-                    } else {
-                    assert(div.mod(min) == min % mask);
-                    if constexpr(sizeof(KmerT) <= 8) {
+                        assert(div.mod(min) == min % mask);
                         min = div.mod(min);
                     } else {
                         min %= mask;
