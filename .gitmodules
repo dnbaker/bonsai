@@ -1,6 +1,3 @@
-[submodule "klib"]
-	path = klib
-	url = https://github.com/attractivechaos/klib
 [submodule "hll"]
 	path = hll
 	url = https://github.com/dnbaker/sketch

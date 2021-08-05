@@ -46,14 +46,18 @@ static INLINE int is_lt(T i, T j, void *) {
 using ScoringFunction = u64 (*)(u64, void*);
 using FRev64 = sketch::hash::CEIFused<CEIXOR<0x533f8c2151b20f97>, CEIMul<0x9a98567ed20c127d>, RotL<31>, CEIXOR<0x691a9d706391077a>>;
 
-static INLINE u128 lex_score(u128 i, void *) {
+static INLINE u128 lex_score(u128 i) {
     return sketch::hash::CEHasher()(i);
+}
+static INLINE u128 lex_score(u128 i, void *) {
+    return lex_score(i);
 }
 static INLINE u128 ent_score(u128 i, void *data) {
     // For this, the highest-entropy kmers will be selected as "minimizers".
     return i / (kmer_entropy(i, *(unsigned *)data) + .001);
     //return u128(-1) - (u128(0x3739e7bd7416f000) << 64) * kmer_entropy(i, *(unsigned *)data);
 }
+static INLINE u64 lex_score(u64 i) {return FRev64()(i);}
 static INLINE u64 lex_score(u64 i, void *) {return FRev64()(i);}
 static INLINE u64 ent_score(u64 i, void *data) {
     // For this, the highest-entropy kmers will be selected as "minimizers".
@@ -141,12 +145,15 @@ public:
     {
         if(std::is_same<ScoreType, score::Entropy>::value && sp_.unspaced() && !sp_.unwindowed()) {
             if(data_) UNRECOVERABLE_ERROR("No data pointer must be provided for lex::Entropy minimization.");
-            data_ = static_cast<void *>(new CircusEnt(sp_.k_));
+            make_circusent();
         }
         if(!sp_.unspaced() && canonicalize_) {
             std::fprintf(stderr, "If a spaced seed is set, k-mers cannot be canonicalized\n");
             canonicalize_ = false;
         }
+    }
+    void make_circusent() {
+       data_ = static_cast<void *>(new CircusEnt(sp_.k_));
     }
     Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data, canonicalize) {}
     Encoder(const Spacer &sp, bool canonicalize=true): Encoder(sp, nullptr, canonicalize) {}
@@ -176,6 +183,16 @@ public:
     size_t nremperres64() const {return rh2n(rht, 8);}
     size_t nremperres128() const {return rh2n(rht, 16);}
     Encoder(unsigned k, bool canonicalize=true): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize) {}
+    Encoder<score::Entropy, u64> to_entmin128() const {
+        Encoder<score::Entropy, u64> ret(sp_, data_, canonicalize_);
+        ret.hashtype(this->rht);
+        return ret;
+    }
+    Encoder<score::Entropy, u64> to_entmin64() const {
+        Encoder<score::Entropy, u64> ret(sp_, data_, canonicalize_);
+        ret.hashtype(this->rht);
+        return ret;
+    }
     Encoder<ScoreType, u128> to_u128() const {
         Encoder<ScoreType, u128> ret(sp_, data_, canonicalize_);
         ret.hashtype(this->rht);
@@ -647,7 +664,7 @@ public:
         IntType nextv;
         if(qmap_.size() > 1) {
             auto add_hashes =  [&](auto &hasher) {
-            if((nextv = qmap_.next_value(hasher.hashvalue, hasher.hashvalue)) != ENCODE_OVERFLOW)
+            if((nextv = qmap_.next_value(hasher.hashvalue, lex_score(hasher.hashvalue))) != ENCODE_OVERFLOW)
                 func(nextv);
             };
             for(i = nf = 0; nf < k_ && i < l; ++i) {
@@ -712,7 +729,7 @@ public:
         IntType nextv;
         auto use_val = [&](auto v) {
             if(qmap_.size() > 1) {
-                if((nextv = qmap_.next_value(v, v)) != ENCODE_OVERFLOW) {
+                if((nextv = qmap_.next_value(v, lex_score(v))) != ENCODE_OVERFLOW) {
                     func(nextv);
                 }
             } else if(v != ENCODE_OVERFLOW) func(v);
