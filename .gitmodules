@@ -1,9 +1,6 @@
 [submodule "klib"]
 	path = klib
 	url = https://github.com/attractivechaos/klib
-[submodule "clhash"]
-	path = clhash
-	url = https://github.com/lemire/clhash
 [submodule "hll"]
 	path = hll
 	url = https://github.com/dnbaker/sketch
