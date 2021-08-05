@@ -184,7 +184,7 @@ public:
     size_t nremperres128() const {return rh2n(rht, 16);}
     Encoder(unsigned k, bool canonicalize=true): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize) {}
     Encoder<score::Entropy, u128> to_entmin128() const {
-        Encoder<score::Entropy, u64> ret(sp_, data_, canonicalize_);
+        Encoder<score::Entropy, u128> ret(sp_, data_, canonicalize_);
         ret.hashtype(this->rht);
         return ret;
     }
