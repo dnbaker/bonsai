@@ -147,6 +147,28 @@ public:
         }
         return ret;
     }
+    std::string to_string() {
+        std::string ret;
+        if(unspaced()) {
+            ret = "0x";
+            ret += std::to_string(k_ - 1);
+        } else {
+            std::vector<std::pair<int, int>> tups;
+            std::pair<int, int> next = {-1, -1};
+            for(size_t i = 0; i < s_.size(); ++i) {
+                if(s_[i] != next.first) {
+                    if(next.first > 0) tups.push_back(next);
+                    next.first = s_[i]; next.second = 1;
+                } else ++next.second;
+            }
+            if(next.first > 0) tups.push_back(next);
+            for(const auto &pair: tups) {
+                ret += std::to_string(pair.first) + "x" + std::to_string(pair.second) + ',';
+            }
+            ret.pop_back(); // Remove ',' at the end
+        }
+        return ret;
+    }
     ~Spacer() {}
     spvec_t sub1() const {spvec_t ret(s_);std::transform(ret.begin(), ret.end(), ret.begin(), [](auto x) {return x - 1;}); return ret;}
 };
