@@ -141,8 +141,7 @@ public:
       scorer_{},
       canonicalize_(canonicalize)
     {
-        if(std::is_same<ScoreType, score::Entropy>::value && sp_.unspaced() && !sp_.unwindowed()) {
-            if(data_) UNRECOVERABLE_ERROR("No data pointer must be provided for lex::Entropy minimization.");
+        if(std::is_same<ScoreType, score::Entropy>::value) {
             make_circusent();
         }
         if(!sp_.unspaced() && canonicalize_) {
@@ -613,7 +612,7 @@ public:
     void pos(uint64_t v) {pos_ = v;}
     uint32_t k() const {return sp_.k_;}
     ~Encoder() {
-        if(std::is_same<ScoreType, score::Entropy>::value && sp_.unspaced() && !sp_.unwindowed()) {
+        if(std::is_same<ScoreType, score::Entropy>::value) {
             delete static_cast<CircusEnt *>(data_);
         }
     }
