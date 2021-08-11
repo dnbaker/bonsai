@@ -219,13 +219,17 @@ public:
     }
     template<typename Functor>
     INLINE void for_each_canon_unwindowed(const Functor &func) {
-        if(sp_.unspaced())
-            for_each_uncanon_unspaced_unwindowed([&](KmerT min) {return func(canonical_representation(min, sp_.k_));});
-        else {
+        auto ffunc = [k=sp_.k_,rht=this->rht,&func](KmerT min) {
+            if(rht == DNA) min = canonical_representation(min, k);
+            return func(min);
+        };
+        if(sp_.unspaced()) {
+            for_each_uncanon_unspaced_unwindowed(ffunc);
+        } else {
             KmerT min;
             while(likely(has_next_kmer()))
                 if((min = next_kmer()) != ENCODE_OVERFLOW)
-                    func(canonical_representation(min, sp_.k_));
+                    ffunc(min);
         }
     }
     template<typename Functor>
@@ -341,7 +345,10 @@ public:
     }
     template<typename Functor>
     INLINE void for_each_canon_unspaced_windowed_entropy_(const Functor &func) {
-        this->for_each_uncanon_unspaced_windowed_entropy_([&](KmerT min) {return func(canonical_representation(min, sp_.k_));});
+        this->for_each_uncanon_unspaced_windowed_entropy_([&,rht=this->rht](KmerT min) {
+            if(rht == DNA) min = canonical_representation(min, sp_.k_);
+            return func(min);
+        });
     }
     // Utility 'for-each'-like functions.
     template<typename Functor>
@@ -592,8 +599,10 @@ public:
     }
     INLINE KmerT next_canonicalized_minimizer() {
         assert(has_next_kmer());
-        const KmerT k(canonical_representation(kmer(pos_++), sp_.k_)), kscore(scorer_(k, data_));
-        return qmap_.next_value(k, kscore);
+        KmerT nk = kmer(pos_++);
+        if(rht == DNA) nk = canonical_representation(nk, sp_.k_);
+        const KmerT kscore(scorer_(nk, data_));
+        return qmap_.next_value(nk, kscore);
     }
     auto max_in_queue() const {return qmap_.begin()->first;}
 
