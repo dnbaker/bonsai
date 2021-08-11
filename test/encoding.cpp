@@ -318,6 +318,26 @@ TEST_CASE("xzparse") {
         REQUIRE(lhv == rhv);
         REQUIRE(lhv == bhv);
         REQUIRE(lhv == zhv);
+        lhv = rhv = bhv = zhv = 0;
+        {
+            RollingHasher<uint64_t> rh(31, false);
+            rh.for_each([&lhv](auto x) {lhv ^= x;}, gzs[i].data());
+        }
+        {
+            RollingHasher<uint64_t> rh(31, false);
+            rh.for_each([&rhv](auto x) {rhv ^= x;}, xzs[i].data());
+        }
+        {
+            RollingHasher<uint64_t> rh(31, false);
+            rh.for_each([&bhv](auto x) {bhv ^= x;}, bzs[i].data());
+        }
+        {
+            RollingHasher<uint64_t> rh(31, false);
+            rh.for_each([&zhv](auto x) {zhv ^= x;}, zzs[i].data());
+        }
+        REQUIRE(lhv == rhv);
+        REQUIRE(lhv == bhv);
+        REQUIRE(lhv == zhv);
     }
     globfree(&glo);
 }

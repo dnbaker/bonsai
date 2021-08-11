@@ -502,7 +502,7 @@ public:
         if(matchxz || matchbz || matchzst) {
             std::string cmd = std::string(matchxz ? "xz": (matchbz ? "bzip2": "zstd")) + " -dc " + path;
             pfp = ::popen(cmd.data(), "r");
-            if(!pfp) UNRECOVERABLE_ERROR(std::string("Failed to open popen call for xz: ") + cmd);
+            if(!pfp) UNRECOVERABLE_ERROR(std::string("Failed to open popen call: ") + cmd);
             fp = gzdopen(::fileno(pfp), "rb");
         } else fp = gzopen(path, "rb");
         if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
@@ -789,11 +789,23 @@ public:
     }
     template<typename Functor>
     void for_each_hash(const Functor &func, const char *inpath, kseq_t *ks=nullptr) {
-        gzFile fp = gzopen(inpath, "rb");
-        if(!fp) throw file_open_error(inpath);
+        const size_t pl = std::strlen(inpath);
+        std::FILE *pfp = 0;
+        gzFile fp = 0;
+        bool matchxz = pl >= 3 && std::equal(&inpath[pl - 3], &inpath[pl], ".xz");
+        bool matchbz = pl >= 4 && std::equal(&inpath[pl - 4], &inpath[pl], ".bz2");
+        bool matchzst = pl >= 4 && std::equal(&inpath[pl - 4], &inpath[pl], ".zst");
+        if(matchxz || matchbz || matchzst) {
+            std::string cmd = std::string(matchxz ? "xz": (matchbz ? "bzip2": "zstd")) + " -dc " + inpath;
+            pfp = ::popen(cmd.data(), "r");
+            if(!pfp) UNRECOVERABLE_ERROR(std::string("Failed to open popen call: ") + cmd);
+            fp = gzdopen(::fileno(pfp), "rb");
+        } else fp = gzopen(inpath, "rb");
+        if(!fp) UNRECOVERABLE_ERROR(std::string("Could not open file at ") + inpath);
         gzbuffer(fp, 1<<18);
         for_each_hash<Functor>(func, fp, ks);
         gzclose(fp);
+        if(pfp) ::pclose(pfp);
     }
     template<typename Functor>
     void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
