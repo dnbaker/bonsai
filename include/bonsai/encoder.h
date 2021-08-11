@@ -493,12 +493,24 @@ public:
     }
     template<typename Functor>
     void for_each(const Functor &func, const char *path, kseq_t *ks=nullptr) {
-        gzFile fp(gzopen(path, "rb"));
+        const size_t pl = std::strlen(path);
+        std::FILE *pfp = 0;
+        gzFile fp = 0;
+        bool matchxz = pl >= 3 && std::equal(&path[pl - 3], &path[pl], ".xz");
+        bool matchbz = pl >= 4 && std::equal(&path[pl - 4], &path[pl], ".bz2");
+        bool matchzst = pl >= 4 && std::equal(&path[pl - 4], &path[pl], ".zst");
+        if(matchxz || matchbz || matchzst) {
+            std::string cmd = std::string(matchxz ? "xz": (matchbz ? "bzip2": "zstd")) + " -dc " + path;
+            pfp = ::popen(cmd.data(), "r");
+            if(!pfp) UNRECOVERABLE_ERROR(std::string("Failed to open popen call for xz: ") + cmd);
+            fp = gzdopen(::fileno(pfp), "rb");
+        } else fp = gzopen(path, "rb");
         if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         gzbuffer(fp, 1<<18);
         if(canonicalize_) for_each_canon<Functor>(func, fp, ks);
         else              for_each_uncanon<Functor>(func, fp, ks);
         gzclose(fp);
+        if(pfp) ::pclose(pfp);
     }
     template<typename Functor, typename ContainerType,
              typename=typename std::enable_if<std::is_same<typename ContainerType::value_type::value_type, char>::value ||

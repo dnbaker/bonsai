@@ -3,6 +3,7 @@
 #include "encoder.h"
 #include <algorithm>
 #include <numeric>
+#include <glob.h>
 
 using namespace bns;
 using EncType = Encoder<score::Lex>;
@@ -246,4 +247,77 @@ TEST_CASE("parseasprot") {
         kseq_destroy(ks);
         std::fprintf(stderr, "Finished for %s\n", bns::to_string(rv).data());
     }
+}
+std::string gz2xz(std::string x) {
+    x[x.size() - 2] = 'x';
+    return x;
+}
+std::string gz2bz(std::string x) {
+    x = x.substr(0, x.find_last_of('.'));
+    x = x + ".bz2";
+    return x;
+}
+std::string gz2zst(std::string x) {
+    x = x.substr(0, x.find_last_of('.'));
+    x = x + ".zst";
+    return x;
+}
+
+TEST_CASE("xzparse") {
+    Spacer sp(31, 71);
+    glob_t glo{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    if(::glob("test/ec/*fna.gz", GLOB_TILDE, NULL, &glo)) {
+        throw std::runtime_error("Glob failed");
+    }
+    std::vector<std::string> xzs, gzs, bzs, zzs;
+    for(size_t i = 0; i < glo.gl_pathc; ++i) {
+        gzs.emplace_back(glo.gl_pathv[i]);
+        xzs.emplace_back(gz2xz(gzs.back()));
+        bzs.emplace_back(gz2bz(gzs.back()));
+        zzs.emplace_back(gz2zst(gzs.back()));
+    }
+    OMP_PFOR
+    for(size_t i = 0; i < glo.gl_pathc; ++i) {
+        std::FILE *fp;
+        std::string cmd;
+        if(!bns::isfile(xzs[i])) {
+            cmd = std::string("ls ") + xzs[i] + " &>/dev/null || " + "gzip -dc " + gzs[i] + " | xz > " + xzs[i];
+            if(!(fp = ::popen(cmd.data(), "r"))) throw 1;
+            ::pclose(fp);
+        }
+        if(!bns::isfile(bzs[i])) {
+            cmd = std::string("ls ") + bzs[i] + " &>/dev/null || " + "gzip -dc " + gzs[i] + " | bzip2 > " + bzs[i];
+            if((fp = ::popen(cmd.data(), "r")) == nullptr) throw 1;
+            ::pclose(fp);
+        }
+        if(!bns::isfile(zzs[i])) {
+            cmd = std::string("ls ") + zzs[i] + " &>/dev/null || " + "gzip -dc " + gzs[i] + " | zstd > " + zzs[i];
+            if((fp = ::popen(cmd.data(), "r")) == nullptr) throw 1;
+            ::pclose(fp);
+        }
+    }
+    OMP_PFOR
+    for(size_t i = 0; i < glo.gl_pathc; ++i) {
+        uint64_t lhv = 0, rhv = 0, bhv = 0, zhv = 0;
+        {
+            Encoder<> enc(sp);
+            enc.for_each([&lhv](auto x) {lhv ^= x;}, gzs[i].data());
+        }
+        {
+            Encoder<> enc(sp);
+            enc.for_each([&rhv](auto x) {rhv ^= x;}, xzs[i].data());
+        }
+        {
+            Encoder<> enc(sp);
+            enc.for_each([&bhv](auto x) {bhv ^= x;}, bzs[i].data());
+        }
+        {
+            Encoder<> enc(sp);
+            enc.for_each([&zhv](auto x) {zhv ^= x;}, zzs[i].data());
+        }
+        REQUIRE(lhv == rhv);
+        REQUIRE(lhv == bhv);
+        REQUIRE(lhv == zhv);
+    }
+    globfree(&glo);
 }

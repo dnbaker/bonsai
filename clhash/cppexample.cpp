@@ -11,7 +11,7 @@ int main(void) {
     uint64_t vechash = h(vec);
 
     uint64_t arrayhash = h(vec.data(), vec.size());
-    
+
     assert(vechash == arrayhash);
 
     uint64_t cstringhash = h("o hai wurld");
