@@ -3,6 +3,7 @@
 #include "encoder.h"
 #include <algorithm>
 #include <numeric>
+#include <glob.h>
 
 using namespace bns;
 using EncType = Encoder<score::Lex>;
@@ -122,42 +123,30 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         gzclose(fp);
         kseq_destroy(ks);
     }
-    SECTION("space_case_jump") {
-        for(const char *SPACED_FN: {"test/phix.fa", "test/ec/GCF_000007445.1_ASM744v1_genomic.fna.gz"}) {
-            Spacer sp(31, 31);
-            Encoder<score::Entropy> enc(sp);
-            gzFile fp(gzopen(SPACED_FN, "rb"));
-            if(fp == nullptr) RUNTIME_ERROR("Could not open file at "s + SPACED_FN);
-            kseq_t *ks(kseq_init(fp));
-            std::unordered_set<u64> kmers, okmers;
-            //u64 k(BF);
-            enc.for_each_canon([&](auto km) {kmers.insert(km);}, ks);
-#if 0
-            while(kseq_read(ks) >= 0) {
-                enc.assign(ks);
-#if 1
-                std::fprintf(stderr, "seq %s %s\n", ks->name.s, ks->comment.s ? ks->comment.s: (char *)"nocomment");
-#else
-                while(enc.has_next_kmer())
-                    if((k = enc.next_kmer()) != BF)
-                        kmers.insert(canonical_representation(k, 31));
-#endif
-            }
-#endif
-            kseq_destroy(ks);
-            gzclose(fp);
-            fp = gzopen(SPACED_FN, "rb");
-            ks = kseq_init(fp);
-            //enc.canonicalize(false);
-            enc.for_each_uncanon([&](auto km) {okmers.insert(canonical_representation(km, 31));}, ks);
-            size_t olap(0);
-            for(const auto k: kmers) olap += (okmers.find(k) != okmers.end());
-            LOG_DEBUG("Size of each: kmers %zu, okmers %zu, olap %zu\n", kmers.size(), okmers.size(), olap);
-            REQUIRE(olap == kmers.size());
-            REQUIRE(kmers.size() == okmers.size());
-            gzclose(fp);
-            kseq_destroy(ks);
-        }
+}
+TEST_CASE("space_case_jump") {
+    for(const char *SPACED_FN: {"test/phix.fa", "test/ec/GCF_000007445.1_ASM744v1_genomic.fna.gz"}) {
+        Spacer sp(31, 31);
+        Encoder<score::Entropy> enc(sp);
+        gzFile fp(gzopen(SPACED_FN, "rb"));
+        if(fp == nullptr) RUNTIME_ERROR("Could not open file at "s + SPACED_FN);
+        kseq_t *ks(kseq_init(fp));
+        std::unordered_set<u64> kmers, okmers;
+        //u64 k(BF);
+        enc.for_each_canon([&](auto km) {kmers.insert(km);}, ks);
+        kseq_destroy(ks);
+        gzclose(fp);
+        fp = gzopen(SPACED_FN, "rb");
+        ks = kseq_init(fp);
+        //enc.canonicalize(false);
+        enc.for_each_uncanon([&](auto km) {okmers.insert(canonical_representation(km, 31));}, ks);
+        size_t olap(0);
+        for(const auto k: kmers) olap += (okmers.find(k) != okmers.end());
+        LOG_DEBUG("Size of each: kmers %zu, okmers %zu, olap %zu\n", kmers.size(), okmers.size(), olap);
+        REQUIRE(olap == kmers.size());
+        REQUIRE(kmers.size() == okmers.size());
+        gzclose(fp);
+        kseq_destroy(ks);
     }
 }
 TEST_CASE("rollin_spaced") {
@@ -246,4 +235,97 @@ TEST_CASE("parseasprot") {
         kseq_destroy(ks);
         std::fprintf(stderr, "Finished for %s\n", bns::to_string(rv).data());
     }
+}
+std::string gz2xz(std::string x) {
+    x[x.size() - 2] = 'x';
+    return x;
+}
+std::string gz2bz(std::string x) {
+    x = x.substr(0, x.find_last_of('.'));
+    x = x + ".bz2";
+    return x;
+}
+std::string gz2zst(std::string x) {
+    x = x.substr(0, x.find_last_of('.'));
+    x = x + ".zst";
+    return x;
+}
+
+TEST_CASE("xzparse") {
+    Spacer sp(31, 71);
+    glob_t glo{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    if(::glob("test/ec/*fna.gz", GLOB_TILDE, NULL, &glo)) {
+        throw std::runtime_error("Glob failed");
+    }
+    std::vector<std::string> xzs, gzs, bzs, zzs;
+    for(size_t i = 0; i < glo.gl_pathc; ++i) {
+        gzs.emplace_back(glo.gl_pathv[i]);
+        xzs.emplace_back(gz2xz(gzs.back()));
+        bzs.emplace_back(gz2bz(gzs.back()));
+        zzs.emplace_back(gz2zst(gzs.back()));
+    }
+    OMP_PFOR
+    for(size_t i = 0; i < glo.gl_pathc; ++i) {
+        std::FILE *fp;
+        std::string cmd;
+        if(!bns::isfile(xzs[i])) {
+            cmd = std::string("ls ") + xzs[i] + " &>/dev/null || " + "gzip -dc " + gzs[i] + " | xz > " + xzs[i];
+            if(!(fp = ::popen(cmd.data(), "r"))) throw 1;
+            ::pclose(fp);
+        }
+        if(!bns::isfile(bzs[i])) {
+            cmd = std::string("ls ") + bzs[i] + " &>/dev/null || " + "gzip -dc " + gzs[i] + " | bzip2 > " + bzs[i];
+            if((fp = ::popen(cmd.data(), "r")) == nullptr) throw 1;
+            ::pclose(fp);
+        }
+        if(!bns::isfile(zzs[i])) {
+            cmd = std::string("ls ") + zzs[i] + " &>/dev/null || " + "gzip -dc " + gzs[i] + " | zstd > " + zzs[i];
+            if((fp = ::popen(cmd.data(), "r")) == nullptr) throw 1;
+            ::pclose(fp);
+        }
+    }
+    OMP_PFOR
+    for(size_t i = 0; i < glo.gl_pathc; ++i) {
+        uint64_t lhv = 0, rhv = 0, bhv = 0, zhv = 0;
+        {
+            Encoder<> enc(sp);
+            enc.for_each([&lhv](auto x) {lhv ^= x;}, gzs[i].data());
+        }
+        {
+            Encoder<> enc(sp);
+            enc.for_each([&rhv](auto x) {rhv ^= x;}, xzs[i].data());
+        }
+        {
+            Encoder<> enc(sp);
+            enc.for_each([&bhv](auto x) {bhv ^= x;}, bzs[i].data());
+        }
+        {
+            Encoder<> enc(sp);
+            enc.for_each([&zhv](auto x) {zhv ^= x;}, zzs[i].data());
+        }
+        REQUIRE(lhv == rhv);
+        REQUIRE(lhv == bhv);
+        REQUIRE(lhv == zhv);
+        lhv = rhv = bhv = zhv = 0;
+        {
+            RollingHasher<uint64_t> rh(31, false);
+            rh.for_each([&lhv](auto x) {lhv ^= x;}, gzs[i].data());
+        }
+        {
+            RollingHasher<uint64_t> rh(31, false);
+            rh.for_each([&rhv](auto x) {rhv ^= x;}, xzs[i].data());
+        }
+        {
+            RollingHasher<uint64_t> rh(31, false);
+            rh.for_each([&bhv](auto x) {bhv ^= x;}, bzs[i].data());
+        }
+        {
+            RollingHasher<uint64_t> rh(31, false);
+            rh.for_each([&zhv](auto x) {zhv ^= x;}, zzs[i].data());
+        }
+        REQUIRE(lhv == rhv);
+        REQUIRE(lhv == bhv);
+        REQUIRE(lhv == zhv);
+    }
+    globfree(&glo);
 }

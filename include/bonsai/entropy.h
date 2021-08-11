@@ -2,6 +2,7 @@
 #include "circularqueue/cq.h"
 #include "bonsai/kmerutil.h"
 #include "flat_hash_map/flat_hash_map.hpp"
+#include "bonsai/rhtraits.h"
 
 namespace bns {
 
@@ -14,10 +15,10 @@ class CircusEnt {
     ska::flat_hash_map<char, size_t> counts_;
 public:
     static constexpr double NOT_FULL = -1.;
-    CircusEnt(size_t qsz): q_(qsz), cqsz_(0), qsz_(qsz), qszinv_(1./qsz) {
-    }
-    CircusEnt(const CircusEnt &other): q_(other.q_), cqsz_(other.cqsz_), qsz_(other.qsz_), qszinv_(other.qszinv_), counts_(other.counts_) {
-    }
+    CircusEnt(size_t qsz): q_(qsz), cqsz_(0), qsz_(qsz), qszinv_(1./qsz)
+    {}
+    CircusEnt(const CircusEnt &other): q_(other.q_), cqsz_(other.cqsz_), qsz_(other.qsz_), qszinv_(other.qszinv_), counts_(other.counts_)
+    {}
     CircusEnt(CircusEnt &&other) = default;
     void clear() {
         counts_.clear();

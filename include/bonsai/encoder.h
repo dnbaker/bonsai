@@ -46,20 +46,18 @@ static INLINE int is_lt(T i, T j, void *) {
 using ScoringFunction = u64 (*)(u64, void*);
 using FRev64 = sketch::hash::CEIFused<CEIXOR<0x533f8c2151b20f97>, CEIMul<0x9a98567ed20c127d>, RotL<31>, CEIXOR<0x691a9d706391077a>>;
 
-static INLINE u128 lex_score(u128 i, void *) {
+static INLINE u128 lex_score(u128 i) {
     return sketch::hash::CEHasher()(i);
 }
-static INLINE u128 ent_score(u128 i, void *data) {
-    // For this, the highest-entropy kmers will be selected as "minimizers".
-    return i / (kmer_entropy(i, *(unsigned *)data) + .001);
-    //return u128(-1) - (u128(0x3739e7bd7416f000) << 64) * kmer_entropy(i, *(unsigned *)data);
+static INLINE u128 lex_score(u128 i, void *) {
+    return lex_score(i);
 }
+template<typename T>
+static INLINE T ent_score(T i, void *data) {
+    return i / (reinterpret_cast<CircusEnt *>(data)->value() + 1e-4);
+}
+static INLINE u64 lex_score(u64 i) {return FRev64()(i);}
 static INLINE u64 lex_score(u64 i, void *) {return FRev64()(i);}
-static INLINE u64 ent_score(u64 i, void *data) {
-    // For this, the highest-entropy kmers will be selected as "minimizers".
-    //return UINT64_C(-1) - static_cast<u64>(UINT64_C(7958933093282078720) * kmer_entropy(i, *(unsigned *)data));
-    return i / (kmer_entropy(i, *(unsigned *)data) + .001);
-}
 static INLINE u64 hash_score(u64 i, void *data) {
     khint_t k1;
     khash_t(64) *hash((khash_t(64) *)data);
@@ -76,14 +74,18 @@ static INLINE u64 hash_score(u64 i, void *data) {
 }
 
 namespace score {
-#define DECHASH(name, fn) struct name {\
-        u64 operator()(u64 i, void *data) const {return fn(i, data);}\
-        u128 operator()(u128 i, void *data) const {return fn(i, data);}\
-}
-DECHASH(Lex, lex_score);
-DECHASH(Entropy, ent_score);
-DECHASH(Hash, hash_score);
-#undef DECHASH
+struct Lex {
+    u64 operator()(u64 i, void *data) const {return lex_score(i, data);}
+    u128 operator()(u128 i, void *data) const {return lex_score(i, data);}
+};
+struct Entropy {
+    u64 operator()(u64 i, void *data) const {return ent_score(i, data);}
+    u128 operator()(u128 i, void *data) const {return ent_score(i, data);}
+};
+struct Hash {
+    u64 operator()(u64 i, void *data) const {return hash_score(i, data);}
+    u128 operator()(u128 i, void *data) const {return hash_score(i, data);}
+};
 } // namespace score
 
 
@@ -141,12 +143,15 @@ public:
     {
         if(std::is_same<ScoreType, score::Entropy>::value && sp_.unspaced() && !sp_.unwindowed()) {
             if(data_) UNRECOVERABLE_ERROR("No data pointer must be provided for lex::Entropy minimization.");
-            data_ = static_cast<void *>(new CircusEnt(sp_.k_));
+            make_circusent();
         }
         if(!sp_.unspaced() && canonicalize_) {
             std::fprintf(stderr, "If a spaced seed is set, k-mers cannot be canonicalized\n");
             canonicalize_ = false;
         }
+    }
+    void make_circusent() {
+       data_ = static_cast<void *>(new CircusEnt(sp_.k_));
     }
     Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data, canonicalize) {}
     Encoder(const Spacer &sp, bool canonicalize=true): Encoder(sp, nullptr, canonicalize) {}
@@ -176,6 +181,16 @@ public:
     size_t nremperres64() const {return rh2n(rht, 8);}
     size_t nremperres128() const {return rh2n(rht, 16);}
     Encoder(unsigned k, bool canonicalize=true): Encoder(nullptr, 0, Spacer(k), nullptr, canonicalize) {}
+    Encoder<score::Entropy, u128> to_entmin128() const {
+        Encoder<score::Entropy, u128> ret(sp_, data_, canonicalize_);
+        ret.hashtype(this->rht);
+        return ret;
+    }
+    Encoder<score::Entropy, u64> to_entmin64() const {
+        Encoder<score::Entropy, u64> ret(sp_, data_, canonicalize_);
+        ret.hashtype(this->rht);
+        return ret;
+    }
     Encoder<ScoreType, u128> to_u128() const {
         Encoder<ScoreType, u128> ret(sp_, data_, canonicalize_);
         ret.hashtype(this->rht);
@@ -204,13 +219,17 @@ public:
     }
     template<typename Functor>
     INLINE void for_each_canon_unwindowed(const Functor &func) {
-        if(sp_.unspaced())
-            for_each_uncanon_unspaced_unwindowed([&](KmerT min) {return func(canonical_representation(min, sp_.k_));});
-        else {
+        auto ffunc = [k=sp_.k_,rht=this->rht,&func](KmerT min) {
+            if(rht == DNA) min = canonical_representation(min, k);
+            return func(min);
+        };
+        if(sp_.unspaced()) {
+            for_each_uncanon_unspaced_unwindowed(ffunc);
+        } else {
             KmerT min;
             while(likely(has_next_kmer()))
                 if((min = next_kmer()) != ENCODE_OVERFLOW)
-                    func(canonical_representation(min, sp_.k_));
+                    ffunc(min);
         }
     }
     template<typename Functor>
@@ -241,7 +260,7 @@ public:
                 if(rht == DNA || rht == DNA2 || rht == PROTEIN_3BIT) min &= mask;
                 else {
                     assert(div.mod(min) == min % mask);
-                    if constexpr(sizeof(KmerT) <= 8) {
+                    CONST_IF(sizeof(KmerT) <= 8) {
                         min = div.mod(min);
                     } else {
                         min %= mask;
@@ -273,7 +292,7 @@ public:
                 if(rht == DNA || rht == DNA2 || rht == PROTEIN_3BIT) min &= mask;
                 else {
                     assert(div.mod(min) == min % mask);
-                    if constexpr(sizeof(KmerT) <= 8) {
+                    CONST_IF(sizeof(KmerT) <= 8) {
                         min = div.mod(min);
                     } else {
                         min %= mask;
@@ -310,7 +329,7 @@ public:
             if(likely(filled == sp_.k_)) {
                 if(rht == DNA || rht == DNA2 || rht == PROTEIN_3BIT) min &= mask;
                 else {
-                    if constexpr(sizeof(KmerT) <= 8) {
+                    CONST_IF(sizeof(KmerT) <= 8) {
                         assert(div.mod(min) == min % mask);
                         min = div.mod(min);
                     } else {
@@ -326,7 +345,10 @@ public:
     }
     template<typename Functor>
     INLINE void for_each_canon_unspaced_windowed_entropy_(const Functor &func) {
-        this->for_each_uncanon_unspaced_windowed_entropy_([&](KmerT min) {return func(canonical_representation(min, sp_.k_));});
+        this->for_each_uncanon_unspaced_windowed_entropy_([&,rht=this->rht](KmerT min) {
+            if(rht == DNA) min = canonical_representation(min, sp_.k_);
+            return func(min);
+        });
     }
     // Utility 'for-each'-like functions.
     template<typename Functor>
@@ -476,12 +498,24 @@ public:
     }
     template<typename Functor>
     void for_each(const Functor &func, const char *path, kseq_t *ks=nullptr) {
-        gzFile fp(gzopen(path, "rb"));
+        const size_t pl = std::strlen(path);
+        std::FILE *pfp = 0;
+        gzFile fp = 0;
+        bool matchxz = pl >= 3 && std::equal(&path[pl - 3], &path[pl], ".xz");
+        bool matchbz = pl >= 4 && std::equal(&path[pl - 4], &path[pl], ".bz2");
+        bool matchzst = pl >= 4 && std::equal(&path[pl - 4], &path[pl], ".zst");
+        if(matchxz || matchbz || matchzst) {
+            std::string cmd = std::string(matchxz ? "xz": (matchbz ? "bzip2": "zstd")) + " -dc " + path;
+            pfp = ::popen(cmd.data(), "r");
+            if(!pfp) UNRECOVERABLE_ERROR(std::string("Failed to open popen call: ") + cmd);
+            fp = gzdopen(::fileno(pfp), "rb");
+        } else fp = gzopen(path, "rb");
         if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         gzbuffer(fp, 1<<18);
         if(canonicalize_) for_each_canon<Functor>(func, fp, ks);
         else              for_each_uncanon<Functor>(func, fp, ks);
         gzclose(fp);
+        if(pfp) ::pclose(pfp);
     }
     template<typename Functor, typename ContainerType,
              typename=typename std::enable_if<std::is_same<typename ContainerType::value_type::value_type, char>::value ||
@@ -507,30 +541,35 @@ public:
         u64 len(sp_.s_.size());
         int8_t nextc;
         auto spaces(sp_.s_.data());
+        static constexpr bool isent = std::is_same_v<ScoreType, score::Entropy>;
+        CircusEnt *ent_tracker;
+        CONST_IF(isent) {
+            ent_tracker = static_cast<CircusEnt *>(data_);
+            ent_tracker->clear();
+        } else ent_tracker = 0;
         if(rht == DNA || rht == PROTEIN || rht == PROTEIN_3BIT || rht == DNA2 || rht == DNAC) {
             const int shift = rht == DNA ? 2: rht == PROTEIN ? 8: (rht == DNA2 || rht == DNAC) ? 1: 3;
             /*std::fprintf(stderr, "Shift %d\n", shift);*/
 #define ITER do {\
             start += *spaces++;\
-            nextc = lutptr[s_[start]];\
-            if(nextc == int8_t(-1)) {\
+            if((nextc = lutptr[s_[start]]) == int8_t(-1)) {\
                 new_kmer = ENCODE_OVERFLOW;\
                 goto rnk;\
             }\
             new_kmer = (new_kmer << shift) | nextc;\
+            CONST_IF(isent) ent_tracker->push(nextc);\
         } while(0);
             DO_DUFF(len, ITER);
 #undef ITER
         } else if(rht == PROTEIN20 || rht == PROTEIN_14 || rht == PROTEIN_6) {
             const size_t mul = rht == PROTEIN20 ? 20: rht == PROTEIN_14 ? 14: 6;
 #define ITER do {new_kmer *= mul, start += *spaces++;\
-            nextc = lutptr[s_[start]];\
-            if(nextc == int8_t(-1)) {\
-                /*std::fprintf(stderr, "char %c was missing mul = %zu, emptying now...\n", s_[start], mul);*/\
+            if((nextc = lutptr[s_[start]]) == int8_t(-1)) {\
                 new_kmer = ENCODE_OVERFLOW;\
                 goto rnk;\
             }\
             new_kmer = (new_kmer * mul) | nextc;\
+            CONST_IF(isent) ent_tracker->push(nextc);\
         } while(0);
             DO_DUFF(len, ITER);
 #undef ITER
@@ -560,8 +599,10 @@ public:
     }
     INLINE KmerT next_canonicalized_minimizer() {
         assert(has_next_kmer());
-        const KmerT k(canonical_representation(kmer(pos_++), sp_.k_)), kscore(scorer_(k, data_));
-        return qmap_.next_value(k, kscore);
+        KmerT nk = kmer(pos_++);
+        if(rht == DNA) nk = canonical_representation(nk, sp_.k_);
+        const KmerT kscore(scorer_(nk, data_));
+        return qmap_.next_value(nk, kscore);
     }
     auto max_in_queue() const {return qmap_.begin()->first;}
 
@@ -647,7 +688,7 @@ public:
         IntType nextv;
         if(qmap_.size() > 1) {
             auto add_hashes =  [&](auto &hasher) {
-            if((nextv = qmap_.next_value(hasher.hashvalue, hasher.hashvalue)) != ENCODE_OVERFLOW)
+            if((nextv = qmap_.next_value(hasher.hashvalue, lex_score(hasher.hashvalue))) != ENCODE_OVERFLOW)
                 func(nextv);
             };
             for(i = nf = 0; nf < k_ && i < l; ++i) {
@@ -712,7 +753,7 @@ public:
         IntType nextv;
         auto use_val = [&](auto v) {
             if(qmap_.size() > 1) {
-                if((nextv = qmap_.next_value(v, v)) != ENCODE_OVERFLOW) {
+                if((nextv = qmap_.next_value(v, lex_score(v))) != ENCODE_OVERFLOW) {
                     func(nextv);
                 }
             } else if(v != ENCODE_OVERFLOW) func(v);
@@ -760,11 +801,23 @@ public:
     }
     template<typename Functor>
     void for_each_hash(const Functor &func, const char *inpath, kseq_t *ks=nullptr) {
-        gzFile fp = gzopen(inpath, "rb");
-        if(!fp) throw file_open_error(inpath);
+        const size_t pl = std::strlen(inpath);
+        std::FILE *pfp = 0;
+        gzFile fp = 0;
+        bool matchxz = pl >= 3 && std::equal(&inpath[pl - 3], &inpath[pl], ".xz");
+        bool matchbz = pl >= 4 && std::equal(&inpath[pl - 4], &inpath[pl], ".bz2");
+        bool matchzst = pl >= 4 && std::equal(&inpath[pl - 4], &inpath[pl], ".zst");
+        if(matchxz || matchbz || matchzst) {
+            std::string cmd = std::string(matchxz ? "xz": (matchbz ? "bzip2": "zstd")) + " -dc " + inpath;
+            pfp = ::popen(cmd.data(), "r");
+            if(!pfp) UNRECOVERABLE_ERROR(std::string("Failed to open popen call: ") + cmd);
+            fp = gzdopen(::fileno(pfp), "rb");
+        } else fp = gzopen(inpath, "rb");
+        if(!fp) UNRECOVERABLE_ERROR(std::string("Could not open file at ") + inpath);
         gzbuffer(fp, 1<<18);
         for_each_hash<Functor>(func, fp, ks);
         gzclose(fp);
+        if(pfp) ::pclose(pfp);
     }
     template<typename Functor>
     void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
