@@ -52,18 +52,12 @@ static INLINE u128 lex_score(u128 i) {
 static INLINE u128 lex_score(u128 i, void *) {
     return lex_score(i);
 }
-static INLINE u128 ent_score(u128 i, void *data) {
-    // For this, the highest-entropy kmers will be selected as "minimizers".
-    return i / (kmer_entropy(i, *(unsigned *)data) + .001);
-    //return u128(-1) - (u128(0x3739e7bd7416f000) << 64) * kmer_entropy(i, *(unsigned *)data);
+template<typename T>
+static INLINE T ent_score(T i, void *data) {
+    return i / (reinterpret_cast<CircusEnt *>(data)->value() + 1e-4);
 }
 static INLINE u64 lex_score(u64 i) {return FRev64()(i);}
 static INLINE u64 lex_score(u64 i, void *) {return FRev64()(i);}
-static INLINE u64 ent_score(u64 i, void *data) {
-    // For this, the highest-entropy kmers will be selected as "minimizers".
-    //return UINT64_C(-1) - static_cast<u64>(UINT64_C(7958933093282078720) * kmer_entropy(i, *(unsigned *)data));
-    return i / (kmer_entropy(i, *(unsigned *)data) + .001);
-}
 static INLINE u64 hash_score(u64 i, void *data) {
     khint_t k1;
     khash_t(64) *hash((khash_t(64) *)data);
@@ -80,14 +74,18 @@ static INLINE u64 hash_score(u64 i, void *data) {
 }
 
 namespace score {
-#define DECHASH(name, fn) struct name {\
-        u64 operator()(u64 i, void *data) const {return fn(i, data);}\
-        u128 operator()(u128 i, void *data) const {return fn(i, data);}\
-}
-DECHASH(Lex, lex_score);
-DECHASH(Entropy, ent_score);
-DECHASH(Hash, hash_score);
-#undef DECHASH
+struct Lex {
+    u64 operator()(u64 i, void *data) const {return lex_score(i, data);}
+    u128 operator()(u128 i, void *data) const {return lex_score(i, data);}
+};
+struct Entropy {
+    u64 operator()(u64 i, void *data) const {return ent_score(i, data);}
+    u128 operator()(u128 i, void *data) const {return ent_score(i, data);}
+};
+struct Hash {
+    u64 operator()(u64 i, void *data) const {return hash_score(i, data);}
+    u128 operator()(u128 i, void *data) const {return hash_score(i, data);}
+};
 } // namespace score
 
 
@@ -258,7 +256,7 @@ public:
                 if(rht == DNA || rht == DNA2 || rht == PROTEIN_3BIT) min &= mask;
                 else {
                     assert(div.mod(min) == min % mask);
-                    if constexpr(sizeof(KmerT) <= 8) {
+                    CONST_IF(sizeof(KmerT) <= 8) {
                         min = div.mod(min);
                     } else {
                         min %= mask;
@@ -290,7 +288,7 @@ public:
                 if(rht == DNA || rht == DNA2 || rht == PROTEIN_3BIT) min &= mask;
                 else {
                     assert(div.mod(min) == min % mask);
-                    if constexpr(sizeof(KmerT) <= 8) {
+                    CONST_IF(sizeof(KmerT) <= 8) {
                         min = div.mod(min);
                     } else {
                         min %= mask;
@@ -327,7 +325,7 @@ public:
             if(likely(filled == sp_.k_)) {
                 if(rht == DNA || rht == DNA2 || rht == PROTEIN_3BIT) min &= mask;
                 else {
-                    if constexpr(sizeof(KmerT) <= 8) {
+                    CONST_IF(sizeof(KmerT) <= 8) {
                         assert(div.mod(min) == min % mask);
                         min = div.mod(min);
                     } else {
@@ -536,30 +534,35 @@ public:
         u64 len(sp_.s_.size());
         int8_t nextc;
         auto spaces(sp_.s_.data());
+        static constexpr bool isent = std::is_same_v<ScoreType, score::Entropy>;
+        CircusEnt *ent_tracker;
+        CONST_IF(isent) {
+            ent_tracker = static_cast<CircusEnt *>(data_);
+            ent_tracker->clear();
+        } else ent_tracker = 0;
         if(rht == DNA || rht == PROTEIN || rht == PROTEIN_3BIT || rht == DNA2 || rht == DNAC) {
             const int shift = rht == DNA ? 2: rht == PROTEIN ? 8: (rht == DNA2 || rht == DNAC) ? 1: 3;
             /*std::fprintf(stderr, "Shift %d\n", shift);*/
 #define ITER do {\
             start += *spaces++;\
-            nextc = lutptr[s_[start]];\
-            if(nextc == int8_t(-1)) {\
+            if((nextc = lutptr[s_[start]]) == int8_t(-1)) {\
                 new_kmer = ENCODE_OVERFLOW;\
                 goto rnk;\
             }\
             new_kmer = (new_kmer << shift) | nextc;\
+            CONST_IF(isent) ent_tracker->push(nextc);\
         } while(0);
             DO_DUFF(len, ITER);
 #undef ITER
         } else if(rht == PROTEIN20 || rht == PROTEIN_14 || rht == PROTEIN_6) {
             const size_t mul = rht == PROTEIN20 ? 20: rht == PROTEIN_14 ? 14: 6;
 #define ITER do {new_kmer *= mul, start += *spaces++;\
-            nextc = lutptr[s_[start]];\
-            if(nextc == int8_t(-1)) {\
-                /*std::fprintf(stderr, "char %c was missing mul = %zu, emptying now...\n", s_[start], mul);*/\
+            if((nextc = lutptr[s_[start]]) == int8_t(-1)) {\
                 new_kmer = ENCODE_OVERFLOW;\
                 goto rnk;\
             }\
             new_kmer = (new_kmer * mul) | nextc;\
+            CONST_IF(isent) ent_tracker->push(nextc);\
         } while(0);
             DO_DUFF(len, ITER);
 #undef ITER

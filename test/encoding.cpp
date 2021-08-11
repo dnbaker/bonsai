@@ -123,42 +123,30 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         gzclose(fp);
         kseq_destroy(ks);
     }
-    SECTION("space_case_jump") {
-        for(const char *SPACED_FN: {"test/phix.fa", "test/ec/GCF_000007445.1_ASM744v1_genomic.fna.gz"}) {
-            Spacer sp(31, 31);
-            Encoder<score::Entropy> enc(sp);
-            gzFile fp(gzopen(SPACED_FN, "rb"));
-            if(fp == nullptr) RUNTIME_ERROR("Could not open file at "s + SPACED_FN);
-            kseq_t *ks(kseq_init(fp));
-            std::unordered_set<u64> kmers, okmers;
-            //u64 k(BF);
-            enc.for_each_canon([&](auto km) {kmers.insert(km);}, ks);
-#if 0
-            while(kseq_read(ks) >= 0) {
-                enc.assign(ks);
-#if 1
-                std::fprintf(stderr, "seq %s %s\n", ks->name.s, ks->comment.s ? ks->comment.s: (char *)"nocomment");
-#else
-                while(enc.has_next_kmer())
-                    if((k = enc.next_kmer()) != BF)
-                        kmers.insert(canonical_representation(k, 31));
-#endif
-            }
-#endif
-            kseq_destroy(ks);
-            gzclose(fp);
-            fp = gzopen(SPACED_FN, "rb");
-            ks = kseq_init(fp);
-            //enc.canonicalize(false);
-            enc.for_each_uncanon([&](auto km) {okmers.insert(canonical_representation(km, 31));}, ks);
-            size_t olap(0);
-            for(const auto k: kmers) olap += (okmers.find(k) != okmers.end());
-            LOG_DEBUG("Size of each: kmers %zu, okmers %zu, olap %zu\n", kmers.size(), okmers.size(), olap);
-            REQUIRE(olap == kmers.size());
-            REQUIRE(kmers.size() == okmers.size());
-            gzclose(fp);
-            kseq_destroy(ks);
-        }
+}
+TEST_CASE("space_case_jump") {
+    for(const char *SPACED_FN: {"test/phix.fa", "test/ec/GCF_000007445.1_ASM744v1_genomic.fna.gz"}) {
+        Spacer sp(31, 31);
+        Encoder<score::Entropy> enc(sp);
+        gzFile fp(gzopen(SPACED_FN, "rb"));
+        if(fp == nullptr) RUNTIME_ERROR("Could not open file at "s + SPACED_FN);
+        kseq_t *ks(kseq_init(fp));
+        std::unordered_set<u64> kmers, okmers;
+        //u64 k(BF);
+        enc.for_each_canon([&](auto km) {kmers.insert(km);}, ks);
+        kseq_destroy(ks);
+        gzclose(fp);
+        fp = gzopen(SPACED_FN, "rb");
+        ks = kseq_init(fp);
+        //enc.canonicalize(false);
+        enc.for_each_uncanon([&](auto km) {okmers.insert(canonical_representation(km, 31));}, ks);
+        size_t olap(0);
+        for(const auto k: kmers) olap += (okmers.find(k) != okmers.end());
+        LOG_DEBUG("Size of each: kmers %zu, okmers %zu, olap %zu\n", kmers.size(), okmers.size(), olap);
+        REQUIRE(olap == kmers.size());
+        REQUIRE(kmers.size() == okmers.size());
+        gzclose(fp);
+        kseq_destroy(ks);
     }
 }
 TEST_CASE("rollin_spaced") {
