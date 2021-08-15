@@ -1,9 +1,28 @@
 #ifndef _HASH_H_
 #define _HASH_H_
-#include "util.h"
 #include <climits>
+#include <cassert>
+#include <type_traits>
+#include "kseq_declare.h"
+
+#ifndef DO_DUFF
+#define DO_DUFF(len, ITER) \
+    do { \
+        if(len) {\
+            std::uint64_t loop = (len + 7) >> 3;\
+            switch(len & 7) {\
+                case 0: do {\
+                    ITER; [[fallthrough]];\
+                    case 7: ITER; [[fallthrough]]; case 6: ITER; [[fallthrough]]; case 5: ITER; [[fallthrough]];\
+                    case 4: ITER; [[fallthrough]]; case 3: ITER; [[fallthrough]]; case 2: ITER; [[fallthrough]]; case 1: ITER;\
+                } while (--loop);\
+            }\
+        }\
+    } while(0)
+#endif
 
 namespace bns {
+using u64 = uint64_t;
 
 // Thomas Wang hash
 // Original site down, available at https://naml.us/blog/tag/thomas-wang
@@ -19,6 +38,29 @@ constexpr INLINE u64 wang_hash(u64 key) {
   key = key ^ (key >> 28);
   key = key + (key << 31);
   return key;
+}
+
+static inline constexpr int log2_64(uint64_t value)
+{
+    // https://stackoverflow.com/questions/11376288/fast-computing-of-log2-for-64-bit-integers
+    const int tab64[64] {
+        63,  0, 58,  1, 59, 47, 53,  2,
+        60, 39, 48, 27, 54, 33, 42,  3,
+        61, 51, 37, 40, 49, 18, 28, 20,
+        55, 30, 34, 11, 43, 14, 22,  4,
+        62, 57, 46, 52, 38, 26, 32, 41,
+        50, 36, 17, 19, 29, 10, 13, 21,
+        56, 45, 25, 31, 35, 16,  9, 12,
+        44, 24, 15,  8, 23,  7,  6,  5
+    };
+    value |= value >> 1;
+    value |= value >> 2;
+    value |= value >> 4;
+    value |= value >> 8;
+    value |= value >> 16;
+    value |= value >> 32;
+    // This could be replaced with a __builtin_clz
+    return tab64[((uint64_t)((value - (value >> 1))*0x07EDD5E59A4E28C2)) >> 58];
 }
 
 struct wang_hash_struct {

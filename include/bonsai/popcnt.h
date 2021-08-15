@@ -5,12 +5,12 @@
 #include <type_traits>
 #include <string>
 #include "libpopcnt/libpopcnt.h"
+#ifndef NO_BLAZE
 #define NO_BLAZE
+#endif
+#ifndef NO_SLEEF
 #define NO_SLEEF
-#include "vec/vec.h"
-#undef NO_BLAZE
-#undef NO_SLEEF
-#include "sketch/hll.h"
+#endif
 
 
 #ifndef DO_DUFF
@@ -30,7 +30,6 @@
 #endif
 
 namespace pop {
-using bitvec_t = std::vector<uint64_t>;
 
 template<typename T>
 inline constexpr unsigned popcount(T val) {return __builtin_popcount(val);}
@@ -88,24 +87,15 @@ inline unsigned bitdiff(T a, T b) {
 }
 
 namespace detail {
-using sketch::popcnt_fn;
 
 inline unsigned unrolled_bitdiff(const uint64_t *a, const uint64_t *b, size_t nbytes);
 inline unsigned byte_bitdiff(const uint8_t *a, const uint8_t *b, size_t nelem) {
-    using Space = vec::SIMDTypes<uint64_t>;
-    using SIMDHolder = typename vec::SIMDTypes<::std::uint64_t>::VType;
-    size_t nblocks(nelem / (sizeof(SIMDHolder)));
-    const SIMDHolder *pa((const SIMDHolder *)a), *pb((const SIMDHolder *)b);
-    SIMDHolder tmp;
-    tmp = (pa++)->simd_ ^ (pb++)->simd_; // I'm being lazy here and assuming it's aligned, but I have that guarantee from the aligned vectors.
-    auto sum = popcnt_fn(tmp);
-    while(--nblocks) { // Prefix decrement to account for the fact that I used one block in initialization.
-        tmp.simd_ = (pa++)->simd_ ^ (pb++)->simd_;
-        Space::add(sum, popcnt_fn(tmp));
+    auto ret = 0u;
+    for(size_t i = 0; i < nelem / 8; ++i) {
+        ret += pop::popcount(((uint64_t *)a)[i] ^ ((uint64_t *)b)[i]);
     }
-    unsigned ret = unrolled_bitdiff((const uint64_t *)pa, (const uint64_t *)pb, nelem & ((nelem / (sizeof(SIMDHolder) / sizeof(uint8_t))) - 1));
-    for(size_t i = 0; i < sizeof(sum) / sizeof(uint64_t); ++i)
-        ret += ((uint64_t *)&sum)[i];
+    for(size_t i = (nelem / 8) * 8; i < nelem; ++i)
+        ret += pop::popcount(a[i] ^ b[i]);
     return ret;
 }
 

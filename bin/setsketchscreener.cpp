@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
     }
     OMP_PFOR
     for(int i = 0; i < nthreads; ++i) {
-        bns::kseq_destroy_stack(kseqs[i]);
+        kseq_destroy_stack(kseqs[i]);
         encoders[i].~Encoder<>();
         rencoders[i].~RollingHasher<uint64_t>();
     }

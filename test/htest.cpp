@@ -1,6 +1,7 @@
 #include "catch.hpp"
 #include "sketch/hll.h"
 #include "bonsai/util.h"
+#include "vec/vec.h"
 
 using namespace sketch;
 

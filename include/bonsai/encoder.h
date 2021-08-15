@@ -1,6 +1,5 @@
 #ifndef _EMP_ENCODER_H__
 #define _EMP_ENCODER_H__
-#include "./util.h"
 #include <thread>
 #include <future>
 #include <limits>
@@ -8,12 +7,10 @@
 #include <unistd.h>
 #include "klib/kstring.h"
 #include "hash.h"
-#include "sketch/filterhll.h"
 #include "entropy.h"
 #include "kseq_declare.h"
 #include "qmap.h"
 #include "spacer.h"
-#include "util.h"
 #include "klib/kthread.h"
 #include <mutex>
 #include "rollinghash/rabinkarphash.h"
@@ -21,6 +18,9 @@
 #include "ntHash/nthash.hpp"
 #include "alphabet.h"
 #include "rhtraits.h"
+#include "sketch/hash.h"
+#include "sketch/div.h"
+#include "sketch/exception.h"
 
 namespace bns {
 using namespace sketch;
@@ -1075,32 +1075,6 @@ u64 count_cardinality(const std::vector<std::string> paths,
     return ret;
 }
 
-template<typename SketchType>
-inline hll::hll_t &get_hll(SketchType &s);
-template<>
-inline hll::hll_t &get_hll<hll::hll_t>(hll::hll_t &s) {return s;}
-template<>
-inline hll::hll_t &get_hll<fhll::fhll_t>(fhll::fhll_t &s) {return s.hll();}
-template<>
-inline hll::hll_t &get_hll<fhll::pcfhll_t>(fhll::pcfhll_t &s) {return s.hll();}
-
-template<typename SketchType> inline const hll::hll_t &get_hll(const SketchType &s);
-template<>
-inline const hll::hll_t &get_hll<hll::hll_t>(const hll::hll_t &s) {return s;}
-template<>
-inline const hll::hll_t &get_hll<fhll::fhll_t>(const fhll::fhll_t &s) {return s.hll();}
-
-template<typename SketchType>
-struct est_helper {
-    const Spacer                      &sp_;
-    const std::vector<std::string> &paths_;
-    std::mutex                         &m_;
-    const u64                          np_;
-    const bool                      canon_;
-    void                            *data_;
-    std::vector<SketchType>         &hlls_;
-    kseq_t                            *ks_;
-};
 
 template<typename ScoreType, typename SketchType>
 void fill_lmers(SketchType &sketch, const std::string &path, const Spacer &space, bool canonicalize=true,
@@ -1117,56 +1091,9 @@ void fill_lmers(SketchType &sketch, const std::string &path, const Spacer &space
 #endif
 }
 
-template<typename SketchType, typename ScoreType=score::Lex>
-void est_helper_fn(void *data_, long index, int tid) {
-    est_helper<SketchType> &h(*(est_helper<SketchType> *)(data_));
-    fill_lmers<ScoreType, SketchType>(h.hlls_[tid], h.paths_[index], h.sp_, h.canon_, h.data_, h.ks_ + tid);
-}
 
-template<typename SketchType, typename ScoreType=score::Lex>
-void fill_sketch(SketchType &ret, const std::vector<std::string> &paths,
-              unsigned k, uint16_t w, const spvec_t &spaces, bool canon=true,
-              void *data=nullptr, int num_threads=1, u64 np=23, kseq_t *ks=nullptr) {
-    // Default to using all available threads if num_threads is negative.
-    if(num_threads < 0) {
-        num_threads = std::thread::hardware_concurrency();
-        LOG_INFO("Number of threads was negative and has been adjusted to all available threads (%i).\n", num_threads);
-    }
-    const Spacer space(k, w, spaces);
-    if(num_threads <= 1) {
-        for(u64 i(0); i < paths.size(); fill_lmers<ScoreType, SketchType>(ret, paths[i++], space, canon, data, ks));
-    } else {
-        std::mutex m;
-        KSeqBufferHolder kseqs(num_threads);
-        std::vector<SketchType> sketches;
-        while(sketches.size() < (unsigned)num_threads) sketches.emplace_back(ret.clone());
-        if(ret.size() != sketches.back().size()) throw "a party";
-        est_helper<SketchType> helper{space, paths, m, np, canon, data, sketches, kseqs.data()};
-        {
-            ForPool pool(num_threads);
-            pool.forpool(&est_helper_fn<SketchType, ScoreType>, &helper, paths.size());
-        }
-        auto &rhll = get_hll(ret);
-        for(auto &sketch: sketches) rhll += get_hll(sketch);
-    }
-}
-
-template<typename ScoreType=score::Lex>
-hll::hll_t make_hll(const std::vector<std::string> &paths,
-                unsigned k, uint16_t w, spvec_t spaces, bool canon=true,
-                void *data=nullptr, int num_threads=1, u64 np=23, kseq_t *ks=nullptr, hll::EstimationMethod estim=hll::EstimationMethod::ERTL_MLE, uint16_t jestim=hll::JointEstimationMethod::ERTL_JOINT_MLE) {
-    hll::hll_t global(np, estim, (hll::JointEstimationMethod)jestim);
-    fill_sketch<hll::hll_t, ScoreType>(global, paths, k, w, spaces, canon, data, num_threads, np, ks);
-    return global;
-}
-
-template<typename ScoreType=score::Lex>
-u64 estimate_cardinality(const std::vector<std::string> &paths,
-                            unsigned k, uint16_t w, spvec_t spaces, bool canon,
-                            void *data=nullptr, int num_threads=-1, u64 np=23, kseq_t *ks=nullptr, hll::EstimationMethod estim=hll::EstimationMethod::ERTL_MLE) {
-    auto tmp(make_hll<ScoreType>(paths, k, w, spaces, canon, data, num_threads, np, ks, estim));
-    return tmp.report();
-}
+#if 0
+#endif
 
 } //namespace bns
 #endif // _EMP_ENCODER_H__
