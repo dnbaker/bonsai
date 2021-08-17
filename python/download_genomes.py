@@ -31,7 +31,7 @@ def is_valid_gzip(fn, lazy=False, use_pigz=False):
     '''
     if lazy:
         try:
-            cc("gzip -dc %s | head &>/dev/null" % fn, shell=True)
+            cc(f"gzip -dc {fn} | head -n1 &>/dev/null", shell=True)
             return True
         except CalledProcessError:
             return False
@@ -39,11 +39,31 @@ def is_valid_gzip(fn, lazy=False, use_pigz=False):
     cmd = ("pigz" if use_pigz else "gzip") + " -dc "
     try:
         cc(cmd + " -t " + fn, shell=True)
-        sys.stderr.write(fn + " is valid\n")
         return True
     except CalledProcessError:
-        sys.stderr.write("Corrupted file " + fn + ". Delete, try again.\n")
         return False
+
+
+def get_annotations(fn):
+    import sys
+    from subprocess import check_call as cc
+    basename = fn.split("/")[-1]
+    codes = basename.split("_")[1]
+    codes = [codes[3 * i: 3 * i + 3] for i in range(3)]
+    baseurl = "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/"
+    folder = "/".join([baseurl] + codes + [basename.split("_genomic")[0]])
+    for suf in (".gbff", ".gff", "_gaps.txt"):
+        path = basename.replace(".fna", suf)
+        cc(["wget", "-q", folder + "/" + path])
+    # Protein now
+    pbase = basename.replace("genomic.fna", "protein.faa")
+    cc(["wget", "-q", folder + "/" + pbase])
+    pann = pbase.replace("faa", "pbff")
+    # RNA now
+    rbase = basename.replace("genomic.fna", "rna.fna")
+    cc(["wget", "-q", folder + "/" + rbase])
+    rann = rbase.replace("faa", "gbff")
+    cc(["wget", "-q", folder + "/" + rann])
 
 
 def xfirstline(fn):
@@ -210,6 +230,7 @@ def main():
                     "-o %s/%s/as.%s.txt") % (to_dl[clade], ref, clade, clade)
             # print(cstr)
             cc(cstr, shell=True)
+        print(f"Parsing assembly for {clade}", file=sys.stderr, flush=True)
         to_dl[clade] = parse_assembly("%s/%s/as.%s.txt" %
                                       (ref, clade, clade), cladeidmap)
         print("Performing parallel download of clade " + str(clade), file=sys.stderr, flush=True)
