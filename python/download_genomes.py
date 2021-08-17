@@ -39,10 +39,10 @@ def is_valid_gzip(fn, lazy=False, use_pigz=False):
     cmd = ("pigz" if use_pigz else "gzip") + " -dc "
     try:
         cc(cmd + " -t " + fn, shell=True)
-        sys.stderr.write(fn + " is valid")
+        sys.stderr.write(fn + " is valid\n")
         return True
     except CalledProcessError:
-        sys.stderr.write("Corrupted file " + fn + ". Delete, try again.")
+        sys.stderr.write("Corrupted file " + fn + ". Delete, try again.\n")
         return False
 
 
