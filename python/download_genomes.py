@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import sys
 import multiprocessing
 import gzip
@@ -48,8 +48,10 @@ def is_valid_gzip(fn, lazy=False, use_pigz=False):
 
 def xfirstline(fn):
     # Works on python3, not 2.
-    first_two = open(fn, "rb").read(2)
-    return next((gzip.open if first_two == b"\x1f\x8b" else open)(fn))
+    ffn = gzip.open if open(fn, "rb").read(2) == b"\x1f\x8b" else open
+    with ffn(fn) as f:
+        ret = next(f)
+    return ret
 
 
 FTP_BASENAME = "ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/"
@@ -93,7 +95,7 @@ def get_clade_map(clades):
 
 
 def parse_assembly(fn, fnidmap):
-    print(fn)
+    # print(fn)
     to_fetch = []
     for line in open(fn, encoding='utf8'):
         if line[0] == '#':
@@ -108,7 +110,7 @@ def parse_assembly(fn, fnidmap):
                 any(i in line.lower() for
                     i in ["contig", "supercontig"])):
             continue
-        print(s[19], file=sys.stderr)
+        #print(s[19], file=sys.stderr)
         fn = "%s_genomic.fna.gz" % ([i for i in s[19].split("/") if i][-1])
         fnidmap[fn] = int(s[5])
         index = len(s) - 1
@@ -117,7 +119,7 @@ def parse_assembly(fn, fnidmap):
         if index:
             to_fetch.append(s[index] + "/" + fn)
         else:
-            print("No link found, continue", file=sys.stderr)
+            print(f"No link found for {fn}, continue", file=sys.stderr)
             continue
             #raise RuntimeError("ftp link not found. line: %s" % line[:-1])
     return to_fetch
@@ -206,14 +208,16 @@ def main():
         if not os.path.isfile("%s/%s/as.%s.txt" % (ref, clade, clade)):
             cstr = ("curl -s %s/assembly_summary.txt "
                     "-o %s/%s/as.%s.txt") % (to_dl[clade], ref, clade, clade)
-            print(cstr)
+            # print(cstr)
             cc(cstr, shell=True)
         to_dl[clade] = parse_assembly("%s/%s/as.%s.txt" %
                                       (ref, clade, clade), cladeidmap)
-        spoool = multiprocessing.Pool(args.threads)
-        spoool.map(check_path_lazy if args.lazy else check_path,
-                   ("/".join([ref, clade, s.split("/")[-1]]) for
-                    s in to_dl[clade]))
+        print("Performing parallel download of clade " + str(clade), file=sys.stderr, flush=True)
+        with multiprocessing.Pool(args.threads) as spoool:
+            spoool.map(check_path_lazy if args.lazy else check_path,
+                       ("/".join([ref, clade, s.split("/")[-1]]) for
+                        s in to_dl[clade]))
+        print("Checked existing paths for download of clade " + str(clade), file=sys.stderr, flush=True)
         cstrs = [("curl -s %s -o %s/%s/%s" %
                  (s, ref, clade, s.split("/")[-1])) for
                  s in to_dl[clade] if not os.path.isfile(
@@ -223,9 +227,14 @@ def main():
             cstrs.append("curl -s {tax_path} -o {ref}/"
                          "taxdump.tgz && tar -zxvf {ref}/taxdump.tgz"
                          " && mv nodes.dmp {ref}/nodes.dmp".format(**locals()))
-        spoool.map(retry_cc, ((cs, args.die) for cs in cstrs))
+        print("Performing download of clade " + str(clade), file=sys.stderr, flush=True)
+        with multiprocessing.Pool(args.threads) as spoool:
+            spoool.map(retry_cc, ((cs, args.die) for cs in cstrs))
+        print("Performed download of clade " + str(clade), file=sys.stderr, flush=True)
         # Replace pathnames with seqids
-        for fn in list(cladeidmap.keys()):
+        print("Updating cladeidmap", file=sys.stderr, flush=True)
+        nk = len(cladeidmap.keys())
+        for i, fn in enumerate(list(cladeidmap.keys())):
             try:
                 #print(ref, clade, fn)
                 cladeidmap[xfirstline("/".join(
@@ -235,8 +244,11 @@ def main():
             except FileNotFoundError:
                 if args.die:
                     raise
+            if (i & 0xFFF) == 0:
+                print(f"{i}/{nk} in clade processed.\n", file=sys.stderr, flush=True)
         nameidmap.update(cladeidmap)
-    print("Done with all clades", file=sys.stderr)
+        print("Finished clade " + clade, file=sys.stderr, flush=True)
+    print("Done with all clades", file=sys.stderr, flush=True)
     with open(ref + "/" + args.idmap, "w") as f:
         fw = f.write
         for k, v in nameidmap.items():
