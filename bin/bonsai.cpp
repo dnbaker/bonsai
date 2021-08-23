@@ -1,14 +1,14 @@
 #include <fstream>
 #include <sstream>
 #include <omp.h>
-#include "feature_min.h"
-#include "util.h"
-#include "database.h"
-#include "classifier.h"
-#include "bitmap.h"
-#include "tx.h"
-#include "setcmp.h"
-#include "flextree.h"
+#include "bonsai/feature_min.h"
+#include "bonsai/util.h"
+#include "bonsai/database.h"
+#include "bonsai/classifier.h"
+#include "bonsai/bitmap.h"
+#include "bonsai/tx.h"
+#include "bonsai/setcmp.h"
+#include "bonsai/flextree.h"
 #include "sketch/hll.h"
 #include "sketch/filterhll.h"
 
