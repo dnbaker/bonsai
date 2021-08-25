@@ -119,13 +119,14 @@ public:
     static constexpr KmerT ENCODE_OVERFLOW = static_cast<KmerT>(-1);
 private:
     u64         pos_; // Current position within the string s_ we're working with.
-    void      *data_; // A void pointer for using with scoring. Needed for hash_score.
+    void      *data_ = nullptr; // A void pointer for using with scoring. Needed for hash_score.
     QueueMap<KmerT, KmerT> qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
     const ScoreType  scorer_; // scoring struct
     bool canonicalize_;
     InputType rht = InputType::DNA;
     const int8_t *lutptr = (const int8_t *)DNA4.data();
     size_t nremper = sizeof(KmerT) * 4;
+    std::unique_ptr<CircusEnt> ent_tracker_;
     static_assert(std::is_unsigned<KmerT>::value || std::is_same<KmerT, u128>::value, "Must be unsigned integers");
 
 public:
@@ -142,15 +143,12 @@ public:
       canonicalize_(canonicalize)
     {
         if(std::is_same<ScoreType, score::Entropy>::value) {
-            make_circusent();
+            ent_tracker_.reset(new CircusEnt(sp_.k_));
         }
         if(!sp_.unspaced() && canonicalize_) {
             std::fprintf(stderr, "If a spaced seed is set, k-mers cannot be canonicalized\n");
             canonicalize_ = false;
         }
-    }
-    void make_circusent() {
-       data_ = static_cast<void *>(new CircusEnt(sp_.k_));
     }
     Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data, canonicalize) {}
     Encoder(const Spacer &sp, bool canonicalize=true): Encoder(sp, nullptr, canonicalize) {}
@@ -160,6 +158,7 @@ public:
     }
     Encoder(Encoder<ScoreType, KmerT> &&o): s_(o.s_), l_(o.l_), sp_(o.sp_), pos_(o.pos_), data_(o.data_),
             qmap_(std::move(o.qmap_)), scorer_{}, canonicalize_(o.canonicalize_), rht(o.rht) {
+        if(o.ent_tracker_) ent_tracker_.reset(new CircusEnt(*o.ent_tracker_));
     }
     Encoder &operator=(const Encoder<ScoreType, KmerT> &o) {
         s_ = o.s_; l_ = o.l_;
@@ -169,6 +168,7 @@ public:
         qmap_ = o.qmap_;
         canonicalize_ = o.canonicalize_;
         rht = o.rht;
+        if(o.ent_tracker_) ent_tracker_.reset(new CircusEnt(std::move(*o.ent_tracker_)));
         return *this;
     }
     void hashtype(RollingHashType newrht) {
@@ -297,7 +297,7 @@ public:
                         min %= mask;
                     }
                 }
-                if((kmer = qmap_.next_value(min, scorer_(min, data_))) != ENCODE_OVERFLOW) func(kmer);
+                if((kmer = qmap_.next_value(min, scorer_(min, getdata()))) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
             }
         }
@@ -312,7 +312,9 @@ public:
         KmerT min, kmer;
         unsigned filled;
         schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
-        CircusEnt &ent = *(static_cast<CircusEnt *>(data_));
+        if(!ent_tracker_)
+            ent_tracker_.reset(new CircusEnt(this->k()));
+        CircusEnt &ent = *ent_tracker_;
         windowed_loop_start:
         ent.clear();
         const size_t mul = rhmul();
@@ -541,11 +543,13 @@ public:
         int8_t nextc;
         auto spaces(sp_.s_.data());
         static constexpr bool isent = std::is_same_v<ScoreType, score::Entropy>;
-        CircusEnt *ent_tracker;
+        CircusEnt *ent_tracker = 0;
         CONST_IF(isent) {
-            ent_tracker = static_cast<CircusEnt *>(data_);
+            if(!ent_tracker_)
+                ent_tracker_.reset(new CircusEnt(this->k()));
+            ent_tracker = ent_tracker_.get();
             ent_tracker->clear();
-        } else ent_tracker = 0;
+        }
         if(rht == DNA || rht == PROTEIN || rht == PROTEIN_3BIT || rht == DNA2 || rht == DNAC) {
             const int shift = rht == DNA ? 2: rht == PROTEIN ? 8: (rht == DNA2 || rht == DNAC) ? 1: 3;
             /*std::fprintf(stderr, "Shift %d\n", shift);*/
@@ -591,16 +595,25 @@ public:
     // This is the actual point of entry for fetching our minimizers.
     // It wraps encoding and scoring a kmer, updates qmap, and returns the minimizer
     // for the next window.
+    static constexpr bool is_entropy = std::is_same_v<ScoreType, score::Entropy>;
+    void *getdata() const {
+        if constexpr(is_entropy) {
+            return ent_tracker_.get();
+        } else {
+            return data_;
+        }
+    }
     INLINE KmerT next_minimizer() {
         //if(unlikely(!has_next_kmer())) return ENCODE_OVERFLOW;
-        const KmerT k(kmer(pos_++)), kscore(scorer_(k, data_));
+        const KmerT k(kmer(pos_++));
+        const KmerT kscore(scorer_(k, getdata()));
         return qmap_.next_value(k, kscore);
     }
     INLINE KmerT next_canonicalized_minimizer() {
         assert(has_next_kmer());
         KmerT nk = kmer(pos_++);
         if(rht == DNA) nk = canonical_representation(nk, sp_.k_);
-        const KmerT kscore(scorer_(nk, data_));
+        const KmerT kscore(scorer_(nk, getdata()));
         return qmap_.next_value(nk, kscore);
     }
     auto max_in_queue() const {return qmap_.begin()->first;}
@@ -611,11 +624,6 @@ public:
     auto pos() const {return pos_;}
     void pos(uint64_t v) {pos_ = v;}
     uint32_t k() const {return sp_.k_;}
-    ~Encoder() {
-        if(std::is_same<ScoreType, score::Entropy>::value) {
-            delete static_cast<CircusEnt *>(data_);
-        }
-    }
     size_t n_in_queue() const {return qmap_.n_in_queue();}
 };
 
