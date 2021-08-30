@@ -146,7 +146,6 @@ public:
             ent_tracker_.reset(new CircusEnt(sp_.k_));
         }
         if(!sp_.unspaced() && canonicalize_) {
-            std::fprintf(stderr, "If a spaced seed is set, k-mers cannot be canonicalized\n");
             canonicalize_ = false;
         }
     }
@@ -451,13 +450,19 @@ public:
     }
     template<typename Functor>
     INLINE void for_each_uncanon(const Functor &func, kseq_t *ks) {
-        if(sp_.unspaced()) {
-            if(sp_.unwindowed()) while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_unspaced_unwindowed(func);
-            else                 while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_unspaced_windowed(func);
-        } else while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_spaced(func);
+        const bool us = sp_.unspaced(), spu = sp_.unwindowed();
+        while(kseq_read(ks) >= 0) {
+            assign(ks);
+            if(us) {
+                if(spu) for_each_uncanon_unspaced_unwindowed(func);
+                else    for_each_uncanon_unspaced_windowed(func);
+            } else {
+                for_each_uncanon_spaced(func);
+            }
+        }
     }
     template<typename Functor>
-    void for_each_canon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+    INLINE void for_each_canon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
         if(ks == nullptr) ks = kseq_init(fp), destroy = true;
         else            kseq_assign(ks, fp), destroy = false;
@@ -465,7 +470,7 @@ public:
         if(destroy) kseq_destroy(ks);
     }
     template<typename Functor>
-    void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+    INLINE void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
         if(ks == nullptr) ks = kseq_init(fp), destroy = true;
         else            kseq_assign(ks, fp), destroy = false;
@@ -473,7 +478,7 @@ public:
         if(destroy) kseq_destroy(ks);
     }
     template<typename Functor>
-    void for_each_canon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
+    INLINE void for_each_canon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         gzbuffer(fp, 1<<18);
@@ -481,7 +486,7 @@ public:
         gzclose(fp);
     }
     template<typename Functor>
-    void for_each_uncanon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
+    INLINE void for_each_uncanon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         gzbuffer(fp, 1<<18);
@@ -489,13 +494,17 @@ public:
         gzclose(fp);
     }
     template<typename Functor>
-    void for_each(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+    INLINE void for_each(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
         if(ks == nullptr) ks = kseq_init(fp), destroy = true;
         else            kseq_assign(ks, fp), destroy = false;
         if(canonicalize_) for_each_canon<Functor>(func, ks);
         else              for_each_uncanon<Functor>(func, ks);
         if(destroy) kseq_destroy(ks);
+    }
+    template<typename Functor>
+    INLINE void for_each(const Functor &func, const std::string &path, kseq_t *ks=nullptr) {
+        for_each(func, path.data(), ks);
     }
     template<typename Functor>
     void for_each(const Functor &func, const char *path, kseq_t *ks=nullptr) {
@@ -798,8 +807,9 @@ public:
     }
     template<typename Functor>
     void for_each_hash(const Functor &func, const char *s, size_t l) {
-        if(canon_) for_each_canon<Functor>(func, s, l);
-        else       for_each_uncanon<Functor>(func, s, l);
+        if(canon_) {
+            for_each_canon<Functor>(func, s, l);
+        } else       for_each_uncanon<Functor>(func, s, l);
     }
     template<typename Functor>
     void for_each_hash(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
@@ -827,7 +837,7 @@ public:
         if(pfp) ::pclose(pfp);
     }
     template<typename Functor>
-    void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+    INLINE void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
         if(ks == nullptr) ks = kseq_init(fp), destroy = true;
         else            kseq_assign(ks, fp), destroy = false;
@@ -961,12 +971,12 @@ struct RollingHasherSet {
         }
     }
     template<typename Functor>
-    void for_each_hash(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+    INLINE void for_each_hash(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         if(canon_) for_each_canon<Functor>(func, fp, ks);
         else       for_each_uncanon<Functor>(func, fp, ks);
     }
     template<typename Functor>
-    void for_each_hash(const Functor &func, const char *inpath, kseq_t *ks=nullptr) {
+    INLINE void for_each_hash(const Functor &func, const char *inpath, kseq_t *ks=nullptr) {
         gzFile fp = gzopen(inpath, "rb");
         if(!fp) throw file_open_error(inpath);
         gzbuffer(fp, 1<<18);
@@ -974,7 +984,7 @@ struct RollingHasherSet {
         gzclose(fp);
     }
     template<typename Functor>
-    void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+    INLINE void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
         if(ks == nullptr) ks = kseq_init(fp), destroy = true;
         else            kseq_assign(ks, fp), destroy = false;
@@ -982,7 +992,7 @@ struct RollingHasherSet {
         if(destroy) kseq_destroy(ks);
     }
     template<typename Functor>
-    void for_each_canon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+    INLINE void for_each_canon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
         if(ks == nullptr) ks = kseq_init(fp), destroy = true;
         else            kseq_assign(ks, fp), destroy = false;
