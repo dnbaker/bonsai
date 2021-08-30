@@ -14,6 +14,11 @@ TEST_CASE("KhashSerial") {
         ki = kh_put(c, th, k, &khr);
         kh_val(th, ki) = val;
     }
+    for(khiter_t ki = 0; ki < th->n_buckets; ++ki) {
+        if(kh_exist(th, ki)) {
+            std::fprintf(stderr, "Key %zu->%u\n", size_t(th->keys[ki]), int(th->vals[ki]));
+        }
+    }
     khash_write(th, "__zomg__");
     ti = khash_load<khash_t(c)>("__zomg__");
     REQUIRE(system("rm __zomg__") == 0);

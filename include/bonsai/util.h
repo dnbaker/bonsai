@@ -345,7 +345,7 @@ T *khash_load_impl(const int fn) noexcept {
     nb = rex->n_buckets * sizeof(*rex->keys);
     if(::read(fn, rex->keys, nb) != nb) exit(1);
     nb = rex->n_buckets * sizeof(*rex->vals);
-    if(::read(fn, rex->keys, nb) != nb) exit(1);
+    if(::read(fn, rex->vals, nb) != nb) exit(1);
     return rex;
 }
 
