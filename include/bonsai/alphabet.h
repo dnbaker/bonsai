@@ -6,6 +6,9 @@
 #include <string>
 #include <climits>
 #include <type_traits>
+#include <cassert>
+#include <cstring>
+#include <vector>
 
 namespace bns {
 namespace alph {
@@ -39,19 +42,35 @@ public:
             arr[v | 32] = arr[v & static_cast<uint8_t>(0xdf)] = id; // lower-case and upper-case
         }
         if(aliases) {
-            const char *p = std::strchr(aliases, ':');
-            if(p) {
+            const char *p = aliases;
+            while(*p && *p != ':') ++p;
+            if(*p) {
                 const size_t offset = p - aliases;
                 for(size_t i = 0; i < offset; ++i) {
-                    if(aliases[i] == VT(-1)) {
-                        arr[aliases[i] | 32] =
-                            arr[aliases[i] & static_cast<uint8_t>(0xdf)]
-                                = arr[p[i + 1]];
-                    }
+                    const auto destchar = arr[p[i + 1]];
+                    if(arr[aliases[i] & 0xdf] == VT(-1))
+                        arr[aliases[i] & 0xdf] = arr[destchar];
+                    if(arr[aliases[i] | 32] == VT(-1))
+                        arr[aliases[i] | 32] = arr[destchar];
                 }
             }
         }
         return arr;
+    }
+    std::vector<std::pair<VT, VT>> to_sparse() const {
+        std::vector<std::pair<VT, VT>> ret;
+        for(size_t i = 0; i < NCHAR; ++i) {
+            if(lut[i] != VT(-1))
+                ret.push_back({VT(i), lut[i]});
+        }
+        return ret;
+    }
+    void display() const {
+        for(size_t i = 0; i < NCHAR; ++i) {
+            if(lut[i] != VT(-1)) {
+                std::fprintf(stderr, "Mapping %d/%c to %d/%c\n", int(i), char(i), int(lut[i]), lut[i]);
+            }
+        }
     }
     using SignedVT = typename std::make_signed<VT>::type;
     constexpr VT translate(VT x) const {return lut[static_cast<SignedVT>(x)];}
@@ -112,7 +131,6 @@ static constexpr const Alphabet DNA5("DNA5", "A,C,G,T,NMRWSYKVHDB", false, "U:T"
 static constexpr const Alphabet DNA2KETAMINE("DNA2", "ACM,KGT", false, "U:T"); // Amino/Ketones
 static constexpr const Alphabet DNA2PYRPUR("DNA2", "AGR,YCT", false, "U:T"); // Purines/Pyrimidines
 static constexpr const Alphabet DNA2METHYL("DNAMETH", "C,AGT", false, "U:T"); // Purines/Pyrimidines
-
 
 // Source: Reference
 // Edgar, RC (2004) Local homology recognition and distance measures in linear time using compressed amino acid alphabets, NAR 32(1), 380-385. doi: 10.1093/nar/gkh180
