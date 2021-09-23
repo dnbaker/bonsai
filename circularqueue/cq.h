@@ -406,10 +406,7 @@ public:
 template<typename T, typename S=std::uint32_t>
 class FastCircularQueue: public deque<T, S> {
 public:
-    template<typename...Args>
-    FastCircularQueue(Args &&...args): deque<T, S>(std::forward<Args>(args)...) {
-        std::fprintf(stderr, "Warning: FastCircularQueue has been deprecated. Call as circ::deque instead.\n");
-    }
+    template<typename...Args> FastCircularQueue(Args &&...args): deque<T, S>(std::forward<Args>(args)...) {}
 };
 
 } // namespace circ

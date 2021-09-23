@@ -138,15 +138,13 @@ TEST_CASE("phll") {
     std::vector<size_t> nps {10, 11, 14, 18};
     for(const auto np: nps) {
         const double exact(count_cardinality<score::Lex>(paths, 31, 31, vec, true, nullptr, 2));
-        const double inexact(estimate_cardinality<score::Lex>(paths, 31, 31, vec, true, nullptr, 2, np));
+        double inexact;
         hll::hll_t hll(np);
         {
             Encoder<> enc(Spacer(31, 31, vec), true);
             for(auto &p: paths)
                 enc.for_each([&hll](auto x) {hll.addh(x);}, p.data());
-            std::fprintf(stderr, "The hll_add method returned an estimated quantity of %lf, compared to estimated %lf manually\n", hll.report(), inexact);
-            ssize_t hll_rep(hll.report());
-            REQUIRE(hll_rep == size_t(inexact));
+            inexact = hll.report();
         }
         fprintf(stderr, "For np %zu, we have %lf for expected and %lf for measured as correct as we expect to be, theoretically for %lf and %lf.\n",
                 np, (1.03896 / std::sqrt(1ull << np)), (std::abs((double)exact - inexact) / inexact), exact, inexact);

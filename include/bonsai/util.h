@@ -18,6 +18,7 @@
 #include <unordered_set>
 #include <sys/stat.h>
 #include <zlib.h>
+#include "klib/kthread.h"
 
 #include "kspp/ks.h"
 #include "clhash/include/clhash.h"
@@ -27,10 +28,10 @@
 #include "lazy/vector.h"
 #include "linear/linear.h"
 #include "logutil.h"
-#include "popcnt.h"
 #include "sample_gen.h"
 #include "aesctr/wy.h"
 #include "pdqsort/pdqsort.h"
+#include "popcnt.h"
 
 #ifdef __GNUC__
 #  ifndef likely
@@ -123,7 +124,6 @@ using u128 = __uint128_t;
 using u8  = std::uint8_t;
 using std::size_t;
 using tax_t = u32;
-using pop::bitvec_t;
 
 template<typename MutexType>
 struct LockSmith {
@@ -345,7 +345,7 @@ T *khash_load_impl(const int fn) noexcept {
     nb = rex->n_buckets * sizeof(*rex->keys);
     if(::read(fn, rex->keys, nb) != nb) exit(1);
     nb = rex->n_buckets * sizeof(*rex->vals);
-    if(::read(fn, rex->keys, nb) != nb) exit(1);
+    if(::read(fn, rex->vals, nb) != nb) exit(1);
     return rex;
 }
 
@@ -466,51 +466,6 @@ std::string bitvec2str(const T &a) {
     for(auto it(a.cbegin()), eit(a.cend()); it != eit; ++it)
         for(int j(63); j >= 0; ret += ((*it & (1ull << j--)) != 0) + '0');
     return ret;
-}
-
-inline constexpr int log2_64(uint64_t value)
-{
-    // https://stackoverflow.com/questions/11376288/fast-computing-of-log2-for-64-bit-integers
-    const int tab64[64] {
-        63,  0, 58,  1, 59, 47, 53,  2,
-        60, 39, 48, 27, 54, 33, 42,  3,
-        61, 51, 37, 40, 49, 18, 28, 20,
-        55, 30, 34, 11, 43, 14, 22,  4,
-        62, 57, 46, 52, 38, 26, 32, 41,
-        50, 36, 17, 19, 29, 10, 13, 21,
-        56, 45, 25, 31, 35, 16,  9, 12,
-        44, 24, 15,  8, 23,  7,  6,  5
-    };
-    value |= value >> 1;
-    value |= value >> 2;
-    value |= value >> 4;
-    value |= value >> 8;
-    value |= value >> 16;
-    value |= value >> 32;
-    // This could be replaced with a __builtin_clz
-    return tab64[((uint64_t)((value - (value >> 1))*0x07EDD5E59A4E28C2)) >> 58];
-}
-
-static INLINE void kseq_assign(kseq_t *ks, gzFile fp) {
-    if(!ks->f) {
-        ks->f = (kstream_t*)calloc(1, sizeof(kstream_t));
-        ks->f->buf = (unsigned char*)malloc(KSTREAM_SIZE);
-    } else {
-        ks->f->is_eof = ks->f->begin = ks->f->end = 0;
-    }
-    ks->f->f = fp;
-}
-
-static inline kseq_t kseq_init_stack() {
-    kseq_t ret;
-    std::memset(&ret, 0, sizeof(ret));
-    return ret;
-}
-
-static INLINE void kseq_destroy_stack(kseq_t &ks) {
-    free(ks.name.s); free(ks.comment.s); free(ks.seq.s); free(ks.qual.s);
-    ks_destroy(ks.f);
-    std::memset(&ks, 0, sizeof(ks));
 }
 
 
