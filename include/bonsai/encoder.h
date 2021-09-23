@@ -1,6 +1,5 @@
 #ifndef _EMP_ENCODER_H__
 #define _EMP_ENCODER_H__
-#include "./util.h"
 #include <thread>
 #include <future>
 #include <limits>
@@ -8,12 +7,10 @@
 #include <unistd.h>
 #include "klib/kstring.h"
 #include "hash.h"
-#include "sketch/filterhll.h"
 #include "entropy.h"
 #include "kseq_declare.h"
 #include "qmap.h"
 #include "spacer.h"
-#include "util.h"
 #include "klib/kthread.h"
 #include <mutex>
 #include "rollinghash/rabinkarphash.h"
@@ -21,6 +18,9 @@
 #include "ntHash/nthash.hpp"
 #include "alphabet.h"
 #include "rhtraits.h"
+#include "sketch/hash.h"
+#include "sketch/div.h"
+#include "sketch/exception.h"
 
 namespace bns {
 using namespace sketch;
@@ -119,13 +119,14 @@ public:
     static constexpr KmerT ENCODE_OVERFLOW = static_cast<KmerT>(-1);
 private:
     u64         pos_; // Current position within the string s_ we're working with.
-    void      *data_; // A void pointer for using with scoring. Needed for hash_score.
+    void      *data_ = nullptr; // A void pointer for using with scoring. Needed for hash_score.
     QueueMap<KmerT, KmerT> qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
     const ScoreType  scorer_; // scoring struct
     bool canonicalize_;
     InputType rht = InputType::DNA;
     const int8_t *lutptr = (const int8_t *)DNA4.data();
     size_t nremper = sizeof(KmerT) * 4;
+    std::unique_ptr<CircusEnt> ent_tracker_;
     static_assert(std::is_unsigned<KmerT>::value || std::is_same<KmerT, u128>::value, "Must be unsigned integers");
 
 public:
@@ -141,17 +142,12 @@ public:
       scorer_{},
       canonicalize_(canonicalize)
     {
-        if(std::is_same<ScoreType, score::Entropy>::value && sp_.unspaced() && !sp_.unwindowed()) {
-            if(data_) UNRECOVERABLE_ERROR("No data pointer must be provided for lex::Entropy minimization.");
-            make_circusent();
+        if(std::is_same<ScoreType, score::Entropy>::value) {
+            ent_tracker_.reset(new CircusEnt(sp_.k_));
         }
         if(!sp_.unspaced() && canonicalize_) {
-            std::fprintf(stderr, "If a spaced seed is set, k-mers cannot be canonicalized\n");
             canonicalize_ = false;
         }
-    }
-    void make_circusent() {
-       data_ = static_cast<void *>(new CircusEnt(sp_.k_));
     }
     Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data, canonicalize) {}
     Encoder(const Spacer &sp, bool canonicalize=true): Encoder(sp, nullptr, canonicalize) {}
@@ -161,6 +157,7 @@ public:
     }
     Encoder(Encoder<ScoreType, KmerT> &&o): s_(o.s_), l_(o.l_), sp_(o.sp_), pos_(o.pos_), data_(o.data_),
             qmap_(std::move(o.qmap_)), scorer_{}, canonicalize_(o.canonicalize_), rht(o.rht) {
+        if(o.ent_tracker_) ent_tracker_.reset(new CircusEnt(*o.ent_tracker_));
     }
     Encoder &operator=(const Encoder<ScoreType, KmerT> &o) {
         s_ = o.s_; l_ = o.l_;
@@ -170,6 +167,7 @@ public:
         qmap_ = o.qmap_;
         canonicalize_ = o.canonicalize_;
         rht = o.rht;
+        if(o.ent_tracker_) ent_tracker_.reset(new CircusEnt(std::move(*o.ent_tracker_)));
         return *this;
     }
     void hashtype(RollingHashType newrht) {
@@ -298,7 +296,7 @@ public:
                         min %= mask;
                     }
                 }
-                if((kmer = qmap_.next_value(min, scorer_(min, data_))) != ENCODE_OVERFLOW) func(kmer);
+                if((kmer = qmap_.next_value(min, scorer_(min, getdata()))) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
             }
         }
@@ -313,7 +311,9 @@ public:
         KmerT min, kmer;
         unsigned filled;
         schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
-        CircusEnt &ent = *(static_cast<CircusEnt *>(data_));
+        if(!ent_tracker_)
+            ent_tracker_.reset(new CircusEnt(this->k()));
+        CircusEnt &ent = *ent_tracker_;
         windowed_loop_start:
         ent.clear();
         const size_t mul = rhmul();
@@ -450,13 +450,19 @@ public:
     }
     template<typename Functor>
     INLINE void for_each_uncanon(const Functor &func, kseq_t *ks) {
-        if(sp_.unspaced()) {
-            if(sp_.unwindowed()) while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_unspaced_unwindowed(func);
-            else                 while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_unspaced_windowed(func);
-        } else while(kseq_read(ks) >= 0) assign(ks), for_each_uncanon_spaced(func);
+        const bool us = sp_.unspaced(), spu = sp_.unwindowed();
+        while(kseq_read(ks) >= 0) {
+            assign(ks);
+            if(us) {
+                if(spu) for_each_uncanon_unspaced_unwindowed(func);
+                else    for_each_uncanon_unspaced_windowed(func);
+            } else {
+                for_each_uncanon_spaced(func);
+            }
+        }
     }
     template<typename Functor>
-    void for_each_canon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+    INLINE void for_each_canon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
         if(ks == nullptr) ks = kseq_init(fp), destroy = true;
         else            kseq_assign(ks, fp), destroy = false;
@@ -464,7 +470,7 @@ public:
         if(destroy) kseq_destroy(ks);
     }
     template<typename Functor>
-    void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+    INLINE void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
         if(ks == nullptr) ks = kseq_init(fp), destroy = true;
         else            kseq_assign(ks, fp), destroy = false;
@@ -472,7 +478,7 @@ public:
         if(destroy) kseq_destroy(ks);
     }
     template<typename Functor>
-    void for_each_canon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
+    INLINE void for_each_canon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         gzbuffer(fp, 1<<18);
@@ -480,7 +486,7 @@ public:
         gzclose(fp);
     }
     template<typename Functor>
-    void for_each_uncanon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
+    INLINE void for_each_uncanon(const Functor &func, const char *path, kseq_t *ks=nullptr) {
         gzFile fp(gzopen(path, "rb"));
         if(!fp) UNRECOVERABLE_ERROR(ks::sprintf("Could not open file at %s. Abort!\n", path).data());
         gzbuffer(fp, 1<<18);
@@ -488,13 +494,17 @@ public:
         gzclose(fp);
     }
     template<typename Functor>
-    void for_each(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+    INLINE void for_each(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
         if(ks == nullptr) ks = kseq_init(fp), destroy = true;
         else            kseq_assign(ks, fp), destroy = false;
         if(canonicalize_) for_each_canon<Functor>(func, ks);
         else              for_each_uncanon<Functor>(func, ks);
         if(destroy) kseq_destroy(ks);
+    }
+    template<typename Functor>
+    INLINE void for_each(const Functor &func, const std::string &path, kseq_t *ks=nullptr) {
+        for_each(func, path.data(), ks);
     }
     template<typename Functor>
     void for_each(const Functor &func, const char *path, kseq_t *ks=nullptr) {
@@ -542,11 +552,13 @@ public:
         int8_t nextc;
         auto spaces(sp_.s_.data());
         static constexpr bool isent = std::is_same_v<ScoreType, score::Entropy>;
-        CircusEnt *ent_tracker;
+        CircusEnt *ent_tracker = 0;
         CONST_IF(isent) {
-            ent_tracker = static_cast<CircusEnt *>(data_);
+            if(!ent_tracker_)
+                ent_tracker_.reset(new CircusEnt(this->k()));
+            ent_tracker = ent_tracker_.get();
             ent_tracker->clear();
-        } else ent_tracker = 0;
+        }
         if(rht == DNA || rht == PROTEIN || rht == PROTEIN_3BIT || rht == DNA2 || rht == DNAC) {
             const int shift = rht == DNA ? 2: rht == PROTEIN ? 8: (rht == DNA2 || rht == DNAC) ? 1: 3;
             /*std::fprintf(stderr, "Shift %d\n", shift);*/
@@ -592,16 +604,25 @@ public:
     // This is the actual point of entry for fetching our minimizers.
     // It wraps encoding and scoring a kmer, updates qmap, and returns the minimizer
     // for the next window.
+    static constexpr bool is_entropy = std::is_same_v<ScoreType, score::Entropy>;
+    void *getdata() const {
+        if constexpr(is_entropy) {
+            return ent_tracker_.get();
+        } else {
+            return data_;
+        }
+    }
     INLINE KmerT next_minimizer() {
         //if(unlikely(!has_next_kmer())) return ENCODE_OVERFLOW;
-        const KmerT k(kmer(pos_++)), kscore(scorer_(k, data_));
+        const KmerT k(kmer(pos_++));
+        const KmerT kscore(scorer_(k, getdata()));
         return qmap_.next_value(k, kscore);
     }
     INLINE KmerT next_canonicalized_minimizer() {
         assert(has_next_kmer());
         KmerT nk = kmer(pos_++);
         if(rht == DNA) nk = canonical_representation(nk, sp_.k_);
-        const KmerT kscore(scorer_(nk, data_));
+        const KmerT kscore(scorer_(nk, getdata()));
         return qmap_.next_value(nk, kscore);
     }
     auto max_in_queue() const {return qmap_.begin()->first;}
@@ -612,11 +633,6 @@ public:
     auto pos() const {return pos_;}
     void pos(uint64_t v) {pos_ = v;}
     uint32_t k() const {return sp_.k_;}
-    ~Encoder() {
-        if(std::is_same<ScoreType, score::Entropy>::value && sp_.unspaced() && !sp_.unwindowed()) {
-            delete static_cast<CircusEnt *>(data_);
-        }
-    }
     size_t n_in_queue() const {return qmap_.n_in_queue();}
 };
 
@@ -791,8 +807,9 @@ public:
     }
     template<typename Functor>
     void for_each_hash(const Functor &func, const char *s, size_t l) {
-        if(canon_) for_each_canon<Functor>(func, s, l);
-        else       for_each_uncanon<Functor>(func, s, l);
+        if(canon_) {
+            for_each_canon<Functor>(func, s, l);
+        } else       for_each_uncanon<Functor>(func, s, l);
     }
     template<typename Functor>
     void for_each_hash(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
@@ -820,7 +837,7 @@ public:
         if(pfp) ::pclose(pfp);
     }
     template<typename Functor>
-    void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+    INLINE void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
         if(ks == nullptr) ks = kseq_init(fp), destroy = true;
         else            kseq_assign(ks, fp), destroy = false;
@@ -954,12 +971,12 @@ struct RollingHasherSet {
         }
     }
     template<typename Functor>
-    void for_each_hash(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+    INLINE void for_each_hash(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         if(canon_) for_each_canon<Functor>(func, fp, ks);
         else       for_each_uncanon<Functor>(func, fp, ks);
     }
     template<typename Functor>
-    void for_each_hash(const Functor &func, const char *inpath, kseq_t *ks=nullptr) {
+    INLINE void for_each_hash(const Functor &func, const char *inpath, kseq_t *ks=nullptr) {
         gzFile fp = gzopen(inpath, "rb");
         if(!fp) throw file_open_error(inpath);
         gzbuffer(fp, 1<<18);
@@ -967,7 +984,7 @@ struct RollingHasherSet {
         gzclose(fp);
     }
     template<typename Functor>
-    void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+    INLINE void for_each_uncanon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
         if(ks == nullptr) ks = kseq_init(fp), destroy = true;
         else            kseq_assign(ks, fp), destroy = false;
@@ -975,7 +992,7 @@ struct RollingHasherSet {
         if(destroy) kseq_destroy(ks);
     }
     template<typename Functor>
-    void for_each_canon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
+    INLINE void for_each_canon(const Functor &func, gzFile fp, kseq_t *ks=nullptr) {
         bool destroy;
         if(ks == nullptr) ks = kseq_init(fp), destroy = true;
         else            kseq_assign(ks, fp), destroy = false;
@@ -1076,32 +1093,6 @@ u64 count_cardinality(const std::vector<std::string> paths,
     return ret;
 }
 
-template<typename SketchType>
-inline hll::hll_t &get_hll(SketchType &s);
-template<>
-inline hll::hll_t &get_hll<hll::hll_t>(hll::hll_t &s) {return s;}
-template<>
-inline hll::hll_t &get_hll<fhll::fhll_t>(fhll::fhll_t &s) {return s.hll();}
-template<>
-inline hll::hll_t &get_hll<fhll::pcfhll_t>(fhll::pcfhll_t &s) {return s.hll();}
-
-template<typename SketchType> inline const hll::hll_t &get_hll(const SketchType &s);
-template<>
-inline const hll::hll_t &get_hll<hll::hll_t>(const hll::hll_t &s) {return s;}
-template<>
-inline const hll::hll_t &get_hll<fhll::fhll_t>(const fhll::fhll_t &s) {return s.hll();}
-
-template<typename SketchType>
-struct est_helper {
-    const Spacer                      &sp_;
-    const std::vector<std::string> &paths_;
-    std::mutex                         &m_;
-    const u64                          np_;
-    const bool                      canon_;
-    void                            *data_;
-    std::vector<SketchType>         &hlls_;
-    kseq_t                            *ks_;
-};
 
 template<typename ScoreType, typename SketchType>
 void fill_lmers(SketchType &sketch, const std::string &path, const Spacer &space, bool canonicalize=true,
@@ -1118,56 +1109,9 @@ void fill_lmers(SketchType &sketch, const std::string &path, const Spacer &space
 #endif
 }
 
-template<typename SketchType, typename ScoreType=score::Lex>
-void est_helper_fn(void *data_, long index, int tid) {
-    est_helper<SketchType> &h(*(est_helper<SketchType> *)(data_));
-    fill_lmers<ScoreType, SketchType>(h.hlls_[tid], h.paths_[index], h.sp_, h.canon_, h.data_, h.ks_ + tid);
-}
 
-template<typename SketchType, typename ScoreType=score::Lex>
-void fill_sketch(SketchType &ret, const std::vector<std::string> &paths,
-              unsigned k, uint16_t w, const spvec_t &spaces, bool canon=true,
-              void *data=nullptr, int num_threads=1, u64 np=23, kseq_t *ks=nullptr) {
-    // Default to using all available threads if num_threads is negative.
-    if(num_threads < 0) {
-        num_threads = std::thread::hardware_concurrency();
-        LOG_INFO("Number of threads was negative and has been adjusted to all available threads (%i).\n", num_threads);
-    }
-    const Spacer space(k, w, spaces);
-    if(num_threads <= 1) {
-        for(u64 i(0); i < paths.size(); fill_lmers<ScoreType, SketchType>(ret, paths[i++], space, canon, data, ks));
-    } else {
-        std::mutex m;
-        KSeqBufferHolder kseqs(num_threads);
-        std::vector<SketchType> sketches;
-        while(sketches.size() < (unsigned)num_threads) sketches.emplace_back(ret.clone());
-        if(ret.size() != sketches.back().size()) throw "a party";
-        est_helper<SketchType> helper{space, paths, m, np, canon, data, sketches, kseqs.data()};
-        {
-            ForPool pool(num_threads);
-            pool.forpool(&est_helper_fn<SketchType, ScoreType>, &helper, paths.size());
-        }
-        auto &rhll = get_hll(ret);
-        for(auto &sketch: sketches) rhll += get_hll(sketch);
-    }
-}
-
-template<typename ScoreType=score::Lex>
-hll::hll_t make_hll(const std::vector<std::string> &paths,
-                unsigned k, uint16_t w, spvec_t spaces, bool canon=true,
-                void *data=nullptr, int num_threads=1, u64 np=23, kseq_t *ks=nullptr, hll::EstimationMethod estim=hll::EstimationMethod::ERTL_MLE, uint16_t jestim=hll::JointEstimationMethod::ERTL_JOINT_MLE) {
-    hll::hll_t global(np, estim, (hll::JointEstimationMethod)jestim);
-    fill_sketch<hll::hll_t, ScoreType>(global, paths, k, w, spaces, canon, data, num_threads, np, ks);
-    return global;
-}
-
-template<typename ScoreType=score::Lex>
-u64 estimate_cardinality(const std::vector<std::string> &paths,
-                            unsigned k, uint16_t w, spvec_t spaces, bool canon,
-                            void *data=nullptr, int num_threads=-1, u64 np=23, kseq_t *ks=nullptr, hll::EstimationMethod estim=hll::EstimationMethod::ERTL_MLE) {
-    auto tmp(make_hll<ScoreType>(paths, k, w, spaces, canon, data, num_threads, np, ks, estim));
-    return tmp.report();
-}
+#if 0
+#endif
 
 } //namespace bns
 #endif // _EMP_ENCODER_H__

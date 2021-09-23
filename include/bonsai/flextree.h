@@ -229,7 +229,7 @@ public:
                         break;
                     case BitCmp::EQUAL:
                         LOG_DEBUG("Warning: bit patterns a and b should be not equal....\n");
-                        VEC_FALLTHROUGH
+                        HEDLEY_FALL_THROUGH;
                     case BitCmp::INCOMPARABLE: continue;//Do nothing
                 }
             }

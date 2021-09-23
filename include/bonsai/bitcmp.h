@@ -2,6 +2,7 @@
 #include "tx.h"
 
 namespace bns {
+using bitvec_t = std::vector<uint64_t>;
 
 enum BitCmp {
     EQUAL,

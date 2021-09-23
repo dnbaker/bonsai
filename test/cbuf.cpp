@@ -11,7 +11,7 @@ using namespace std::literals;
 
 TEST_CASE("circdebuff") {
     SECTION("init") {
-        FastCircularQueue<int> buf(16);
+        circ::deque<int> buf(16);
         REQUIRE(buf.capacity() == 31);
         buf.emplace_back(137);
         buf.emplace_back(4);

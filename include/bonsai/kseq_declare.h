@@ -174,6 +174,29 @@ static bseq1_t *bseq_realloc_read(int chunk_size, int *n_, void *ks1_, void *ks2
     return seqs;
 }
 
+static INLINE void kseq_assign(kseq_t *ks, gzFile fp) {
+    if(!ks->f) {
+        ks->f = (kstream_t*)calloc(1, sizeof(kstream_t));
+        ks->f->buf = (unsigned char*)malloc(KSTREAM_SIZE);
+    } else {
+        ks->f->is_eof = ks->f->begin = ks->f->end = 0;
+    }
+    ks->f->f = fp;
+}
+
+static inline kseq_t kseq_init_stack() {
+    kseq_t ret;
+    memset(&ret, 0, sizeof(ret));
+    return ret;
+}
+
+static INLINE void kseq_destroy_stack(kseq_t &ks) {
+    free(ks.name.s); free(ks.comment.s); free(ks.seq.s); free(ks.qual.s);
+    ks_destroy(ks.f);
+    memset(&ks, 0, sizeof(ks));
+}
+
+
 #ifdef __cplusplus
 }
 #endif
