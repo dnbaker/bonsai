@@ -293,14 +293,14 @@ namespace pdqsort_detail {
         if (unknown_left && !num_l) {
             start_l = 0;
             Iter it = first;
-            for (unsigned char i = 0; i < l_size;) {
+            for (int i = 0; i < l_size;) {
                 offsets_l[num_l] = i++; num_l += !comp(*it, pivot); ++it;
             }
         }
         if (unknown_left && !num_r) {
             start_r = 0;
             Iter it = last;
-            for (unsigned char i = 0; i < r_size;) {
+            for (int i = 0; i < r_size;) {
                 offsets_r[num_r] = ++i; num_r += comp(*--it, pivot);
             }
         }
