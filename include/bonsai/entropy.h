@@ -1,5 +1,5 @@
 #pragma once
-#include "circularqueue/cq.h"
+#include "hll/include/circularqueue/cq.h"
 #include "bonsai/kmerutil.h"
 #include "flat_hash_map/flat_hash_map.hpp"
 #include "bonsai/rhtraits.h"
