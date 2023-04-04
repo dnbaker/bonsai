@@ -29,8 +29,10 @@ public:
     using value_type = T;
     using const_pointer_type = const T *;
     using pointer_type = T *;
+    template<typename W>
+    struct is_pod: public std::integral_constant<bool, std::is_trivial<W>::value && std::is_standard_layout<W>::value> {};
     template<typename... FactoryArgs>
-    vector(size_type n=0, bool init=!std::is_pod<T>::value, FactoryArgs &&...args): n_{n}, m_{n}, data_{n ? static_cast<pointer_type>(std::malloc(sizeof(T) * n)): nullptr} {
+    vector(size_type n=0, bool init=!is_pod<T>::value, FactoryArgs &&...args): n_{n}, m_{n}, data_{n ? static_cast<pointer_type>(std::malloc(sizeof(T) * n)): nullptr} {
         if (init)
             for(size_type i(0); i < n_; ++i)
                 new(data_ + i) T(std::forward<FactoryArgs>(args)...);

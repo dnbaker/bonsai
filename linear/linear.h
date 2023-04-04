@@ -42,8 +42,11 @@ public:
     using difference_type = typename std::make_signed<size_type>::type;
     using pointer_type = T *;
 
+    template<typename W>
+    struct is_pod: public std::integral_constant<bool, std::is_trivial<W>::value && std::is_standard_layout<W>::value> {};
+
     template<typename... FactoryArgs>
-    set(size_type n=0, bool init=!std::is_pod<T>::value,
+    set(size_type n=0, bool init=!is_pod<T>::value,
         FactoryArgs &&...args):
             n_{0}, m_{n}, data_{static_cast<T *>(std::malloc(sizeof(T) * n))} {
         if(data_ == nullptr)
