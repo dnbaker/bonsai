@@ -30,8 +30,19 @@ We use the Catch testing framework. You can build and run the tests by:
 `cd bonsai && make unit && ./unit`
 
 
+Dependencies
+============
+Primary dependency is `sketch`, stored in hll, which handles sketching + bit math requirements.
+In addition, we require zlib, ntHash, and zstd.
+
 Usage
 ================
+
+Encoding: Use `Encoder` from `include/bonsai/encoder.h` to directly encode k-mers or `RollingHasher` to encode k-mers with a rolling hash to enable unbounded length.
+These are then called via `for_each` and `for_each_hash` functions.
+
+
+Executables:
 
 Usage instructions are available in each executable by executing it with no options or providing the `-h` flag.
 
