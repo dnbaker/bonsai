@@ -1,4 +1,6 @@
-#include "sketch/sketch.h"
+#define VEC_DISABLED__
+#define NO_BLAZE
+#include "sketch/hll.h"
 #include "bonsai/encoder.h"
 #include "omp.h"
 

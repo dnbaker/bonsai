@@ -1,7 +1,7 @@
 #ifndef CHARACTERHASH
 #define CHARACTERHASH
 #include "aesctr/wy.h"
-#include "flat_hash_map/flat_hash_map.hpp"
+#include "hll/include/flat_hash_map/flat_hash_map.hpp"
 
 typedef unsigned long long uint64;
 typedef unsigned int uint32;

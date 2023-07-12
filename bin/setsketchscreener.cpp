@@ -32,7 +32,7 @@
 using namespace bns::lsh;
 using namespace bns;
 
-//#include "flat_hash_map/flat_hash_map.hpp"
+#include "hll/include/flat_hash_map/flat_hash_map.hpp"
 using MapT = ska::flat_hash_map<uint64_t, uint32_t>;
 
 using std::uint64_t;

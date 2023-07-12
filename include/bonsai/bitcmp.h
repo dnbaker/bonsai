@@ -16,12 +16,12 @@ inline int veccmp_naive(const void *a, const void *b, size_t nbytes);
 #endif
 
 inline int veccmp(const void *a, const void *b, size_t nbytes) {
+    int aparent(1), bparent(1); // a could be parent of b, b could be parent of a.
 #if __AVX2__
     __m256i aentry, bentry;
     const __m256i *pa = reinterpret_cast<const __m256i*>(a),
                   *pb = reinterpret_cast<const __m256i*>(b);
     size_t n255(nbytes >> 5), nlo(nbytes & 31u);
-    int aparent(1), bparent(1); // a could be parent of b, b could be parent of a.
     while(n255--) {
         aentry = _mm256_loadu_si256(pa++);
         bentry = _mm256_loadu_si256(pb++);

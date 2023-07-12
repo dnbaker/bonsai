@@ -10,7 +10,7 @@
 #include "bonsai/setcmp.h"
 #include "bonsai/flextree.h"
 #include "sketch/hll.h"
-#include "sketch/filterhll.h"
+// #include "sketch/filterhll.h"
 
 #if USE_CPPITERTOOLS
 #include "cppitertools/groupby.hpp"
@@ -27,16 +27,20 @@ template<typename SketchType>
 inline hll::hll_t &get_hll(SketchType &s);
 template<>
 inline hll::hll_t &get_hll<hll::hll_t>(hll::hll_t &s) {return s;}
+/*
 template<>
 inline hll::hll_t &get_hll<fhll::fhll_t>(fhll::fhll_t &s) {return s.hll();}
 template<>
 inline hll::hll_t &get_hll<fhll::pcfhll_t>(fhll::pcfhll_t &s) {return s.hll();}
+*/
 
 template<typename SketchType> inline const hll::hll_t &get_hll(const SketchType &s);
 template<>
 inline const hll::hll_t &get_hll<hll::hll_t>(const hll::hll_t &s) {return s;}
+/*
 template<>
 inline const hll::hll_t &get_hll<fhll::fhll_t>(const fhll::fhll_t &s) {return s.hll();}
+*/
 
 template<typename SketchType>
 struct est_helper {

@@ -1,4 +1,5 @@
 #undef NDEBUG
+#define NO_BLAZE
 #include "sketch/setsketch.h"
 #include "sketch/hll.h"
 

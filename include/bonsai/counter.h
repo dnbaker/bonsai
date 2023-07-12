@@ -13,52 +13,24 @@
 #include "kspp/ks.h"
 #include "hash.h"
 #include "lazy/vector.h"
-
-namespace bns {
-
-class rand_holder {
-    const void *random_;
-public:
-    rand_holder(): random_(get_random_key_for_clhash(UINT64_C(0x23a23cf5033c3c81),
-                                                     UINT64_C(0xb3816f6a2c68e530)))
-    {
-    }
-
-    const void *get()        const {return random_;}
-    const void *operator->() const {return random_;}
-    operator const void *()  const {return random_;}
-    template<typename T>
-    u64 hash(const T *p, size_t nbytes) {
-        return clhash(random_, p, nbytes);
-    }
-    template<typename T>
-    u64 hash(const std::vector<T>& vec) {
-        return hash(vec.data(), vec.size() * sizeof(T));
-    }
-
-    ~rand_holder()    {std::free(const_cast<void *>(random_));}
-};
-
-const static rand_holder RAND;
-
-} // namespace bns
+#include "hll/include/xxHash/xxh3.h"
 
 namespace std {
 
   template <typename T, typename size_type>
   struct hash<lazy::vector<T, size_type>>
   {
-    uint64_t operator()(const lazy::vector<T, size_type>& vec) const
+    uint64_t operator()(const lazy::vector<T, size_type>& vec) const noexcept
     {
-        return clhash(::bns::RAND, reinterpret_cast<const char *>(vec.data()), vec.size() * sizeof(T));
+        return ::XXH64(vec.data(), vec.size() * sizeof(T), 137);
     }
   };
   template <typename T>
   struct hash<vector<T>>
   {
-    uint64_t operator()(const vector<T>& vec) const
+    uint64_t operator()(const vector<T>& vec) const noexcept
     {
-        return clhash(bns::RAND, reinterpret_cast<const char *>(vec.data()), vec.size() * sizeof(T));
+        return ::XXH64(vec.data(), vec.size() * sizeof(T), 137);
     }
   };
 
@@ -66,18 +38,18 @@ namespace std {
   template <typename T, typename size_type>
   struct hash<pair<int, lazy::vector<T, size_type>>>
   {
-    uint64_t operator()(const pair<int, lazy::vector<T, size_type>>& p) const
+    uint64_t operator()(const pair<int, lazy::vector<T, size_type>>& p) const noexcept
     {
-        return clhash(bns::RAND, reinterpret_cast<const char *>(p.second.data()), p.second.size() * sizeof(T)) ^ ((u64(p.first) << 32) | p.first);
+        return ::XXH64(p.second.data(), p.second.size() * sizeof(T), 137 ^ p.first);
     }
   };
 
   template <typename T>
   struct hash<pair<int, vector<T>>>
   {
-    uint64_t operator()(const pair<int, vector<T>>& p) const
+    uint64_t operator()(const pair<int, vector<T>>& p) const noexcept
     {
-        return clhash(bns::RAND, reinterpret_cast<const char *>(p.second.data()), p.second.size() * sizeof(T)) ^ ((u64(p.first) << 32) | p.first);
+        return ::XXH64(p.second.data(), p.second.size() * sizeof(T), 137 ^ p.first);
     }
   };
 

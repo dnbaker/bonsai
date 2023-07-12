@@ -6,6 +6,7 @@
 #include <type_traits>
 #include "khash64.h"
 #include "./encoder.h"
+#include "sketch/common.h"
 
 namespace kmerc {
 
@@ -41,7 +42,7 @@ std::vector<khash_t(i16)> build_kmer_counts(const C &kmer_sizes, ArgType fp, boo
     return kmer_maps;
 }
 
-template<typename C, typename IT=uint64_t, typename ArgType,typename Allocator=sketch::common::Allocator<IT>>
+template<typename C, typename IT=uint64_t, typename ArgType,typename Allocator=sketch::Allocator<IT>>
 std::vector<std::vector<IT, Allocator>> build_kmer_sets(const C &kmer_sizes, ArgType fp, bool canon=false, size_t presize=0) {
     static_assert(std::is_same<ArgType, gzFile>::value  || std::is_same<ArgType, char *>::value || std::is_same<ArgType, const char *>::value, "Must be gzFile, char *, or const char *");
     bns::RollingHasherSet<IT> rhs(kmer_sizes, canon);

@@ -1,7 +1,7 @@
 #include "bonsai/encoder.h"
 #include "bonsai/util.h"
 #include "kseq_declare.h"
-#include "hll/flat_hash_map/flat_hash_map.hpp"
+#include "hll/include/flat_hash_map/flat_hash_map.hpp"
 #include <getopt.h>
 #ifdef _OPENMP
 #include <omp.h>
@@ -156,7 +156,9 @@ int main(int argc, char **argv) {
             uint16_t us;
             uint8_t ub;
             std::fwrite(&h, 1, sizeof(h), ofb);
-            if(sizeof(VALUE_TYPE) > 4 && maxc > 0xFFFFFFFFull) {h = pair.second;std::fwrite(&h, 1, sizeof(h), ofc);}
+            if constexpr(sizeof(VALUE_TYPE) > 4) {
+                if(maxc > 0xFFFFFFFFull) {h = pair.second;std::fwrite(&h, 1, sizeof(h), ofc);}
+            }
             else if(maxc > 0xFFFFull) {uv = pair.second;std::fwrite(&uv, 1, sizeof(uv), ofc);}
             else if(maxc > 0xFFull) {us = pair.second;std::fwrite(&us, 1, sizeof(us), ofc);}
             else {ub = pair.second; std::fwrite(&ub, 1, sizeof(ub), ofc);}

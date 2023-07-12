@@ -1,3 +1,5 @@
+#define NO_BLAZE
+
 #include <getopt.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -79,9 +81,11 @@ int main(int argc, char **argv) {
             std::ifstream ifs(optarg);
             for(std::string s; std::getline(ifs, s);)
                 names.push_back(s);
+            break;
         }
         case 'q': {
             qnames.push_back(optarg);
+            break;
         }
     }
     if(nthreads < 0) nthreads = std::thread::hardware_concurrency();

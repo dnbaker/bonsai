@@ -12,10 +12,6 @@
 
 using namespace bns;
 
-#ifndef CSETFT
-#define CSETFT double
-#endif
-
 auto gettime() {return std::chrono::high_resolution_clock::now();}
 
 void usage() {
@@ -44,18 +40,19 @@ int main(int argc, char **argv) {
     for(auto it = argv + optind + 1; *it; ++it) {
         if(!isfile(*it)) throw std::runtime_error(std::string("File ") + *it + " does not exist.\n");
     }
-    bns::SetSketchIndex<CSETFT> ssi(m, dense_index);
-    std::vector<CSetSketch<CSETFT>> sketches;
+    bns::SetSketchIndex<uint64_t> ssi(m, dense_index);
+    std::vector<CSetSketch<double>> sketches;
     size_t nfiles = argc - optind - 1;
     sketches.reserve(nfiles);
     for(auto it = argv + optind + 1;*it; ++it) {
-        CSetSketch<CSETFT> cs(*it);
-        ssi.update(cs);
+        CSetSketch<double> cs(*it);
+        const auto result = cs.to_sigs();
+        ssi.update(result);
         sketches.emplace_back(std::move(cs));
     }
     auto t2 = gettime();
     std::fprintf(stderr, "Construction in %gms\n", std::chrono::duration<double, std::milli>(t2 - t).count());
-    std::vector<std::pair<std::vector<uint32_t>, std::vector<uint32_t>>> lsh_results(ssi.size());
+    std::vector<std::tuple<std::vector<uint32_t>, std::vector<uint32_t>, std::vector<uint32_t>>> lsh_results(ssi.size());
     const auto ns = ssi.size();
     std::mutex mut;
     t = gettime();
@@ -63,16 +60,16 @@ int main(int argc, char **argv) {
     for(size_t i = 0; i < ns; ++i) {
         lsh_results[i] = ssi.query_candidates(sketches[i], (k * 3));
         pq_t pq;
-        auto &ids = lsh_results[i].first;
+        auto &ids = std::get<0>(lsh_results[i]);
         for(size_t L = 0; L < ids.size(); ++L) {
             auto oid = ids[L];
             if(oid == i) continue;
             const double jacc = sketches[i].jaccard_index(sketches[oid]);
             if(pq.size() < k) {
-                pq.push({jacc, oid});
+                pq.push(std::pair<double, unsigned int>{jacc, oid});
             } else if(jacc > pq.top().first) {
                 pq.pop();
-                pq.push({jacc, oid});
+                pq.push(std::pair<double, unsigned int>{jacc, oid});
             }
         }
         auto &c = pq.getc();

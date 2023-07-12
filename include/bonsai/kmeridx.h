@@ -2,7 +2,7 @@
 #define BONSAI_KMER_IDX_H__
 #include "encoder.h"
 #include "lazy/vector.h"
-#include "flat_hash_map/flat_hash_map.hpp"
+#include "hll/include/flat_hash_map/flat_hash_map.hpp"
 
 namespace bns {
 

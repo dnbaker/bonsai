@@ -23,9 +23,9 @@ int main(int argc, char **argv) {
     std::FILE *ifp = argc == optind ? stdin: std::fopen(argv[optind], "rb");
     uint64_t buf[2];
     if(use_short) {
-        if(a < 0) a = sketch::EShortSetS::DEFAULT_A;
-        if(b < 0) b = sketch::EShortSetS::DEFAULT_B;
-        sketch::EShortSetS ss(sketchsz, b, a);
+        if(a < 0) a = sketch::setsketch::EShortSetS::DEFAULT_A;
+        if(b < 0) b = sketch::setsketch::EShortSetS::DEFAULT_B;
+        sketch::setsketch::EShortSetS ss(sketchsz, b, a);
         while(std::fread(buf, sizeof(buf), 1, ifp) == 1) {
             ss.add(buf[0]);
         }
@@ -34,9 +34,9 @@ int main(int argc, char **argv) {
         if(opath.size()) ofp = std::fopen(opath.data(), "wb");
         else ofp = stdout;
         std::fprintf(stderr, "now reading!\n");
-        if(a < 0) a = sketch::EByteSetS::DEFAULT_A;
-        if(b < 0) b = sketch::EByteSetS::DEFAULT_B;
-        sketch::EByteSetS ss(sketchsz, b, a);
+        if(a < 0) a = sketch::setsketch::EByteSetS::DEFAULT_A;
+        if(b < 0) b = sketch::setsketch::EByteSetS::DEFAULT_B;
+        sketch::setsketch::EByteSetS ss(sketchsz, b, a);
         size_t i = 0;
         size_t fret;
         while((fret = std::fread(buf, sizeof(buf), 1, ifp)) == 1u) {

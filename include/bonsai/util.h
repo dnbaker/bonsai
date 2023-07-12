@@ -20,8 +20,12 @@
 #include <zlib.h>
 #include "klib/kthread.h"
 
+
+#ifndef _VEC_H__
+#define VEC_DISABLED__
+#endif
+
 #include "kspp/ks.h"
-#include "clhash/include/clhash.h"
 #include "khash64.h"
 #include "klib/kstring.h"
 #include "kseq_declare.h"

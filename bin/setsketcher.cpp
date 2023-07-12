@@ -39,11 +39,7 @@ struct PlusEq {
 using namespace sketch;
 using namespace sketch::setsketch;
 
-#ifdef USE_OPH
 using SSType = CSetSketch<CSETFT>;
-#else
-using SSType = OPCSetSketch<CSETFT>;
-#endif
 
 template<typename T, typename Func=PlusEq>
 void par_reduce(T *x, size_t n, const Func &func=Func()) {
@@ -179,7 +175,7 @@ int main(int argc, char **argv) {
         );
         const size_t scard = s.cardinality();
         ++total_processed;
-        std::fprintf(logfp, "%s\t%zu. Total updates %zu for %%%f unique (%zu/%zu)\n", infiles[i].data(), scard, s.total_updates(), 100. * scard / s.total_updates(), total_processed.load(), infiles.size());
+        std::fprintf(logfp, "%s\t%zu. Total updates %zu for %%%f unique (%zu/%zu)\n", infiles[i].data(), scard, s.total_updates(), 100. * scard / s.total_updates(), static_cast<size_t>(total_processed.load()), infiles.size());
         std::string filebasename = infiles[i];
         if(basename) {
             auto pos = filebasename.find_last_of('/');

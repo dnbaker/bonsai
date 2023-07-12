@@ -1,14 +1,18 @@
 #ifndef _TX_H__
 #define _TX_H__
+
 #include <stdexcept>
 #include <thread>
 #include <unordered_map>
+
+
 #include "util.h"
 #include "klib/kthread.h"
 #include "feature_min.h"
 #include "counter.h"
 #include "linear/linear.h"
 #include "diskarray.h"
+
 
 
 template<typename T>

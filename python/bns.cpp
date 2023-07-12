@@ -1,7 +1,7 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/numpy.h"
 #include "bonsai/encoder.h"
-#include "flat_hash_map/flat_hash_map.hpp"
+#include "hll/include/flat_hash_map/flat_hash_map.hpp"
 namespace py = pybind11;
 using namespace pybind11::literals;
 

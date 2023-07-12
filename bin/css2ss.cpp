@@ -1,3 +1,4 @@
+#define NO_BLAZE 1
 #include "sketch/setsketch.h"
 #include "zlib.h"
 
