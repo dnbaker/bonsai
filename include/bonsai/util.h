@@ -22,7 +22,9 @@
 
 
 #ifndef _VEC_H__
+#ifndef VEC_DISABLED__
 #define VEC_DISABLED__
+#endif
 #endif
 
 #include "kspp/ks.h"
