@@ -244,13 +244,14 @@ public:
         KmerT min;
         unsigned filled;
         const size_t mul = rhmul();
-        int8_t nv;
         loop_start:
         min = filled = 0;
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
-                nv = lutptr[s_[pos_++]];
-                if(nv == int8_t(-1)) {min = ENCODE_OVERFLOW;goto loop_start;}
+                const char c_at_pos = s_[pos_];
+                const int8_t nv = lutptr[c_at_pos];
+                ++pos_;
+                if(nv == int8_t(-1)) {min = ENCODE_OVERFLOW; goto loop_start;}
                 min = (min * mul) | nv;
                 ++filled;
             }
@@ -1056,7 +1057,7 @@ u64 count_cardinality(const std::vector<std::string> paths,
     // Default to using all available threads.
     if(num_threads < 0) num_threads = sysconf(_SC_NPROCESSORS_ONLN);
     const Spacer space(k, w, spaces);
-    u64 submitted(0), completed(0), todo(paths.size());
+    u64 submitted(0), todo(paths.size());
     std::vector<std::future<khash_t(all) *>> futures;
     std::vector<khash_t(all) *> hashes;
     // Submit the first set of jobs
@@ -1073,7 +1074,6 @@ u64 count_cardinality(const std::vector<std::string> paths,
                     try {
                         f = SUB_CALL;
                         ++submitted;
-                        ++completed;
                         success = 1;
                     } catch (std::system_error &se) {
                           LOG_WARNING("System error: resource temporarily available. Retry #%i\n", tries + 1);
