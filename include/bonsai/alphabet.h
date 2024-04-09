@@ -100,26 +100,26 @@ struct Alphabet: public TAlphabet<int8_t> {
 
 // Protein Alphabets
 // All protein alphabets handle pyrrolysine and selenocysteine if unhandled
-// Handle Pyrrolysine (P) by mapping it to Lysine (K) if unhandled
+// Handle Pyrrolysine (O) by mapping it to Lysine (K) if unhandled
 // Handle SelenoCysteine (U) by mapping it to Cysteine if unhandled
-// (PU:KC) means P maps to K and U maps to C
+// (OU:KC) means O maps to K and U maps to C
 static constexpr const Alphabet BYTES;
-static constexpr const Alphabet AMINO20("Standard20", "A,C,D,E,F,G,H,I,K,L,M,N,P,Q,R,S,T,V,W,Y", false, "PU:KC");
+static constexpr const Alphabet AMINO20("Standard20", "A,C,D,E,F,G,H,I,K,L,M,N,P,Q,R,S,T,V,W,Y", false, "OU:KC");
 
-static constexpr const Alphabet SEB14("SE-B(14)", "A,C,D,EQ,FY,G,H,IV,KR,LM,N,P,ST,W", false, "PU:KC");
+static constexpr const Alphabet SEB14("SE-B(14)", "A,C,D,EQ,FY,G,H,IV,KR,LM,N,P,ST,W", false, "OU:KC");
 
-static constexpr const Alphabet SEB10("SE-B(10)", "AST,C,DN,EQ,FY,G,HW,ILMV,KR,P", false, "PU:KC");
-static constexpr const Alphabet SEV10("SE-V(10)", "AST,C,DEN,FY,G,H,ILMV,KQR,P,W", false, "PU:KC");
-static constexpr const Alphabet SOLISD("Solis-D", "AM,C,DNS,EKQR,F,GP,HT,IV,LY,W", false, "PU:KC");
-static constexpr const Alphabet SOLISG("Solis-G", "AEFIKLMQRVW,C,D,G,H,N,P,S,T,Y", false, "PU:KC");
-static constexpr const Alphabet MURPHY("Murphy", "A,C,DENQ,FWY,G,H,ILMV,KR,P,ST", false, "PU:KC");
-static constexpr const Alphabet LIA10("Li-A(10)", "AC,DE,FWY,G,HN,IV,KQR,LM,P,ST", false, "PU:KC");
-static constexpr const Alphabet LIB10("Li-B(10)", "AST,C,DEQ,FWY,G,HN,IV,KR,LM,P", false, "PU:KC");
+static constexpr const Alphabet SEB10("SE-B(10)", "AST,C,DN,EQ,FY,G,HW,ILMV,KR,P", false, "OU:KC");
+static constexpr const Alphabet SEV10("SE-V(10)", "AST,C,DEN,FY,G,H,ILMV,KQR,P,W", false, "OU:KC");
+static constexpr const Alphabet SOLISD("Solis-D", "AM,C,DNS,EKQR,F,GP,HT,IV,LY,W", false, "OU:KC");
+static constexpr const Alphabet SOLISG("Solis-G", "AEFIKLMQRVW,C,D,G,H,N,P,S,T,Y", false, "OU:KC");
+static constexpr const Alphabet MURPHY("Murphy", "A,C,DENQ,FWY,G,H,ILMV,KR,P,ST", false, "OU:KC");
+static constexpr const Alphabet LIA10("Li-A(10)", "AC,DE,FWY,G,HN,IV,KQR,LM,P,ST", false, "OU:KC");
+static constexpr const Alphabet LIB10("Li-B(10)", "AST,C,DEQ,FWY,G,HN,IV,KR,LM,P", false, "OU:KC");
 
-static constexpr const Alphabet SEB8("SE-B(8)","AST,C,DHN,EKQR,FWY,G,ILMV,P", false, "PU:KC");
-static constexpr const Alphabet SEB6("SE-B(6)","AST,CP,DHNEKQR,FWY,G,ILMV", false, "PU:KC");
+static constexpr const Alphabet SEB8("SE-B(8)","AST,C,DHN,EKQR,FWY,G,ILMV,P", false, "OU:KC");
+static constexpr const Alphabet SEB6("SE-B(6)","AST,CP,DHNEKQR,FWY,G,ILMV", false, "OU:KC");
 
-static constexpr const Alphabet DAYHOFF("Dayhoff","AGPST,C,DENQ,FWY,HKR,ILMV", false, "PU:KC");
+static constexpr const Alphabet DAYHOFF("Dayhoff","AGPST,C,DENQ,FWY,HKR,ILMV", false, "OU:KC");
 
 
 // DNA alphabets

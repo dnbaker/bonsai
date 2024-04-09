@@ -4,8 +4,8 @@ import subprocess
 import sys
 import setuptools
 
-tmp = subprocess.check_output(["git", "describe", "--abbrev=4"]).decode().strip().split('.')
-__version__ = '.'.join(tmp[:-1]) + tmp[-1].split("-")[0]
+# tmp = subprocess.check_output(["git", "describe", "--always", "--abbrev=4"]).decode().strip().split('.')
+__version__ = "v0.5.1"
 
 
 
