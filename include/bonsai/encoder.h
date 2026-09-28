@@ -685,6 +685,12 @@ public:
     RollingHasher& operator=(const RollingHasher &o) {
         k_ = o.k_; canon_ = o.canon_; enctype_ = o.enctype_; w_ = o.w_; seed1_ = o.seed1_; seed2_ = o.seed2_;
         window(o.w_);
+        // The cyclic hashers depend on k, so rebuild them rather than keeping
+        // the ones sized for this object's previous k.
+        hasher_ = HashClass(k_, sizeof(IntType) * CHAR_BIT);
+        rchasher_ = HashClass(k_, sizeof(IntType) * CHAR_BIT);
+        hasher_.seed(seed1_, seed2_);
+        rchasher_.seed(seed1_, seed2_);
         return *this;
     }
     RollingHasher(const RollingHasher &o): RollingHasher(o.k_, o.canon_, o.enctype_, o.w_, o.seed1_, o.seed2_) {}
