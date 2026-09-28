@@ -46,6 +46,14 @@ template<> struct RHTraits<PROTEIN> {
 
 static constexpr inline size_t rh2n(InputType rht, size_t itemsize);
 static inline std::string to_string(InputType it);
+static constexpr inline size_t mul(InputType it);
+
+// True for alphabets whose size is a power of two, so that k-mers are packed
+// into fixed-width bit fields and can be truncated with a bit mask. Other
+// alphabets encode k-mers as base-mul(it) integers below mul(it)^k.
+static constexpr inline bool rh_bitpacked(InputType it) {
+    return it == DNA || it == DNA2 || it == DNAC || it == PROTEIN_3BIT || it == PROTEIN;
+}
 
 
 template<typename KmerT>
@@ -57,9 +65,11 @@ static inline KmerT rhmask(InputType it, int k) {
             ret = static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - k); break;
         case PROTEIN_3BIT:
             ret = static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - 3 * k); break;
-        case PROTEIN20: ret =  std::pow(20, k); break;
-        case PROTEIN6: ret =  std::pow(6, k); break;
-        case PROTEIN14: ret =  std::pow(14, k); break;
+        case PROTEIN20: case PROTEIN6: case PROTEIN14:
+            // Exact integer power; std::pow loses precision beyond 2^53.
+            ret = 1;
+            for(int i = 0; i < k; ++i) ret *= mul(it);
+            break;
         case PROTEIN: ret = (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 3))); break;
         default:;
     }

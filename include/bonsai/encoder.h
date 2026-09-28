@@ -237,13 +237,39 @@ public:
             if((min = next_minimizer()) != ENCODE_OVERFLOW)
                 func(min);
     }
+    // Appends one character code to a k-mer for the unspaced rolling encoders.
+    // Bit-packed alphabets shift the new code in and mask off the oldest
+    // character in finish(). Other alphabets (20, 14 or 6 letters) are encoded
+    // in base mul, where OR is not addition, so the oldest character is removed
+    // with a modulus by mul^(k-1) before multiplying; the value then stays below
+    // mul^k and cannot overflow KmerT.
+    struct RollingAppender {
+        using DivT = std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>;
+        bool bitpacked;
+        KmerT mul, mask, headmod;
+        schism::Schismatic<DivT> div;
+        RollingAppender(const Encoder &enc):
+            bitpacked(rh_bitpacked(enc.rht)), mul(enc.rhmul()),
+            mask(rhmask<KmerT>(enc.rht, enc.sp_.k_)),
+            headmod(bitpacked ? KmerT(1): rhmask<KmerT>(enc.rht, enc.sp_.k_ - 1)),
+            div(sizeof(KmerT) <= 8 ? DivT(headmod): DivT(1))
+        {}
+        INLINE KmerT append(KmerT x, int8_t nv) const {
+            if(bitpacked) return (x * mul) | KmerT(nv);
+            CONST_IF(sizeof(KmerT) <= 8) {
+                x = div.mod(x);
+            } else {
+                x %= headmod;
+            }
+            return x * mul + KmerT(nv);
+        }
+        INLINE KmerT finish(KmerT x) const {return bitpacked ? KmerT(x & mask): x;}
+    };
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_unwindowed(const Functor &func) {
-        const KmerT mask(rhmask<KmerT>(rht, sp_.k_));
-        schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
+        const RollingAppender app(*this);
         KmerT min;
         unsigned filled;
-        const size_t mul = rhmul();
         loop_start:
         min = filled = 0;
         while(likely(pos_ < l_)) {
@@ -252,19 +278,11 @@ public:
                 const int8_t nv = lutptr[c_at_pos];
                 ++pos_;
                 if(nv == int8_t(-1)) {min = ENCODE_OVERFLOW; goto loop_start;}
-                min = (min * mul) | nv;
+                min = app.append(min, nv);
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                if(rht == DNA || rht == DNA2 || rht == DNAC || rht == PROTEIN_3BIT || rht == PROTEIN) min &= mask;
-                else {
-                    assert(div.mod(min) == min % mask);
-                    CONST_IF(sizeof(KmerT) <= 8) {
-                        min = div.mod(min);
-                    } else {
-                        min %= mask;
-                    }
-                }
+                min = app.finish(min);
                 func(min);
                 --filled;
             }
@@ -272,31 +290,20 @@ public:
     }
     template<typename Functor>
     INLINE void for_each_uncanon_unspaced_windowed(const Functor &func) {
-        const KmerT mask(rhmask<KmerT>(rht, sp_.k_));
-        schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
+        const RollingAppender app(*this);
         KmerT min, kmer;
         unsigned filled;
-        const size_t mul = rhmul();
         windowed_loop_start:
         min = filled = 0;
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
-                min *= mul;
-                if(unlikely((min |= lutptr[s_[pos_++]]) == ENCODE_OVERFLOW) && likely(sp_.k_ < sizeof(KmerT) * 4 || lutptr[s_[pos_ - 1]] != 'T')) {
-                    goto windowed_loop_start;
-                }
+                const int8_t nv = lutptr[s_[pos_++]];
+                if(unlikely(nv == int8_t(-1))) goto windowed_loop_start;
+                min = app.append(min, nv);
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                if(rht == DNA || rht == DNA2 || rht == DNAC || rht == PROTEIN_3BIT || rht == PROTEIN) min &= mask;
-                else {
-                    assert(div.mod(min) == min % mask);
-                    CONST_IF(sizeof(KmerT) <= 8) {
-                        min = div.mod(min);
-                    } else {
-                        min %= mask;
-                    }
-                }
+                min = app.finish(min);
                 if((kmer = qmap_.next_value(min, scorer_(min, getdata()))) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
             }
@@ -308,35 +315,25 @@ public:
     INLINE void for_each_uncanon_unspaced_windowed_entropy_(const Functor &func) {
         // NEVER CALL THIS DIRECTLY.
         // This contains instructions for generating uncanonicalized but windowed entropy-minimized kmers.
-        const KmerT mask(rhmask<KmerT>(rht, sp_.k_));
+        const RollingAppender app(*this);
         KmerT min, kmer;
         unsigned filled;
-        schism::Schismatic<std::conditional_t<(sizeof(KmerT) <= 8), KmerT, uint64_t>> div(mask);
         if(!ent_tracker_)
             ent_tracker_.reset(new CircusEnt(this->k()));
         CircusEnt &ent = *ent_tracker_;
         windowed_loop_start:
         ent.clear();
-        const size_t mul = rhmul();
         filled = min = 0;
         while(likely(pos_ < l_)) {
             while(filled < sp_.k_ && likely(pos_ < l_)) {
                 const auto nc = lutptr[s_[pos_++]];
                 if(nc == int8_t(-1)) {min = ENCODE_OVERFLOW; goto windowed_loop_start;}
-                min = (mul * min) | nc;
+                min = app.append(min, nc);
                 ent.push(nc);
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                if(rht == DNA || rht == DNA2 || rht == DNAC || rht == PROTEIN_3BIT || rht == PROTEIN) min &= mask;
-                else {
-                    CONST_IF(sizeof(KmerT) <= 8) {
-                        assert(div.mod(min) == min % mask);
-                        min = div.mod(min);
-                    } else {
-                        min %= mask;
-                    }
-                }
+                min = app.finish(min);
                 if((kmer = qmap_.next_value(min, min / (ent.value() + .001))) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
             }
@@ -576,12 +573,12 @@ public:
 #undef ITER
         } else if(rht == PROTEIN20 || rht == PROTEIN_14 || rht == PROTEIN_6) {
             const size_t mul = rht == PROTEIN20 ? 20: rht == PROTEIN_14 ? 14: 6;
-#define ITER do {new_kmer *= mul, start += *spaces++;\
+#define ITER do {start += *spaces++;\
             if((nextc = lutptr[s_[start]]) == int8_t(-1)) {\
                 new_kmer = ENCODE_OVERFLOW;\
                 goto rnk;\
             }\
-            new_kmer = (new_kmer * mul) | nextc;\
+            new_kmer = new_kmer * mul + nextc;\
             CONST_IF(isent) ent_tracker->push(nextc);\
         } while(0);
             DO_DUFF(len, ITER);
