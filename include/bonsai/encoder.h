@@ -152,12 +152,12 @@ public:
     }
     Encoder(const Spacer &sp, void *data, bool canonicalize=true): Encoder(nullptr, 0, sp, data, canonicalize) {}
     Encoder(const Spacer &sp, bool canonicalize=true): Encoder(sp, nullptr, canonicalize) {}
-    Encoder(const Encoder &o): s_(o.s_), l_(o.l_), sp_(o.sp_), pos_(o.pos_), data_(o.data_), scorer_(o.scorer_), canonicalize_(o.canonicalize_), rht(o.rht) {
+    Encoder(const Encoder &o): s_(o.s_), l_(o.l_), sp_(o.sp_), pos_(o.pos_), data_(o.data_), scorer_(o.scorer_), canonicalize_(o.canonicalize_), rht(o.rht), lutptr(o.lutptr), nremper(o.nremper) {
         if(sp_.w_ > sp_.c_)
             qmap_.resize(sp_.w_ - sp_.c_ + 1);
     }
     Encoder(Encoder<ScoreType, KmerT> &&o): s_(o.s_), l_(o.l_), sp_(o.sp_), pos_(o.pos_), data_(o.data_),
-            qmap_(std::move(o.qmap_)), scorer_{}, canonicalize_(o.canonicalize_), rht(o.rht) {
+            qmap_(std::move(o.qmap_)), scorer_{}, canonicalize_(o.canonicalize_), rht(o.rht), lutptr(o.lutptr), nremper(o.nremper) {
         if(o.ent_tracker_) ent_tracker_.reset(new CircusEnt(*o.ent_tracker_));
     }
     Encoder &operator=(const Encoder<ScoreType, KmerT> &o) {
@@ -167,7 +167,7 @@ public:
         data_ = o.data_;
         qmap_ = o.qmap_;
         canonicalize_ = o.canonicalize_;
-        rht = o.rht;
+        rht = o.rht; lutptr = o.lutptr; nremper = o.nremper;
         if(o.ent_tracker_) ent_tracker_.reset(new CircusEnt(std::move(*o.ent_tracker_)));
         return *this;
     }
@@ -680,6 +680,7 @@ public:
             std::fprintf(stderr, "Note: RollingHasher with Protein alphabet does not support reverse-complementing.\n");
             canon_ = false;
         }
+        hashtype(enc);
         window(wsz);
         hasher_.seed(seed1, seed2);
         // Both strands must use the same hash function so that a k-mer and its
@@ -688,7 +689,8 @@ public:
         if(enc == PROTEIN_6_FRAME) throw NotImplementedError("Protein 6-frame not implemented.");
     }
     RollingHasher& operator=(const RollingHasher &o) {
-        k_ = o.k_; canon_ = o.canon_; enctype_ = o.enctype_; w_ = o.w_; seed1_ = o.seed1_; seed2_ = o.seed2_;
+        k_ = o.k_; canon_ = o.canon_; w_ = o.w_; seed1_ = o.seed1_; seed2_ = o.seed2_;
+        hashtype(o.enctype_);
         window(o.w_);
         // The cyclic hashers depend on k, so rebuild them rather than keeping
         // the ones sized for this object's previous k.
