@@ -8,7 +8,7 @@ enum InputType {
     DNA,
     PROTEIN,      // Treats all characters as valid
     PROTEIN20,    // Corresponds to AMINO20, which masks unexpected characters
-    PROTEIN_3BIT, // Corresponds to SEB8, which can hold 22 in 64-bits and 42 in 128-bits
+    PROTEIN_3BIT, // Corresponds to SEB8, which can hold 21 in 64-bits and 42 in 128-bits
     PROTEIN_14,   // Corresponds to SEB14, which can hold up to 16 in 64 bits and 33 in 128-bits
     PROTEIN_6,    // Corresponds to SEB6, which can hold up to 24 in 64 bits and 49 in 128-bits
     DNA2,         // AT vs GC, corresponds to DNA2PYR
@@ -56,11 +56,11 @@ static inline KmerT rhmask(InputType it, int k) {
         case DNA2: case DNAC:
             ret = static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - k); break;
         case PROTEIN_3BIT:
-            ret = static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - k); break;
+            ret = static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - 3 * k); break;
         case PROTEIN20: ret =  std::pow(20, k); break;
         case PROTEIN6: ret =  std::pow(6, k); break;
         case PROTEIN14: ret =  std::pow(14, k); break;
-        case PROTEIN: ret = (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 8))); break;
+        case PROTEIN: ret = (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 3))); break;
         default:;
     }
     // else, stays at -1
@@ -91,7 +91,7 @@ template<> struct RHTraits<PROTEIN20> {
 template<> struct RHTraits<PROTEIN_3BIT> {
     static constexpr size_t alphsize = 8;
     static constexpr size_t nper32 = 10;
-    static constexpr size_t nper64 = 22;
+    static constexpr size_t nper64 = 21;
     static constexpr size_t nper128 = 42;
     static constexpr const alph::Alphabet &table = alph::SEB8;
     static constexpr const char *name = "PROTEIN3BIT";

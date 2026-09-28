@@ -256,7 +256,7 @@ public:
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                if(rht == DNA || rht == DNA2 || rht == PROTEIN_3BIT) min &= mask;
+                if(rht == DNA || rht == DNA2 || rht == DNAC || rht == PROTEIN_3BIT || rht == PROTEIN) min &= mask;
                 else {
                     assert(div.mod(min) == min % mask);
                     CONST_IF(sizeof(KmerT) <= 8) {
@@ -288,7 +288,7 @@ public:
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                if(rht == DNA || rht == DNA2 || rht == PROTEIN_3BIT) min &= mask;
+                if(rht == DNA || rht == DNA2 || rht == DNAC || rht == PROTEIN_3BIT || rht == PROTEIN) min &= mask;
                 else {
                     assert(div.mod(min) == min % mask);
                     CONST_IF(sizeof(KmerT) <= 8) {
@@ -328,7 +328,7 @@ public:
                 ++filled;
             }
             if(likely(filled == sp_.k_)) {
-                if(rht == DNA || rht == DNA2 || rht == PROTEIN_3BIT) min &= mask;
+                if(rht == DNA || rht == DNA2 || rht == DNAC || rht == PROTEIN_3BIT || rht == PROTEIN) min &= mask;
                 else {
                     CONST_IF(sizeof(KmerT) <= 8) {
                         assert(div.mod(min) == min % mask);
