@@ -677,7 +677,9 @@ public:
         }
         window(wsz);
         hasher_.seed(seed1, seed2);
-        rchasher_.seed(seed2 * seed1, seed2 ^ seed1);
+        // Both strands must use the same hash function so that a k-mer and its
+        // reverse complement map to the same value.
+        rchasher_.seed(seed1, seed2);
         if(enc == PROTEIN_6_FRAME) throw NotImplementedError("Protein 6-frame not implemented.");
     }
     RollingHasher& operator=(const RollingHasher &o) {
@@ -715,9 +717,11 @@ public:
                     rchasher_.reset();
                 } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
                   // In the future, encode the side that is still valid
-                else hasher_.eat(v1), rchasher_.eat(cstr_rc_lut[s[i - nf + k_ - 1]]), ++nf;
+                else hasher_.eat(v1), ++nf;
             }
             if(nf < k_) goto end; // All failed
+            // Seed the reverse-strand hasher with the reverse complement of s[i - k_, i).
+            for(size_t j = i; j-- > i - k_;) rchasher_.eat(cstr_rc_lut[s[j]]);
             add_hashes(hasher_);
             add_hashes(rchasher_);
             for(;i < l; ++i) {
@@ -742,9 +746,11 @@ public:
                     rchasher_.reset();
                 } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
                   // In the future, encode the side that is still valid
-                else hasher_.eat(v1), rchasher_.eat(cstr_rc_lut[s[i - nf + k_ - 1]]), ++nf;
+                else hasher_.eat(v1), ++nf;
             }
             if(nf < k_) return; // All failed
+            // Seed the reverse-strand hasher with the reverse complement of s[i - k_, i).
+            for(size_t j = i; j-- > i - k_;) rchasher_.eat(cstr_rc_lut[s[j]]);
             func(std::min(hasher_.hashvalue, rchasher_.hashvalue));
             for(;i < l; ++i) {
                 if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
