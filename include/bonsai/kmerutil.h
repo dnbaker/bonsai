@@ -138,6 +138,16 @@ static INLINE u64 canonical_representation(u64 kmer, uint8_t n) {
     const u64 revcom(reverse_complement(kmer, n));
     return kmer < revcom ? kmer : revcom;
 }
+// 128-bit k-mers (k <= 64): reverse-complement each 64-bit half, swap the
+// halves, then shift away the unused low-order bases.
+static INLINE u128 reverse_complement(u128 kmer, uint8_t n) {
+    const u128 full = (u128(reverse_complement(u64(kmer), 32)) << 64) | reverse_complement(u64(kmer >> 64), 32);
+    return n >= 64 ? full: full >> (128 - 2 * n);
+}
+static INLINE u128 canonical_representation(u128 kmer, uint8_t n) {
+    const u128 revcom(reverse_complement(kmer, n));
+    return kmer < revcom ? kmer : revcom;
+}
 static INLINE bool canonicalize(u64 &kmer, uint8_t n) {
     const u64 revcom(reverse_complement(kmer, n));
     if(kmer < revcom) return false;
