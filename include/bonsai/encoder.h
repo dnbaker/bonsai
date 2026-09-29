@@ -745,9 +745,12 @@ public:
         uint8_t v1;
         IntType nextv;
         if(qmap_.size() > 1) {
-            auto add_hashes =  [&](auto &hasher) {
-            if((nextv = qmap_.next_value(hasher.hashvalue, lex_score(hasher.hashvalue))) != ENCODE_OVERFLOW)
-                func(nextv);
+            // Each position contributes one canonical hash, the smaller of its
+            // two strand hashes, as in the unwindowed branch below.
+            auto add_canon_hash = [&]() {
+                const IntType v = std::min(hasher_.hashvalue, rchasher_.hashvalue);
+                if((nextv = qmap_.next_value(v, lex_score(v))) != ENCODE_OVERFLOW)
+                    func(nextv);
             };
             for(i = nf = 0; nf < k_ && i < l; ++i) {
                 if((v1 = cstr_lut[uint8_t(s[i])]) == uint8_t(-1)) {
@@ -764,15 +767,13 @@ public:
             if(nf < k_) goto end; // All failed
             // Seed the reverse-strand hasher with the reverse complement of s[i - k_, i).
             for(size_t j = i; j-- > i - k_;) rchasher_.eat(cstr_rc_lut[uint8_t(s[j])]);
-            add_hashes(hasher_);
-            add_hashes(rchasher_);
+            add_canon_hash();
             for(;i < l; ++i) {
                 if((v1 = cstr_lut[uint8_t(s[i])]) == uint8_t(-1))
                     goto fixup_minimizer;
                 hasher_.update(cstr_lut[uint8_t(s[i - k_])], v1);
                 rchasher_.reverse_update(cstr_rc_lut[uint8_t(s[i])], cstr_rc_lut[uint8_t(s[i - k_])]);
-                add_hashes(hasher_);
-                add_hashes(rchasher_);
+                add_canon_hash();
             }
             end:
             if(qmap_.partially_full())
