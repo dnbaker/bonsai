@@ -72,8 +72,8 @@ public:
             }
         }
     }
-    using SignedVT = typename std::make_signed<VT>::type;
-    constexpr VT translate(VT x) const {return lut[static_cast<SignedVT>(x)];}
+    using UnsignedVT = typename std::make_unsigned<VT>::type;
+    constexpr VT translate(VT x) const {return lut[static_cast<UnsignedVT>(x)];}
     constexpr VT *data() {return lut.data();}
     constexpr const VT *data() const {return lut.data();}
     static constexpr size_t size() {return NCHAR;}

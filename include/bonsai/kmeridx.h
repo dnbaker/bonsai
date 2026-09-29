@@ -40,7 +40,7 @@ struct KmerIdx {
         unsigned nfilled = 0;
         while(s < e) {
             kmer <<= 2;
-            if((kmer |= cstr_lut[*s]) == BAD_KMER && *s != 'T') {
+            if((kmer |= cstr_lut[uint8_t(*s)]) == BAD_KMER && *s != 'T') {
                 s += k_;
                 kmer = 0;
                 continue;
