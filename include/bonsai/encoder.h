@@ -53,12 +53,18 @@ static INLINE u128 lex_score(u128 i) {
 static INLINE u128 lex_score(u128 i, void *) {
     return lex_score(i);
 }
-template<typename T>
-static INLINE T ent_score(T i, void *data) {
-    return i / (reinterpret_cast<CircusEnt *>(data)->value() + 1e-4);
-}
 static INLINE u64 lex_score(u64 i) {return FRev64()(i);}
 static INLINE u64 lex_score(u64 i, void *) {return FRev64()(i);}
+// Entropy-weighted score (lower wins): the k-mer's hash divided by the entropy
+// of its characters, so that high-entropy k-mers are preferred. data points to
+// a CircusEnt holding the k-mer's characters. Only the top 48 bits of the hash
+// are used so that the quotient fits in 64 bits even for zero entropy.
+template<typename T>
+static INLINE T ent_score(T i, void *data) {
+    const double ent = std::max(reinterpret_cast<CircusEnt *>(data)->value(), 0.);
+    const u64 h = u64(lex_score(i) >> (sizeof(T) * CHAR_BIT - 48));
+    return T(u64(h / (ent + 1e-4)));
+}
 static INLINE u64 hash_score(u64 i, void *data) {
     khint_t k1;
     khash_t(64) *hash((khash_t(64) *)data);
@@ -349,7 +355,7 @@ public:
             }
             if(likely(filled == sp_.k_)) {
                 min = app.finish(min);
-                if((kmer = qmap_.next_value(min, min / (ent.value() + .001))) != ENCODE_OVERFLOW) func(kmer);
+                if((kmer = qmap_.next_value(min, ent_score(min, &ent))) != ENCODE_OVERFLOW) func(kmer);
                 --filled;
             }
         }
@@ -467,8 +473,9 @@ public:
         while(kseq_read(ks) >= 0) {
             assign(ks);
             if(us) {
-                if(spu) for_each_uncanon_unspaced_unwindowed(func);
-                else    for_each_uncanon_unspaced_windowed(func);
+                if(spu)             for_each_uncanon_unspaced_unwindowed(func);
+                else if(is_entropy) for_each_uncanon_unspaced_windowed_entropy_(func);
+                else                for_each_uncanon_unspaced_windowed(func);
             } else {
                 for_each_uncanon_spaced(func);
             }
@@ -571,6 +578,7 @@ public:
                 ent_tracker_.reset(new CircusEnt(this->k()));
             ent_tracker = ent_tracker_.get();
             ent_tracker->clear();
+            ent_tracker->push(int8_t(new_kmer));
         }
         if(rht == DNA || rht == PROTEIN || rht == PROTEIN_3BIT || rht == DNA2 || rht == DNAC) {
             const int shift = rht == DNA ? 2: rht == PROTEIN ? 8: (rht == DNA2 || rht == DNAC) ? 1: 3;

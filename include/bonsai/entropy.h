@@ -41,9 +41,11 @@ public:
             ++cqsz_; // Or just keep filling the window
         q_.push(c);
     }
+    // Shannon entropy (in nats) of the characters in the window, or NOT_FULL
+    // if fewer than qsz characters have been pushed since the last clear().
     double value() const {
         if(unlikely(cqsz_ < qsz_)) return NOT_FULL;
-        return std::accumulate(counts_.begin(), counts_.end(), 0.,
+        return -std::accumulate(counts_.begin(), counts_.end(), 0.,
                [qi=qszinv_](double s, auto v) {return s + v.second * qi * std::log(v.second * qi);});
     }
     double next_ent(char c) {
