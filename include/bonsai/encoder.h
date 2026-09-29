@@ -15,6 +15,7 @@
 #include <mutex>
 #include "rollinghash/rabinkarphash.h"
 #include "rollinghash/cyclichash.h"
+#include "polyhash.h"
 #include "ntHash/nthash.hpp"
 #include "alphabet.h"
 #include "rhtraits.h"
@@ -638,7 +639,11 @@ public:
 
 
 
-template<typename IntType, typename HashClass=CyclicHash<IntType>>
+// HashClass defaults to a polynomial hash modulo 2^61 - 1. A cyclic hash in a
+// w-bit word gives positions i and i + w the same rotation, so k-mers longer
+// than w collide structurally, for example when they differ by swapping two
+// such positions or when their period divides w.
+template<typename IntType, typename HashClass=PolyHash<IntType>>
 struct RollingHasher {
     static_assert(std::is_integral<IntType>::value || sizeof(IntType) > 8, "Must be integral (or by uint128/int128)");
     long long int k_;
