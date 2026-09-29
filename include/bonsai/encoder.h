@@ -887,7 +887,7 @@ struct RollingHasherSet {
         std::mt19937_64 mt(seedseed);
         hashers_.reserve(c.size());
         for(const auto k: c)
-            hashers_.emplace_back(k, canon, enc, mt(), mt());
+            hashers_.emplace_back(k, canon, enc, -1, mt(), mt());
     }
     template<typename Functor>
     void for_each_canon(const Functor &func, const char *s, size_t l) {
@@ -907,28 +907,37 @@ struct RollingHasherSet {
             } // Fixme: this ignores both strands when one becomes 'N'-contaminated.
               // In the future, encode the side that is still valid
             else {
-                for(auto &h: hashers_) h.hasher_.eat(v1), h.rchasher_.eat(cstr_rc_lut[s[h.k_ - i - 1]]);
+                for(auto &h: hashers_) h.hasher_.eat(v1);
                 ++nf;
             }
         }
+        // Once a hasher's forward strand holds s[i - k_, i), seed its reverse-strand
+        // hasher with the reverse complement of the same k-mer.
+        auto seed_rc = [&](auto &h, size_t end) {
+            for(size_t j = end; j-- > end - h.k_;) h.rchasher_.eat(cstr_rc_lut[s[j]]);
+        };
         for(size_t hi = 0; hi < hashers_.size(); ++hi) {
             auto &h(hashers_[hi]);
-            if(nf >= h.k_)
+            if(nf == h.k_) {
+                seed_rc(h, i);
                 func(std::min(h.hasher_.hashvalue, h.rchasher_.hashvalue), hi);
+            }
         }
         for(;i < l; ++i) {
             if((v1 = cstr_lut[s[i]]) == uint8_t(-1))
                 goto fixup;
             for(size_t hi = 0; hi < hashers_.size(); ++hi) {
                 auto &h(hashers_[hi]);
-                //h.rchasher_.eat(cstr_rc_lut[s[i - nf + h.k_ - 1]]);
                 if(nf >= h.k_) {
                     h.rchasher_.reverse_update(cstr_rc_lut[s[i]], cstr_rc_lut[s[i - h.k_]]);
                     h.hasher_.update(cstr_lut[s[i - h.k_]], v1);
                     func(std::min(h.hasher_.hashvalue, h.rchasher_.hashvalue), hi);
                 } else {
                     h.hasher_.eat(v1);
-                    h.rchasher_.eat(cstr_rc_lut[s[i + h.k_ - nf - 1]]);
+                    if(nf + 1 == h.k_) {
+                        seed_rc(h, i + 1);
+                        func(std::min(h.hasher_.hashvalue, h.rchasher_.hashvalue), hi);
+                    }
                 }
             }
             ++nf;
