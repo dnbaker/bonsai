@@ -458,8 +458,9 @@ public:
                     else for_each_uncanon_unspaced_windowed(func);
                 }
             } else {
-                if(canonicalize_) for_each_uncanon_spaced(func);
-                //else              for_each_canon_spaced(func); Unless the spaced seed is symmetric, we can't do this
+                // Spaced seeds are never canonicalized: unless the seed is
+                // symmetric, a k-mer and its reverse complement use different positions.
+                for_each_uncanon_spaced(func);
             }
         }
     }
