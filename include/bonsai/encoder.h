@@ -215,6 +215,9 @@ public:
         while(likely(has_next_kmer()))
             if((min = next_canonicalized_minimizer()) != ENCODE_OVERFLOW)
                 func(min);
+        // A record with fewer k-mers than the window still yields its best one.
+        if(qmap_.partially_full())
+            func(max_in_queue().el_);
     }
     template<typename Functor>
     INLINE void for_each_canon_unwindowed(const Functor &func) {
