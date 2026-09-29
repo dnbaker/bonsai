@@ -617,9 +617,21 @@ public:
         const KmerT kscore(scorer_(k, getdata()));
         return qmap_.next_value(k, kscore);
     }
+    // ENCODE_OVERFLOW marks a k-mer with an invalid character, but when the
+    // k-mer fills KmerT (poly-T at k = 32) it is also a valid encoding.
+    INLINE bool kmer_is_valid(unsigned start) const {
+        if(lutptr[uint8_t(s_[start])] == int8_t(-1)) return false;
+        for(const auto space: sp_.s_)
+            if(lutptr[uint8_t(s_[start += space])] == int8_t(-1)) return false;
+        return true;
+    }
     INLINE KmerT next_canonicalized_minimizer() {
         assert(has_next_kmer());
-        KmerT nk = kmer(pos_++);
+        const unsigned start = pos_++;
+        KmerT nk = kmer(start);
+        // Invalid k-mers stay out of the window, as in the unspaced rolling
+        // encoders; canonicalizing the marker would turn it into poly-A.
+        if(nk == ENCODE_OVERFLOW && !kmer_is_valid(start)) return ENCODE_OVERFLOW;
         if(rht == DNA) nk = canonical_representation(nk, sp_.k_);
         const KmerT kscore(scorer_(nk, getdata()));
         return qmap_.next_value(nk, kscore);
