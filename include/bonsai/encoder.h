@@ -367,13 +367,6 @@ public:
         if(qmap_.partially_full())
             func(max_in_queue().el_);
     }
-    template<typename Functor>
-    INLINE void for_each_canon_unspaced_windowed_entropy_(const Functor &func) {
-        this->for_each_uncanon_unspaced_windowed_entropy_([&,rht=this->rht](KmerT min) {
-            if(rht == DNA) min = canonical_representation(min, sp_.k_);
-            return func(min);
-        });
-    }
     // Utility 'for-each'-like functions.
     template<typename Functor>
     INLINE void for_each_hash(const Functor &func, const char *str, u64 l, unsigned k = 0) {
@@ -441,14 +434,10 @@ public:
         if(!has_next_kmer()) return;
         if(rht != DNA && canonicalize_) {canonicalize_ = false;}
         if(canonicalize_) {
-            if(sp_.unwindowed()) {
-                 for_each_canon_unwindowed(func);
-            } else {
-                if(std::is_same<ScoreType, score::Entropy>::value) {
-                    if(sp_.unspaced()) for_each_canon_unspaced_windowed_entropy_(func);
-                    else               for_each_canon_windowed(func);
-                } else for_each_canon_windowed(func);
-            }
+            // Windows are scored on canonical k-mers, as in the file API, so
+            // that a sequence and its reverse complement select the same k-mers.
+            if(sp_.unwindowed()) for_each_canon_unwindowed(func);
+            else                 for_each_canon_windowed(func);
         } else {
             if(sp_.unspaced()) {
                 if(sp_.unwindowed()) for_each_uncanon_unspaced_unwindowed(func);
