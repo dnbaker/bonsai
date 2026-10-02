@@ -805,9 +805,11 @@ public:
 
     template<typename Functor>
     void for_each_uncanon(const Functor &func, const char *s, size_t l) {
+        // Clear the window first, so that a record too short for a k-mer
+        // leaves it empty rather than holding the previous record's k-mers.
+        qmap_.reset();
         if(l < size_t(k_)) return;
         hasher_.reset();
-        qmap_.reset();
         size_t i;
         long long int nf;
         int8_t v1;
