@@ -325,7 +325,11 @@ public:
             }
             if(likely(filled == sp_.k_)) {
                 min = app.finish(min);
-                if((kmer = qmap_.next_value(min, scorer_(min, getdata()))) != ENCODE_OVERFLOW) func(kmer);
+                // QueueMap returns all ones for a window that is not full, but all
+                // ones is also poly-T when the k-mer fills KmerT, so a full window
+                // emits its minimizer whatever its value.
+                if((kmer = qmap_.next_value(min, scorer_(min, getdata()))) != ENCODE_OVERFLOW || qmap_.n_in_queue() == qmap_.size())
+                    func(kmer);
                 --filled;
             }
         }
@@ -355,7 +359,8 @@ public:
             }
             if(likely(filled == sp_.k_)) {
                 min = app.finish(min);
-                if((kmer = qmap_.next_value(min, ent_score(min, &ent))) != ENCODE_OVERFLOW) func(kmer);
+                if((kmer = qmap_.next_value(min, ent_score(min, &ent))) != ENCODE_OVERFLOW || qmap_.n_in_queue() == qmap_.size())
+                    func(kmer);
                 --filled;
             }
         }
