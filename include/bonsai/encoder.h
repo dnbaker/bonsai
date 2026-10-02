@@ -233,10 +233,21 @@ public:
     }
     template<typename Functor>
     INLINE void for_each_uncanon_spaced(const Functor &func) {
-        KmerT min;
-        while(likely(has_next_kmer()))
-            if((min = next_minimizer()) != ENCODE_OVERFLOW)
+        // Windows run over the valid k-mers: a k-mer with an invalid character
+        // is skipped rather than entering the window as ENCODE_OVERFLOW. All
+        // ones is also poly-T when the k-mer fills KmerT, so validity is
+        // rechecked in that case, and a full window emits whatever it holds.
+        while(likely(has_next_kmer())) {
+            const unsigned start = pos_++;
+            const KmerT km = kmer(start);
+            if(km == ENCODE_OVERFLOW && !kmer_is_valid(start)) continue;
+            const KmerT min = qmap_.next_value(km, scorer_(km, getdata()));
+            if(min != ENCODE_OVERFLOW || qmap_.n_in_queue() == qmap_.size())
                 func(min);
+        }
+        // A record with fewer valid k-mers than the window still yields its best one.
+        if(qmap_.partially_full())
+            func(max_in_queue().el_);
     }
     // Appends one character code to a k-mer for the unspaced rolling encoders.
     // Bit-packed alphabets shift the new code in and mask off the oldest
