@@ -886,8 +886,13 @@ struct RollingHasherSet {
     RollingHasherSet(const C &c, bool canon=false, InputType enc=DNA, uint64_t seedseed=1337u): canon_(canon) {
         std::mt19937_64 mt(seedseed);
         hashers_.reserve(c.size());
-        for(const auto k: c)
-            hashers_.emplace_back(k, canon, enc, -1, mt(), mt());
+        for(const auto k: c) {
+            // The seeds are drawn in separate statements because the evaluation order of
+            // function arguments is unspecified and differs between compilers and targets.
+            const uint64_t seed1 = mt();
+            const uint64_t seed2 = mt();
+            hashers_.emplace_back(k, canon, enc, -1, seed1, seed2);
+        }
     }
     template<typename Functor>
     void for_each_canon(const Functor &func, const char *s, size_t l) {
