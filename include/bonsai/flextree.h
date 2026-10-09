@@ -40,7 +40,8 @@ INLINE u64 get_score(const NodeType *node) {return get_score(*node);}
 
 struct node_lt {
     bool operator()(const NodeType *a, const NodeType *b) const {
-        return get_score(*a) < get_score(*b);
+        const u64 sa(get_score(*a)), sb(get_score(*b));
+        return sa == sb ? a < b: sa < sb; // Tie-break on address so equal-score candidates are all kept.
     }
 };
 
@@ -110,7 +111,8 @@ public:
         LOG_DEBUG("Map size: %zu\n", map.size());
         for(auto &&pair: map) add(std::move(pair.second));
 #else
-        for(auto &&pair: bitmap_t(kgset_t(list, sp, canonicalize, num_threads, acc)).get_map()) add(std::move(pair.second));
+        bitmap_t tmp_bitmap(kgset_t(list, sp, canonicalize, num_threads, acc));
+        for(auto &&pair: tmp_bitmap.get_map()) add(std::move(pair.second));
 #endif
     }
 };
@@ -127,6 +129,8 @@ class FMEmitter {
     const size_t         max_heapsz_;
     unsigned            left_to_add_;
     const bool                canon_;
+    // Instrumentation for greedy placement: (parent taxid, score) per emitted node.
+    std::vector<std::pair<tax_t, u64>> added_nodes_;
 
 
     /*
@@ -140,6 +144,7 @@ class FMEmitter {
         ks.putl_(get_score(*node));
         ks.putc_('\t');
         ks.putuw_(fm.parent());
+        ks.putc_('\t');
         const auto &taxes(fm.get_taxes());
         for(size_t i = 0, e = node->first.size(); i < e; ++i) {
             if((val = node->first[i]) == 0) continue;
@@ -171,6 +176,7 @@ class FMEmitter {
         return true;
     }
 public:
+    const std::vector<std::pair<tax_t, u64>> &added_nodes() const {return added_nodes_;}
     // Also need a map of taxid to tax level.
     FMEmitter(khash_t(p) *tax, const std::unordered_map<tax_t, std::forward_list<std::string>> &taxpathmap, bool canonicalize=true,
               size_t max_heapsz=1<<8, size_t to_add=0):
@@ -255,12 +261,14 @@ public:
                 }
             }
             for(auto it(heap_.crbegin()), sit(heap_.crend()); it != sit;) {
-                format_emitted_node(ks, *it++, ++maxtax);
+                format_emitted_node(ks, *it, ++maxtax);
+                added_nodes_.emplace_back(subtrees_[(*it)->second.si_].parent(), get_score(*it));
                 (*it)->second.added_ = 1;
                 if(ks.size() & ~(BufferSize-1)) {
                     ks.write(fd), ks.clear();
                 }
                 if(--left_to_add_ == 0) return;
+                ++it;
             }
             std::fputs("I could continue this loop to add more nodes, but I am exiting for the proof of concept.\n", stderr);
             break;
@@ -271,13 +279,23 @@ public:
                 subtree.fill_heap(heap_, max_heapsz_);
                 // condense_subtree(heap_);
             }
+            if(heap_.empty()) {
+                LOG_WARNING("All candidate nodes have been added, but %u additions were requested. Stopping early.\n", left_to_add_);
+                break;
+            }
             for(auto it(heap_.crbegin()), sit(heap_.crend()); it != sit;) {
-                format_emitted_node(ks, *it++, ++maxtax);
+                format_emitted_node(ks, *it, ++maxtax);
+                added_nodes_.emplace_back(subtrees_[(*it)->second.si_].parent(), get_score(*it));
                 (*it)->second.added_ = 1;
                 if(ks.size() & ~(BufferSize-1)) {
                     ks.write(fd), ks.clear();
                 }
                 if(--left_to_add_ == 0) break;
+                ++it;
+            }
+            for(auto it(heap_.begin()); it != heap_.end();) {
+                if((*it)->second.added_) it = heap_.erase(it);
+                else ++it;
             }
         }
         ks.write(fd), ks.clear();
