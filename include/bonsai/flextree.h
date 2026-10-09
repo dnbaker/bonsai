@@ -69,6 +69,7 @@ public:
     auto num_descendents()  const {return bitcount_;}
     template<typename T, typename LT>
     void fill_heap(std::set<T, LT> &heap, size_t max_heap_size) const {
+        if(max_heap_size == 0) return;
         for(auto &pair: map_) {
             std::pair<const bitvec_t, fnode_t> &ref(const_cast<std::pair<const bitvec_t, fnode_t> &>(pair));
             if(ref.second.added_) continue;

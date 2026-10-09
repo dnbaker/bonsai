@@ -396,6 +396,8 @@ int metatree_usage(const char *arg) {
                          "    Repeating this option multiple times accepts genomes which are descendents of any taxid provided by this option.\n"
                          "-p: nthreads [1] (set to -1 to use all threads.)\n"
                          "-n: nthreads [1]\n"
+                         "-r: Reform the taxonomy so that every genome gets a node (TODO.md item 2), write\n"
+                         "    <arg>.names.gz, <arg>.o2n.gz, and <arg>.n2o.gz, and emit placements against the reformed ids.\n"
                  , arg);
     std::exit(EXIT_FAILURE);
     return EXIT_FAILURE;
@@ -413,9 +415,9 @@ int metatree_main(int argc, char *argv[]) {
     size_t heap_size = 1 << 15;
     std::vector<tax_t> accept_lcas;
     FILE *ofp(stdout);
-    std::string paths_file, folder, spacing;
+    std::string paths_file, folder, spacing, reform_prefix;
     std::ios_base::sync_with_stdio(false);
-    while((c = getopt(argc, argv, "L:p:w:k:s:f:F:n:h?")) >= 0) {
+    while((c = getopt(argc, argv, "L:p:w:k:s:f:F:r:n:o:h?")) >= 0) {
         switch(c) {
             case '?': case 'h':     return metatree_usage(*argv);
             case 'f': folder      = optarg;                       break;
@@ -425,6 +427,7 @@ int metatree_main(int argc, char *argv[]) {
             case 'p': num_threads = std::atoi(optarg);            break;
             case 'n': nelem       = std::strtoull(optarg, 0, 10); break;
             case 'L': accept_lcas.push_back(std::atoi(optarg));   break;
+            case 'r': reform_prefix = optarg;                     break;
         }
     }
     if(num_threads <= 0) num_threads = std::thread::hardware_concurrency();
@@ -473,10 +476,34 @@ int metatree_main(int argc, char *argv[]) {
     LOG_INFO("Processing %zu genomes\n", inpaths.size());
 
 // Core
-    std::vector<tax_t> taxes(get_sorted_taxes(taxmap, argv[optind + 1]));
-    taxes = vector_set_filter(taxes, used_taxes);
-    std::cerr << "Got sorted taxes\n";
-    auto tx2desc_map(tax2desc_genome_map(tax2genome_map(name_hash, inpaths), taxmap, taxes, tax_depths));
+    std::unordered_map<tax_t, std::forward_list<std::string>> tx2desc_map;
+    std::vector<tax_t> taxes;
+    std::unique_ptr<TaxonomyReformation> tr;
+    if(!reform_prefix.empty()) {
+        // Build a concise taxonomy (a node per genome) from the genomes,
+        // their taxid annotations, and the NCBI taxonomy, then place k-mers
+        // against the reformed ids.
+        tr.reset(new TaxonomyReformation(argv[optind + 2], inpaths, taxmap));
+        tr->write_name_map((reform_prefix + ".names.gz").data());
+        tr->write_old_to_new((reform_prefix + ".o2n.gz").data());
+        tr->write_new_to_old((reform_prefix + ".n2o.gz").data());
+        taxmap = const_cast<khash_t(p) *>(tr->pmap());
+        max_tax = get_max_val(taxmap);
+        for(khiter_t ki(0); ki != kh_end(taxmap); ++ki)
+            if(kh_exist(taxmap, ki) && kh_key(taxmap, ki) != 1) taxes.push_back(kh_key(taxmap, ki));
+        for(const auto &pair: tr->newid_paths()) { // genome leaf -> path; walk ancestors
+            for(tax_t t(pair.first), p(t); t; t = p) {
+                auto it(tx2desc_map.find(t));
+                if(it == tx2desc_map.end()) it = tx2desc_map.emplace(t, std::forward_list<std::string>{}).first;
+                it->second.push_front(pair.second);
+                const khint_t ki(kh_get(p, taxmap, t));
+                p = ki == kh_end(taxmap) ? 0 : kh_val(taxmap, ki);
+            }
+        }
+    } else {
+        taxes = vector_set_filter(get_sorted_taxes(taxmap, argv[optind + 1]), used_taxes);
+        tx2desc_map = tax2desc_genome_map(tax2genome_map(name_hash, inpaths), taxmap, taxes, tax_depths);
+    }
 #if !NDEBUG
     for(const auto tax: taxes) assert(kh_get(p, taxmap, tax) != kh_end(taxmap));
     ks::string ks;
@@ -499,18 +526,19 @@ int metatree_main(int argc, char *argv[]) {
     ks.write(stderrfn);
     ks.clear();
 #endif
-    // TODO: Add new taxonomy creation
-    FMEmitter fme(taxmap, tx2desc_map, heap_size, nelem);
-    std::vector<tax_t> tmptaxes;
-#if USE_CPPITERTOOLS
-    for(auto &&pair: iter::groupby(taxes, [tm=taxmap](const tax_t a){return get_parent(tm, a);})) {
-        // Copying just because I don't trust the lifetime management of iter::groupby.
-        for(const auto tax: pair.second) tmptaxes.push_back(tax);
-        std::cerr << "Going through taxes with parent = " << static_cast<tax_t>(pair.first) << '\n';
-        fme.process_subtree(pair.first, begin(tmptaxes), end(tmptaxes), sp, num_threads, nullptr);
-        tmptaxes.clear();
+    // (canonicalize, max_heapsz, to_add) -- positional drift here once bound
+    // heap_size to canonicalize and nelem to max_heapsz_, crashing fill_heap.
+    FMEmitter fme(taxmap, tx2desc_map, true, heap_size, nelem);
+    // Group taxes by parent and emit per subtree; no cppitertools needed.
+    pdqsort(taxes.begin(), taxes.end(), [taxmap](const tax_t a, const tax_t b) {
+        return get_parent(taxmap, a) < get_parent(taxmap, b);
+    });
+    for(auto bit(taxes.begin()); bit != taxes.end();) {
+        auto eit(bit);
+        while(eit != taxes.end() && get_parent(taxmap, *eit) == get_parent(taxmap, *bit)) ++eit;
+        fme.process_subtree(get_parent(taxmap, *bit), bit, eit, sp, num_threads, nullptr);
+        bit = eit;
     }
-#endif
 
     fme.run_collapse(max_tax, ofp);
     if(ofp != stdout) std::fclose(ofp);
