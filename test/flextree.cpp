@@ -56,8 +56,9 @@ Synthetic taxonomy:
       +- 201, 202  (share kmer Z)
 */
 std::string make_taxonomy_file(const std::string &dir) {
+    // build_parent_map parses NCBI nodes.dmp-style lines ("child|\tparent").
     return write_file(dir + "/tax.txt",
-        "100|1\n200|1\n101|100\n102|100\n103|100\n104|100\n201|200\n202|200\n");
+        "100|\t1\n200|\t1\n101|\t100\n102|\t100\n103|\t100\n104|\t100\n201|\t200\n202|\t200\n");
 }
 
 struct EmittedNode {
