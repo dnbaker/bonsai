@@ -22,6 +22,12 @@ namespace bns {
 
 INLINE unsigned pc64(u64 x) {return __builtin_popcountll(x);}
 
+// Whether synthetic nodes may pull genomes out of existing taxa.
+// unrestricted: adopt whole subtrees, then steal remaining member leaves.
+// respect_taxonomy: the grouped set must be a union of whole existing
+// subtrees (any depth); candidates that would split taxa are rejected.
+enum class GraftPolicy { unrestricted, respect_taxonomy };
+
 // Distinct k-mer target sets: bitmap over genomes -> number of distinct
 // k-mers with that bitmap and their total occurrence count (weight).
 struct KmerClasses {
@@ -178,16 +184,15 @@ public:
     u64 err(u64 set) const {return u64(pc64(implied(set) ^ set));}
 
     // Add a synthetic node grouping `mask`; returns its id, or -1 if the set
-    // is already a node. Nothing outside the adopted/stolen subtrees moves.
-    i64 add_synthetic(u64 mask) {
+    // is already a node or (under GraftPolicy::respect_taxonomy) the set is
+    // not a union of whole existing subtrees. Nothing outside the
+    // adopted/stolen subtrees moves.
+    i64 add_synthetic(u64 mask, GraftPolicy policy = GraftPolicy::unrestricted) {
         if(pc64(mask) < 2) return -1;
         const u32 N(lca(mask));
         if(nodes_[N].mask == mask) return -1;
-        const u32 x(nodes_.size());
-        nodes_.push_back(PNode{mask, N, {}, 0, false, true, true});
-        nodes_[N].children.push_back(x);
         std::vector<u32> stack;
-        for(const auto c: nodes_[N].children) if(c != x) stack.push_back(c);
+        for(const auto c: nodes_[N].children) stack.push_back(c);
         std::vector<u32> adopt;
         while(!stack.empty()) {
             const u32 d(stack.back());
@@ -197,14 +202,21 @@ public:
             else for(const auto c: nodes_[d].children) stack.push_back(c);
         }
         u64 covered(0);
+        for(const auto d: adopt)
+            if(policy == GraftPolicy::unrestricted || !nodes_[d].leaf) covered |= nodes_[d].mask;
+        if(policy == GraftPolicy::respect_taxonomy && (mask & ~covered) != 0)
+            return -1; // would need to pull genomes out of existing taxa
+        const u32 x(nodes_.size());
+        nodes_.push_back(PNode{mask, N, {}, 0, false, true, true});
+        nodes_[N].children.push_back(x);
         std::vector<u32> touched;
         for(const auto d: adopt) {
+            if(policy == GraftPolicy::respect_taxonomy && nodes_[d].leaf) continue;
             const u32 p(nodes_[d].parent);
             auto &pc(nodes_[p].children);
             pc.erase(std::find(pc.begin(), pc.end(), d));
             nodes_[d].parent = x;
             nodes_[x].children.push_back(d);
-            covered |= nodes_[d].mask;
             touched.push_back(p);
         }
         for(u64 remaining(mask & ~covered); remaining; remaining &= remaining - 1) {
@@ -293,15 +305,12 @@ struct GreedyResult {
 };
 
 /*
-Greedy surplus addition: repeatedly add the candidate (a distinct observed
-non-singleton k-mer bitmap) with the largest exact error reduction until
-the budget is met or no candidate improves. Never increases the
-unweighted error (each step is accepted only on positive exact gain).
+Greedy surplus addition over an explicit candidate mask list: repeatedly
+add the candidate with the largest exact error reduction until the
+budget is met or no candidate improves. Never increases the unweighted
+error (each step is accepted only on positive exact gain).
 */
-inline GreedyResult greedy_synthetic_nodes(PlacementTree &tree, const KmerClasses &kc, u32 budget) {
-    std::vector<u64> candidates;
-    candidates.reserve(kc.count.size());
-    for(const auto &pair: kc.count) if(pc64(pair.first) >= 2) candidates.push_back(pair.first);
+inline GreedyResult greedy_synthetic_nodes(PlacementTree &tree, const KmerClasses &kc, u32 budget, const std::vector<u64> &candidates, GraftPolicy policy) {
     GreedyResult ret;
     ret.curve.push_back(CurvePoint{0, tree.unweighted_error(kc), tree.weighted_error(kc), tree.total_delta(kc)});
     std::unordered_set<u64> used;
@@ -312,13 +321,13 @@ inline GreedyResult greedy_synthetic_nodes(PlacementTree &tree, const KmerClasse
         for(const auto m: candidates) {
             if(used.find(m) != used.end()) continue;
             PlacementTree tmp(tree);
-            if(tmp.add_synthetic(m) < 0) {used.insert(m); continue;}
+            if(tmp.add_synthetic(m, policy) < 0) {used.insert(m); continue;}
             const double gain(base - tmp.unweighted_error(kc));
             if(gain > best_gain) {best_gain = gain; best = i64(m);}
         }
         if(best < 0) break;
         const u64 m = u64(best);
-        const i64 id(tree.add_synthetic(m));
+        const i64 id(tree.add_synthetic(m, policy));
         LOG_ASSERT(id >= 0);
         used.insert(m);
         ret.added.push_back(u32(id));
@@ -326,6 +335,23 @@ inline GreedyResult greedy_synthetic_nodes(PlacementTree &tree, const KmerClasse
         ret.curve.push_back(CurvePoint{u32(ret.added.size()), tree.unweighted_error(kc), tree.weighted_error(kc), tree.total_delta(kc)});
     }
     return ret;
+}
+
+inline GreedyResult greedy_synthetic_nodes(PlacementTree &tree, const KmerClasses &kc, u32 budget, const std::vector<u64> &candidates) {
+    return greedy_synthetic_nodes(tree, kc, budget, candidates, GraftPolicy::unrestricted);
+}
+
+/*
+Greedy surplus addition: repeatedly add the candidate (a distinct observed
+non-singleton k-mer bitmap) with the largest exact error reduction until
+the budget is met or no candidate improves. Never increases the
+unweighted error (each step is accepted only on positive exact gain).
+*/
+inline GreedyResult greedy_synthetic_nodes(PlacementTree &tree, const KmerClasses &kc, u32 budget) {
+    std::vector<u64> candidates;
+    candidates.reserve(kc.count.size());
+    for(const auto &pair: kc.count) if(pc64(pair.first) >= 2) candidates.push_back(pair.first);
+    return greedy_synthetic_nodes(tree, kc, budget, candidates);
 }
 
 struct TrimResult {
