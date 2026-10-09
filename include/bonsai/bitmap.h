@@ -84,7 +84,7 @@ public:
                 if(kh_exist(h, ki)) {
                     auto m(tmp.find(kh_key(h, ki)));
                     if(m == tmp.end()) m = tmp.emplace(kh_key(h, ki),
-                                                       bitvec_t(len, lazy::LAZY_VEC_INIT)).first;
+                                                       bitvec_t(len)).first;
                     m->second[i >> 6] |= 1u << (i & 63u);
                 }
             }
