@@ -187,6 +187,8 @@ public:
     }
 
     // Convenience functions
+    const khash_t(p) *pmap() const {return pmap_;}
+    const std::unordered_map<tax_t, std::string> &newid_paths() const {return newid_path_map;}
     tax_t parent(tax_t child) const {
         const auto ind(kh_get(p, pmap_, child));
         return ind == kh_end(pmap_) ? tax_t(-1): kh_val(pmap_, ind);
