@@ -703,15 +703,18 @@ static khash_t(name) *build_name_hash(const char *fn) noexcept {
     while((len = getline(&buf, &bufsz, fp)) >= 0) {
         switch(*buf) case '\0': case '\n': case '#': continue;
         p = ::bns::strchrnul(buf, '\t');
-        ki = kh_put(name, ret, buf, &khr);
+        // Insert under the name alone; the bucket is chosen by hashing the key,
+        // and lookups (get_taxid) probe with only the name.
+        namelen = p - buf;
+        char *tmp = static_cast<char *>(std::malloc(namelen + 1));
+        std::memcpy(tmp, buf, namelen);
+        tmp[namelen] = '\0';
+        ki = kh_put(name, ret, tmp, &khr);
         if(khr == 0) { // Key already present.
+            std::free(tmp);
             LOG_INFO("Key %s already present. Updating value from "
                      "%i to %s.\tNote: if you have performed TaxonomyReformation, this is an error.\n", kh_key(ret, ki), kh_val(ret, ki), p + 1);
         } else {
-            namelen = p - buf;
-            char *tmp = static_cast<char *>(std::malloc(namelen + 1));
-            std::memcpy(tmp, buf, namelen);
-            tmp[namelen] = '\0';
             kh_key(ret, ki) = tmp;
         }
         kh_val(ret, ki) = std::atoi(p + 1);
