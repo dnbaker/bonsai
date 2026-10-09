@@ -67,6 +67,7 @@ class PlacementTree {
         u64 mask;
         u32 parent;              // u32(-1) for the root
         std::vector<u32> children;
+        tax_t taxid;             // original taxonomy id for taxonomy nodes, 0 for leaves/synthetic
         bool leaf;
         bool synthetic;
         bool alive;
@@ -110,12 +111,27 @@ public:
             const tax_t par(kh_val(tax, ki));
             if(par == 0) {
                 pending.pop_back();
+                // A map may hold several parent-0 entries (e.g. a reformed
+                // taxonomy with super-root 1 plus an old root); kraken
+                // expects id 1 to be the root, so hang every other
+                // parent-0 node under 1.
+                const bool has_superroot(kh_get(p, tax, 1) != kh_end(tax));
+                if(has_superroot && t != 1 && tmap.find(1) == tmap.end()) {
+                    const u32 rid(nodes_.size());
+                    nodes_.push_back(PNode{0, u32(-1), {}, 1, false, false, true});
+                    tmap[1] = rid;
+                    root_ = rid;
+                }
                 if(tmap.find(t) == tmap.end()) {
+                    const u32 pid(has_superroot && t != 1 ? tmap[1]: u32(-1));
                     const u32 id(nodes_.size());
-                    nodes_.push_back(PNode{0, u32(-1), {}, false, false, true});
+                    nodes_.push_back(PNode{0, pid, {}, t, false, false, true});
+                    if(pid != u32(-1)) nodes_[pid].children.push_back(id);
                     tmap[t] = id;
-                    if(root_ != u32(-1)) RUNTIME_ERROR("Taxonomy has multiple roots.");
-                    root_ = id;
+                    if(pid == u32(-1)) {
+                        if(root_ != u32(-1)) RUNTIME_ERROR("Taxonomy has multiple roots.");
+                        root_ = id;
+                    }
                 }
             } else if(tmap.find(par) == tmap.end()) {
                 pending.push_back(par);
@@ -123,7 +139,7 @@ public:
                 pending.pop_back();
                 if(tmap.find(t) == tmap.end()) {
                     const u32 id(nodes_.size());
-                    nodes_.push_back(PNode{0, tmap[par], {}, false, false, true});
+                    nodes_.push_back(PNode{0, tmap[par], {}, t, false, false, true});
                     nodes_[tmap[par]].children.push_back(id);
                     tmap[t] = id;
                 }
@@ -133,7 +149,7 @@ public:
         leaf_.resize(ngenomes_);
         for(u32 i(0); i < ngenomes_; ++i) {
             const u32 id(nodes_.size());
-            nodes_.push_back(PNode{u64(1) << i, tmap.at(genome_taxa[i]), {}, true, false, true});
+            nodes_.push_back(PNode{u64(1) << i, tmap.at(genome_taxa[i]), {}, 0, true, false, true});
             nodes_[tmap.at(genome_taxa[i])].children.push_back(id);
             leaf_[i] = id;
         }
@@ -168,7 +184,7 @@ public:
         const u32 N(lca(mask));
         if(nodes_[N].mask == mask) return -1;
         const u32 x(nodes_.size());
-        nodes_.push_back(PNode{mask, N, {}, false, true, true});
+        nodes_.push_back(PNode{mask, N, {}, 0, false, true, true});
         nodes_[N].children.push_back(x);
         std::vector<u32> stack;
         for(const auto c: nodes_[N].children) if(c != x) stack.push_back(c);
@@ -247,6 +263,14 @@ public:
     }
 
     u64 mask(u32 id) const {return nodes_[id].mask;}
+    u32 parent_of(u32 id) const {return nodes_[id].parent;}
+    tax_t node_taxid(u32 id) const {return nodes_[id].taxid;}
+    bool is_synthetic(u32 id) const {return nodes_[id].synthetic;}
+    bool is_leaf_node(u32 id) const {return nodes_[id].leaf;}
+    bool is_alive(u32 id) const {return nodes_[id].alive;}
+    u32 leaf_node(u32 genome) const {return leaf_[genome];}
+    const std::vector<u32> &children_of(u32 id) const {return nodes_[id].children;}
+    u32 nnodes() const {return u32(nodes_.size());}
     u32 root() const {return root_;}
     u64 genome_mask() const {return ngenomes_ == 64 ? ~u64(0): (u64(1) << ngenomes_) - 1;}
     u32 nsynthetic() const {
