@@ -104,10 +104,10 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
     std::memset(counters.data(), 0, sizeof(khash_t(all)) * counters.size());
     LOG_DEBUG("Started things\n");
     if(MapUpdater::ValSize == 8) {
-        r64 = static_cast<khash_t(64) *>(std::calloc(sizeof(khash_t(64)), 1));
+        r64 = static_cast<khash_t(64) *>(std::calloc(1, sizeof(khash_t(64))));
         kh_resize(64, r64, start_size);
     } else {
-        r32 = static_cast<khash_t(c) *>(std::calloc(sizeof(khash_t(c)), 1));
+        r32 = static_cast<khash_t(c) *>(std::calloc(1, sizeof(khash_t(c))));
         kh_resize(c, r32, start_size);
     }
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));

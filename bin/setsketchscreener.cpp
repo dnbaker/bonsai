@@ -94,8 +94,8 @@ MapT process(bns::Encoder<> *encoders, bns::RollingHasher<uint64_t> *rencoders,
                 std::vector<std::pair<char *, size_t>> &seqbuffers);
 
 int main(int argc, char **argv) {
-    bool basename = false;
-    int ret = 0;
+    [[maybe_unused]] bool basename = false;
+    [[maybe_unused]] int ret = 0;
     std::vector<std::string> names;
     std::FILE *ofp = stdout;
     std::string kmerparsetype = "bns";
@@ -141,7 +141,7 @@ int main(int argc, char **argv) {
     if(names.empty()) return usage();
     const RollingHashingType alphabet = enable_protein ? RollingHashingType::PROTEIN: RollingHashingType::DNA;
     const size_t memtoalloc = (sizeof(bns::RollingHasher<uint64_t>) + sizeof(bns::Encoder<>)) * nthreads + 63;
-    std::unique_ptr<uint8_t> mem(new uint8_t[memtoalloc]);
+    std::unique_ptr<uint8_t[]> mem(new uint8_t[memtoalloc]);
     uint8_t *memp = mem.get(), *ap = reinterpret_cast<uint8_t *>(reinterpret_cast<uint64_t>(memp) + (uint64_t)memp % 64 ? int(64 - (uint64_t)memp % 64): 0);
     bns::RollingHasher<uint64_t> *rencoders = (bns::RollingHasher<uint64_t> *)ap;
     bns::Encoder<> *encoders = (bns::Encoder<> *)(&rencoders[nthreads]);
