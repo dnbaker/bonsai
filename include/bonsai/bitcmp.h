@@ -34,12 +34,11 @@ inline int veccmp(const void *a, const void *b, size_t nbytes) {
     const __m128i *pa = reinterpret_cast<const __m128i*>(a),
                   *pb = reinterpret_cast<const __m128i*>(b);
     size_t n127(nbytes >> 4), nlo(nbytes & 15u);
-    int aparent(1), bparent(1); // a could be parent of b, b could be parent of a.
     while(n127--) {
         aentry = _mm_loadu_si128(pa++);
         bentry = _mm_loadu_si128(pb++);
-        bparent &= _mm_testz_si128(aentry, ~bentry);
-        aparent &= _mm_testz_si128(bentry, ~aentry);
+        bparent &= _mm_movemask_epi8(_mm_andnot_si128(bentry, aentry)) == 0;
+        aparent &= _mm_movemask_epi8(_mm_andnot_si128(aentry, bentry)) == 0;
         if((aparent == 0) & (bparent == 0)) return BitCmp::INCOMPARABLE;
     }
 #else
