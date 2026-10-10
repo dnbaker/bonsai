@@ -164,6 +164,9 @@ lib/libbonsai.a: $(OBJS)
 zlib/libz.a:
 	+cd zlib && (./configure || echo "no configure needed") && $(MAKE)
 
+grafting_bench: bench/grafting_bench.cpp $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
+
 sketch_ab_bench: bench/sketch_ab_bench.cpp $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
 
