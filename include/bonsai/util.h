@@ -18,6 +18,8 @@
 #include <unordered_set>
 #include <sys/stat.h>
 #include <zlib.h>
+#include <cerrno>
+#include <unistd.h>
 #include "klib/kthread.h"
 
 
@@ -103,6 +105,42 @@
 
 namespace bns {
 using namespace std::literals;
+
+// Full-transfer POSIX write: loop on short counts, restart on EINTR. Returns
+// the number of bytes written, or -1 with errno preserved on a hard error;
+// a zero-length progress report from write() is treated as EIO. Use for
+// blocking fds when the whole buffer must land (index dumps, k-mer blobs).
+INLINE ssize_t write_all(int fd, const void *buf, size_t n) noexcept {
+    const char *p(static_cast<const char *>(buf));
+    size_t done(0);
+    while(done < n) {
+        const ssize_t ret(::write(fd, p + done, n - done));
+        if(ret < 0) {
+            if(errno == EINTR) continue;
+            return -1;
+        }
+        if(ret == 0) {errno = EIO; return -1;}
+        done += size_t(ret);
+    }
+    return ssize_t(done);
+}
+// Full-transfer POSIX read: loop on short counts, restart on EINTR. Returns
+// the number of bytes read; a short count means EOF, -1 with errno preserved
+// means a hard error.
+INLINE ssize_t read_all(int fd, void *buf, size_t n) noexcept {
+    char *p(static_cast<char *>(buf));
+    size_t done(0);
+    while(done < n) {
+        const ssize_t ret(::read(fd, p + done, n - done));
+        if(ret < 0) {
+            if(errno == EINTR) continue;
+            return -1;
+        }
+        if(ret == 0) break;
+        done += size_t(ret);
+    }
+    return ssize_t(done);
+}
 
 using RNGType = wy::WyHash<uint64_t, 8>;
 
@@ -276,7 +314,7 @@ void print_khash(T *rex) noexcept {
 }
 
 
-#define __fw(item, fn) ::write(fn, static_cast<const void *>(std::addressof(item)), sizeof(item))
+#define __fw(item, fn) write_all(fn, static_cast<const void *>(std::addressof(item)), sizeof(item))
 template<typename T>
 size_t khash_write_impl(const T *map, const int fn) noexcept {
     for(khiter_t ki(0); ki != kh_end(map); ++ki)
@@ -286,9 +324,9 @@ size_t khash_write_impl(const T *map, const int fn) noexcept {
     ret += __fw(map->n_occupied, fn);
     ret += __fw(map->size, fn);
     ret += __fw(map->upper_bound, fn);
-    ret += ::write(fn, map->flags, __ac_fsize(map->n_buckets) * sizeof(*map->flags));
-    ret += ::write(fn, map->keys, map->n_buckets * sizeof(*map->keys));
-    ret += ::write(fn, map->vals, map->n_buckets * sizeof(*map->vals));
+    ret += write_all(fn, map->flags, __ac_fsize(map->n_buckets) * sizeof(*map->flags));
+    ret += write_all(fn, map->keys, map->n_buckets * sizeof(*map->keys));
+    ret += write_all(fn, map->vals, map->n_buckets * sizeof(*map->vals));
     return ret;
 }
 #undef __fw
@@ -336,10 +374,10 @@ T *khash_load_impl(const int fn) noexcept {
     T *rex((T *)std::calloc(1, sizeof(T)));
     using keytype_t = std::remove_pointer_t<decltype(rex->keys)>;
     using valtype_t = std::remove_pointer_t<decltype(rex->vals)>;
-    if(::read(fn, &rex->n_buckets, sizeof(rex->n_buckets)) != sizeof(rex->n_buckets)) exit(1);
-    if(::read(fn, &rex->n_occupied, sizeof(rex->n_occupied)) !=  sizeof(rex->n_occupied)) exit(1);
-    if((::read(fn, &rex->size, sizeof(rex->size))) != sizeof(rex->size)) exit(1);
-    if(::read(fn, &rex->upper_bound, sizeof(rex->upper_bound)) != sizeof(rex->upper_bound)) exit(1);
+    if(read_all(fn, &rex->n_buckets, sizeof(rex->n_buckets)) != sizeof(rex->n_buckets)) exit(1);
+    if(read_all(fn, &rex->n_occupied, sizeof(rex->n_occupied)) !=  sizeof(rex->n_occupied)) exit(1);
+    if((read_all(fn, &rex->size, sizeof(rex->size))) != sizeof(rex->size)) exit(1);
+    if(read_all(fn, &rex->upper_bound, sizeof(rex->upper_bound)) != sizeof(rex->upper_bound)) exit(1);
     rex->flags = (u32 *)std::malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
     if(!rex->flags) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", (sizeof(*rex->flags) * __ac_fsize(rex->n_buckets)), (sizeof(*rex->flags) * __ac_fsize(rex->n_buckets)) >> 30), exit(1);
     rex->keys = (keytype_t *)std::malloc(sizeof(*rex->keys) * rex->n_buckets);
@@ -347,11 +385,11 @@ T *khash_load_impl(const int fn) noexcept {
     rex->vals = (valtype_t *)std::malloc(sizeof(*rex->vals) * rex->n_buckets);
     if(!rex->vals) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->vals) * rex->n_buckets, sizeof(*rex->vals) * rex->n_buckets >> 30), exit(1);
     ssize_t nb = __ac_fsize(rex->n_buckets) * sizeof(*rex->flags);
-    if(::read(fn, rex->flags, nb) != nb) exit(1);
+    if(read_all(fn, rex->flags, nb) != nb) exit(1);
     nb = rex->n_buckets * sizeof(*rex->keys);
-    if(::read(fn, rex->keys, nb) != nb) exit(1);
+    if(read_all(fn, rex->keys, nb) != nb) exit(1);
     nb = rex->n_buckets * sizeof(*rex->vals);
-    if(::read(fn, rex->vals, nb) != nb) exit(1);
+    if(read_all(fn, rex->vals, nb) != nb) exit(1);
     return rex;
 }
 
@@ -1173,10 +1211,10 @@ static lazy::vector<u64, size_t> load_binary_kmers(const char *path) {
     if(fp == nullptr) throw std::system_error(std::error_code(2, std::system_category()), std::string("Cannot open path at ") + path + ".\n");
     lazy::vector<u64, size_t> ret;
     u64 n;
-    ::read(fileno(fp), static_cast<void *>(&n), sizeof(n));
+    read_all(fileno(fp), static_cast<void *>(&n), sizeof(n));
     ret.resize(n, lazy::LAZY_VEC_NOINIT);
     ssize_t nread;
-    if((nread = ::read(fileno(fp), static_cast<void *>(&ret[0]), n * sizeof(u64))) != ssize_t(n * sizeof(u64)))
+    if((nread = read_all(fileno(fp), static_cast<void *>(&ret[0]), n * sizeof(u64))) != ssize_t(n * sizeof(u64)))
         RUNTIME_ERROR(ks::sprintf("Only read %zd bytes from file when expected %zu.", nread, size_t(n * sizeof(u64))).data());
     std::fclose(fp);
     return ret;

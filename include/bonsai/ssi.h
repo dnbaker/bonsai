@@ -1,5 +1,6 @@
 #ifndef BONSAI_SETSKETCHINDEX_H__
 #define BONSAI_SETSKETCHINDEX_H__
+#include "util.h"
 #include "sketch/ssi.h"
 #include <cstdint>
 #include <zlib.h>
@@ -14,7 +15,7 @@ using sketch::SetSketchIndex;
 static inline int write_database(const ska::flat_hash_map<uint64_t, std::vector<uint32_t>> &map, std::FILE *ofp, int k) {
     int ret = 0;
     const int fd = ::fileno(ofp);
-    if(::write(fd, &k, 4) != 4) throw std::runtime_error("Failed to write k");
+    if(write_all(fd, &k, 4) != 4) throw std::runtime_error("Failed to write k");
     const uint64_t total_vals = map.size();
     const uint64_t total_ids = std::accumulate(map.begin(), map.end(), uint64_t(0), [](uint64_t x, auto &pair) {return x + pair.second.size();});
     std::vector<uint32_t> nids_per_kmer(total_vals);
@@ -26,16 +27,16 @@ static inline int write_database(const ska::flat_hash_map<uint64_t, std::vector<
     static_assert(sizeof(map.begin()->first) == sizeof(uint64_t), "sanity check");
     uint64_t arr [] {total_vals, total_ids};
     int64_t npknb;
-    if(::write(fd, arr, sizeof(arr)) != sizeof(arr))
+    if(write_all(fd, arr, sizeof(arr)) != sizeof(arr))
         goto write_error;
     npknb = sizeof(uint32_t) * nids_per_kmer.size();
-    if(::write(fd, nids_per_kmer.data(), npknb) != npknb) goto write_error;
+    if(write_all(fd, nids_per_kmer.data(), npknb) != npknb) goto write_error;
     // Write keys
     for(const auto &pair: map)
-        if(::write(fd, &pair.first, sizeof(uint64_t)) != int64_t(sizeof(uint64_t)))
+        if(write_all(fd, &pair.first, sizeof(uint64_t)) != int64_t(sizeof(uint64_t)))
             goto write_error;
     for(const auto &pair: map) {
-        if(::write(fd, pair.second.data(), sizeof(uint32_t) * pair.second.size()) != int64_t(sizeof(uint32_t) * pair.second.size()))
+        if(write_all(fd, pair.second.data(), sizeof(uint32_t) * pair.second.size()) != int64_t(sizeof(uint32_t) * pair.second.size()))
             goto write_error;
     }
     if(0) {
