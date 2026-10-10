@@ -36,6 +36,20 @@ inline void update_frequency_counter(khash_t(64) *kc, const khash_t(64) *counts,
 inline void update_minimized_map(const khash_t(all) *set, const khash_t(64) *full_map, khash_t(c) *ret);
 
 template<typename ScoreType>
+// Presize a freshly-allocated khash from the input's byte size so the fill
+// loop rehashes once or twice instead of ~log2(n) times. Compressed inputs
+// underestimate the sequence length, which only leaves a couple of growth
+// rounds. No-op for non-empty or already-large tables (reused tables).
+#define BNS_KHASH_PRESIZE(name, h, path) do { \
+    if(kh_size(h) == 0 && (h)->n_buckets < 256) { \
+        struct stat sb; \
+        if(::stat(path, &sb) == 0 && sb.st_size > 0) { \
+            const u64 want(u64(sb.st_size) * 2 + 64); \
+            kh_resize(name, h, want > (u64(1) << 26) ? khint_t(1u << 26): khint_t(want)); \
+        } \
+    } \
+} while(0)
+
 size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks=nullptr);
 template<typename ScoreType>
 size_t fill_count_genome(const char *path, const Spacer &sp, khash_t(64) *ret, size_t index, void *data, bool canon, kseq_t *ks=nullptr);
@@ -118,6 +132,7 @@ template<typename ScoreType>
 size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks) {
     LOG_ASSERT(ret);
     LOG_DEBUG("Filling from genome at path %s. kseq is pre-allocated ? %s. %p\n", path, ks ? "true": "false", (void *)ks);
+    if(!ks) BNS_KHASH_PRESIZE(all, ret, path);
 
     Encoder<ScoreType> enc(0, 0, sp, data, canon);
     enc.for_each([&](auto x) {
@@ -145,6 +160,7 @@ template<typename ScoreType>
 size_t fill_count_genome(const char *path, const Spacer &sp, khash_t(64) *ret, size_t index, void *data, bool canon, kseq_t *ks) {
     LOG_ASSERT(ret);
     LOG_DEBUG("Filling k-mer counts from genome at path %s\n", path);
+    if(!ks) BNS_KHASH_PRESIZE(64, ret, path);
     Encoder<ScoreType> enc(0, 0, sp, data, canon);
     enc.for_each([&](auto x) {
         auto it = kh_get(64, ret, x);
