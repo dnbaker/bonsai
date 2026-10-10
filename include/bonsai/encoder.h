@@ -121,7 +121,7 @@ public:
 private:
     u64         pos_; // Current position within the string s_ we're working with.
     void      *data_ = nullptr; // A void pointer for using with scoring. Needed for hash_score.
-    QueueMap<KmerT, KmerT> qmap_; // queue of max scores and std::map which keeps kmers, scores, and counts so that we can select the top kmer for a window.
+    QueueMap<KmerT, KmerT> qmap_; // monotone deque holding the window minimum (score, k-mer) pair; see qmap.h.
     const ScoreType  scorer_; // scoring struct
     bool canonicalize_;
     InputType rht = InputType::DNA;
@@ -624,7 +624,7 @@ public:
         const KmerT kscore(scorer_(nk, getdata()));
         return qmap_.next_value(nk, kscore);
     }
-    auto max_in_queue() const {return qmap_.begin()->first;}
+    auto max_in_queue() const {return qmap_.max_in_queue();}
 
     bool canonicalize() const {return canonicalize_;}
     void canonicalize(bool value) {canonicalize_ = value;}
@@ -875,7 +875,7 @@ public:
     }
     void reset() {hasher_.reset(); rchasher_.reset();}
     size_t n_in_queue() const {return qmap_.n_in_queue();}
-    auto max_in_queue() const {return qmap_.begin()->first;}
+    auto max_in_queue() const {return qmap_.max_in_queue();}
     bool canonicalize() const {return canon_;}
     void canonicalize(bool value) {canon_ = value;}
 };
