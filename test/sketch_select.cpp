@@ -3,6 +3,10 @@
 #include "sketch_select.h"
 #include "util.h"
 
+#include "aesctr/wy.h"
+
+#include <cstdlib>
+#include <map>
 #include <random>
 #include <string>
 #include <vector>
@@ -182,6 +186,70 @@ TEST_CASE("sketch_candidates_nulls") {
         }
         kh_destroy(p, tax);
     }
+}
+
+// (a2) Tree-layered candidate generation: sibling-clade sketch merges
+// bottom-up must reproduce the all-pairs reference components and the exact
+// greedy placements on clade-respecting modules. Blocks are separate FASTA
+// records per genome (no background-junction k-mers): 120bp blocks give
+// pair J ~ 0.04 and 2-genome clade J ~ 0.02, both clearing the 0.008 bar;
+// unrelated pairs sit at ~0.
+TEST_CASE("sketch_candidates_tree_layered") {
+    TmpDir tmp;
+    wy::WyRand<u64> rng(31337);
+    auto rdna = [&](size_t len) {
+        static const char bases[] = "ACGT";
+        std::string ret;
+        while(ret.size() < len) ret.push_back(bases[rng() & 3]);
+        return ret;
+    };
+    khash_t(p) *tax(build_synth_taxonomy());
+    const std::string ma_block(rdna(120)), mb_block(rdna(120));
+    std::vector<std::string> paths;
+    std::vector<tax_t> gt;
+    for(unsigned g(0); g < 32; ++g) {
+        const std::string name("g" + std::to_string(g));
+        std::string content(">" + name + "\n" + rdna(1400) + "\n");
+        if(g < 4) content += ">" + name + "_mod\n" + ma_block + "\n";       // species 0-1 (genus 200): module A = genomes 0-3
+        if(g >= 8 && g < 16) content += ">" + name + "_mod\n" + mb_block + "\n"; // species 4-7 (genus 200): module B = genomes 8-15
+        paths.push_back(tmp.add(name + ".fa", content));
+        gt.push_back(100 + (g >> 1));
+    }
+    const u64 ma_mask(0x000000000000000Fu), mb_mask(0x000000000000FF00u);
+    Spacer sp(17, 17);
+    KmerClasses kc;
+    kc.fill<score::Lex>(paths, sp);
+
+    // exact greedy reference
+    PlacementTree exact_tree(tax, gt);
+    const GreedyResult exact(greedy_synthetic_nodes(exact_tree, kc, 10));
+    REQUIRE(std::set<u64>(exact.added_masks.begin(), exact.added_masks.end()) == std::set<u64>{ma_mask, mb_mask});
+
+    // all-pairs reference path (finalized sketches)
+    const auto fins(genome_sketches<score::Lex>(paths, sp, 4096));
+    const auto cands_ap(sketch_cluster_candidates(fins, 0.008));
+    PlacementTree ap_tree(tax, gt);
+    const GreedyResult gr_ap(greedy_synthetic_nodes(ap_tree, kc, 10, cands_ap));
+    REQUIRE(std::set<u64>(gr_ap.added_masks.begin(), gr_ap.added_masks.end()) == std::set<u64>{ma_mask, mb_mask});
+
+    // tree-layered path (merge-based clade sketches)
+    const auto sks(genome_sketchers<score::Lex>(paths, sp, 4096));
+    PlacementTree layer_tree(tax, gt);
+    const auto comps(sketch_cluster_candidates_tree(sks, layer_tree, 0.008));
+    std::vector<u64> cands_tree;
+    for(const auto &c: comps) {
+        u64 m(0);
+        for(const auto g: c) m |= u64(1) << g;
+        cands_tree.push_back(m);
+    }
+    std::fprintf(stderr, "sketch-tree: %zu components (all-pairs %zu)\n", comps.size(), cands_ap.size());
+    REQUIRE(std::multiset<u64>(cands_tree.begin(), cands_tree.end()) == std::multiset<u64>(cands_ap.begin(), cands_ap.end()));
+    REQUIRE(std::set<u64>(cands_tree.begin(), cands_tree.end()) == std::set<u64>{ma_mask, mb_mask});
+    PlacementTree tr_tree(tax, gt);
+    const GreedyResult gr_tr(greedy_synthetic_nodes(tr_tree, kc, 10, cands_tree));
+    REQUIRE(std::set<u64>(gr_tr.added_masks.begin(), gr_tr.added_masks.end()) == std::set<u64>{ma_mask, mb_mask});
+    REQUIRE(gr_tr.curve.back().total_delta == exact.curve.back().total_delta);
+    kh_destroy(p, tax);
 }
 
 // (b) Hash-subsampled disagreement metric vs exact.

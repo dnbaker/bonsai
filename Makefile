@@ -164,6 +164,9 @@ lib/libbonsai.a: $(OBJS)
 zlib/libz.a:
 	+cd zlib && (./configure || echo "no configure needed") && $(MAKE)
 
+sketch_ab_bench: bench/sketch_ab_bench.cpp $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
+
 tests: clean unit
 
 unit: $(DOBJS) $(TEST_OBJS)

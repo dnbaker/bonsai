@@ -283,6 +283,7 @@ public:
     u32 leaf_node(u32 genome) const {return leaf_[genome];}
     const std::vector<u32> &children_of(u32 id) const {return nodes_[id].children;}
     u32 nnodes() const {return u32(nodes_.size());}
+    u32 ngenomes() const {return ngenomes_;}
     u32 root() const {return root_;}
     u64 genome_mask() const {return ngenomes_ == 64 ? ~u64(0): (u64(1) << ngenomes_) - 1;}
     u32 nsynthetic() const {

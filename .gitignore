@@ -56,3 +56,6 @@ zomg/
 
 # Editor swap files
 *.swp
+
+# Locally-built scratch binaries
+/sketch_ab_bench

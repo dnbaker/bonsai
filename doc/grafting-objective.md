@@ -1,4 +1,4 @@
-# Bonsai grafting as optimization: formal objective (PI spec, 2026-10-10)
+# Bonsai grafting as optimization: formal objective
 
 ## Problem
 
@@ -10,7 +10,7 @@ k-mers with their true occurrence bitmaps S_x ⊆ L (the exhaustive answer):
   bitmaps** — the laminar family of clades {leaves(v) : v ∈ T}. Each k-mer is
   reported at some node v(x); its effective bitmap is leaves(v(x))).
 
-**Objective (PI framing)**: choose ≤ B grafted (synthetic) nodes to add to T,
+**Design goal**: choose ≤ B grafted (synthetic) nodes to add to T,
 minimizing the total Hamming distance
 
     H_total = Σ_x [ H(S_x, leaves(v_T'(x))) ]
@@ -44,7 +44,7 @@ Two assignment models, and the guarantee story differs between them:
 Both keep the family laminar, so the encoding machinery (kraken2/krakenuniq
 export, tree walk) is unchanged.
 
-## Algorithm (greedy, per PI)
+## Algorithm (greedy)
 
 Repeat B times: evaluate every feasible graft A at its optimal placement,
 score by ΔH_total (exact incremental evaluation on the k-mer index), take the
