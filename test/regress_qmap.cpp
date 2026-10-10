@@ -61,16 +61,20 @@ TEST_CASE("QueueMap handles context-dependent scores for the same element") {
 }
 
 TEST_CASE("circ::deque pop_back wraps past index zero") {
-    // Regression: pop_back masked neither stop_ nor the index, so popping at
-    // stop_ == 0 underflowed the size-type index. Monotone window maintenance
-    // is the first pop_back user.
-    circ::deque<elscore_t, u32> d(1);
+    // Regression: pop_back decremented stop_ without masking it, so popping
+    // at stop_ == 0 underflowed the unsigned index. Monotone window
+    // maintenance is the first pop_back user. The pushes below wrap stop_
+    // past zero; the pop_back then lands on stop_ == 0.
+    circ::deque<elscore_t, u32> d(2); // capacity 4
     d.emplace_back(elscore_t(1, 1));
     d.emplace_back(elscore_t(2, 2));
-    d.pop_front(); // start advances to 1
-    d.pop_back();  // stop wraps from 0 back to mask
     d.emplace_back(elscore_t(3, 3));
+    d.pop_front();
+    d.pop_front();   // start advances to 2; live: {3}
+    d.emplace_back(elscore_t(4, 4)); // stop_ wraps to 0; live: {3, 4}
+    d.pop_back();    // old code: stop_ underflows here
+    d.emplace_back(elscore_t(5, 5));
     REQUIRE(d.size() == 2);
-    REQUIRE(d.front().el_ == 2);
-    REQUIRE(d.back().el_ == 3);
+    REQUIRE(d.front().el_ == 3);
+    REQUIRE(d.back().el_ == 5);
 }

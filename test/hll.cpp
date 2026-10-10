@@ -56,7 +56,7 @@ TEST_CASE("hll") {
         OMP_PRAGMA("omp parallel for")
         for(size_t j = 0; j < niter; ++j) {
             std::set<std::pair<uint64_t, uint64_t>> lset;
-            RNGType gen(mt() + j * (j + 1)); // I'm okay with a race condition, because I'm salting with the value of j
+            RNGType gen(u64(1337) + j * (j + 1)); // deterministic per-iteration seed; a shared mt() call here raced across OMP threads
             const size_t val(1ull << pair.second), hsz(pair.first);
             hll::hll_t hll(hsz);
             for(size_t i(0); i < val; ++i) {
@@ -103,7 +103,7 @@ TEST_CASE("hll") {
         for(size_t j = 0; j < niter; ++j) {
             const size_t val(1ull << pair.second), hsz(pair.first);
             std::set<std::pair<uint64_t, uint64_t>> lset;
-            RNGType gen(mt() + j * (j + 1));
+            RNGType gen(u64(1337) + j * (j + 1));
             hll::hlf_t hlf(16, gen(), hsz - 4);
             for(size_t i(0); i < val; ++i) hlf.addh(gen());
             if(std::abs(hlf.report() - val) > (1.03896 / std::sqrt(1ull << pair.first) * val)) {
