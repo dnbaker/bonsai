@@ -1,6 +1,8 @@
 #ifndef BONSAI_SETSKETCHINDEX_H__
 #define BONSAI_SETSKETCHINDEX_H__
 #include "util.h"
+#include "sketch/common.h"
+#include "sketch/exception.h"
 #include "sketch/ssi.h"
 #include <cstdint>
 #include <zlib.h>

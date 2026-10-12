@@ -2,6 +2,8 @@
 #include "bonsai/util.h"
 #include "kseq_declare.h"
 #include <queue>
+#include "sketch/common.h"
+#include "sketch/exception.h"
 #include "sketch/setsketch.h"
 //#include "hll/flat_hash_map/flat_hash_map.hpp"
 #include <getopt.h>
