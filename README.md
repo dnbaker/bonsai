@@ -23,11 +23,16 @@ Build Instructions
 
 `cd bonsai && make bonsai`
 
+The Makefile honors CXX/CC. Some default environment compilers cannot
+build this tree (for example an LLVM clang without the platform SDK
+headers on macOS); use a GCC-compatible toolchain, e.g.
+`make bonsai CXX=g++`.
+
 Unit Tests
 =================
 We use the Catch testing framework. You can build and run the tests by:
 
-`cd bonsai && make unit && ./unit`
+`cd bonsai && make unit CXX=g++ && ./unit`
 
 
 Dependencies
