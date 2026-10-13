@@ -73,10 +73,11 @@ inline void append_fastq_classification(const tax_counter &,
                                  const std::vector<tax_t> &taxa,
                                  const tax_t taxon, const u32 ambig_count, const u32 missing_count,
                                  bseq1_t *bs, ks::string &bks, const int verbose, const int is_paired) {
-    char *cms, *cme; // comment start, comment end -- used for using comment in both output reads.
+    // Comment start/end as offsets: the appends below can realloc the buffer,
+    // so pointers into it would dangle before the paired read copies them.
     bks.puts(bs->name);
     bks.putc_(' ');
-    cms = bks.data() + bks.size();
+    const size_t cms_off(bks.size());
     static const char lut[] {'C', 'U'};
     char tmp[] {lut[taxon == 0], '\t'};
     bks.putsn_(tmp, 2);
@@ -88,7 +89,7 @@ inline void append_fastq_classification(const tax_counter &,
     append_counts(ambig_count,   'A', bks);
     if(verbose) append_taxa_runs(taxon, taxa, bks);
     else        bks.back() = '\n';
-    cme = bks.end();
+    const size_t cme_off(bks.size());
     // And now add the rest of the fastq record
     bks.putsn_(bs->seq, bs->l_seq);
     bks.putsn_("\n+\n", 3);
@@ -97,7 +98,7 @@ inline void append_fastq_classification(const tax_counter &,
     if(is_paired) {
         bks.puts((bs + 1)->name);
         bks.putc_(' ');
-        bks.putsn_(cms, (int)(cme - cms)); // Add comment section in.
+        bks.putsn_(bks.data() + cms_off, long(cme_off - cms_off)); // Add comment section in.
         bks.putc_('\n');
         bks.putsn_((bs + 1)->seq, (bs + 1)->l_seq);
         bks.putsn_("\n+\n", 3);
@@ -157,7 +158,8 @@ struct ClassifierGeneric {
         db_(map),
         sp_(k, wsz, spaces),
         enc_(sp_, canonicalize),
-        nt_(num_threads > 0 ? (uint16_t)(num_threads): (uint16_t)std::thread::hardware_concurrency())
+        nt_(num_threads > 0 ? (uint16_t)(num_threads): (uint16_t)std::thread::hardware_concurrency()),
+        output_flag_(0)
     {
         for(auto &c: classified_) c.store(0);
         set_emit_all(emit_all);
@@ -266,8 +268,9 @@ inline void kt_for_helper(void *data_, long index, int) {
     const int inc(!!data->is_paired_ + 1);
     Encoder<score::Lex> enc(data->c_.enc_);
     std::vector<tax_t> taxa;
-    //static_assert(std::is_same_v<unsigned, std::decay_t<decltype((data->per_set_ + static_cast<unsigned>(1)) * index)>>, "Should be true.");
-    for(unsigned i(index * data->per_set_); i < std::min((data->per_set_ + 1) * static_cast<unsigned>(index), data->total_); retstr_size += classify_seq(data->c_, enc, data->taxmap, data->bs_ + i, data->is_paired_, taxa), i += inc);
+    // Each task covers [per_set * index, per_set * (index + 1)); the previous
+    // (per_set + 1) * index bound left task 0 empty and dropped records.
+    for(unsigned i(index * data->per_set_); i < std::min(data->per_set_ * (static_cast<unsigned>(index) + 1), data->total_); retstr_size += classify_seq(data->c_, enc, data->taxmap, data->bs_ + i, data->is_paired_, taxa), i += inc);
     data->retstr_size_ += retstr_size;
 }
 
@@ -349,10 +352,11 @@ static void append_fastq_classification(const tax_counter &,
                                         const std::vector<tax_t> &taxa,
                                         const tax_t taxon, const u32 ambig_count, const u32 missing_count,
                                         bseq1_t *bs, kstring_t *bks, const int verbose, const int is_paired) {
-    char *cms, *cme; // comment start, comment end -- used for using comment in both output reads.
+    // Comment start/end as offsets: kput* may realloc the buffer, so raw
+    // pointers into it would dangle before the paired read copies them.
     kputs(bs->name, bks);
     kputc_(' ', bks);
-    cms = bks->s + bks->l;
+    const size_t cms_off(bks->l);
     static const char lut[] {'C', 'U'};
     kputc_(lut[taxon == 0], bks);
     kputc_('\t', bks);
@@ -364,7 +368,7 @@ static void append_fastq_classification(const tax_counter &,
     append_counts(ambig_count,   'A', bks);
     if(verbose) append_taxa_runs(taxon, taxa, bks);
     else        bks->s[bks->l - 1] = '\n';
-    cme = bks->s + bks->l;
+    const size_t cme_off(bks->l);
     // And now add the rest of the fastq record
     kputsn_(bs->seq, bs->l_seq, bks);
     kputsn_("\n+\n", 3, bks);
@@ -373,7 +377,7 @@ static void append_fastq_classification(const tax_counter &,
     if(is_paired) {
         kputs((bs + 1)->name, bks);
         kputc_(' ', bks);
-        kputsn_(cms, (int)(cme - cms), bks); // Add comment section in.
+        kputsn_(bks->s + cms_off, (int)(cme_off - cms_off), bks); // Add comment section in.
         kputc_('\n', bks);
         kputsn_((bs + 1)->seq, (bs + 1)->l_seq, bks);
         kputsn_("\n+\n", 3, bks);
