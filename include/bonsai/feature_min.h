@@ -329,10 +329,10 @@ inline void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_
                 k2 = kh_put(64, kc, kh_key(set, ki), &khr);
                 if(unlikely(khr < 0))
                     RUNTIME_ERROR(ks::sprintf("Could not insert key %" PRIu64 " to table of size %zu.", kh_key(set, ki), kh_size(kc)).data());
-                kh_val(kc, k2) = TDencode(node_depth(tax, kh_val(kc, ki)), kh_val(kc, ki));
+                kh_val(kc, k2) = TDencode(node_depth(tax, taxid), taxid);
                 if(unlikely(kh_size(kc) % 1000000 == 0)) LOG_INFO("Final hash size %zu\n", kh_size(kc));
-            } else if(kh_val(kc, k2) != taxid) {
-                do val = lca(tax, taxid, kh_val(kc, k2));
+            } else if(TDtax(kh_val(kc, k2)) != taxid) {
+                do val = lca(tax, taxid, TDtax(kh_val(kc, k2)));
                 while(!kh_try_set(64, kc, k2, val == (tax_t)-1 ? 1: TDencode(node_depth(tax, val), val)));
             }
         }
