@@ -36,16 +36,17 @@ struct Database {
             std::string fns = fn;
             std::string gzsuf   = ".gz";
             std::string zstdsuf = ".zst";
-            if(std::equal(std::crbegin(gzsuf), std::crend(gzsuf), std::crbegin(fns))) filetype = 1;
-            else if(std::equal(std::crbegin(gzsuf), std::crend(gzsuf), std::crbegin(fns))) filetype = 2;
+            if(fns.size() >= gzsuf.size() && std::equal(std::crbegin(gzsuf), std::crend(gzsuf), std::crbegin(fns))) filetype = 1;
+            else if(fns.size() >= zstdsuf.size() && std::equal(std::crbegin(zstdsuf), std::crend(zstdsuf), std::crbegin(fns))) filetype = 2;
         }
-        std::FILE *fp = filetype ? popen((std::string(filetype == 1 ? "gzip -dc " : "zstd -qdc ") + fn).data(), "rb"): std::fopen(fn, "rb");
+        // popen modes other than "r"/"w" (e.g. "rb") fail on some platforms (macOS).
+        std::FILE *fp = filetype ? popen((std::string(filetype == 1 ? "gzip -dc " : "zstd -qdc ") + fn).data(), "r"): std::fopen(fn, "rb");
         if (fp) {
             __fr(k_, fp);
             __fr(w_, fp);
             s_ = spvec_t(k_ - 1);
             LOG_DEBUG("reading %zu bytes from file for vector, with %zu reserved\n", s_.size(), s_.capacity());
-            if(std::fread(s_.data(), s_.size(), sizeof(uint8_t), fp) != s_.size() * sizeof(uint8_t))
+            if(std::fread(s_.data(), sizeof(uint8_t), s_.size(), fp) != s_.size())
                 throw std::runtime_error("Error: Could not read spacing from file");
             db_ = khash_load_impl<T>(fp);
         } else LOG_EXIT("Could not open %s for reading.\n", fn);
@@ -86,7 +87,11 @@ struct Database {
 #define gzw(_x, ofp) if(gzwrite(ofp, static_cast<const void *>(&_x), sizeof(_x)) != sizeof(_x)) throw std::runtime_error("Error writing to file")
             gzw(k_, ofp);
             gzw(w_, ofp);
-            gzwrite(ofp, static_cast<const void *>(s_.data()), s_.size() * sizeof(s_[0]));
+            // Spacing is serialized as one byte per difference, matching the reader.
+            for(const auto v: s_) {
+                const uint8_t bv = static_cast<uint8_t>(v);
+                if(gzwrite(ofp, &bv, sizeof(bv)) != sizeof(bv)) throw std::runtime_error("Error writing to file");
+            }
             khash_write_impl<T>(db_, ofp);
             gzclose(ofp);
             return;
@@ -96,7 +101,10 @@ struct Database {
         if(!ofp) LOG_EXIT("Could not open %s for writing.\n", fn);
         __fw(k_, ofp);
         __fw(w_, ofp);
-        if(std::fwrite(s_.data(), s_.size(), sizeof(uint8_t), ofp) != s_.size()) throw std::runtime_error("Error writing database");
+        for(const auto v: s_) {
+            const uint8_t bv = static_cast<uint8_t>(v);
+            if(std::fwrite(&bv, sizeof(bv), 1, ofp) != 1) throw std::runtime_error("Error writing database");
+        }
         khash_write_impl<T>(db_, ofp);
         std::fclose(ofp);
     }
@@ -105,7 +113,7 @@ struct Database {
     typename std::enable_if<std::is_same<khash_t(c), Q>::value, u32>::type
     get_lca(u64 kmer) {
         khiter_t ki;
-        return ((ki = kh_get(c, db_, kmer)) == kh_end(db_)) ? kh_val(db_, ki)
+        return ((ki = kh_get(c, db_, kmer)) != kh_end(db_)) ? kh_val(db_, ki)
                                                             : -1u;
     }
 };

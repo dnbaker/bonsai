@@ -332,9 +332,18 @@ size_t khash_write_impl(const T *map, const int fn) noexcept {
 #undef __fw
 template<typename T>
 size_t khash_write_impl(const T *map, std::FILE *fp) noexcept {
-    std::fflush(fp);
-    const auto ret = khash_write_impl<T>(map, fileno(fp));
-    std::fflush(fp);
+    // Use stdio exclusively: mixing buffered stdio with raw write(2) on the
+    // same descriptor interleaves bytes nondeterministically.
+    for(khiter_t ki(0); ki != kh_end(map); ++ki)
+        if(!kh_exist(map, ki))
+            kh_key(map, ki) = 0, kh_val(map, ki) = 0;
+    size_t ret = std::fwrite(&map->n_buckets, sizeof(map->n_buckets), 1, fp);
+    ret += std::fwrite(&map->n_occupied, sizeof(map->n_occupied), 1, fp);
+    ret += std::fwrite(&map->size, sizeof(map->size), 1, fp);
+    ret += std::fwrite(&map->upper_bound, sizeof(map->upper_bound), 1, fp);
+    ret += std::fwrite(map->flags, __ac_fsize(map->n_buckets) * sizeof(*map->flags), 1, fp);
+    ret += std::fwrite(map->keys, map->n_buckets * sizeof(*map->keys), 1, fp);
+    ret += std::fwrite(map->vals, map->n_buckets * sizeof(*map->vals), 1, fp);
     return ret;
 }
 #define __gz(item, fp) gzwrite(fp, static_cast<const void *>(&(item)), sizeof(item))
@@ -395,9 +404,24 @@ T *khash_load_impl(const int fn) noexcept {
 
 template <typename T>
 T *khash_load_impl(std::FILE *fp) noexcept {
-    std::fflush(fp);
-    auto rex = khash_load_impl<T>(fileno(fp));
-    std::fflush(fp);
+    // Use stdio exclusively: mixing buffered stdio with raw read(2) on the
+    // same descriptor loses prefetched bytes (and breaks on pipes).
+    T *rex((T *)std::calloc(1, sizeof(T)));
+    using keytype_t = std::remove_pointer_t<decltype(rex->keys)>;
+    using valtype_t = std::remove_pointer_t<decltype(rex->vals)>;
+    if(std::fread(&rex->n_buckets, sizeof(rex->n_buckets), 1, fp) != 1) exit(1);
+    if(std::fread(&rex->n_occupied, sizeof(rex->n_occupied), 1, fp) != 1) exit(1);
+    if(std::fread(&rex->size, sizeof(rex->size), 1, fp) != 1) exit(1);
+    if(std::fread(&rex->upper_bound, sizeof(rex->upper_bound), 1, fp) != 1) exit(1);
+    rex->flags = (u32 *)std::malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
+    if(!rex->flags) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", (sizeof(*rex->flags) * __ac_fsize(rex->n_buckets)), (sizeof(*rex->flags) * __ac_fsize(rex->n_buckets))) >> 30, exit(1);
+    rex->keys = (keytype_t *)std::malloc(sizeof(*rex->keys) * rex->n_buckets);
+    if(!rex->keys) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->keys) * rex->n_buckets, sizeof(*rex->keys) * rex->n_buckets >> 30), exit(1);
+    rex->vals = (valtype_t *)std::malloc(sizeof(*rex->vals) * rex->n_buckets);
+    if(!rex->vals) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->vals) * rex->n_buckets, sizeof(*rex->vals) * rex->n_buckets >> 30), exit(1);
+    if(std::fread(rex->flags, __ac_fsize(rex->n_buckets) * sizeof(*rex->flags), 1, fp) != 1) exit(1);
+    if(std::fread(rex->keys, rex->n_buckets * sizeof(*rex->keys), 1, fp) != 1) exit(1);
+    if(std::fread(rex->vals, rex->n_buckets * sizeof(*rex->vals), 1, fp) != 1) exit(1);
     return rex;
 }
 
