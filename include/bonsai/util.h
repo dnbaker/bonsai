@@ -23,7 +23,11 @@
 #include "klib/kthread.h"
 
 
-#ifndef _VEC_H__
+// Apple-Silicon workaround (originally 748410c): the vec headers did not
+// compile there. Keep it aarch64-only: on other targets disabling VEC routes
+// sketch cardinality estimates through the submodule's broken
+// VEC_DISABLED__ sum_counts fallback and turns off its SIMD paths.
+#if defined(__aarch64__) && !defined(_VEC_H__)
 #ifndef VEC_DISABLED__
 #define VEC_DISABLED__
 #endif
