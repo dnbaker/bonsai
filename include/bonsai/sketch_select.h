@@ -144,13 +144,15 @@ inline std::vector<std::vector<u32>> sketch_cluster_candidates_tree(const std::v
     // genome id -> leaf node is 1:1; invert it.
     std::vector<u32> leaf_of(n);
     for(u32 g(0); g < n; ++g) leaf_of[g] = tree.leaf_node(g);
+    std::vector<u32> genome_of_leaf(nn, u32(-1));
+    for(u32 g(0); g < n; ++g) genome_of_leaf[leaf_of[g]] = g;
     std::function<void(u32)> post = [&](u32 x) {
         if(tree.is_leaf_node(x)) {
             // leaf node: copy the genome's sketch
-            for(u32 g(0); g < n; ++g) if(leaf_of[g] == x) {
+            const u32 g(genome_of_leaf[x]);
+            if(g != u32(-1)) {
                 merged[x] = leaf_sketches[g];
                 members[x] = {g};
-                break;
             }
             have_mrg[x] = true;
             return;
