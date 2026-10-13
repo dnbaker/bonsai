@@ -132,7 +132,7 @@ private:
     bool canonicalize_;
     InputType rht = InputType::DNA;
     const int8_t *lutptr = (const int8_t *)DNA4.data();
-    size_t nremper = sizeof(KmerT) * 4;
+    size_t nremper = rh2n(rht, sizeof(KmerT));
     std::unique_ptr<CircusEnt> ent_tracker_;
     static_assert(std::is_unsigned<KmerT>::value || std::is_same<KmerT, u128>::value, "Must be unsigned integers");
 
@@ -149,6 +149,10 @@ public:
       scorer_{},
       canonicalize_(canonicalize)
     {
+        if(sp_.k_ > nremper) {
+            RUNTIME_ERROR(ks::sprintf("k %u exceeds the %zu bases representable in this k-mer type for alphabet %s.",
+                                      sp_.k_, nremper, to_string(rht).data()).data());
+        }
         if(std::is_same<ScoreType, score::Entropy>::value) {
             ent_tracker_.reset(new CircusEnt(sp_.k_));
         }
