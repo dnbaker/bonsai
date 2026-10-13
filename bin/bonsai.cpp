@@ -178,7 +178,8 @@ int phase2_main(int argc, char *argv[]) {
     // TODO: update documentation for tax_path and seq2taxpath options.
     if(argc < 4) {
         usage:
-        std::fprintf(stderr, "Usage: %s <flags> [tax_path if lex/ent else <phase1map.path>] <out.path> <paths>\nFlags:\n"
+        std::fprintf(stderr, "Usage: %s <flags> -T <tax.path> -M <seq2tax.path> <out.path> <paths>\n"
+                     "(minimized modes instead take <phase1map.path> <out.path> <paths>)\nFlags:\n"
                      "-k: Set k.\n"
                      "-p: Number of threads [1] (set to -1 to use all threads)\n"
                      "-t: Build for taxonomic minimizing\n-f: Build for feature minimizing\n"
@@ -227,8 +228,10 @@ int phase2_main(int argc, char *argv[]) {
         dbpath += suf, LOG_INFO("Writing gzipped, but without a .gz suffix. Adding it.\n");
     LOG_INFO("db output path: %s\n", dbpath.data());
     spvec_t sv(parse_spacing(spacing.data(), k));
+    // The lex/entropy branch takes positional <out.path> <paths...> (see the
+    // README); the minimized branch below takes <phase1map> <out.path> <paths...>.
     std::vector<std::string> inpaths(paths_file.size() ? get_paths(paths_file.data())
-                                                       : std::vector<std::string>(argv + optind + 2, argv + argc));
+                                                       : std::vector<std::string>(argv + optind + 1, argv + argc));
     if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
     LOG_DEBUG("Got paths\n");
     if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for final database generation.");
@@ -268,6 +271,9 @@ int phase2_main(int argc, char *argv[]) {
         return EXIT_SUCCESS;
     }
     LOG_INFO("Making minimized map\n");
+    // Minimized layout: <phase1map> <out.path> <paths...>; the first two
+    // positionals are the input map and the output, not genomes.
+    if(paths_file.empty()) inpaths.assign(argv + optind + 2, argv + argc);
     Database<khash_t(64)> phase1_map{Database<khash_t(64)>(dbpath.data())};
     Database<khash_t(c)>  phase2_map{phase1_map};
     Spacer sp(k, wsz, phase1_map.s_);
