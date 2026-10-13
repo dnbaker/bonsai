@@ -228,7 +228,7 @@ public:
 };
 using concise_tax_t = TaxonomyReformation;
 static std::vector<tax_t> build_new2old_map(const char *path, size_t bufsz) {
-        gzFile fp(gzopen(path, "wb"));
+        gzFile fp(gzopen(path, "rb"));
         std::vector<char> buf(bufsz);
         char *line;
         std::map<tax_t, tax_t> taxes;
@@ -254,7 +254,7 @@ static std::vector<tax_t> build_new2old_map(const char *path, size_t bufsz) {
 }
 static INLINE std::vector<tax_t> build_new2old_map(const std::string &str, size_t bufsz) { return build_new2old_map(str.data(), bufsz);}
 static std::vector<tax_t> binary_new2old_map(const char *fn) {
-    gzFile fp(gzopen(fn, "wb"));
+    gzFile fp(gzopen(fn, "rb"));
     if(fp == nullptr) RUNTIME_ERROR(ks::sprintf("Could not open file at %s\n", fn).data());
     tax_t tmp;
     std::vector<tax_t> ret;
@@ -263,8 +263,9 @@ static std::vector<tax_t> binary_new2old_map(const char *fn) {
     if(fsize & (sizeof(tax_t) - 1)) RUNTIME_ERROR(ks::sprintf("Wrong number of bytes %s (%zu/%zu)", fn, fsize, fsize & 3u).data());
     ret.reserve(fsize >> 2);
     int c;
-    while((c = gzread(fp, (void *)&tmp, sizeof(tmp))) == Z_OK) ret.push_back(tmp);
-    if(c != Z_STREAM_END) throw zlib_error(c, fn);
+    while((c = gzread(fp, (void *)&tmp, sizeof(tmp))) == int(sizeof(tmp))) ret.push_back(tmp);
+    if(c != Z_STREAM_END && c != 0) throw zlib_error(c, fn);
+    gzclose(fp);
     return ret;
 }
 

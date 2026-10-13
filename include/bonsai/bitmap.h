@@ -85,7 +85,7 @@ public:
                     auto m(tmp.find(kh_key(h, ki)));
                     if(m == tmp.end()) m = tmp.emplace(kh_key(h, ki),
                                                        bitvec_t(len)).first;
-                    m->second[i >> 6] |= 1u << (i & 63u);
+                    m->second[i >> 6] |= u64(1) << (i & 63u);
                 }
             }
         }
