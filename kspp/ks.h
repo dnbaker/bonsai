@@ -179,7 +179,10 @@ TODO: Add SSO to avoid allocating for small strings, which we currently do
 #if !NDEBUG
         std::fprintf(stderr, "[%s:%s:%d] Acquired ownership of string at %p with len %zu has been taken.", __PRETTY_FUNCTION__, __FILE__, __LINE__, static_cast<const void *>(str), len);
 #endif
-        terminate();
+        // str may be null (e.g. an unset bseq1_t::sam on the first chunk);
+        // leave the string empty rather than writing the terminator through null.
+        if(s) terminate();
+        else l = m = 0;
     }
     inline string(const char *str, uint64_t used): string(used, used, str) {}
 
