@@ -228,11 +228,20 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType> &c,
         else taxa.push_back(kh_val(c.db_, ki)), hit_counts.add(kh_val(c.db_, ki));
     };
     // This simplification loses information about the run of congituous labels. Do these matter?
+    // K-mers not emitted (ambiguous windows) account for the slack between the
+    // number of positions and the number of emitted k-mers.
+    const auto n_not_ambig = [&]() {return taxa.size() + missing_count;};
+    const auto count_ambig = [&](u64 l, u64 prev_not_ambig) {
+        const u64 np = l + 1 > enc.sp_.c_ ? l - enc.sp_.c_ + 1: 0; // positions holding a c_-span
+        const u64 emitted = n_not_ambig() - prev_not_ambig;
+        return u32(np > emitted ? np - emitted: 0);
+    };
     enc.for_each(fn, bs->seq, bs->l_seq);
-    unsigned ambig_count(bs->l_seq - enc.sp_.c_ + 1 - taxa.size() - missing_count);
+    unsigned ambig_count(count_ambig(bs->l_seq, 0));
     if(is_paired) {
+        const auto pre(n_not_ambig());
         enc.for_each(fn, (bs + 1)->seq, (bs + 1)->l_seq);
-        ambig_count += (bs + 1)->l_seq - (enc.sp_.c_ - 1) - taxa.size() - missing_count;
+        ambig_count += count_ambig((bs + 1)->l_seq, pre);
     }
 
     ++c.classified_[!(taxon = resolve_tree(hit_counts, taxmap))];
