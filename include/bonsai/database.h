@@ -46,8 +46,14 @@ struct Database {
             __fr(w_, fp);
             s_ = spvec_t(k_ - 1);
             LOG_DEBUG("reading %zu bytes from file for vector, with %zu reserved\n", s_.size(), s_.capacity());
-            if(std::fread(s_.data(), sizeof(uint8_t), s_.size(), fp) != s_.size())
-                throw std::runtime_error("Error: Could not read spacing from file");
+            // Spacing is serialized as one byte per difference; load each into
+            // its own element (a bulk read would pair bytes into uint16s).
+            for(auto &v: s_) {
+                uint8_t bv;
+                if(std::fread(&bv, sizeof(bv), 1, fp) != 1)
+                    throw std::runtime_error("Error: Could not read spacing from file");
+                v = bv;
+            }
             db_ = khash_load_impl<T>(fp);
         } else LOG_EXIT("Could not open %s for reading.\n", fn);
         sp_ = make_sp();
