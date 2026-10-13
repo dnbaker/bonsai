@@ -147,6 +147,7 @@ int classify_main(int argc, char *argv[]) {
         case 4:  LOG_DEBUG("Processing in paired-end mode.\n"); break;
     }
     Database<khash_t(c)> db(argv[optind]);
+    if(db.k_ > 32) LOG_EXIT("Database k %u is too large for 64-bit encodings.\n", db.k_);
     //reportDB<khash_t(c)>(&db, stderr);
     //for(auto &i: db._s) --i; // subtract by one since we'll re-subtract during construction.
     ClassifierGeneric<score::Lex> c(db.db_, db.s_, db.k_, db.k_, num_threads,
@@ -214,6 +215,8 @@ int phase2_main(int argc, char *argv[]) {
     dbpath = argv[optind];
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
     if(wsz < k) wsz = k;
+    // The build pipeline encodes k-mers in 64-bit words; k > 32 would alias.
+    if(k > 32) LOG_EXIT("k must be <= 32 for this alphabet (64-bit encodings).\n");
 #ifdef ZWRAP_USE_ZSTD
     const std::string suf(".zst");
 #else
@@ -326,6 +329,7 @@ int phase1_main(int argc, char *argv[]) {
     }
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
     wsz = k;
+    if(k > 32) LOG_EXIT("k must be <= 32 for this alphabet (64-bit encodings).\n");
     khash_t(p) *taxmap(taxmap_preparsed ? khash_load<khash_t(p)>(argv[optind + 1])
                                         : build_parent_map(argv[optind + 1]));
     spvec_t sv(parse_spacing(spacing.data(), k));
@@ -431,6 +435,7 @@ int metatree_main(int argc, char *argv[]) {
         }
     }
     if(num_threads <= 0) num_threads = std::thread::hardware_concurrency();
+    if(k > 32) LOG_EXIT("k must be <= 32 for this alphabet (64-bit encodings).\n");
     Spacer sp(k, k, nullptr);
     omp_set_num_threads(num_threads);
     khash_t(name) *name_hash(build_name_hash(argv[optind + 2]));
