@@ -37,7 +37,7 @@ void fill_db(Database<khash_t(c)> &db) {
     }
 }
 
-void check_db(const Database<khash_t(c)> &db) {
+void check_db(Database<khash_t(c)> &db) {
     REQUIRE(db.k_ == 11);
     REQUIRE(db.w_ == 11);
     REQUIRE(db.s_.size() == 10);
