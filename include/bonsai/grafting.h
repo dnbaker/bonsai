@@ -62,8 +62,13 @@ it. Only classes whose bitmap intersects A can change implied masks:
 add_synthetic removes only A-leaves from existing masks, so a class
 disjoint from A keeps every containing node and hence its implied mask.
 Returns 0 for infeasible A (singleton or already a node).
+
+before_cache, when provided, memoizes tree.err(mask) per class id; it is
+only valid while `tree` is unchanged, so callers must reset it (fill with
+u64(-1)) after mutating the tree.
 */
-inline long double gain_of_add(const PlacementTree &tree, const GraftIndex &gi, u64 A) {
+inline long double gain_of_add(const PlacementTree &tree, const GraftIndex &gi, u64 A,
+                               std::vector<u64> *before_cache = nullptr) {
     if(pc64(A) < 2) return 0.0L;
     // affected classes via per-genome inverted lists
     std::vector<u32> affected;
@@ -78,7 +83,15 @@ inline long double gain_of_add(const PlacementTree &tree, const GraftIndex &gi, 
     long double gain(0.0L);
     for(const u32 id: affected) {
         const u64 S(gi.masks[id]);
-        const u64 before(tree.err(S)), after(tmp.err(S));
+        u64 before;
+        if(before_cache) {
+            u64 &cached((*before_cache)[id]);
+            if(cached == u64(-1)) cached = tree.err(S);
+            before = cached;
+        } else {
+            before = tree.err(S);
+        }
+        const u64 after(tmp.err(S));
         gain += (long double)(gi.counts[id]) * ((long double)(before) - (long double)(after));
     }
     return gain;
@@ -115,18 +128,21 @@ inline GraftingResult graft_greedy(PlacementTree &tree, const KmerClasses &kc,
     const HammingDecomp d0(hamming_decomp(tree, kc));
     ret.fn.push_back(d0.fn); ret.fp.push_back(d0.fp);
     std::vector<char> used(candidates.size(), 0);
+    // tree.err(mask) per class, valid for one greedy round at a time.
+    std::vector<u64> before_cache(gi.masks.size(), u64(-1));
     while(ret.added_masks.size() < budget) {
         long double best_gain(0.0L);
         u32 best(u32(-1));
         for(u32 i(0); i < candidates.size(); ++i) {
             if(used[i]) continue;
-            const long double g(gain_of_add(tree, gi, candidates[i]));
+            const long double g(gain_of_add(tree, gi, candidates[i], &before_cache));
             if(g > best_gain) {best_gain = g; best = i;}
         }
         if(best == u32(-1)) break;
         used[best] = 1;
         const u64 A(candidates[best]);
         if(tree.add_synthetic(A) < 0) continue; // raced by an earlier graft; skip
+        std::fill(before_cache.begin(), before_cache.end(), u64(-1));
         ret.added_masks.push_back(A);
         const u64 d(tree.total_delta(kc));
         ret.deltas.push_back(d);
