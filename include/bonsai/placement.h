@@ -319,15 +319,18 @@ inline GreedyResult greedy_synthetic_nodes(PlacementTree &tree, const KmerClasse
         const double base(tree.unweighted_error(kc));
         double best_gain(1e-9);
         i64 best(-1);
-        for(const auto m: candidates) {
+        for(u32 ci(0); ci < candidates.size(); ++ci) {
+            const u64 m(candidates[ci]);
             if(used.find(m) != used.end()) continue;
             PlacementTree tmp(tree);
             if(tmp.add_synthetic(m, policy) < 0) {used.insert(m); continue;}
             const double gain(base - tmp.unweighted_error(kc));
-            if(gain > best_gain) {best_gain = gain; best = i64(m);}
+            // Store the candidate index: a mask with bit 63 set is negative as
+            // i64 and would be mistaken for "no candidate".
+            if(gain > best_gain) {best_gain = gain; best = i64(ci);}
         }
         if(best < 0) break;
-        const u64 m = u64(best);
+        const u64 m = candidates[u32(best)];
         const i64 id(tree.add_synthetic(m, policy));
         LOG_ASSERT(id >= 0);
         used.insert(m);
