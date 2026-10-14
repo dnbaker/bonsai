@@ -9,6 +9,8 @@
 #include "bonsai/tx.h"
 #include "bonsai/setcmp.h"
 #include "bonsai/flextree.h"
+#include "bonsai/grafting.h"
+#include "bonsai/kraken_export.h"
 #include "sketch/hll.h"
 // #include "sketch/filterhll.h"
 
@@ -17,6 +19,12 @@
 #endif
 
 using namespace bns;
+
+namespace {
+inline double now_s() {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+}
 
 using namespace std::literals;
 using std::cerr;
@@ -557,6 +565,170 @@ int metatree_main(int argc, char *argv[]) {
 }
 
 
+// First-token-of-header taxid lookup: reads the first fasta header and
+// probes the name hash with its first whitespace-delimited token (a
+// "|kraken:taxid|" suffix, if present, is stripped). Returns tax_t(-1) when
+// the token is absent from the name hash.
+// Create dir and any missing parents (mkdir -p semantics).
+static void make_dirs(const std::string &dir) {
+    std::string cur;
+    cur.reserve(dir.size());
+    for(const auto c: dir) {
+        cur.push_back(c);
+        if(c == '/' && cur.size() > 1) ::mkdir(cur.data(), 0755);
+    }
+    ::mkdir(dir.data(), 0755);
+}
+
+static tax_t export_header_taxid(const std::string &path, const khash_t(name) *name_hash, std::string &seqid_out) {
+    gzFile fp(gzopen(path.data(), "rb"));
+    if(fp == nullptr) LOG_EXIT("Could not read from file %s\n", path.data());
+    char buf[8192];
+    if(gzgets(fp, buf, sizeof(buf)) == nullptr) {
+        gzclose(fp);
+        LOG_EXIT("Empty or unreadable fasta file %s\n", path.data());
+    }
+    gzclose(fp);
+    if(buf[0] != '>') LOG_EXIT("File %s does not start with a fasta header.\n", path.data());
+    char *p(buf + 1);
+    while(*p == ' ') ++p;
+    char *start(p);
+    while(*p && !std::isspace(*p)) ++p;
+    *p = 0;
+    seqid_out = start;
+    const auto kpos(seqid_out.find("|kraken:taxid|"));
+    if(kpos != std::string::npos) seqid_out.resize(kpos);
+    const khint_t ki(kh_get(name, name_hash, seqid_out.data()));
+    return ki == kh_end(name_hash) ? tax_t(-1): kh_val(name_hash, ki);
+}
+
+static std::unordered_map<tax_t, std::string> load_taxon_strings(const std::string &path) {
+    std::unordered_map<tax_t, std::string> ret;
+    std::FILE *fp(std::fopen(path.data(), "r"));
+    if(fp == nullptr) LOG_EXIT("Could not open %s\n", path.data());
+    char *line(nullptr);
+    size_t cap(0);
+    while(getline(&line, &cap, fp) >= 0) {
+        char *tab(std::strchr(line, '\t'));
+        if(tab == nullptr) continue;
+        *tab = 0;
+        char *end(tab + 1);
+        while(*end && *end != '\n' && *end != '\r') ++end;
+        *end = 0;
+        ret[std::atoi(line)] = tab + 1;
+    }
+    std::free(line);
+    std::fclose(fp);
+    return ret;
+}
+
+int export_usage(const char *arg) {
+    std::fprintf(stderr, "Usage: %s <flags> -T <taxmap> -M <names> -o <outdir> [genome.fa ...]\n"
+                         "Emits nodes.dmp/names.dmp/seqid2taxid.map and kraken library directories\n"
+                         "that kraken2-build and krakenuniq-build ingest directly (see\n"
+                         "include/bonsai/kraken_export.h). With -B > 0, greedily grafts up to B\n"
+                         "synthetic nodes (candidate lanes: observed k-mer classes + BBMinHash\n"
+                         "tree-layered sketches) before exporting.\n"
+                         "\n"
+                         "-T: Taxonomy map (child->parent; NCBI nodes.dmp-style rows accepted).\n"
+                         "-M: Name map: \"<seqid>\\t<taxid>\" per line (krakenuniq seqid2taxid.map format).\n"
+                         "-F: Read genome paths from file instead of the command line.\n"
+                         "-o: Output directory (required).\n"
+                         "-k: k-mer size for the grafting fill. [%u]\n"
+                         "-B: Graft budget (0 = export the tree as-is). [0]\n"
+                         "-P: Synthetic node name prefix. [grafted_]\n"
+                         "-N: Optional \"<taxid>\\t<name>\" file for taxonomy node names.\n"
+                         "-R: Optional \"<taxid>\\t<rank>\" file for taxonomy node ranks.\n"
+                         "\n"
+                         "PlacementTree/KmerClasses use u64 genome masks: at most 64 genomes per export.\n",
+                 arg, 25);
+    std::exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
+}
+
+int export_main(int argc, char *argv[]) {
+    int c, k(25), budget(0);
+    std::string tax_path, name_path, outdir, paths_file, graft_prefix("grafted_"), names_file, ranks_file;
+    std::ios_base::sync_with_stdio(false);
+    while((c = getopt(argc, argv, "T:M:F:o:k:B:P:N:R:h?")) >= 0) {
+        switch(c) {
+            case 'h': case '?': return export_usage(*argv);
+            case 'T': tax_path = optarg;       break;
+            case 'M': name_path = optarg;      break;
+            case 'F': paths_file = optarg;     break;
+            case 'o': outdir = optarg;         break;
+            case 'k': k = std::atoi(optarg);   break;
+            case 'B': budget = std::atoi(optarg); break;
+            case 'P': graft_prefix = optarg;   break;
+            case 'N': names_file = optarg;     break;
+            case 'R': ranks_file = optarg;     break;
+        }
+    }
+    if(tax_path.empty() || name_path.empty() || outdir.empty()) return export_usage(*argv);
+    if(k > 32) LOG_EXIT("k must be <= 32 for this alphabet (64-bit encodings).\n");
+    std::vector<std::string> paths(paths_file.size() ? get_paths(paths_file.data())
+                                                     : std::vector<std::string>(argv + optind, argv + argc));
+    if(paths.empty()) return export_usage(*argv);
+    khash_t(p) *taxmap(build_parent_map(tax_path.data()));
+    khash_t(name) *name_hash(build_name_hash(name_path.data()));
+    std::vector<std::string> seqids, kept;
+    std::vector<tax_t> genome_taxa;
+    for(const auto &path: paths) {
+        std::string seqid;
+        const tax_t tid(export_header_taxid(path, name_hash, seqid));
+        if(tid == tax_t(-1)) {
+            LOG_WARNING("Genome %s (seqid %s) is not in the name map; skipping.\n", path.data(), seqid.data());
+            continue;
+        }
+        if(kh_get(p, taxmap, tid) == kh_end(taxmap)) {
+            LOG_WARNING("Taxid %u for genome %s is not in the taxonomy; skipping.\n", tid, path.data());
+            continue;
+        }
+        seqids.push_back(seqid);
+        kept.push_back(path);
+        genome_taxa.push_back(tid);
+    }
+    destroy_name_hash(name_hash);
+    if(kept.empty()) LOG_EXIT("No genomes survived name/taxonomy filtering.\n");
+    if(kept.size() > 64) LOG_EXIT("%zu genomes provided, but the placement tree is limited to 64 (u64 genome masks).\n", kept.size());
+    paths.swap(kept);
+    LOG_INFO("Exporting %zu genomes against %zu taxonomy nodes.\n", paths.size(), kh_size(taxmap));
+    PlacementTree tree(taxmap, genome_taxa);
+    if(budget > 0) {
+        Spacer sp(k, k);
+        KmerClasses kc;
+        const double t0(now_s());
+        kc.fill<score::Lex>(paths, sp);
+        const double fill_t(now_s() - t0);
+        const u64 delta0(tree.total_delta(kc));
+        std::vector<u64> cands;
+        for(const auto &pair: kc.count) if(pc64(pair.first) >= 2) cands.push_back(pair.first);
+        const size_t nclasses(cands.size());
+        const auto sks(genome_sketchers<score::Lex>(paths, sp));
+        for(const auto &comp: sketch_cluster_candidates_tree(sks, tree, 0.008)) {
+            u64 m(0);
+            for(const auto g: comp) m |= u64(1) << g;
+            cands.push_back(m);
+        }
+        LOG_INFO("Grafting: %zu classes, %zu sketch candidates, index fill %.3f s, initial delta %llu.\n",
+                 nclasses, cands.size() - nclasses, fill_t, (unsigned long long)delta0);
+        const GraftingResult gr(graft_greedy(tree, kc, cands, u32(budget)));
+        const HammingDecomp hd(hamming_decomp(tree, kc));
+        LOG_INFO("Grafted %zu nodes: delta %llu -> %llu (fn %llu, fp %llu).\n",
+                 gr.added_masks.size(), (unsigned long long)delta0,
+                 (unsigned long long)gr.deltas.back(), (unsigned long long)hd.fn, (unsigned long long)hd.fp);
+    }
+    std::unordered_map<tax_t, std::string> taxon_names, taxon_ranks;
+    if(!names_file.empty()) taxon_names = load_taxon_strings(names_file);
+    if(!ranks_file.empty()) taxon_ranks = load_taxon_strings(ranks_file);
+    make_dirs(outdir);
+    const KrakenExportResult result(KrakenExporter::write(tree, seqids, paths, outdir.data(), graft_prefix.data(),
+                                                          taxon_names.empty() ? nullptr: &taxon_names,
+                                                          taxon_ranks.empty() ? nullptr: &taxon_ranks));
+    kh_destroy(p, taxmap);
+    return result.seqid2taxid.empty() ? EXIT_FAILURE: EXIT_SUCCESS;
+}
+
 int main(int argc, char *argv[]) {
     const static std::unordered_map<std::string, bns::MainFnPtr> md {
         {"phase1",   phase1_main},
@@ -568,6 +740,7 @@ int main(int argc, char *argv[]) {
         {"lca",      phase1_main},
         {"hist",     hist_main},
         {"metatree", metatree_main},
+        {"export",   export_main},
         {"classify", classify_main}
     };
     if(std::find_if(argv, argv + argc, [&](char *s) {return std::strcmp("-v", s) == 0 || std::strcmp("--version", s) == 0;}) != argv + argc) {
