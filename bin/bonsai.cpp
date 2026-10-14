@@ -581,23 +581,9 @@ static void make_dirs(const std::string &dir) {
 }
 
 static tax_t export_header_taxid(const std::string &path, const khash_t(name) *name_hash, std::string &seqid_out) {
-    gzFile fp(gzopen(path.data(), "rb"));
-    if(fp == nullptr) LOG_EXIT("Could not read from file %s\n", path.data());
-    char buf[8192];
-    if(gzgets(fp, buf, sizeof(buf)) == nullptr) {
-        gzclose(fp);
-        LOG_EXIT("Empty or unreadable fasta file %s\n", path.data());
-    }
-    gzclose(fp);
-    if(buf[0] != '>') LOG_EXIT("File %s does not start with a fasta header.\n", path.data());
-    char *p(buf + 1);
-    while(*p == ' ') ++p;
-    char *start(p);
-    while(*p && !std::isspace(*p)) ++p;
-    *p = 0;
-    seqid_out = start;
-    const auto kpos(seqid_out.find("|kraken:taxid|"));
-    if(kpos != std::string::npos) seqid_out.resize(kpos);
+    const std::string seqid(first_header_token(path.data()));
+    if(seqid.empty()) LOG_EXIT("Empty, unreadable, or headerless fasta file %s\n", path.data());
+    seqid_out = seqid;
     const khint_t ki(kh_get(name, name_hash, seqid_out.data()));
     return ki == kh_end(name_hash) ? tax_t(-1): kh_val(name_hash, ki);
 }

@@ -167,6 +167,9 @@ zlib/libz.a:
 grafting_bench: bench/grafting_bench.cpp $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
 
+grafting_scale_bench: bench/grafting_scale_bench.cpp $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) klib/kthread.o zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG klib/kthread.o $< -o $@ $(LIB) zlib/libz.a
+
 sketch_ab_bench: bench/sketch_ab_bench.cpp $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
 	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
 

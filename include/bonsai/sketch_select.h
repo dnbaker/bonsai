@@ -111,7 +111,7 @@ std::vector<GenomeSketch> genome_sketchers(const std::vector<std::string> &paths
 }
 
 /*
-Layered candidate generation over the taxonomic tree. Bottom-up, each
+Layered candidate generation over a taxonomic tree. Bottom-up, each
 internal node's sketch is the register-wise merge of its children's, and
 sibling clades whose merged-sketch Jaccard clears the threshold union their
 genome sets (single linkage). Comparisons stay inside sibling groups:
@@ -122,8 +122,14 @@ diluted across its sibling clades, so this is the scale path; the all-pairs
 path remains the correctness reference. Returns connected components
 (size >= 2) as sorted genome-id lists; no per-genome k-mer bitmaps are
 materialized anywhere in the pipeline.
+
+Templated on the tree type: PlacementTree satisfies the interface
+(ngenomes/leaf_node/is_leaf_node/children_of/root), and scale benches can
+supply a mask-free adjacency-only tree for arbitrarily many genomes.
 */
-inline std::vector<std::vector<u32>> sketch_cluster_candidates_tree(const std::vector<GenomeSketch> &leaf_sketches, const PlacementTree &tree, double jaccard_threshold) {
+template<typename Tree>
+inline std::vector<std::vector<u32>> sketch_cluster_candidates_tree(const std::vector<GenomeSketch> &leaf_sketches, const Tree &tree, double jaccard_threshold,
+                                                                    std::vector<std::pair<u32, double>> *sibling_jaccards = nullptr) {
     const u32 n(u32(leaf_sketches.size()));
     if(n == 0 || n != tree.ngenomes()) throw std::invalid_argument("sketch/genome count mismatch");
     for(const auto &s: leaf_sketches) if(s.getp() != leaf_sketches[0].getp()) throw std::invalid_argument("mixed register counts");
@@ -174,7 +180,9 @@ inline std::vector<std::vector<u32>> sketch_cluster_candidates_tree(const std::v
         const auto &ch(tree.children_of(x));
         for(size_t i(0); i < ch.size(); ++i) {
             for(size_t j(i + 1); j < ch.size(); ++j) {
-                if((*fin[ch[i]]).jaccard_index(*fin[ch[j]]) >= jaccard_threshold) {
+                const double ji((*fin[ch[i]]).jaccard_index(*fin[ch[j]]));
+                if(sibling_jaccards) sibling_jaccards->emplace_back(u32(x), ji);
+                if(ji >= jaccard_threshold) {
                     if(!members[ch[i]].empty() && !members[ch[j]].empty())
                         unite(members[ch[i]].front(), members[ch[j]].front());
                 }

@@ -206,8 +206,19 @@ TEST_CASE("kraken_export") {
         }
         std::fclose(fp);
         REQUIRE(n == NGEN);
+        // Kraken 2's build_db keys its map on the full rewritten header
+        // token, not the bare seqid.
+        std::FILE *f3(std::fopen((outdir + "/seqid2taxid_kraken2.map").data(), "r"));
+        REQUIRE(f3 != nullptr);
+        REQUIRE(std::fgets(line, sizeof(line), f3) != nullptr);
+        {
+            const auto it(ret.seqid2taxid[0]);
+            std::string expect(it.first + "|kraken:taxid|" + std::to_string(it.second) + "\t" + std::to_string(it.second) + "\n");
+            REQUIRE(line == expect);
+        }
+        std::fclose(f3);
         // Kraken 2 library headers carry the explicit taxid.
-        std::FILE *f2(std::fopen((outdir + "/library_kraken2/g0.fa").data(), "r"));
+        std::FILE *f2(std::fopen((outdir + "/library_kraken2/g0.fna").data(), "r"));
         REQUIRE(f2 != nullptr);
         char h[4096];
         REQUIRE(std::fgets(h, sizeof(h), f2) != nullptr);
@@ -216,7 +227,7 @@ TEST_CASE("kraken_export") {
         REQUIRE(got == (">" + seqids[0] + "|kraken:taxid|" + std::to_string(ret.seqid2taxid[0].second)));
         std::fclose(f2);
         // KrakenUniq library is a verbatim copy.
-        std::FILE *a(std::fopen(paths[0].data(), "r")), *b(std::fopen((outdir + "/library/g0.fa").data(), "r"));
+        std::FILE *a(std::fopen(paths[0].data(), "r")), *b(std::fopen((outdir + "/library/g0.fna").data(), "r"));
         REQUIRE(a != nullptr);
         REQUIRE(b != nullptr);
         int ca(0), cb(0);

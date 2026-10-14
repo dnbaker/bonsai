@@ -37,7 +37,7 @@ struct KmerClasses {
     std::unordered_map<u64, u64> weight;      // bitmap -> total occurrences
     KmerClasses(): ngenomes(0), total_distinct(0) {}
     template<typename ScoreType>
-    void fill(const std::vector<std::string> &paths, const Spacer &sp, bool canon=true) {
+    void fill(const std::vector<std::string> &paths, const Spacer &sp, bool canon=true, bool need_weight=true) {
         ngenomes = paths.size();
         LOG_ASSERT(ngenomes <= 64);
         std::unordered_map<u64, u64> kmer_bitmap, kmer_weight;
@@ -48,13 +48,13 @@ struct KmerClasses {
             for(khiter_t ki(0); ki != kh_end(counts); ++ki) {
                 if(!kh_exist(counts, ki)) continue;
                 kmer_bitmap[kh_key(counts, ki)] |= bit;
-                kmer_weight[kh_key(counts, ki)] += kh_val(counts, ki);
+                if(need_weight) kmer_weight[kh_key(counts, ki)] += kh_val(counts, ki);
             }
             kh_destroy(64, counts);
         }
         for(const auto &pair: kmer_bitmap) {
             ++count[pair.second];
-            weight[pair.second] += kmer_weight[pair.first];
+            if(need_weight) weight[pair.second] += kmer_weight[pair.first];
         }
         for(const auto &pair: count) total_distinct += pair.second;
     }

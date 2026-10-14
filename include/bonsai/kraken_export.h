@@ -9,11 +9,17 @@ build classifiers on the refined tree without running bonsai's own.
 Layout produced under the output directory:
   nodes.dmp        NCBI nodes.dmp-style: "<id>\t|\t<parent>\t|\t<rank>\t|"
   names.dmp        "<id>\t|\t<name>\t|\t\t|\tscientific name\t|"
-  seqid2taxid.map  "<seqid>\t<taxid>" per genome (KrakenUniq input)
-  library/         the input fastas, copied verbatim (KrakenUniq library)
-  library_kraken2/ fastas with headers rewritten to
+  seqid2taxid.map          "<seqid>\t<taxid>" per genome, keyed on the
+                           ORIGINAL header tokens (KrakenUniq input)
+  seqid2taxid_kraken2.map  same, keyed on the rewritten tokens
+                           "seqid|kraken:taxid|taxid" -- copy to
+                           "<k2db>/seqid2taxid.map" (Kraken 2's build_db
+                           looks the full rewritten header token up in it)
+  library/         the input fastas, decompressed, as <stem>.fna
+                   (KrakenUniq's build finds *.fna/*.fa/... and concatenates)
+  library_kraken2/ <stem>.fna files with headers rewritten to
                    "><seqid>|kraken:taxid|<taxid> ..." (Kraken 2 custom
-                   library; copy the CONTENTS of this directory)
+                   library; copy the CONTENTS into the db library dir)
 Kraken 2's parser (src/taxonomy.cc) splits on "\t|\t", reads node id,
 parent id, and rank from the first three fields of nodes.dmp, records a
 name only when the names.dmp entry's class is "scientific name", and
@@ -108,31 +114,41 @@ public:
         std::fclose(nfp);
         std::fclose(mfp);
 
-        // seqid2taxid.map and libraries.
+        // seqid2taxid.map and libraries. KrakenUniq's set_lcas keys on the
+        // original header tokens (its library is verbatim), while kraken2's
+        // build_db keys on the full rewritten header token
+        // ("seqid|kraken:taxid|taxid"), so each library gets its own map.
         KrakenExportResult ret;
         ret.max_taxid = max_taxid;
         ret.ngrafted = tree.nsynthetic();
         std::FILE *sfp(std::fopen((std::string(outdir) + "/seqid2taxid.map").data(), "w"));
-        if(!sfp) RUNTIME_ERROR("Could not open seqid2taxid.map for writing");
+        std::FILE *s2fp(std::fopen((std::string(outdir) + "/seqid2taxid_kraken2.map").data(), "w"));
+        if(!sfp || !s2fp) RUNTIME_ERROR("Could not open seqid2taxid map for writing");
         const std::string ldir(std::string(outdir) + "/library"), l2dir(std::string(outdir) + "/library_kraken2");
         ::mkdir(ldir.data(), 0755);
         ::mkdir(l2dir.data(), 0755);
         for(u32 i(0); i < seqids.size(); ++i) {
             const tax_t leaf(xid[tree.leaf_node(i)]);
             std::fprintf(sfp, "%s\t%u\n", seqids[i].data(), leaf);
+            std::fprintf(s2fp, "%s|kraken:taxid|%u\t%u\n", seqids[i].data(), leaf, leaf);
             ret.seqid2taxid.emplace_back(seqids[i], leaf);
-            const std::string base(base_name(genome_paths[i]));
-            copy_fasta(genome_paths[i], (ldir + "/" + base).data(), nullptr, 0);
-            copy_fasta(genome_paths[i], (l2dir + "/" + base).data(), seqids[i].data(), leaf);
+            // KrakenUniq's build finds library files by extension
+            // (*.fna/*.fa/...; no .gz) and concatenates them verbatim, and
+            // kraken2's build_kraken2_db.sh matches only '*.fna'/'*.faa';
+            // both read the copies decompressed, so emit '.fna' stems.
+            const std::string stem(library_stem(genome_paths[i]));
+            copy_fasta(genome_paths[i], (ldir + "/" + stem + ".fna").data(), nullptr, 0);
+            copy_fasta(genome_paths[i], (l2dir + "/" + stem + ".fna").data(), seqids[i].data(), leaf);
         }
         std::fclose(sfp);
+        std::fclose(s2fp);
         if(log) {
             std::fprintf(log, "Exported %zu genomes (%zu taxonomy nodes kept, %u grafted nodes, max taxid %u) to %s\n",
                          seqids.size(), size_t(tree.nnodes()), ret.ngrafted, ret.max_taxid, outdir);
             std::fprintf(log, "KrakenUniq:  mkdir -p KUDB/taxonomy && cp -r %s/library %s/seqid2taxid.map KUDB/ && cp %s/nodes.dmp %s/names.dmp KUDB/taxonomy/ && krakenuniq-build --db KUDB\n",
                          outdir, outdir, outdir, outdir);
-            std::fprintf(log, "Kraken 2:    mkdir -p K2DB/taxonomy && cp %s/nodes.dmp %s/names.dmp K2DB/taxonomy/ && mkdir -p K2DB/library && cp %s/library_kraken2/* K2DB/library/ && kraken2-build --build --db K2DB\n",
-                         outdir, outdir, outdir);
+            std::fprintf(log, "Kraken 2:    mkdir -p K2DB/taxonomy K2DB/library && cp %s/nodes.dmp %s/names.dmp K2DB/taxonomy/ && cp %s/seqid2taxid_kraken2.map K2DB/seqid2taxid.map && cp %s/library_kraken2/* K2DB/library/ && kraken2-build --build --db K2DB\n",
+                         outdir, outdir, outdir, outdir);
         }
         return ret;
     }
@@ -141,6 +157,24 @@ private:
     static std::string base_name(const std::string &path) {
         const auto pos(path.find_last_of('/'));
         return pos == std::string::npos ? path : path.substr(pos + 1);
+    }
+    // Library file stem: basename with any compression suffix stripped and
+    // the '.fna'/'.fa'/... extension removed; kraken2's build_kraken2_db.sh
+    // matches only '*.fna'/'*.faa' in the library and krakenuniq's find has
+    // no '.gz', so the caller appends a fresh '.fna'.
+    static std::string library_stem(const std::string &path) {
+        std::string ret(base_name(path));
+        if(ret.size() > 3 && ret.compare(ret.size() - 3, 3, ".gz") == 0) ret.resize(ret.size() - 3);
+        else if(ret.size() > 5 && ret.compare(ret.size() - 5, 5, ".gzip") == 0) ret.resize(ret.size() - 5);
+        static const char *exts[] {".fna", ".faa", ".fa", ".ffn", ".fsa", ".fasta"};
+        for(const auto ext: exts) {
+            const size_t el(std::strlen(ext));
+            if(ret.size() > el && ret.compare(ret.size() - el, el, ext) == 0) {
+                ret.resize(ret.size() - el);
+                break;
+            }
+        }
+        return ret;
     }
     static ssize_t gz_read_line(gzFile fp, char **buf, size_t *cap) {
         if(*cap == 0) {*cap = 4096; *buf = static_cast<char *>(std::malloc(*cap));}

@@ -798,6 +798,36 @@ static void destroy_name_hash(khash_t(name) *hash) noexcept {
     kh_destroy(name, hash);
 }
 
+// First whitespace-delimited token of a fasta file's first header (a
+// "|kraken:taxid|" suffix, if present, is stripped). Empty when the file
+// has no header or cannot be read.
+static std::string first_header_token(const char *path) {
+    gzFile fp(gzopen(path, "rb"));
+    if(fp == nullptr) return {};
+    char buf[8192];
+    std::string ret;
+    if(gzgets(fp, buf, sizeof(buf)) != nullptr && buf[0] == '>') {
+        char *p(buf + 1);
+        while(*p == ' ') ++p;
+        char *start(p);
+        while(*p && !std::isspace(*p)) ++p;
+        ret.assign(start, p);
+        const auto kpos(ret.find("|kraken:taxid|"));
+        if(kpos != std::string::npos) ret.resize(kpos);
+    }
+    gzclose(fp);
+    return ret;
+}
+// Probe wrapper: first-header token + name-hash lookup; returns tax_t(-1)
+// when the token is absent from the name hash.
+static tax_t first_header_taxid(const char *path, const khash_t(name) *name_hash, std::string *seqid_out = nullptr) {
+    const std::string seqid(first_header_token(path));
+    if(seqid_out) *seqid_out = seqid;
+    if(seqid.empty()) return tax_t(-1);
+    const khint_t ki(kh_get(name, name_hash, seqid.data()));
+    return ki == kh_end(name_hash) ? tax_t(-1): kh_val(name_hash, ki);
+}
+
 static std::map<tax_t, tax_t> build_kraken_tax(const std::string &fname) {
     const char *fn(fname.data());
     std::FILE *fp(std::fopen(fn, "r"));
