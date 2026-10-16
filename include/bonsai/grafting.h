@@ -30,6 +30,10 @@ beyond the class counts already in KmerClasses.
 #include <optional>
 #include <vector>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 namespace bns {
 
 // Class index for incremental gain evaluation: multi-genome classes with
@@ -65,17 +69,30 @@ Returns 0 for infeasible A (singleton or already a node).
 
 before_cache, when provided, memoizes tree.err(mask) per class id; it is
 only valid while `tree` is unchanged, so callers must reset it (fill with
-u64(-1)) after mutating the tree.
+u64(-1)) after mutating the tree. seen_scratch/generation stamp the
+affected-class dedup set so a full O(nclasses) fill is not paid per
+candidate; pass nullptr/0 to allocate one internally.
 */
 inline long double gain_of_add(const PlacementTree &tree, const GraftIndex &gi, u64 A,
-                               std::vector<u64> *before_cache = nullptr) {
+                               std::vector<u64> *before_cache = nullptr,
+                               std::vector<u32> *seen_scratch = nullptr, u32 generation = 0,
+                               std::vector<u32> *affected_scratch = nullptr) {
     if(pc64(A) < 2) return 0.0L;
     // affected classes via per-genome inverted lists
-    std::vector<u32> affected;
-    std::vector<u32> seen(gi.masks.size(), u32(-1));
+    std::vector<u32> internal_affected;
+    std::vector<u32> &affected(affected_scratch ? *affected_scratch: internal_affected);
+    affected.clear();
+    std::vector<u32> internal_seen;
+    std::vector<u32> &seen(seen_scratch ? *seen_scratch: internal_seen);
+    if(seen_scratch == nullptr) seen.assign(gi.masks.size(), u32(-1));
     for(u64 m(A); m; m &= m - 1) {
         for(const u32 id: gi.by_genome[__builtin_ctzll(m)]) {
-            if(seen[id] == u32(-1)) {seen[id] = 1; affected.push_back(id);}
+            const bool fresh(seen_scratch ? seen[id] != generation: seen[id] == u32(-1));
+            if(fresh) {
+                if(seen_scratch) seen[id] = generation;
+                else seen[id] = 1;
+                affected.push_back(id);
+            }
         }
     }
     PlacementTree tmp(tree);
@@ -95,6 +112,31 @@ inline long double gain_of_add(const PlacementTree &tree, const GraftIndex &gi, 
         gain += (long double)(gi.counts[id]) * ((long double)(before) - (long double)(after));
     }
     return gain;
+}
+
+/*
+Admissible upper bound on gain_of_add for the same tree: the gain is
+sum(count * (before - after)) and after >= 0, so the gain cannot exceed
+sum(count * before) over the same affected set. Costs only the inverted-
+list scan (no tree copy, no add_synthetic), which lets the greedy skip
+exact evaluation of candidates that cannot beat the current best. Fills the
+same before_cache; valid only while `tree` is unchanged.
+*/
+inline long double gain_bound(const PlacementTree &tree, const GraftIndex &gi, u64 A,
+                              std::vector<u64> &before_cache,
+                              std::vector<u32> &seen, u32 generation) {
+    if(pc64(A) < 2) return 0.0L;
+    long double bound(0.0L);
+    for(u64 m(A); m; m &= m - 1) {
+        for(const u32 id: gi.by_genome[__builtin_ctzll(m)]) {
+            if(seen[id] == generation) continue;
+            seen[id] = generation;
+            u64 &cached(before_cache[id]);
+            if(cached == u64(-1)) cached = tree.err(gi.masks[id]);
+            bound += (long double)(gi.counts[id]) * (long double)(cached);
+        }
+    }
+    return bound;
 }
 
 // Apply the best candidate greedily for up to budget steps; accepts a
@@ -130,14 +172,57 @@ inline GraftingResult graft_greedy(PlacementTree &tree, const KmerClasses &kc,
     std::vector<char> used(candidates.size(), 0);
     // tree.err(mask) per class, valid for one greedy round at a time.
     std::vector<u64> before_cache(gi.masks.size(), u64(-1));
+    // The per-round candidate scan is embarrassingly parallel: every
+    // candidate is evaluated against the same unmutated tree (the single
+    // accepted graft is applied after the join), so threads only need
+    // per-thread gain slots and affected-set stamps; before_cache is filled
+    // eagerly at round start and read-only during the scan. The admissible
+    // gain_bound filters candidates that cannot beat the running best
+    // before paying for a tree copy + add_synthetic + after-err walks.
+    u32 nth(1);
+#ifdef _OPENMP
+    nth = u32(std::min(omp_get_max_threads(), std::max(1, int(candidates.size()) / 64)));
+#endif
+    std::vector<std::vector<u32>> tseen(nth);
+    for(auto &v: tseen) v.assign(gi.masks.size(), 0);
+    std::vector<std::vector<u32>> taffected(nth);
+    std::vector<long double> tgain(nth, 0.0L);
+    std::vector<u32> tbest(nth, u32(-1));
+    std::vector<u32> tgen(nth, 0);
     while(ret.added_masks.size() < budget) {
+        // Eagerly memoize every class's current err for this round.
+        for(u32 id(0); id < gi.masks.size(); ++id)
+            before_cache[id] = tree.err(gi.masks[id]);
+        std::fill(tgain.begin(), tgain.end(), 0.0L);
+        std::fill(tbest.begin(), tbest.end(), u32(-1));
+#ifdef _OPENMP
+        #pragma omp parallel for schedule(dynamic, 8) num_threads(int(nth))
+#endif
+        for(u32 i = 0; i < candidates.size(); ++i) {
+            if(used[i]) continue;
+#ifdef _OPENMP
+            const u32 tid = u32(omp_get_thread_num());
+#else
+            const u32 tid(0);
+#endif
+            std::vector<u32> &seen(tseen[tid]);
+            u32 &gen(tgen[tid]);
+            if(++gen == 0) { // wrapped: re-zero the stamp array
+                std::fill(seen.begin(), seen.end(), 0);
+                gen = 1;
+            }
+            if(gain_bound(tree, gi, candidates[i], before_cache, seen, gen) <= tgain[tid]) continue;
+            if(++gen == 0) {
+                std::fill(seen.begin(), seen.end(), 0);
+                gen = 1;
+            }
+            const long double g(gain_of_add(tree, gi, candidates[i], &before_cache, &seen, gen, &taffected[tid]));
+            if(g > tgain[tid]) {tgain[tid] = g; tbest[tid] = i;}
+        }
         long double best_gain(0.0L);
         u32 best(u32(-1));
-        for(u32 i(0); i < candidates.size(); ++i) {
-            if(used[i]) continue;
-            const long double g(gain_of_add(tree, gi, candidates[i], &before_cache));
-            if(g > best_gain) {best_gain = g; best = i;}
-        }
+        for(u32 t(0); t < nth; ++t)
+            if(tbest[t] != u32(-1) && tgain[t] > best_gain) {best_gain = tgain[t]; best = tbest[t];}
         if(best == u32(-1)) break;
         used[best] = 1;
         const u64 A(candidates[best]);
@@ -193,7 +278,6 @@ inline std::vector<u64> enumerate_grafts(const PlacementTree &tree, bool all_sub
         for(size_t i(0); i < k; ++i) push(full & ~tree.mask(ch[i]));
     }
     if(all_subsets) {
-        const u32 n(tree.ngenomes());
         const u64 all(tree.genome_mask());
         for(u64 s(3); s < all; ++s) if((s & ~all) == 0) push(s);
     }
