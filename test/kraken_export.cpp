@@ -244,3 +244,42 @@ TEST_CASE("kraken_export") {
     }
     kh_destroy(p, taxmap);
 }
+
+TEST_CASE("kraken_export dedupes colliding library stems") {
+    TmpDir tmp;
+    std::mt19937_64 rng(777);
+    ::mkdir((tmp.dir + "/a").data(), 0755);
+    ::mkdir((tmp.dir + "/b").data(), 0755);
+    const std::string taxpath(tmp.add("tax.txt", "100|\t1|\n101|\t1|\n"));
+    khash_t(p) *taxmap(build_parent_map(taxpath.data()));
+    std::vector<std::string> paths, seqids;
+    std::vector<tax_t> genome_taxa;
+    const char *subs[] {"/a", "/b"};
+    const tax_t tids[] {100, 101};
+    for(unsigned i(0); i < 2; ++i) {
+        const std::string name(std::string(subs[i] + 1) + "genome"); // agenome, bgenome
+        paths.push_back(tmp.add(std::string(subs[i] + 1) + "/same.fa", ">" + name + "\n" + rand_dna(rng, 200) + "\n"));
+        seqids.push_back(name);
+        genome_taxa.push_back(tids[i]);
+    }
+    PlacementTree tree(taxmap, genome_taxa);
+    const std::string outdir(tmp.dir + "/export2");
+    ::mkdir(outdir.data(), 0755);
+    const auto ret(KrakenExporter::write(tree, seqids, paths, outdir.data()));
+    REQUIRE(ret.seqid2taxid.size() == 2);
+    // Both library copies must exist under distinct stems; one genome's
+    // fasta must not have overwritten the other's.
+    std::FILE *fp(std::fopen((outdir + "/library/same.fna").data(), "r"));
+    REQUIRE(fp != nullptr);
+    std::fclose(fp);
+    fp = std::fopen((outdir + "/library/same_2.fna").data(), "r");
+    REQUIRE(fp != nullptr);
+    std::fclose(fp);
+    fp = std::fopen((outdir + "/library_kraken2/same.fna").data(), "r");
+    REQUIRE(fp != nullptr);
+    std::fclose(fp);
+    fp = std::fopen((outdir + "/library_kraken2/same_2.fna").data(), "r");
+    REQUIRE(fp != nullptr);
+    std::fclose(fp);
+    kh_destroy(p, taxmap);
+}

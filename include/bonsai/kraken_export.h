@@ -127,6 +127,9 @@ public:
         const std::string ldir(std::string(outdir) + "/library"), l2dir(std::string(outdir) + "/library_kraken2");
         ::mkdir(ldir.data(), 0755);
         ::mkdir(l2dir.data(), 0755);
+        // Stems from different directories can collide (a/x.fa, b/x.fa);
+        // dedupe so one genome's fasta never silently overwrites another's.
+        std::unordered_set<std::string> used_stems;
         for(u32 i(0); i < seqids.size(); ++i) {
             const tax_t leaf(xid[tree.leaf_node(i)]);
             std::fprintf(sfp, "%s\t%u\n", seqids[i].data(), leaf);
@@ -136,7 +139,9 @@ public:
             // (*.fna/*.fa/...; no .gz) and concatenates them verbatim, and
             // kraken2's build_kraken2_db.sh matches only '*.fna'/'*.faa';
             // both read the copies decompressed, so emit '.fna' stems.
-            const std::string stem(library_stem(genome_paths[i]));
+            const std::string base(library_stem(genome_paths[i]));
+            std::string stem(base);
+            for(u32 n(2); !used_stems.insert(stem).second; stem = base + "_" + std::to_string(n++));
             copy_fasta(genome_paths[i], (ldir + "/" + stem + ".fna").data(), nullptr, 0);
             copy_fasta(genome_paths[i], (l2dir + "/" + stem + ".fna").data(), seqids[i].data(), leaf);
         }
