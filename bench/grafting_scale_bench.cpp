@@ -240,7 +240,6 @@ int main(int argc, char *argv[]) {
                 ++gi;
             }
         }
-        free_counter(*set);
         kh_destroy(all, set);
     }
 
