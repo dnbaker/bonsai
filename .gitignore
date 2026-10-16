@@ -60,3 +60,8 @@ zomg/
 # Locally-built scratch binaries
 /sketch_ab_bench
 /grafting_bench
+/grafting_scale_bench
+
+# Benchmark datasets (generated or downloaded; see data/README.md)
+/data/*/
+!/data/make_syn_scale_data.py
