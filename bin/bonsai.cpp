@@ -249,7 +249,11 @@ int phase2_main(int argc, char *argv[]) {
         Database<khash_t(c)>  phase2_map(sp);
         // Force using hll so that we can use __sync_bool_compare_and_swap to parallelize.
         LOG_INFO("About to estimate cardinality\n");
-        std::size_t hash_size(estimate_cardinality<score::Lex>(inpaths, k, k, sv, canon, nullptr, num_threads, 24));
+        // Cardinality of what will actually be stored: minimizers when the
+        // window exceeds k, all k-mers otherwise. Estimating at w = k would
+        // oversize the table by the minimization factor (e.g. 40x at
+        // k = 25, w = 100 over real genomes).
+        std::size_t hash_size(estimate_cardinality<score::Lex>(inpaths, k, wsz, sv, canon, nullptr, num_threads, 24));
 #if !NDEBUG
         {
             uint64_t sum = 0;
