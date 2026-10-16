@@ -761,6 +761,7 @@ static khash_t(name) *build_name_hash(const char *fn) noexcept {
     char *buf((char *)std::malloc(bufsz));
     ssize_t len;
     std::FILE *fp(std::fopen(fn, "r"));
+    if(fp == nullptr) LOG_EXIT("Could not open name hash file %s.\n", fn);
     khash_t(name) *ret(kh_init(name));
     kh_resize(name, ret, count_lines(fn));
     char *p;
@@ -871,10 +872,17 @@ static khash_t(p) *build_parent_map(const char *fn) {
     const char *p;
     while(std::getline(is, line)) {
         switch(line[0]) case '\n': case '\0': case '#': continue;
+        // Parse the parent before inserting: lines without a pipe are
+        // malformed, and atoi(p + 2) silently mangles compact "child|parent"
+        // rows (atoi from past the first parent digit: "100|123" -> 23, while
+        // "100|1" becomes a spurious extra root).
+        p = std::strchr(line.data(), '|');
+        if(p == nullptr) {
+            LOG_WARNING("Malformed line (no pipe): %s", line.data());
+            continue;
+        }
         ki = kh_put(p, ret, std::atoi(line.data()), &khr);
-        kh_val(ret, ki) = (p = std::strchr(line.data(), '|')) ? std::atoi(p + 2)
-                                                              : tax_t(-1);
-        if(kh_val(ret, ki) == tax_t(-1)) LOG_WARNING("Malformed line: %s", line.data());
+        kh_val(ret, ki) = std::atoi(p + 1);
     }
     ki = kh_put(p, ret, 1, &khr);
     kh_val(ret, ki) = 0; // Root of the tree.
