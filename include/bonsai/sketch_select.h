@@ -28,6 +28,9 @@ Two accelerations are validated against the exact greedy:
 #include "placement.h"
 #include "sketch/bbmh.h"
 
+#include "aesctr/aesctr.h"
+#include "flat_hash_map/flat_hash_map.hpp"
+
 #include <numeric>
 #include <optional>
 #include <memory>
@@ -210,13 +213,13 @@ inline std::vector<std::vector<u32>> sketch_cluster_candidates_tree(const std::v
 inline KmerClasses subsample_singletons(const KmerClasses &kc, double p, uint64_t seed) {
     KmerClasses ret;
     ret.ngenomes = kc.ngenomes;
-    std::mt19937_64 rng(seed);
-    std::uniform_real_distribution<double> uni(0., 1.);
+    aes::AesCtr<uint64_t> rng(seed);
+    auto uni = [&]() {return (rng() >> 11) * (1. / (UINT64_C(1) << 53));};
     for(const auto &pair: kc.count) {
         const bool structural(pc64(pair.first) >= 2);
         double scale(1.);
         if(!structural) {
-            if(uni(rng) >= p) continue;
+            if(uni() >= p) continue;
             scale = 1. / p;
         }
         const u64 newcount(u64(std::lround(pair.second * scale)));
@@ -239,7 +242,7 @@ bitmaps shrink and placements can distort.
 template<typename ScoreType>
 KmerClasses subsample_kmers(const std::vector<std::string> &paths, const Spacer &sp, double p, uint64_t seed, bool force_structural, double *kept_fraction=nullptr) {
     const u32 n(paths.size());
-    std::unordered_map<u64, u32> occ;
+    ska::flat_hash_map<u64, u32> occ;
     u64 total_copies(0);
     for(const auto &path: paths) {
         Encoder<ScoreType> enc(0, 0, sp, nullptr, true);
@@ -247,19 +250,19 @@ KmerClasses subsample_kmers(const std::vector<std::string> &paths, const Spacer 
     }
     // Sample at occurrence granularity; remember each kept k-mer's scaled
     // occurrence count. Its class is final once all genomes are scanned.
-    std::unordered_map<u64, u64> bm;              // k-mer -> genome bits
-    std::unordered_map<u64, long double> kocc;    // k-mer -> scaled occurrences
-    std::unordered_map<u64, long double> kcnt;    // k-mer -> scaled distinct-count contribution
+    ska::flat_hash_map<u64, u64> bm;              // k-mer -> genome bits
+    ska::flat_hash_map<u64, long double> kocc;    // k-mer -> scaled occurrences
+    ska::flat_hash_map<u64, long double> kcnt;    // k-mer -> scaled distinct-count contribution
     u64 kept_copies(0);
-    std::mt19937_64 rng(seed);
-    std::uniform_real_distribution<double> uni(0., 1.);
+    aes::AesCtr<uint64_t> rng(seed);
+    auto uni = [&]() {return (rng() >> 11) * (1. / (UINT64_C(1) << 53));};
     for(u32 i(0); i < n; ++i) {
         const u64 bit(u64(1) << i);
         Encoder<ScoreType> enc(0, 0, sp, nullptr, true);
         enc.for_each([&](u64 v) {
             double scale(1.);
             if(!(force_structural && occ[v] > 1)) {
-                if(uni(rng) >= p) return;
+                if(uni() >= p) return;
                 scale = 1. / p;
             }
             ++kept_copies;
