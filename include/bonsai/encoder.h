@@ -1165,15 +1165,21 @@ u64 count_cardinality(const std::vector<std::string> paths,
 //             from Encoder<ScoreType, u64> (spaced seeds and minimizer
 //             windows as before); key_bits = bit width of mul^k - 1 (2k for
 //             DNA), so the compact table stores exactly that domain.
-//   HASHED64  larger k: a rolling hash (RollingHasher<uint64_t>: a polynomial
-//             mod 2^61 - 1, bijectively mixed to 64 bits; canonical for DNA;
-//             windows select the minimum hash), unspaced only.
+//   HASHED64  rh2n(alphabet, 8) < k <= rh2n(alphabet, 16) (DNA 32 < k <= 64):
+//             the exact 128-bit k-mer from Encoder<ScoreType, u128> (spaced
+//             seeds and minimizer windows supported, the same minimizers as
+//             EXACT128) folded to 64 bits by a fixed mixer;
+//             k > rh2n(alphabet, 16): a rolling hash (RollingHasher<uint64_t>:
+//             a polynomial mod 2^61 - 1, bijectively mixed to 64 bits;
+//             canonical for DNA; windows select the minimum hash), unspaced
+//             only.
 // With KeyT = u128 (compact databases):
 //   EXACT128  rh2n(alphabet, 8) < k <= rh2n(alphabet, 16) (DNA: 32 < k <= 64):
 //             the packed k-mer from Encoder<ScoreType, u128>; key_bits = bit
 //             width of mul^k - 1.
-//   HASHED128 larger k: RollingHasher<u128> (two independent 61-bit lanes,
-//             each mixed to 64 bits), unspaced only.
+//   HASHED128 k > rh2n(alphabet, 16): RollingHasher<u128> (two independent
+//             61-bit lanes, each mixed to 64 bits), unspaced only. (Spaced
+//             seeds beyond 128 bits would need a spaced rolling hash.)
 // Hashed keys are the low hash_bits bits of the hash (u64: default/max 61;
 // u128: default 122, range [65, 128]): a SPECIFICITY/SIZE tradeoff -- each bit
 // is one more stored remainder bit per slot, and distinct k-mers merge
@@ -1196,7 +1202,15 @@ private:
     void *data_;
     InputType rht_;
     std::unique_ptr<Encoder<ScoreType, KeyT>> enc_;
+    std::unique_ptr<Encoder<ScoreType, u128>> enc128_;   // HASHED64 for k within 128 bits: fold the exact k-mer
     std::unique_ptr<RollingHasher<KeyT>> rh_;
+    // fixed 128 -> 64-bit fold (splitmix64 finalizer over both halves)
+    static u64 mix64_(u64 z) {
+        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
+        z = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
+        return z ^ (z >> 31);
+    }
+    static u64 fold128_(u128 x) {return mix64_(u64(x) ^ mix64_(u64(x >> 64) + 0x9e3779b97f4a7c15ull));}
     unsigned hash_bits_;
     KeyT hmask_;
     static KeyT mask_of(unsigned b) {return b >= sizeof(KeyT) * CHAR_BIT ? ~KeyT(0): ((KeyT(1) << b) - 1);}
@@ -1204,6 +1218,8 @@ private:
     void make() {
         if(exact()) {
             enc_.reset(new Encoder<ScoreType, KeyT>(nullptr, 0, sp_, data_, canon_));
+        } else if(!wide && sp_.k_ <= rh2n(rht_, 16)) {
+            enc128_.reset(new Encoder<ScoreType, u128>(nullptr, 0, sp_, data_, canon_));
         } else {
             if(!sp_.unspaced())
                 RUNTIME_ERROR(ks::sprintf("k %u exceeds the %zu bases a %zu-bit key holds for alphabet %s; the hashed-key tier needs an unspaced seed.",
@@ -1248,11 +1264,13 @@ public:
     template<typename Functor>
     void for_each(const Functor &func, const char *s, size_t l) {
         if(exact()) enc_->for_each([&](KeyT x) {func(x);}, s, l);
+        else if(enc128_) enc128_->for_each([&](u128 x) {func(KeyT(fold128_(x)) & hmask_);}, s, l);
         else rh_->for_each_hash([&](KeyT h) {func(KeyT(h & hmask_));}, s, l);
     }
     template<typename Functor>
     void for_each(const Functor &func, const char *path, kseq_t *ks) {
         if(exact()) enc_->for_each([&](KeyT x) {func(x);}, path, ks);
+        else if(enc128_) enc128_->for_each([&](u128 x) {func(KeyT(fold128_(x)) & hmask_);}, path, ks);
         else rh_->for_each_hash([&](KeyT h) {func(KeyT(h & hmask_));}, path, ks);
     }
 };

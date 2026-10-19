@@ -189,5 +189,57 @@ TEST_CASE("lca_map + classify for exact (k = 31) and hashed (k = 40) keys") {
         }
         kh_destroy(c, db);
     }
+    // SPACED seeds and minimizer WINDOWS beyond k = 32 (32 < k <= 64): the
+    // 61-bit keys fold the exact 128-bit spaced k-mer, so khash, compact
+    // (61-bit) and exact 128-bit databases select the same keys and classify
+    // identically; error-free reads still reach their own taxon.
+    {
+        const unsigned k = 40;
+        spvec_t gaps(k - 1, 0);
+        for(unsigned i = 4; i < k - 1; i += 6) gaps[i] = 1;      // a gap after every 6th position: span > k
+        for(const unsigned w: {k + 6u, k + 16u}) {
+            Spacer sp(k, w, gaps);
+            REQUIRE(!sp.unspaced());
+            khash_t(c) *db(lca_map<score::Lex>(fns, taxmap, (dir + "/seq2tax.txt").data(), sp, 2, true, 1 << 16));
+            auto m128 = compact_lca_map<score::Lex, u128>(fns, taxmap, (dir + "/seq2tax.txt").data(), sp, 2, true, kh_size(db),
+                                                          KmerKeys<score::Lex, u128>::key_bits_for(k));
+            REQUIRE(m128->size() == kh_size(db));
+            CompactKmerMap cm(db, CompactKmerMap::DEFAULT_MAX_LOAD, KmerKeys<>::key_bits_for(k));
+            spvec_t sv(gaps);
+            ClassifierGeneric<score::Lex> ck(db, sv, k, w, 2, true, false, true, true);
+            ClassifierGeneric<score::Lex, CompactKmerMap> cc(&cm, sv, k, w, 2, true, false, true, true);
+            ClassifierGeneric<score::Lex, CompactKmerMap128> c8(m128.get(), sv, k, w, 2, true, false, true, true);
+            REQUIRE(ck.enc_.tier() == KmerKeys<>::HASHED64);
+            REQUIRE(c8.enc_.tier() == KmerKeys<score::Lex, u128>::EXACT128);
+            std::string out[3];
+            int ix = 0;
+            auto run = [&](const auto &cl) {
+                std::FILE *o = std::tmpfile();
+                process_dataset(cl, taxmap, fq.data(), nullptr, o, 256, 32);
+                out[ix++] = slurp(o);
+                std::fclose(o);
+            };
+            run(ck); run(cc); run(c8);
+            REQUIRE(out[0] == out[1]);
+            REQUIRE(out[0] == out[2]);
+            size_t right = 0, total = 0;
+            std::istringstream is(out[0]);
+            std::string line;
+            while(std::getline(is, line)) {
+                std::istringstream ls(line);
+                std::string cu, name;
+                tax_t taxon = 0;
+                ls >> cu >> name >> taxon;
+                const auto t = truth.find(name);
+                if(t == truth.end()) continue;
+                ++total; right += taxon == t->second;
+            }
+            REQUIRE(total == truth.size());
+            REQUIRE(right == total);
+            std::fprintf(stderr, "k=40 spaced (span %u), window %u: %zu keys; 61-bit khash == 61-bit compact == exact 128-bit; %zu/%zu reads to own taxon\n",
+                         sp.c(), w, size_t(kh_size(db)), right, total);
+            kh_destroy(c, db);
+        }
+    }
     kh_destroy(p, taxmap);
 }

@@ -266,10 +266,14 @@ int phase2_main(int argc, char *argv[]) {
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
     if(compact_out && mode != score_scheme::LEX) LOG_EXIT("-Z (compact output) builds lex LCA databases only.\n");
     if(wsz < k) wsz = k;
-    // k <= 32: exact 64-bit packed k-mers. k > 32 (lex LCA databases only):
-    // 61-bit rolling-hash keys (KmerKeys::HASHED64), which need an unspaced seed.
-    if(k > 32 && (mode != score_scheme::LEX || !spacing.empty()))
-        LOG_EXIT("k > 32 uses hashed keys and needs the default lex mode with an unspaced seed.\n");
+    // k <= 32: exact 64-bit packed k-mers. 32 < k <= 64 (lex LCA databases):
+    // 61-bit keys folded from the exact 128-bit k-mer (spaced seeds and windows
+    // supported), or exact 128-bit keys with -Z. k > 64: rolling-hash keys,
+    // unspaced only.
+    if(k > 32 && mode != score_scheme::LEX)
+        LOG_EXIT("k > 32 needs the default lex mode.\n");
+    if(k > 64 && !spacing.empty())
+        LOG_EXIT("k > 64 uses rolling-hash keys, which need an unspaced seed.\n");
 #ifdef ZWRAP_USE_ZSTD
     const std::string suf(".zst");
 #else
@@ -326,7 +330,6 @@ int phase2_main(int argc, char *argv[]) {
                          dbpath.data(), m->size(), m->key_bits(), m->value_bits(), m->bytes_used());
             };
             if(KmerKeys<score::Lex, u128>::tier_for(k) == KmerKeys<score::Lex, u128>::EXACT128 && k > 32) {
-                if(!spacing.empty()) LOG_EXIT("Exact 128-bit keys (32 < k <= 64) need an unspaced seed here.\n");
                 write_out(compact_lca_map<score::Lex, u128>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon,
                                                             hash_size, KmerKeys<score::Lex, u128>::key_bits_for(k)));
             } else {
