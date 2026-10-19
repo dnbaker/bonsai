@@ -130,15 +130,21 @@ inline void append_kraken_classification(const tax_counter &,
     bks.terminate();
 }
 
-// DB: khash_t(c) (the original k-mer -> taxon hash) or CompactKmerMap
-// (kmermap.h; sketch's compact hash table, looked up in per-read batches).
-// Both classify identically.
+// DB: khash_t(c) (the original k-mer -> taxon hash) or a compact map
+// (kmermap.h: CompactKmerMap with up-to-64-bit keys, CompactKmerMap128 with
+// wider ones; looked up in per-read batches). khash and CompactKmerMap
+// classify identically for the same keys.
+template<typename DB> struct db_key_type {using type = u64;};
+template<typename K> struct db_key_type<BasicCompactKmerMap<K>> {using type = K;};
+
 template<typename ScoreType, typename DB=khash_t(c)>
 struct ClassifierGeneric {
     using db_type = DB;
+    using key_type = typename db_key_type<DB>::type;
+    using keys_type = KmerKeys<ScoreType, key_type>;
     const DB *db_;
     const Spacer sp_;
-    KmerKeys<ScoreType> enc_;   // k-mer -> key (exact 64-bit k-mer, or a rolling hash for k > 32)
+    keys_type enc_;   // k-mer -> key (exact packed k-mer, or a rolling hash beyond the key type's capacity)
     uint32_t          nt_:16;
     uint32_t output_flag_:16;
     mutable std::atomic<u64> classified_[2];
@@ -158,11 +164,14 @@ struct ClassifierGeneric {
     INLINE int get_emit_all()    const {return output_flag_ & output_format::EMIT_ALL;}
     INLINE int get_emit_kraken() const {return output_flag_ & output_format::KRAKEN;}
     INLINE int get_emit_fastq()  const {return output_flag_ & output_format::FASTQ;}
+    // hash_bits: key width of hashed-tier keys (must match the build; a compact
+    // database records it as its key width)
     ClassifierGeneric(const DB *map, const spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
-                      bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false, bool canonicalize=true):
+                      bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false, bool canonicalize=true,
+                      unsigned hash_bits = keys_type::DEFAULT_HASH_BITS):
         db_(map),
         sp_(k, wsz, spaces),
-        enc_(sp_, canonicalize),
+        enc_(sp_, canonicalize, nullptr, DNA, hash_bits),
         nt_(num_threads > 0 ? (uint16_t)(num_threads): (uint16_t)std::thread::hardware_concurrency()),
         output_flag_(0)
     {
@@ -205,9 +214,10 @@ INLINE void append_counts(u32 count, const char character, kstring_t *ks) {
 }
 
 using Classifier = ClassifierGeneric<score::Lex>;
-// Per-thread buffers for the batched (CompactKmerMap) lookup path.
+// Per-thread buffers for the batched (compact map) lookup path.
+template<typename KeyT = u64>
 struct LookupScratch {
-    std::vector<u64> kmers;
+    std::vector<KeyT> kmers;
     std::vector<tax_t> taxa;
     std::vector<uint64_t> buf;
 };
@@ -227,9 +237,9 @@ struct kt_data {
 
 template<typename ScoreType, typename DB>
 unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
-                      KmerKeys<ScoreType> &enc,
+                      typename ClassifierGeneric<ScoreType, DB>::keys_type &enc,
                       const khash_t(p) *taxmap, bseq1_t *bs, const int is_paired, std::vector<tax_t> &taxa,
-                      LookupScratch &scratch) {
+                      LookupScratch<typename ClassifierGeneric<ScoreType, DB>::key_type> &scratch) {
     LOG_DEBUG("starting classify_seq with bs at pointer = %p\n", static_cast<const void*>(bs));
     khiter_t ki;
     tax_counter hit_counts;
@@ -263,7 +273,7 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
         } else {
             (void)ki;
             scratch.kmers.clear();
-            enc.for_each([&](u64 kmer) {scratch.kmers.push_back(kmer);}, seq, len);
+            enc.for_each([&](auto kmer) {scratch.kmers.push_back(kmer);}, seq, len);
             scratch.taxa.resize(scratch.kmers.size());
             c.db_->get_many(scratch.kmers.begin(), scratch.kmers.end(), scratch.taxa.begin(), scratch.buf);
             for(const tax_t t: scratch.taxa) {
@@ -301,9 +311,9 @@ inline void kt_for_helper(void *data_, long index, int) {
     kt_data<C> *data((kt_data<C> *)data_);
     size_t retstr_size(0);
     const int inc(!!data->is_paired_ + 1);
-    KmerKeys<score::Lex> enc(data->c_.enc_);
+    typename C::keys_type enc(data->c_.enc_);
     std::vector<tax_t> taxa;
-    LookupScratch scratch;
+    LookupScratch<typename C::key_type> scratch;
     // Each task covers [per_set * index, per_set * (index + 1)); the previous
     // (per_set + 1) * index bound left task 0 empty and dropped records.
     for(unsigned i(index * data->per_set_); i < std::min(data->per_set_ * (static_cast<unsigned>(index) + 1), data->total_); retstr_size += classify_seq(data->c_, enc, data->taxmap, data->bs_ + i, data->is_paired_, taxa, scratch), i += inc);

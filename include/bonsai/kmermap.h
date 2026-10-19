@@ -47,9 +47,22 @@
 
 namespace bns {
 
-class CompactKmerMap {
+namespace kmermap_detail {
+template<typename KeyT> struct KeyHasher;
+template<> struct KeyHasher<u64> {using type = sketch::cht::cht_mixbits_hash; static constexpr unsigned max_bits = 64;};
+template<> struct KeyHasher<u128> {using type = sketch::cht::cht_mixbits128_hash; static constexpr unsigned max_bits = 128;};
+} // namespace kmermap_detail
+
+// KeyT = u64: k-mers of up to 64 bits (DNA k <= 32) or 64-bit hashes;
+// KeyT = u128: 65..128-bit keys (DNA 32 < k <= 64 exactly, or wide hashes).
+// CompactKmerMap / CompactKmerMap128 below.
+template<typename KeyT>
+class BasicCompactKmerMap {
 public:
-    using table_type = sketch::cht::cht_map_t<uint64_t, sketch::cht::cht_mixbits_hash, 0>;
+    using key_type = KeyT;
+    using hasher_type = typename kmermap_detail::KeyHasher<KeyT>::type;
+    static constexpr unsigned MAX_KEY_BITS = kmermap_detail::KeyHasher<KeyT>::max_bits;
+    using table_type = sketch::cht::cht_map_t<KeyT, hasher_type, 0>;
     static constexpr tax_t NOT_FOUND = std::numeric_limits<tax_t>::max();
     static constexpr double DEFAULT_MAX_LOAD = 0.85;
 
@@ -70,12 +83,12 @@ public:
 
     // Incremental build: room for expected_size k-mers and up to max_taxa
     // distinct taxa (set() throws past either).
-    CompactKmerMap(size_t expected_size, size_t max_taxa, double max_load = DEFAULT_MAX_LOAD, unsigned key_bits = 64)
-        : t_(q_for(expected_size, max_load), bits_for(max_taxa), sketch::cht::cht_mixbits_hash(key_bits)), max_taxa_(max_taxa) {}
+    BasicCompactKmerMap(size_t expected_size, size_t max_taxa, double max_load = DEFAULT_MAX_LOAD, unsigned key_bits = MAX_KEY_BITS)
+        : t_(q_for(expected_size, max_load), bits_for(max_taxa), hasher_type(key_bits)), max_taxa_(max_taxa) {}
     // Conversion from khash_t(c): one pass to collect the distinct taxa (the
     // minimum value width), one to fill.
-    explicit CompactKmerMap(const khash_t(c) *map, double max_load = DEFAULT_MAX_LOAD, unsigned key_bits = 64)
-        : CompactKmerMap(map, collect_taxa(map), max_load, key_bits) {}
+    explicit BasicCompactKmerMap(const khash_t(c) *map, double max_load = DEFAULT_MAX_LOAD, unsigned key_bits = 64)
+        : BasicCompactKmerMap(map, collect_taxa(map), max_load, key_bits) {}
     // Bits the keys of a khash_t(c) actually span (an upper bound for key_bits).
     static unsigned key_bits_needed(const khash_t(c) *map) {
         u64 acc = 0;
@@ -86,20 +99,20 @@ public:
     }
 
     // Insert kmer, or overwrite its taxon (kh_put + kh_val semantics).
-    void set(u64 kmer, tax_t tax) {
+    void set(KeyT kmer, tax_t tax) {
         if(tax == NOT_FOUND)
             throw std::invalid_argument("CompactKmerMap: taxon tax_t(-1) is not storable");
         if(!in_domain(kmer))
             throw std::invalid_argument("CompactKmerMap: k-mer outside the key domain (key_bits)");
         t_.assign(kmer, dense_id(tax));
     }
-    tax_t get(u64 kmer) const {
+    tax_t get(KeyT kmer) const {
         if(!in_domain(kmer)) return NOT_FOUND;
         const uint64_t v = t_.get(kmer);
         return v ? taxa_[v - 1]: NOT_FOUND;
     }
-    bool contains(u64 kmer) const {return in_domain(kmer) && t_.get(kmer) != 0;}
-    bool in_domain(u64 kmer) const {return (kmer & ~mask_) == 0;}
+    bool contains(KeyT kmer) const {return in_domain(kmer) && t_.get(kmer) != 0;}
+    bool in_domain(KeyT kmer) const {return (kmer & ~mask_) == 0;}
     unsigned key_bits() const {return t_.kbits();}
     // Batched lookups in input order (identical to get() on each k-mer).
     // `scratch` avoids a per-call allocation in hot loops.
@@ -107,7 +120,7 @@ public:
     void get_many(It f, It l, Ot o, std::vector<uint64_t> &scratch, size_t ahead = 16) const {
         scratch.resize(std::distance(f, l));
         t_.get_many_prefetch(f, l, scratch.begin(), ahead);
-        if(mask_ == ~u64(0)) {
+        if(mask_ == ~KeyT(0)) {
             for(const uint64_t v: scratch) *o++ = v ? taxa_[v - 1]: NOT_FOUND;
         } else {
             size_t i = 0;
@@ -139,7 +152,7 @@ public:
     // f(kmer, tax) for every entry, in table order.
     template<typename F>
     void for_each(F &&f) const {
-        for(auto it = t_.begin(); it != t_.end(); ++it) f(u64(*it), taxa_[it.mapped() - 1]);
+        for(auto it = t_.begin(); it != t_.end(); ++it) f(KeyT(*it), taxa_[it.mapped() - 1]);
     }
     const table_type &table() const {return t_;}
     void write(std::FILE *fp) const {
@@ -149,14 +162,14 @@ public:
             throw std::runtime_error("CompactKmerMap: write failed");
         t_.write(fp);
     }
-    static CompactKmerMap read(std::FILE *fp) {
+    static BasicCompactKmerMap read(std::FILE *fp) {
         uint64_t nt, mt;
         if(std::fread(&nt, sizeof(nt), 1, fp) != 1 || std::fread(&mt, sizeof(mt), 1, fp) != 1)
             throw std::runtime_error("CompactKmerMap: truncated taxon table header");
         std::vector<tax_t> taxa(nt);
         if(nt && std::fread(taxa.data(), sizeof(tax_t), nt, fp) != nt)
             throw std::runtime_error("CompactKmerMap: truncated taxon table");
-        CompactKmerMap ret(table_type::read(fp));
+        BasicCompactKmerMap ret(table_type::read(fp));
         if(ret.t_.vbits() < bits_for(nt))
             throw std::runtime_error("CompactKmerMap: value width too small for the taxon table");
         ret.taxa_ = std::move(taxa);
@@ -169,10 +182,10 @@ private:
     std::vector<tax_t> taxa_;                       // dense id - 1 -> taxid
     std::unordered_map<tax_t, uint32_t> ids_;       // taxid -> dense id (build-time index)
     size_t max_taxa_ = 0;
-    u64 mask_ = mask_of(t_.kbits());
-    static u64 mask_of(unsigned b) {return b >= 64 ? ~u64(0): ((u64(1) << b) - 1);}
+    KeyT mask_ = mask_of(t_.kbits());
+    static KeyT mask_of(unsigned b) {return b >= sizeof(KeyT) * CHAR_BIT ? ~KeyT(0): ((KeyT(1) << b) - 1);}
 
-    explicit CompactKmerMap(table_type &&t): t_(std::move(t)), mask_(mask_of(t_.kbits())) {}
+    explicit BasicCompactKmerMap(table_type &&t): t_(std::move(t)), mask_(mask_of(t_.kbits())) {}
 
     // Distinct taxa of a khash_t(c) with a taxid -> dense id lookup for the
     // fill pass. Taxids below DIRECT_MAX (NCBI ids reach ~3.3M) use a direct
@@ -208,8 +221,8 @@ private:
         }
         return ix;
     }
-    CompactKmerMap(const khash_t(c) *map, TaxIndex &&ix, double max_load, unsigned key_bits)
-        : t_(q_for(kh_size(map), max_load), bits_for(ix.taxa.size()), sketch::cht::cht_mixbits_hash(key_bits)) {
+    BasicCompactKmerMap(const khash_t(c) *map, TaxIndex &&ix, double max_load, unsigned key_bits)
+        : t_(q_for(kh_size(map), max_load), bits_for(ix.taxa.size()), hasher_type(key_bits)) {
         for(khint_t ki = kh_begin(map); ki != kh_end(map); ++ki) {
             if(!kh_exist(map, ki)) continue;
             if(!in_domain(kh_key(map, ki)))
@@ -230,6 +243,8 @@ private:
         return ids_.emplace(tax, uint32_t(taxa_.size())).first->second;
     }
 };
+using CompactKmerMap = BasicCompactKmerMap<u64>;
+using CompactKmerMap128 = BasicCompactKmerMap<u128>;
 
 // Compact classification database file: magic "BNSCKM02", then k, w and the
 // spacing exactly as Database<khash_t(c)> writes them, then the dense taxon
@@ -237,8 +252,10 @@ private:
 struct CompactDatabase {
     unsigned k_ = 0, w_ = 0;
     spvec_t s_;
-    std::unique_ptr<CompactKmerMap> db_;
+    std::unique_ptr<CompactKmerMap> db_;        // keys of up to 64 bits
+    std::unique_ptr<CompactKmerMap128> db128_;  // wider keys (DNA 32 < k <= 64 exactly)
     static constexpr char MAGIC[9] = "BNSCKM02";
+    bool wide() const {return bool(db128_);}
 
     static bool is_compact(const char *fn) {
         std::FILE *fp = std::fopen(fn, "rb");
@@ -262,10 +279,22 @@ struct CompactDatabase {
             if(std::fread(&bv, sizeof(bv), 1, fp) != 1) throw std::runtime_error("Error: Could not read spacing from file");
             v = bv;
         }
-        db_.reset(new CompactKmerMap(CompactKmerMap::read(fp)));
+        // the key width (cht_map_t header, after the taxon table) picks the map type
+        const long pos = std::ftell(fp);
+        uint64_t nt, mt;
+        char cm[8];
+        uint32_t kb = 0;
+        if(std::fread(&nt, sizeof(nt), 1, fp) != 1 || std::fread(&mt, sizeof(mt), 1, fp) != 1
+           || std::fseek(fp, long(nt * sizeof(tax_t)), SEEK_CUR) != 0
+           || std::fread(cm, 1, 8, fp) != 8 || std::fread(&kb, sizeof(kb), 1, fp) != 1)
+            throw std::runtime_error("Error: truncated compact database");
+        std::fseek(fp, pos, SEEK_SET);
+        if(kb > 64) db128_.reset(new CompactKmerMap128(CompactKmerMap128::read(fp)));
+        else        db_.reset(new CompactKmerMap(CompactKmerMap::read(fp)));
         std::fclose(fp);
     }
-    static void write(const char *fn, unsigned k, unsigned w, const spvec_t &s, const CompactKmerMap &m) {
+    template<typename KeyT>
+    static void write(const char *fn, unsigned k, unsigned w, const spvec_t &s, const BasicCompactKmerMap<KeyT> &m) {
         std::FILE *fp = std::fopen(fn, "wb");
         if(!fp) LOG_EXIT("Could not open %s for writing.\n", fn);
         if(std::fwrite(MAGIC, 1, 8, fp) != 8) throw std::runtime_error("Error writing database");
@@ -293,56 +322,62 @@ struct CompactDatabase {
 //   for the final count.
 // Content (k-mer -> LCA) is independent of genome merge order; the slot
 // layout is not, since linear-probing placement depends on insertion order.
+template<typename KeyT = u64>
 class CompactLcaBuilder {
-    std::unique_ptr<CompactKmerMap> m_;
+    using map_type = BasicCompactKmerMap<KeyT>;
+    std::unique_ptr<map_type> m_;
     size_t taxa_cap_;
     double max_load_;
     unsigned key_bits_;
     size_t grows_ = 0;
     void grow() {
-        auto next = std::make_unique<CompactKmerMap>(size_t(double(m_->size() + 1) * 2), taxa_cap_, max_load_, key_bits_);
-        m_->for_each([&](u64 k, tax_t t) {next->set(k, t);});
+        auto next = std::make_unique<map_type>(size_t(double(m_->size() + 1) * 2), taxa_cap_, max_load_, key_bits_);
+        m_->for_each([&](KeyT k, tax_t t) {next->set(k, t);});
         m_ = std::move(next);
         ++grows_;
     }
 public:
-    CompactLcaBuilder(size_t estimated_kmers, size_t taxonomy_nodes, unsigned key_bits = 64,
-                      double max_load = CompactKmerMap::DEFAULT_MAX_LOAD):
+    CompactLcaBuilder(size_t estimated_kmers, size_t taxonomy_nodes, unsigned key_bits = map_type::MAX_KEY_BITS,
+                      double max_load = map_type::DEFAULT_MAX_LOAD):
         taxa_cap_(std::max<size_t>(taxonomy_nodes + 1, 2)), max_load_(max_load), key_bits_(key_bits) {
-        m_ = std::make_unique<CompactKmerMap>(size_t(double(std::max<size_t>(estimated_kmers, 16)) * 1.05),
-                                              taxa_cap_, max_load_, key_bits_);
+        m_ = std::make_unique<map_type>(size_t(double(std::max<size_t>(estimated_kmers, 16)) * 1.05),
+                                        taxa_cap_, max_load_, key_bits_);
     }
     size_t size() const {return m_->size();}
     size_t grows() const {return grows_;}
-    const CompactKmerMap &map() const {return *m_;}
-    void update(const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid) {
+    const map_type &map() const {return *m_;}
+    // merge one k-mer of a genome with taxon taxid (update_lca_map's rule)
+    void add(KeyT kmer, const khash_t(p) *tax, tax_t taxid) {
         static int warn_missing = 1;
-        for(khiter_t ki(kh_begin(set)); ki < kh_end(set); ++ki) {
-            if(!kh_exist(set, ki)) continue;
-            const u64 kmer = kh_key(set, ki);
-            const tax_t cur = m_->get(kmer);
-            if(cur == CompactKmerMap::NOT_FOUND) {
-                if(double(m_->size() + 1) > max_load_ * double(m_->table().nslots())) grow();
-                m_->set(kmer, taxid);
-            } else if(cur != taxid) {
-                const tax_t l = lca(tax, taxid, cur);
-                if(l == UINT32_C(1) && warn_missing)
-                    LOG_WARNING("ancestor of %u missing from taxonomy. This is not unexpected considering the issues the NCBI taxonomy has.\n", taxid), warn_missing = 0;
-                m_->set(kmer, l);
-            }
+        const tax_t cur = m_->get(kmer);
+        if(cur == map_type::NOT_FOUND) {
+            if(double(m_->size() + 1) > max_load_ * double(m_->table().nslots())) grow();
+            m_->set(kmer, taxid);
+        } else if(cur != taxid) {
+            const tax_t l = lca(tax, taxid, cur);
+            if(l == UINT32_C(1) && warn_missing)
+                LOG_WARNING("ancestor of %u missing from taxonomy. This is not unexpected considering the issues the NCBI taxonomy has.\n", taxid), warn_missing = 0;
+            m_->set(kmer, l);
         }
     }
+    void update(const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid) {
+        for(khiter_t ki(kh_begin(set)); ki < kh_end(set); ++ki)
+            if(kh_exist(set, ki)) add(KeyT(kh_key(set, ki)), tax, taxid);
+    }
+    void update(const std::vector<KeyT> &set, const khash_t(p) *tax, tax_t taxid) {
+        for(const KeyT k: set) add(k, tax, taxid);
+    }
     // Final rebuild: minimum value width, sorted dense ids, sized for size().
-    std::unique_ptr<CompactKmerMap> finish() {
+    std::unique_ptr<map_type> finish() {
         std::vector<tax_t> taxa;
         {
             std::unordered_set<tax_t> seen;
-            m_->for_each([&](u64, tax_t t) {if(seen.insert(t).second) taxa.push_back(t);});
+            m_->for_each([&](KeyT, tax_t t) {if(seen.insert(t).second) taxa.push_back(t);});
         }
         std::sort(taxa.begin(), taxa.end());
-        auto out = std::make_unique<CompactKmerMap>(m_->size(), taxa.size(), max_load_, key_bits_);
+        auto out = std::make_unique<map_type>(m_->size(), taxa.size(), max_load_, key_bits_);
         out->reserve_taxa_sorted(taxa);
-        m_->for_each([&](u64 k, tax_t t) {out->set(k, t);});
+        m_->for_each([&](KeyT k, tax_t t) {out->set(k, t);});
         out->finalize();
         m_.reset();
         return out;

@@ -182,11 +182,21 @@ int classify_main(int argc, char *argv[]) {
     // We can use optind + 3 for both single-end and paired-end mode since the argument at
     // index argc is null when argc - optind == 3.
     if(CompactDatabase::is_compact(argv[optind])) {
-        // Compact database (bonsai compact): k-mer lookups batched per read.
+        // Compact database (bonsai compact / build -Z): k-mer lookups batched per
+        // read; a hashed-tier database's key width is its hash width.
         CompactDatabase db(argv[optind]);
-        ClassifierGeneric<score::Lex, CompactKmerMap> c(db.db_.get(), db.s_, db.k_, db.k_, num_threads,
-                                                        emit_all, emit_fastq, emit_kraken, canonicalize);
-        process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
+        if(db.wide()) {
+            using C = ClassifierGeneric<score::Lex, CompactKmerMap128>;
+            const unsigned hb = KmerKeys<score::Lex, u128>::tier_for(db.k_) == KmerKeys<score::Lex, u128>::HASHED128
+                              ? db.db128_->key_bits(): C::keys_type::DEFAULT_HASH_BITS;
+            C c(db.db128_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, hb);
+            process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
+        } else {
+            using C = ClassifierGeneric<score::Lex, CompactKmerMap>;
+            const unsigned hb = KmerKeys<>::tier_for(db.k_) == KmerKeys<>::HASHED64 ? db.db_->key_bits(): C::keys_type::DEFAULT_HASH_BITS;
+            C c(db.db_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, hb);
+            process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
+        }
     } else {
         Database<khash_t(c)> db(argv[optind]);
         ClassifierGeneric<score::Lex> c(db.db_, db.s_, db.k_, db.k_, num_threads,
@@ -308,11 +318,21 @@ int phase2_main(int argc, char *argv[]) {
         LOG_INFO("Parent map bulding from %s\n", tax_path.data());
         khash_t(p) *taxmap(build_parent_map(tax_path.data()));
         if(compact_out) {
-            const unsigned kb = KmerKeys<>::key_bits_for(k);
-            auto m = compact_lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size, kb);
-            CompactDatabase::write(dbpath.data(), phase2_map.k_, phase2_map.w_, phase2_map.s_, *m);
-            LOG_INFO("Wrote compact database %s: %zu k-mers, %u-bit keys, %u-bit values, %zu bytes\n",
-                     dbpath.data(), m->size(), m->key_bits(), m->value_bits(), m->bytes_used());
+            // key tiers: k <= 32 exact 64-bit; 32 < k <= 64 exact 128-bit (compact
+            // databases only); k > 64 61-bit rolling-hash keys
+            auto write_out = [&](const auto &m) {
+                CompactDatabase::write(dbpath.data(), phase2_map.k_, phase2_map.w_, phase2_map.s_, *m);
+                LOG_INFO("Wrote compact database %s: %zu k-mers, %u-bit keys, %u-bit values, %zu bytes\n",
+                         dbpath.data(), m->size(), m->key_bits(), m->value_bits(), m->bytes_used());
+            };
+            if(KmerKeys<score::Lex, u128>::tier_for(k) == KmerKeys<score::Lex, u128>::EXACT128 && k > 32) {
+                if(!spacing.empty()) LOG_EXIT("Exact 128-bit keys (32 < k <= 64) need an unspaced seed here.\n");
+                write_out(compact_lca_map<score::Lex, u128>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon,
+                                                            hash_size, KmerKeys<score::Lex, u128>::key_bits_for(k)));
+            } else {
+                write_out(compact_lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon,
+                                                      hash_size, KmerKeys<>::key_bits_for(k)));
+            }
             kh_destroy(p, taxmap);
             return EXIT_SUCCESS;
         }

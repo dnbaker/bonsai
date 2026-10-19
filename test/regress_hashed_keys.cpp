@@ -61,6 +61,13 @@ TEST_CASE("KmerKeys tiers by alphabet capacity") {
     REQUIRE(KmerKeys<>::tier_for(14, PROTEIN20) == KmerKeys<>::EXACT64);
     REQUIRE(KmerKeys<>::tier_for(15, PROTEIN20) == KmerKeys<>::HASHED64);
     REQUIRE(KmerKeys<>::key_bits_for(14, PROTEIN20) == 61);   // bit width of 20^14 - 1
+    using K128 = KmerKeys<score::Lex, u128>;
+    REQUIRE(K128::tier_for(40) == K128::EXACT128);
+    REQUIRE(K128::tier_for(64) == K128::EXACT128);
+    REQUIRE(K128::tier_for(65) == K128::HASHED128);
+    REQUIRE(K128::key_bits_for(40) == 80);
+    REQUIRE(K128::key_bits_for(64) == 128);
+    REQUIRE(K128::key_bits_for(80) == 122);
 }
 
 TEST_CASE("lca_map + classify for exact (k = 31) and hashed (k = 40) keys") {
@@ -151,6 +158,35 @@ TEST_CASE("lca_map + classify for exact (k = 31) and hashed (k = 40) keys") {
         }
         std::fprintf(stderr, "k=%u (%s keys, %u bits): %zu k-mers; %zu/%zu error-free reads to their own taxon; khash == compact\n",
                      k, k <= 32 ? "exact": "hashed", kb, size_t(kh_size(db)), right, total);
+        if(k == 40) {
+            // EXACT 128-bit keys (32 < k <= 64): compact build only. Its classify
+            // output must equal the 61-bit-hashed databases' (identical k-mer
+            // sets -> identical LCAs, absent hash collisions at this size), and
+            // a forced-growth build must equal a well-sized one, key for key.
+            const unsigned kb128 = KmerKeys<score::Lex, u128>::key_bits_for(k);
+            auto m128 = compact_lca_map<score::Lex, u128>(fns, taxmap, (dir + "/seq2tax.txt").data(), sp, 2, true, kh_size(db), kb128);
+            auto g128 = compact_lca_map<score::Lex, u128>(fns, taxmap, (dir + "/seq2tax.txt").data(), sp, 2, true, 1000, kb128);
+            REQUIRE(m128->key_bits() == 80);
+            REQUIRE(m128->size() == kh_size(db));          // as many exact k-mers as hashed keys: no hash merges here
+            REQUIRE(g128->size() == m128->size());
+            size_t diff = 0;
+            m128->for_each([&](u128 km, tax_t t) {diff += g128->get(km) != t;});
+            REQUIRE(diff == 0);
+            const std::string cdb = dir + "/db128.cdb";
+            CompactDatabase::write(cdb.data(), k, k, spvec_t(k - 1, 0), *m128);
+            CompactDatabase cd(cdb.data());
+            REQUIRE(cd.wide());
+            REQUIRE(cd.db128_->size() == m128->size());
+            ClassifierGeneric<score::Lex, CompactKmerMap128> c128(cd.db128_.get(), spvec_t{}, k, k, 2, true, false, true, true);
+            REQUIRE(c128.enc_.tier() == KmerKeys<score::Lex, u128>::EXACT128);
+            std::FILE *o128 = std::tmpfile();
+            process_dataset(c128, taxmap, fq.data(), nullptr, o128, 256, 32);
+            REQUIRE(slurp(o128) == a);
+            std::fclose(o128);
+            std::remove(cdb.data());
+            std::fprintf(stderr, "  k=40 exact 128-bit keys (80 bits): %zu k-mers, %zu bytes; classify == hashed-key databases\n",
+                         m128->size(), m128->bytes_used());
+        }
         kh_destroy(c, db);
     }
     kh_destroy(p, taxmap);

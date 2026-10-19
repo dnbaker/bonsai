@@ -1158,67 +1158,79 @@ u64 count_cardinality(const std::vector<std::string> paths,
 }
 
 
-// KmerKeys: the k-mer -> 64-bit table key used by the classification
-// database (estimate, build, classify), chosen by the alphabet's capacity
-// (rhtraits rh2n):
+// KmerKeys<ScoreType, KeyT>: the k-mer -> table key used by the
+// classification database (estimate, build, classify), chosen by the
+// alphabet's capacity (rhtraits rh2n). With KeyT = u64:
 //   EXACT64   k <= rh2n(alphabet, 8) (DNA: k <= 32): the packed k-mer itself
 //             from Encoder<ScoreType, u64> (spaced seeds and minimizer
 //             windows as before); key_bits = bit width of mul^k - 1 (2k for
-//             DNA), so the compact table can store exactly that domain.
-//   HASHED64  larger k: a 64-bit rolling hash (RollingHasher<uint64_t>,
-//             polynomial mod 2^61 - 1, canonical for DNA), unspaced only;
-//             windows select the minimum hash. Keys are the hash's low
-//             hash_bits bits (default and maximum 61): a SPECIFICITY/SIZE
-//             tradeoff -- each bit is one more stored remainder bit per slot,
-//             and distinct k-mers merge through the hash with ~n^2 /
-//             2^(hash_bits + 1) expected pairs over n distinct k-mers (at
-//             n = 1e9: 61 bits ~0.2 pairs, 48 bits ~1.8e3, 40 bits ~4.5e5).
-//             Lookups are exact on the key. (Wider than 61 bits: with the
-//             128-bit tier.)
-// (An exact 128-bit tier for rh2n(alphabet, 8) < k <= rh2n(alphabet, 16) is
-// planned.) Build and classification must use the same KmerKeys, which
-// they do by construction.
-template<typename ScoreType=score::Lex>
+//             DNA), so the compact table stores exactly that domain.
+//   HASHED64  larger k: a rolling hash (RollingHasher<uint64_t>: a polynomial
+//             mod 2^61 - 1, bijectively mixed to 64 bits; canonical for DNA;
+//             windows select the minimum hash), unspaced only.
+// With KeyT = u128 (compact databases):
+//   EXACT128  rh2n(alphabet, 8) < k <= rh2n(alphabet, 16) (DNA: 32 < k <= 64):
+//             the packed k-mer from Encoder<ScoreType, u128>; key_bits = bit
+//             width of mul^k - 1.
+//   HASHED128 larger k: RollingHasher<u128> (two independent 61-bit lanes,
+//             each mixed to 64 bits), unspaced only.
+// Hashed keys are the low hash_bits bits of the hash (u64: default/max 61;
+// u128: default 122, range [65, 128]): a SPECIFICITY/SIZE tradeoff -- each bit
+// is one more stored remainder bit per slot, and distinct k-mers merge
+// through the hash with ~n^2 / 2^(hash_bits + 1) expected pairs over n
+// distinct k-mers (at n = 1e9: 61 bits ~0.2 pairs, 48 bits ~1.8e3, 40 bits
+// ~4.5e5). Lookups are exact on the key. Build and classification use the
+// same KmerKeys, so they agree by construction.
+template<typename ScoreType=score::Lex, typename KeyT=u64>
 class KmerKeys {
+    static_assert(std::is_same<KeyT, u64>::value || std::is_same<KeyT, u128>::value, "KmerKeys: KeyT is u64 or u128");
+    static constexpr bool wide = std::is_same<KeyT, u128>::value;
 public:
-    enum Tier: uint8_t {EXACT64, HASHED64};
+    enum Tier: uint8_t {EXACT64, HASHED64, EXACT128, HASHED128};
+    using key_type = KeyT;
+    static constexpr unsigned DEFAULT_HASH_BITS = wide ? 122: 61;
 private:
     Tier tier_;
     Spacer sp_;
     bool canon_;
     void *data_;
     InputType rht_;
-    std::unique_ptr<Encoder<ScoreType>> enc_;
-    std::unique_ptr<RollingHasher<uint64_t>> rh_;
-    unsigned hash_bits_ = 61;
-    u64 hmask_ = (u64(1) << 61) - 1;
+    std::unique_ptr<Encoder<ScoreType, KeyT>> enc_;
+    std::unique_ptr<RollingHasher<KeyT>> rh_;
+    unsigned hash_bits_;
+    KeyT hmask_;
+    static KeyT mask_of(unsigned b) {return b >= sizeof(KeyT) * CHAR_BIT ? ~KeyT(0): ((KeyT(1) << b) - 1);}
+    bool exact() const {return tier_ == EXACT64 || tier_ == EXACT128;}
     void make() {
-        if(tier_ == EXACT64) {
-            enc_.reset(new Encoder<ScoreType>(nullptr, 0, sp_, data_, canon_));
+        if(exact()) {
+            enc_.reset(new Encoder<ScoreType, KeyT>(nullptr, 0, sp_, data_, canon_));
         } else {
             if(!sp_.unspaced())
-                RUNTIME_ERROR(ks::sprintf("k %u exceeds the %zu bases a 64-bit key holds for alphabet %s; the hashed-key tier needs an unspaced seed.",
-                                          sp_.k_, rh2n(rht_, 8), to_string(rht_).data()).data());
-            rh_.reset(new RollingHasher<uint64_t>(sp_.k_, canon_, rht_, sp_.unwindowed() ? -1: (long long)sp_.w_));
+                RUNTIME_ERROR(ks::sprintf("k %u exceeds the %zu bases a %zu-bit key holds for alphabet %s; the hashed-key tier needs an unspaced seed.",
+                                          sp_.k_, rh2n(rht_, sizeof(KeyT)), sizeof(KeyT) * CHAR_BIT, to_string(rht_).data()).data());
+            rh_.reset(new RollingHasher<KeyT>(sp_.k_, canon_, rht_, sp_.unwindowed() ? -1: (long long)sp_.w_));
         }
     }
 public:
-    static Tier tier_for(unsigned k, InputType rht = DNA) {return k <= rh2n(rht, 8) ? EXACT64: HASHED64;}
+    static Tier tier_for(unsigned k, InputType rht = DNA) {
+        if constexpr(wide) return k <= rh2n(rht, 16) ? EXACT128: HASHED128;
+        else return k <= rh2n(rht, 8) ? EXACT64: HASHED64;
+    }
     // bits the keys span
-    static unsigned key_bits_for(unsigned k, InputType rht = DNA, unsigned hash_bits = 61) {
-        if(tier_for(k, rht) == HASHED64) return hash_bits;
+    static unsigned key_bits_for(unsigned k, InputType rht = DNA, unsigned hash_bits = DEFAULT_HASH_BITS) {
+        const Tier t = tier_for(k, rht);
+        if(t == HASHED64 || t == HASHED128) return hash_bits;
         unsigned __int128 v = 1;
-        for(unsigned i = 0; i < k; ++i) v *= mul(rht);
+        for(unsigned i = 0; i < k; ++i) v *= mul(rht);   // k <= rh2n(rht, sizeof(KeyT)): no overflow
         --v;
         unsigned b = 1;
-        while(b < 64 && (v >> b)) ++b;
+        while(b < 128 && (v >> b)) ++b;
         return b;
     }
-    // hash_bits: key width for the hashed tier, in [16, 61] (ignored by EXACT64)
-    KmerKeys(const Spacer &sp, bool canon, void *data = nullptr, InputType rht = DNA, unsigned hash_bits = 61):
-        tier_(tier_for(sp.k_, rht)), sp_(sp), canon_(canon), data_(data), rht_(rht), hash_bits_(hash_bits),
-        hmask_(hash_bits >= 64 ? ~u64(0): ((u64(1) << hash_bits) - 1)) {
-        if(hash_bits < 16 || hash_bits > 61) RUNTIME_ERROR("KmerKeys: hash_bits must lie in [16, 61]");
+    KmerKeys(const Spacer &sp, bool canon, void *data = nullptr, InputType rht = DNA, unsigned hash_bits = DEFAULT_HASH_BITS):
+        tier_(tier_for(sp.k_, rht)), sp_(sp), canon_(canon), data_(data), rht_(rht), hash_bits_(hash_bits), hmask_(mask_of(hash_bits)) {
+        if(wide ? (hash_bits < 65 || hash_bits > 128): (hash_bits < 16 || hash_bits > 61))
+            RUNTIME_ERROR(std::string(wide ? "KmerKeys<u128>: hash_bits must lie in [65, 128]": "KmerKeys<u64>: hash_bits must lie in [16, 61]"));
         make();
     }
     KmerKeys(const KmerKeys &o): tier_(o.tier_), sp_(o.sp_), canon_(o.canon_), data_(o.data_), rht_(o.rht_),
@@ -1235,13 +1247,13 @@ public:
     unsigned span() const {return sp_.c_;}   // positions one key covers
     template<typename Functor>
     void for_each(const Functor &func, const char *s, size_t l) {
-        if(tier_ == EXACT64) enc_->for_each(func, s, l);
-        else rh_->for_each_hash([&](uint64_t h) {func(u64(h) & hmask_);}, s, l);
+        if(exact()) enc_->for_each([&](KeyT x) {func(x);}, s, l);
+        else rh_->for_each_hash([&](KeyT h) {func(KeyT(h & hmask_));}, s, l);
     }
     template<typename Functor>
     void for_each(const Functor &func, const char *path, kseq_t *ks) {
-        if(tier_ == EXACT64) enc_->for_each(func, path, ks);
-        else rh_->for_each_hash([&](uint64_t h) {func(u64(h) & hmask_);}, path, ks);
+        if(exact()) enc_->for_each([&](KeyT x) {func(x);}, path, ks);
+        else rh_->for_each_hash([&](KeyT h) {func(KeyT(h & hmask_));}, path, ks);
     }
 };
 

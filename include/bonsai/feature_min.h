@@ -72,21 +72,38 @@ struct LcaMap {
 // CompactLcaBuilder, kmermap.h) through make_map's scheduling; no khash_t(c)
 // is allocated. A "custom sink" updater: make_map hands it each genome's set
 // and returns release().
-struct CompactLcaMap {
-    using ReturnType = std::unique_ptr<CompactKmerMap>;
-    using CounterType = khash_t(all);
+// 128-bit keys: a genome's distinct keys as a sorted vector (khash_t(all) is u64).
+template<typename ScoreType>
+size_t fill_vec_genome128(const char *path, const Spacer &sp, std::vector<u128> *ret, size_t index, void *data, bool canon, kseq_t *ks) {
+    KmerKeys<ScoreType, u128> enc(sp, canon, data);   // exact k-mers for 32 < k <= 64 (DNA), wide hashes beyond
+    ret->clear();
+    enc.for_each([&](u128 x) {ret->push_back(x);}, path, ks);
+    std::sort(ret->begin(), ret->end());
+    ret->erase(std::unique(ret->begin(), ret->end()), ret->end());
+    return index;
+}
+static inline void clear_counter(std::vector<u128> *c) {c->clear();}
+static inline void free_counter(std::vector<u128> &c) {std::vector<u128>().swap(c);}
+
+template<typename KeyT = u64>
+struct CompactLcaMapT {
+    using ReturnType = std::unique_ptr<BasicCompactKmerMap<KeyT>>;
+    using CounterType = std::conditional_t<std::is_same<KeyT, u64>::value, khash_t(all), std::vector<u128>>;
     static constexpr size_t ValSize = 4;
     static constexpr bool kCustomSink = true;
-    std::unique_ptr<CompactLcaBuilder> b;
+    std::unique_ptr<CompactLcaBuilder<KeyT>> b;
     template<typename ScoreType>
-    static size_t fill(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks) {
-        return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks);
+    static size_t fill(const char *path, const Spacer &sp, CounterType *ret, size_t index, void *data, bool canon, kseq_t *ks) {
+        if constexpr(std::is_same<KeyT, u64>::value) return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks);
+        else return fill_vec_genome128<ScoreType>(path, sp, ret, index, data, canon, ks);
     }
-    void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *, khash_t(c) *, khash_t(64) *, tax_t taxid) {
-        b->update(set, tax, taxid);
+    void update(const khash_t(p) *tax, const CounterType *set, const khash_t(64) *, khash_t(c) *, khash_t(64) *, tax_t taxid) {
+        if constexpr(std::is_same<KeyT, u64>::value) b->update(set, tax, taxid);
+        else b->update(*set, tax, taxid);
     }
     ReturnType release() {return b->finish();}
 };
+using CompactLcaMap = CompactLcaMapT<u64>;
 template<typename T, typename = void> struct has_custom_sink: std::false_type {};
 template<typename T> struct has_custom_sink<T, std::void_t<decltype(T::kCustomSink)>>: std::integral_constant<bool, T::kCustomSink> {};
 
@@ -212,7 +229,8 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
     size_t submitted(0), completed(0), todo(fns.size());
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
     std::vector<CounterT> counters(num_threads);
-    std::memset(counters.data(), 0, sizeof(CounterT) * counters.size());
+    if constexpr(std::is_trivially_copyable<CounterT>::value)   // khash counters start zeroed; vectors construct empty
+        std::memset(static_cast<void *>(counters.data()), 0, sizeof(CounterT) * counters.size());
     LOG_DEBUG("Started things\n");
     if constexpr(!custom_sink) {
         if(MapUpdater::ValSize == 8) {
@@ -304,14 +322,16 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, const khash_t(p) *tax_m
 }
 
 // lca_map straight into a compact database (no khash_t(c)): estimated_kmers
-// from the cardinality estimate, key_bits from KmerKeys::key_bits_for(k).
-template<typename ScoreType>
-std::unique_ptr<CompactKmerMap> compact_lca_map(const std::vector<std::string> &fns, const khash_t(p) *tax_map,
-                                                const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon,
-                                                size_t estimated_kmers, unsigned key_bits) {
-    CompactLcaMap mu;
-    mu.b = std::make_unique<CompactLcaBuilder>(estimated_kmers, kh_size(tax_map), key_bits);
-    return make_map<ScoreType, CompactLcaMap>(fns, tax_map, seq2tax_path, sp, num_threads, canon, 0, nullptr, std::move(mu));
+// from the cardinality estimate, key_bits from KmerKeys<ScoreType,
+// KeyT>::key_bits_for(k). KeyT = u128 for exact keys beyond 64 bits (DNA
+// 32 < k <= 64).
+template<typename ScoreType, typename KeyT = u64>
+std::unique_ptr<BasicCompactKmerMap<KeyT>> compact_lca_map(const std::vector<std::string> &fns, const khash_t(p) *tax_map,
+                                                           const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon,
+                                                           size_t estimated_kmers, unsigned key_bits) {
+    CompactLcaMapT<KeyT> mu;
+    mu.b = std::make_unique<CompactLcaBuilder<KeyT>>(estimated_kmers, kh_size(tax_map), key_bits);
+    return make_map<ScoreType, CompactLcaMapT<KeyT>>(fns, tax_map, seq2tax_path, sp, num_threads, canon, 0, nullptr, std::move(mu));
 }
 
 template<typename ScoreType>
