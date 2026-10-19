@@ -14,6 +14,7 @@
 
 #include <cstdio>
 #include <random>
+#include <unordered_set>
 #include <string>
 #include <vector>
 
@@ -81,9 +82,59 @@ TEST_CASE("CompactKmerMap matches khash_t(c) lookups") {
     REQUIRE(n == kh_size(km));
     REQUIRE(zeros > 0);
     REQUIRE_THROWS_AS(cm.set(1, tax_t(-1)), std::invalid_argument);
+    // dense ids: the minimum width for the distinct taxa
+    {
+        std::unordered_set<tax_t> distinct;
+        for(khint_t ki = kh_begin(km); ki != kh_end(km); ++ki) if(kh_exist(km, ki)) distinct.insert(kh_val(km, ki));
+        REQUIRE(cm.num_taxa() == distinct.size());
+        REQUIRE(cm.value_bits() == CompactKmerMap::bits_for(distinct.size()));
+        REQUIRE(((uint64_t(1) << (cm.value_bits() - 1)) - 1) < distinct.size());
+    }
+    // overwrite through set() after finalize() (index rebuilt on demand)
+    {
+        const u64 k0 = qs[0];
+        cm.finalize();
+        tax_t some = 0;
+        cm.for_each([&](u64, tax_t t) {some = t;});
+        cm.set(k0, some);
+        REQUIRE(cm.get(k0) == some);
+    }
     std::fprintf(stderr, "CompactKmerMap: %zu k-mers, %zu bytes vs khash_t(c) %zu bytes (%.1f%%)\n",
                  cm.size(), cm.bytes_used(), khash_bytes(km), 100. * cm.bytes_used() / khash_bytes(km));
     kh_destroy(c, km);
+}
+
+TEST_CASE("CompactKmerMap from khash with large custom taxids (hash-map index path)") {
+    khash_t(c) *km(kh_init(c));
+    int khr;
+    std::mt19937_64 rng(77);
+    for(int i = 0; i < 50000; ++i) {
+        const khint_t ki(kh_put(c, km, rng(), &khr));
+        kh_val(km, ki) = tax_t(2000000000u + rng() % 4000u);   // above the direct-array cap
+    }
+    CompactKmerMap cm(km);
+    REQUIRE(cm.num_taxa() <= 4000);
+    REQUIRE(cm.value_bits() == CompactKmerMap::bits_for(cm.num_taxa()));
+    for(khint_t ki = kh_begin(km); ki != kh_end(km); ++ki)
+        if(kh_exist(km, ki)) REQUIRE(cm.get(kh_key(km, ki)) == kh_val(km, ki));
+    kh_destroy(c, km);
+}
+
+TEST_CASE("CompactKmerMap incremental build: taxon capacity and widths") {
+    CompactKmerMap m(1000, 5);                       // room for 5 distinct taxa -> 3-bit values
+    REQUIRE(m.value_bits() == 3);
+    for(u64 k = 0; k < 500; ++k) m.set(k * 977, tax_t(100 + k % 5));
+    REQUIRE(m.num_taxa() == 5);
+    REQUIRE_THROWS_AS(m.set(123456789, tax_t(999)), std::length_error);
+    for(u64 k = 0; k < 500; ++k) REQUIRE(m.get(k * 977) == tax_t(100 + k % 5));
+    REQUIRE(m.get(1) == CompactKmerMap::NOT_FOUND);
+    // taxon 0 would be a sixth distinct taxon: rejected, old value untouched
+    REQUIRE_THROWS_AS(m.set(0, 0), std::length_error);
+    REQUIRE(m.get(0) == tax_t(100));
+    CompactKmerMap z(100, 2);                        // tax 0 is an ordinary taxon
+    z.set(5, 0); z.set(6, 9);
+    REQUIRE(z.get(5) == 0);
+    REQUIRE(z.get(6) == 9);
 }
 
 TEST_CASE("classify output is identical with khash and compact databases") {

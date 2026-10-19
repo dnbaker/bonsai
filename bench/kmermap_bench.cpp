@@ -1,6 +1,6 @@
 // CompactKmerMap vs khash_t(c): bytes and classification-shaped lookup
 // throughput (reads of K k-mers, a hit/miss mix), printed, never asserted.
-// Usage: kmermap_bench [nkmers=50000000] [nreads=200000] [kmers_per_read=150] [hit_frac=0.7] [max_load=0.85]
+// Usage: kmermap_bench [nkmers=50000000] [nreads=200000] [kmers_per_read=150] [hit_frac=0.7] [max_load=0.85] [ntaxa=300000]
 #include "kmermap.h"
 
 #include <chrono>
@@ -38,22 +38,25 @@ int main(int argc, char **argv) {
     const size_t K = argc > 3 ? std::strtoull(argv[3], nullptr, 10): 150;
     const double hit = argc > 4 ? std::atof(argv[4]): 0.7;
     const double load = argc > 5 ? std::atof(argv[5]): CompactKmerMap::DEFAULT_MAX_LOAD;
+    const uint32_t ntaxa = argc > 6 ? uint32_t(std::strtoul(argv[6], nullptr, 10)): 300000u;
     std::mt19937_64 rng(17);
     std::vector<u64> keys(n);
     for(auto &k: keys) k = rng();
-    auto tax_of = [](u64 k) {return tax_t((k * 0x9e3779b97f4a7c15ull) >> 40) % 3300000u;};
+    // ntaxa distinct taxids spread over the NCBI id range
+    auto tax_of = [ntaxa](u64 k) {return tax_t(((k * 0x9e3779b97f4a7c15ull) >> 40) % ntaxa) * 11u + 2u;};
     auto t = clk::now();
     khash_t(c) *km(kh_init(c));
     int khr;
     for(const u64 k: keys) {const khint_t ki(kh_put(c, km, k, &khr)); kh_val(km, ki) = tax_of(k);}
     const double tkb = secs(t);
     t = clk::now();
-    CompactKmerMap cm(kh_size(km), load);
-    for(const u64 k: keys) cm.set(k, tax_of(k));
+    CompactKmerMap cm(km, load);     // the `bonsai compact` path: dense taxon ids
+    cm.finalize();
     const double tcb = secs(t);
-    std::printf("kmers %zu | khash_t(c) %.0f MB (buckets 2^%d, load %.2f) | CompactKmerMap %.0f MB (q=%u, load %.2f) | ratio %.3f\n",
-                cm.size(), khash_bytes(km) / 1e6, __builtin_ctz(km->n_buckets), double(kh_size(km)) / km->n_buckets,
-                cm.bytes_used() / 1e6, cm.table().q(), cm.load_factor(), double(cm.bytes_used()) / khash_bytes(km));
+    std::printf("kmers %zu, taxa %zu | khash_t(c) %.0f MB (buckets 2^%d, load %.2f) | CompactKmerMap %.0f MB (q=%u, load %.2f, %u-bit values, %u-bit cells) | ratio %.3f\n",
+                cm.size(), cm.num_taxa(), khash_bytes(km) / 1e6, __builtin_ctz(km->n_buckets), double(kh_size(km)) / km->n_buckets,
+                cm.bytes_used() / 1e6, cm.table().q(), cm.load_factor(), cm.value_bits(), cm.table().cell_bits(),
+                double(cm.bytes_used()) / khash_bytes(km));
     std::printf("build: khash %.2fs, compact %.2fs\n", tkb, tcb);
     // the struct-of-arrays cht_t (4 arrays per hit) for comparison
     sketch::cht::cht_t<uint64_t, sketch::cht::cht_splitmix64_hash, 32> soa(cm.table().q());
