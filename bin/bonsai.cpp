@@ -112,6 +112,22 @@ u64 estimate_cardinality(const std::vector<std::string> &paths,
     return tmp.report();
 }
 
+// bonsai compact <in.db> <out.cdb>: convert a khash classification database
+// into the compact (cht_map_t) format; classify detects it automatically.
+int compact_main(int argc, char *argv[]) {
+    if(argc < 3) {
+        std::fprintf(stderr, "Usage: %s <in.db> <out.cdb>\nConvert a classification database to the compact "
+                             "(sketch cht_map_t) format. classify detects the format automatically.\n", *argv);
+        return EXIT_FAILURE;
+    }
+    Database<khash_t(c)> db(argv[1]);
+    CompactKmerMap m(db.db_);
+    CompactDatabase::write(argv[2], db.k_, db.w_, db.s_, m);
+    LOG_INFO("Wrote compact database %s: %zu k-mers, %zu bytes (khash: %zu bytes)\n",
+             argv[2], m.size(), m.bytes_used(), khash_bytes(db.db_));
+    return EXIT_SUCCESS;
+}
+
 int classify_main(int argc, char *argv[]) {
     int co, num_threads(1), emit_kraken(1), emit_fastq(0), emit_all(0), chunk_size(1 << 20), per_set(32);
     bool canonicalize(true);
@@ -154,17 +170,23 @@ int classify_main(int argc, char *argv[]) {
         case 3:  LOG_DEBUG("Processing in single-end mode.\n"); break;
         case 4:  LOG_DEBUG("Processing in paired-end mode.\n"); break;
     }
-    Database<khash_t(c)> db(argv[optind]);
-    if(db.k_ > 32) LOG_EXIT("Database k %u is too large for 64-bit encodings.\n", db.k_);
-    //reportDB<khash_t(c)>(&db, stderr);
-    //for(auto &i: db._s) --i; // subtract by one since we'll re-subtract during construction.
-    ClassifierGeneric<score::Lex> c(db.db_, db.s_, db.k_, db.k_, num_threads,
-                                   emit_all, emit_fastq, emit_kraken, canonicalize);
     khash_t(p) *taxmap(build_parent_map(argv[optind + 1]));
     // We can use optind + 3 for both single-end and paired-end mode since the argument at
     // index argc is null when argc - optind == 3.
-    process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3],
-                    ofp, chunk_size, per_set);
+    if(CompactDatabase::is_compact(argv[optind])) {
+        // Compact database (bonsai compact): k-mer lookups batched per read.
+        CompactDatabase db(argv[optind]);
+        if(db.k_ > 32) LOG_EXIT("Database k %u is too large for 64-bit encodings.\n", db.k_);
+        ClassifierGeneric<score::Lex, CompactKmerMap> c(db.db_.get(), db.s_, db.k_, db.k_, num_threads,
+                                                        emit_all, emit_fastq, emit_kraken, canonicalize);
+        process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
+    } else {
+        Database<khash_t(c)> db(argv[optind]);
+        if(db.k_ > 32) LOG_EXIT("Database k %u is too large for 64-bit encodings.\n", db.k_);
+        ClassifierGeneric<score::Lex> c(db.db_, db.s_, db.k_, db.k_, num_threads,
+                                       emit_all, emit_fastq, emit_kraken, canonicalize);
+        process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
+    }
     if(ofp != stdout) std::fclose(ofp);
     kh_destroy(p, taxmap);
     LOG_INFO("Successfully completed classify!\n");
@@ -396,7 +418,7 @@ int hist_main(int argc, char *argv[]) {
  }
 
 int err_main(int argc, char *argv[]) {
-    std::fprintf(stderr, "[bonsai:%s] No valid subcommand provided. Options: prebuild/p1/phase, build/p2/phase2, classify, metatree\n", BONSAI_VERSION);
+    std::fprintf(stderr, "[bonsai:%s] No valid subcommand provided. Options: prebuild/p1/phase, build/p2/phase2, classify, compact, metatree\n", BONSAI_VERSION);
     return EXIT_FAILURE;
 }
 
@@ -731,7 +753,8 @@ int main(int argc, char *argv[]) {
         {"hist",     hist_main},
         {"metatree", metatree_main},
         {"export",   export_main},
-        {"classify", classify_main}
+        {"classify", classify_main},
+        {"compact",  compact_main}
     };
     if(std::find_if(argv, argv + argc, [&](char *s) {return std::strcmp("-v", s) == 0 || std::strcmp("--version", s) == 0;}) != argv + argc) {
         std::fprintf(stdout, "bonsai|%s\n", BONSAI_VERSION);

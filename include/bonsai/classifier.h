@@ -3,6 +3,7 @@
 #include "kspp/ks.h"
 #include "encoder.h"
 #include "feature_min.h"
+#include "kmermap.h"
 #include "klib/kthread.h"
 #include "util.h"
 
@@ -129,9 +130,13 @@ inline void append_kraken_classification(const tax_counter &,
     bks.terminate();
 }
 
-template<typename ScoreType>
+// DB: khash_t(c) (the original k-mer -> taxon hash) or CompactKmerMap
+// (kmermap.h; sketch's compact hash table, looked up in per-read batches).
+// Both classify identically.
+template<typename ScoreType, typename DB=khash_t(c)>
 struct ClassifierGeneric {
-    const khash_t(c) *db_;
+    using db_type = DB;
+    const DB *db_;
     const Spacer sp_;
     Encoder<ScoreType> enc_;
     uint32_t          nt_:16;
@@ -153,7 +158,7 @@ struct ClassifierGeneric {
     INLINE int get_emit_all()    const {return output_flag_ & output_format::EMIT_ALL;}
     INLINE int get_emit_kraken() const {return output_flag_ & output_format::KRAKEN;}
     INLINE int get_emit_fastq()  const {return output_flag_ & output_format::FASTQ;}
-    ClassifierGeneric(const khash_t(c) *map, const spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
+    ClassifierGeneric(const DB *map, const spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
                       bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false, bool canonicalize=true):
         db_(map),
         sp_(k, wsz, spaces),
@@ -166,6 +171,7 @@ struct ClassifierGeneric {
         set_emit_fastq(emit_fastq);
         set_emit_kraken(emit_kraken);
     }
+    template<typename Q=DB, typename=typename std::enable_if<std::is_same<Q, khash_t(c)>::value>::type>
     ClassifierGeneric(const char *dbpath, const spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
                       bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false, bool canonicalize=true):
         ClassifierGeneric(khash_load<khash_t(c)>(dbpath), spaces, k, wsz, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize) {}
@@ -199,9 +205,17 @@ INLINE void append_counts(u32 count, const char character, kstring_t *ks) {
 }
 
 using Classifier = ClassifierGeneric<score::Lex>;
+// Per-thread buffers for the batched (CompactKmerMap) lookup path.
+struct LookupScratch {
+    std::vector<u64> kmers;
+    std::vector<tax_t> taxa;
+    std::vector<uint64_t> buf;
+};
+
 namespace {
+template<typename C>
 struct kt_data {
-    const ClassifierGeneric<score::Lex> &c_;
+    const C &c_;
     const khash_t(p) *taxmap;
     bseq1_t *bs_;
     const unsigned per_set_;
@@ -211,10 +225,11 @@ struct kt_data {
 };
 }
 
-template<typename ScoreType>
-unsigned classify_seq(const ClassifierGeneric<ScoreType> &c,
+template<typename ScoreType, typename DB>
+unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
                       Encoder<ScoreType> &enc,
-                      const khash_t(p) *taxmap, bseq1_t *bs, const int is_paired, std::vector<tax_t> &taxa) {
+                      const khash_t(p) *taxmap, bseq1_t *bs, const int is_paired, std::vector<tax_t> &taxa,
+                      LookupScratch &scratch) {
     LOG_DEBUG("starting classify_seq with bs at pointer = %p\n", static_cast<const void*>(bs));
     khiter_t ki;
     tax_counter hit_counts;
@@ -224,11 +239,6 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType> &c,
     bks.clear();
     taxa.clear();
 
-    auto fn = [&] (u64 kmer) {
-        //If the kmer is missing from our database, just say we don't know what it is.
-        if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count;
-        else taxa.push_back(kh_val(c.db_, ki)), hit_counts.add(kh_val(c.db_, ki));
-    };
     // This simplification loses information about the run of congituous labels. Do these matter?
     // K-mers not emitted (ambiguous windows) account for the slack between the
     // number of positions and the number of emitted k-mers.
@@ -238,11 +248,35 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType> &c,
         const u64 emitted = n_not_ambig() - prev_not_ambig;
         return u32(np > emitted ? np - emitted: 0);
     };
-    enc.for_each(fn, bs->seq, bs->l_seq);
+    // khash_t(c): one kh_get per k-mer as it is encoded (the original path).
+    // CompactKmerMap: collect the mate's k-mers, look them all up in one
+    // prefetched batch, then consume the results in the same order -- the
+    // same hits, misses and taxa sequence as the streaming path.
+    auto process = [&](const char *seq, size_t len) {
+        if constexpr(std::is_same<DB, khash_t(c)>::value) {
+            auto fn = [&] (u64 kmer) {
+                //If the kmer is missing from our database, just say we don't know what it is.
+                if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count;
+                else taxa.push_back(kh_val(c.db_, ki)), hit_counts.add(kh_val(c.db_, ki));
+            };
+            enc.for_each(fn, seq, len);
+        } else {
+            (void)ki;
+            scratch.kmers.clear();
+            enc.for_each([&](u64 kmer) {scratch.kmers.push_back(kmer);}, seq, len);
+            scratch.taxa.resize(scratch.kmers.size());
+            c.db_->get_many(scratch.kmers.begin(), scratch.kmers.end(), scratch.taxa.begin(), scratch.buf);
+            for(const tax_t t: scratch.taxa) {
+                if(t == DB::NOT_FOUND) ++missing_count;
+                else taxa.push_back(t), hit_counts.add(t);
+            }
+        }
+    };
+    process(bs->seq, bs->l_seq);
     unsigned ambig_count(count_ambig(bs->l_seq, 0));
     if(is_paired) {
         const auto pre(n_not_ambig());
-        enc.for_each(fn, (bs + 1)->seq, (bs + 1)->l_seq);
+        process((bs + 1)->seq, (bs + 1)->l_seq);
         ambig_count += count_ambig((bs + 1)->l_seq, pre);
     }
 
@@ -262,15 +296,17 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType> &c,
 }
 
 
+template<typename C>
 inline void kt_for_helper(void *data_, long index, int) {
-    kt_data *data((kt_data *)data_);
+    kt_data<C> *data((kt_data<C> *)data_);
     size_t retstr_size(0);
     const int inc(!!data->is_paired_ + 1);
     Encoder<score::Lex> enc(data->c_.enc_);
     std::vector<tax_t> taxa;
+    LookupScratch scratch;
     // Each task covers [per_set * index, per_set * (index + 1)); the previous
     // (per_set + 1) * index bound left task 0 empty and dropped records.
-    for(unsigned i(index * data->per_set_); i < std::min(data->per_set_ * (static_cast<unsigned>(index) + 1), data->total_); retstr_size += classify_seq(data->c_, enc, data->taxmap, data->bs_ + i, data->is_paired_, taxa), i += inc);
+    for(unsigned i(index * data->per_set_); i < std::min(data->per_set_ * (static_cast<unsigned>(index) + 1), data->total_); retstr_size += classify_seq(data->c_, enc, data->taxmap, data->bs_ + i, data->is_paired_, taxa, scratch), i += inc);
     data->retstr_size_ += retstr_size;
 }
 
@@ -278,13 +314,14 @@ inline void kt_for_helper(void *data_, long index, int) {
 
 using Classifier = ClassifierGeneric<score::Lex>;
 
-inline void classify_seqs(const Classifier &c, const khash_t(p) *taxmap, bseq1_t *bs,
+template<typename C>
+inline void classify_seqs(const C &c, const khash_t(p) *taxmap, bseq1_t *bs,
                           ks::string &cks, const unsigned chunk_size, const unsigned per_set, const int is_paired, ForPool &pool) {
     assert(per_set && ((per_set & (per_set - 1)) == 0));
 
     std::atomic<u64> retstr_size(0);
-    kt_data data{c, taxmap, bs, per_set, chunk_size, retstr_size, is_paired};
-    pool.forpool(&kt_for_helper, (void *)&data, chunk_size / per_set + 1);
+    kt_data<C> data{c, taxmap, bs, per_set, chunk_size, retstr_size, is_paired};
+    pool.forpool(&kt_for_helper<C>, (void *)&data, chunk_size / per_set + 1);
     cks.resize(retstr_size.load());
     const int inc((is_paired != 0) + 1);
 #if !NDEBUG
@@ -305,7 +342,8 @@ struct del_data {
 };
 
 
-inline void process_dataset(const Classifier &c, const khash_t(p) *taxmap, const char *fq1, const char *fq2,
+template<typename C>
+inline void process_dataset(const C &c, const khash_t(p) *taxmap, const char *fq1, const char *fq2,
                             std::FILE *out, unsigned chunk_size,
                             unsigned per_set) {
     // TODO: consider reusing buffers for processing large numbers of files.

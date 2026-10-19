@@ -913,8 +913,13 @@ static tax_t resolve_tree(const std::map<tax_t, tax_t> &hit_counts,
   for(auto it(hit_counts.cbegin()), e(hit_counts.cend()); it != e; ++it) {
     tax_t taxon(it->first), node(taxon), score(0);
     // Instead of while node > 0
-    while(node)
-        score += hit_counts.at(node), node = kh_val(parent_map, kh_get(p, parent_map, node));
+    // Ancestors with no hits score 0 (as hit_counts.count() does in the release
+    // version below); .at() threw std::out_of_range for them in debug builds.
+    while(node) {
+        const auto hit = hit_counts.find(node);
+        score += hit == hit_counts.end() ? 0: hit->second;
+        node = kh_val(parent_map, kh_get(p, parent_map, node));
+    }
     if(score > max_score) {
       max_taxa.clear();
       max_score = score;
