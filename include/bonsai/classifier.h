@@ -8,7 +8,7 @@
 #include "util.h"
 
 namespace bns {
-using tax_counter = linear::counter<tax_t, u16>;
+using tax_counter = linear::counter<tax_t, u32>; // u32: long reads exceed 65535 hits
 
 static void append_kraken_classification(const tax_counter &hit_counts,
                                   const std::vector<tax_t> &taxa,
@@ -70,10 +70,43 @@ INLINE void append_counts(u32 count, const char character, ks::string &ks) {
     }
 }
 
+// Lineage evidence of a read's call (Perseus-style channels, k-mer hits):
+// exact (the call), ancestor (strict ancestors of the call), descendant (strict
+// descendants) and conflict (unrelated taxa). Windows: windows with hits, and
+// how many of those are consistent with the call. hi: the high-confidence call.
+struct ReadEvidence {
+    u32 exact = 0, ancestor = 0, descendant = 0, conflict = 0;
+    u32 windows = 0, consistent = 0;
+    tax_t hi = 0;
+    bool emit_lineage = false, emit_windows = false, emit_hi = false;
+};
+// Fields, tab-terminated like M:/A:: E:exact,ancestor,descendant,conflict
+// W:consistent/windows H:taxon
+INLINE void append_evidence(const ReadEvidence *ev, ks::string &ks) {
+    if(!ev) return;
+    if(ev->emit_lineage) {
+        ks.putsn_("E:", 2);
+        ks.putuw_(ev->exact); ks.putc_(',');
+        ks.putuw_(ev->ancestor); ks.putc_(',');
+        ks.putuw_(ev->descendant); ks.putc_(',');
+        ks.putuw_(ev->conflict); ks.putc_('\t');
+    }
+    if(ev->emit_windows) {
+        ks.putsn_("W:", 2);
+        ks.putuw_(ev->consistent); ks.putc_('/');
+        ks.putuw_(ev->windows); ks.putc_('\t');
+    }
+    if(ev->emit_hi) {
+        ks.putsn_("H:", 2);
+        ks.putuw_(ev->hi); ks.putc_('\t');
+    }
+}
+
 inline void append_fastq_classification(const tax_counter &,
                                  const std::vector<tax_t> &taxa,
                                  const tax_t taxon, const u32 ambig_count, const u32 missing_count,
-                                 bseq1_t *bs, ks::string &bks, const int verbose, const int is_paired) {
+                                 bseq1_t *bs, ks::string &bks, const int verbose, const int is_paired,
+                                 const ReadEvidence *ev = nullptr) {
     // Comment start/end as offsets: the appends below can realloc the buffer,
     // so pointers into it would dangle before the paired read copies them.
     bks.puts(bs->name);
@@ -88,6 +121,7 @@ inline void append_fastq_classification(const tax_counter &,
     bks.putc_('\t');
     append_counts(missing_count, 'M', bks);
     append_counts(ambig_count,   'A', bks);
+    append_evidence(ev, bks);
     if(verbose) append_taxa_runs(taxon, taxa, bks);
     else        bks.back() = '\n';
     const size_t cme_off(bks.size());
@@ -114,7 +148,7 @@ inline void append_fastq_classification(const tax_counter &,
 inline void append_kraken_classification(const tax_counter &,
                                   const std::vector<tax_t> &taxa,
                                   const tax_t taxon, const u32 ambig_count, const u32 missing_count,
-                                  bseq1_t *bs, ks::string &bks) {
+                                  bseq1_t *bs, ks::string &bks, const ReadEvidence *ev = nullptr) {
     static const char tbl[]{'C', 'U'};
     bks.putc_(tbl[!taxon]);
     bks.putc_('\t');
@@ -126,6 +160,7 @@ inline void append_kraken_classification(const tax_counter &,
     bks.putc_('\t');
     append_counts(missing_count, 'M', bks);
     append_counts(ambig_count,   'A', bks);
+    append_evidence(ev, bks);
     append_taxa_runs(taxon, taxa, bks);
     bks.terminate();
 }
@@ -156,11 +191,34 @@ struct ClassifierGeneric {
     // hitting keys (repeats of one minimizer count once).
     double confidence_ = 0.;
     unsigned min_hit_groups_ = 0;
+    // Positional adjudication (defaults: off). window_: k-mer positions per
+    // window (~bp for DNA; a trailing partial window merges into the previous
+    // one). Each window is called on its own hits, the read is called from one
+    // vote per window, and that call walks up until >= window_agree_ of the
+    // windows with hits are consistent with it (call, ancestor or descendant),
+    // so a conserved island (rRNA, IS element) wins only the windows it covers
+    // however many k-mers it holds (window_adjudicate). Not applied to
+    // translated databases. confidence_hi_: a second, stricter call, the
+    // confidence walk-up of the first call at this threshold (H: field).
+    // emit_evidence_: per-read lineage evidence of the call (E: field).
+    unsigned window_ = 0;
+    double window_agree_ = 0.5;
+    double confidence_hi_ = 0.;
+    bool emit_evidence_ = false;
     public:
     void set_confidence(double c) {
         if(!(c >= 0. && c <= 1.)) RUNTIME_ERROR("confidence must lie in [0, 1]");
         confidence_ = c;
     }
+    void set_confidence_hi(double c) {
+        if(!(c >= 0. && c <= 1.)) RUNTIME_ERROR("high confidence must lie in [0, 1]");
+        confidence_hi_ = c;
+    }
+    void set_window(unsigned w, double agree = 0.5) {
+        if(!(agree >= 0. && agree <= 1.)) RUNTIME_ERROR("window agreement must lie in [0, 1]");
+        window_ = w; window_agree_ = agree;
+    }
+    void set_emit_evidence(bool v) {emit_evidence_ = v;}
     void set_min_hit_groups(unsigned n) {min_hit_groups_ = n;}
     double confidence() const {return confidence_;}
     unsigned min_hit_groups() const {return min_hit_groups_;}
@@ -243,6 +301,8 @@ struct LookupScratch {
     std::vector<KeyT> kmers;
     std::vector<tax_t> taxa;
     std::vector<uint64_t> buf;
+    std::vector<uint32_t> win;       // window id of each hit (parallel to the read's taxa)
+    std::vector<tax_t> wcalls;       // per-window calls
 };
 
 namespace {
@@ -283,6 +343,69 @@ inline tax_t confident_ancestor(tax_t taxon, const tax_counter &hit_counts, cons
     return 0;
 }
 
+// Relation of hit taxon t to call x: 0 exact, 1 strict ancestor of x,
+// 2 strict descendant of x, 3 unrelated (conflicting).
+inline int lineage_relation(tax_t t, tax_t x, const khash_t(p) *taxmap) {
+    if(t == x) return 0;
+    auto descends = [&](tax_t a, tax_t root) {
+        for(unsigned guard = 0; a && guard < 4096; ++guard) {
+            a = get_parent(taxmap, a);
+            if(a == tax_t(-1)) return false;
+            if(a == root) return true;
+        }
+        return false;
+    };
+    if(descends(t, x)) return 2;
+    if(descends(x, t)) return 1;
+    return 3;
+}
+inline void lineage_evidence(tax_t call, const tax_counter &hit_counts, const khash_t(p) *taxmap, ReadEvidence &ev) {
+    ev.exact = ev.ancestor = ev.descendant = ev.conflict = 0;
+    if(!call) {
+        for(unsigned i = 0; i < hit_counts.size(); ++i) ev.conflict += hit_counts.vals()[i];
+        return;
+    }
+    for(unsigned i = 0; i < hit_counts.size(); ++i) {
+        const u32 n = hit_counts.vals()[i];
+        switch(lineage_relation(hit_counts.keys()[i], call, taxmap)) {
+            case 0: ev.exact += n; break;
+            case 1: ev.ancestor += n; break;
+            case 2: ev.descendant += n; break;
+            default: ev.conflict += n;
+        }
+    }
+}
+// Calls each window on its own hits (taxa and win in read order, win
+// nondecreasing), then calls the read from the window calls with one vote per
+// window (resolve_tree over them), and walks that call up until >= agree of the
+// windows with a call are consistent with it (exact, ancestor or descendant);
+// at the root every window is consistent. A conserved island (rRNA, IS
+// element) shared with another family wins at most the windows it covers.
+// With a single window this is the pooled call. `call` (the pooled call) is
+// the fallback when no window has a call.
+inline tax_t window_adjudicate(tax_t call, const std::vector<tax_t> &taxa, const std::vector<uint32_t> &win,
+                               const khash_t(p) *taxmap, double agree, std::vector<tax_t> &wcalls, ReadEvidence &ev) {
+    wcalls.clear();
+    tax_counter votes;
+    for(size_t i = 0, j; i < taxa.size(); i = j) {
+        tax_counter wc;
+        for(j = i; j < taxa.size() && win[j] == win[i]; ++j) wc.add(taxa[j]);
+        if(const tax_t t = resolve_tree(wc, taxmap)) wcalls.push_back(t), votes.add(t);
+    }
+    ev.windows = wcalls.size();
+    if(wcalls.empty()) return call;
+    call = resolve_tree(votes, taxmap);
+    for(;;) {
+        u32 cons = 0;
+        for(const tax_t t: wcalls) cons += lineage_relation(t, call, taxmap) != 3;
+        ev.consistent = cons;
+        if(cons >= agree * double(wcalls.size())) return call;
+        const tax_t p = get_parent(taxmap, call);
+        if(p == tax_t(-1) || p == 0) return call;
+        call = p;
+    }
+}
+
 template<typename ScoreType, typename DB>
 unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
                       typename ClassifierGeneric<ScoreType, DB>::keys_type &enc,
@@ -311,7 +434,21 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
     // CompactKmerMap: collect the mate's k-mers, look them all up in one
     // prefetched batch, then consume the results in the same order -- the
     // same hits, misses and taxa sequence as the streaming path.
+    // Windows: hit -> (emitted k-mer ordinal within its mate) / window_; each
+    // mate's trailing partial window merges into its last full one, and the
+    // second mate's windows are numbered after the first's.
+    const bool windowed = c.window_ && !enc.translated();
+    size_t pos = 0;
+    u32 win_base = 0;
+    scratch.win.clear();
+    const auto close_windows = [&](size_t first) {
+        if(!windowed) return;
+        const u32 nwin = std::max<size_t>(1, pos / c.window_);
+        for(size_t i = first; i < scratch.win.size(); ++i) scratch.win[i] = win_base + std::min(scratch.win[i], nwin - 1);
+        win_base += nwin;
+    };
     auto process = [&](const char *seq, size_t len) {
+        pos = 0;
         if constexpr(std::is_same<DB, khash_t(c)>::value) {
             auto fn = [&] (u64 kmer) {
                 //If the kmer is missing from our database, just say we don't know what it is.
@@ -319,7 +456,9 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
                 else {
                     taxa.push_back(kh_val(c.db_, ki)), hit_counts.add(kh_val(c.db_, ki));
                     if(c.min_hit_groups_) scratch.hits.push_back(kmer);
+                    if(windowed) scratch.win.push_back(pos / c.window_);
                 }
+                ++pos;
             };
             enc.for_each(fn, seq, len);
         } else {
@@ -337,18 +476,24 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
             c.db_->get_many(scratch.uniq.begin(), scratch.uniq.end(), scratch.taxa.begin(), scratch.buf);
             for(size_t i = 0; i < scratch.uniq.size(); ++i) {
                 const tax_t t = scratch.taxa[i];
-                if(t == DB::NOT_FOUND) {missing_count += scratch.runs[i]; continue;}
-                for(uint32_t r = 0; r < scratch.runs[i]; ++r) taxa.push_back(t), hit_counts.add(t);
+                if(t == DB::NOT_FOUND) {missing_count += scratch.runs[i]; pos += scratch.runs[i]; continue;}
+                for(uint32_t r = 0; r < scratch.runs[i]; ++r, ++pos) {
+                    taxa.push_back(t), hit_counts.add(t);
+                    if(windowed) scratch.win.push_back(pos / c.window_);
+                }
                 if(c.min_hit_groups_) scratch.hits.push_back(scratch.uniq[i]);
             }
         }
     };
     scratch.hits.clear();
     process(bs->seq, bs->l_seq);
+    close_windows(0);
     unsigned ambig_count(count_ambig(bs->l_seq, 0));
     if(is_paired) {
         const auto pre(n_not_ambig());
+        const size_t first = scratch.win.size();
         process((bs + 1)->seq, (bs + 1)->l_seq);
+        close_windows(first);
         ambig_count += count_ambig((bs + 1)->l_seq, pre);
     }
 
@@ -358,14 +503,22 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
         const size_t groups = std::unique(scratch.hits.begin(), scratch.hits.end()) - scratch.hits.begin();
         if(groups < c.min_hit_groups_) taxon = 0;
     }
+    ReadEvidence ev;
+    if(taxon && windowed) taxon = window_adjudicate(taxon, taxa, scratch.win, taxmap, c.window_agree_, scratch.wcalls, ev);
     if(taxon && c.confidence_ > 0.) taxon = confident_ancestor(taxon, hit_counts, taxmap, taxa.size() + missing_count, c.confidence_);
+    // Two calls: the (possibly specific) call above and the stricter
+    // confidence_hi_ walk-up of it, an ancestor-or-self or unclassified.
+    if((ev.emit_hi = c.confidence_hi_ > 0.) && taxon)
+        ev.hi = confident_ancestor(taxon, hit_counts, taxmap, taxa.size() + missing_count, c.confidence_hi_);
+    if((ev.emit_lineage = c.emit_evidence_)) lineage_evidence(taxon, hit_counts, taxmap, ev);
+    ev.emit_windows = c.emit_evidence_ && windowed;
     ++c.classified_[!taxon];
     if(c.get_emit_all() || taxon) {
         switch(c.output_flag_) {
             case EMIT_ALL | FASTQ | KRAKEN: case FASTQ | KRAKEN: case FASTQ: case EMIT_ALL | FASTQ:
-                append_fastq_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks, c.get_emit_kraken(), is_paired); break;
+                append_fastq_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks, c.get_emit_kraken(), is_paired, &ev); break;
             case EMIT_ALL | KRAKEN: case KRAKEN:
-                append_kraken_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks); break;
+                append_kraken_classification(hit_counts, taxa, taxon, ambig_count, missing_count, bs, bks, &ev); break;
         }
     }
     LOG_DEBUG("About to return. Len of bks = %zu. len of string: %d\n", bks.size(), std::strlen(bks.data()));

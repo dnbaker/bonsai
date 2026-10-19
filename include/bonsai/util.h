@@ -940,7 +940,7 @@ static tax_t resolve_tree(const std::map<tax_t, tax_t> &hit_counts,
 }
 #endif
 
-static tax_t resolve_tree(const linear::counter<tax_t, u16> &hit_counts,
+static tax_t resolve_tree(const linear::counter<tax_t, u32> &hit_counts,
                           const khash_t(p) *parent_map) noexcept
 {
   linear::set<tax_t> max_taxa;
