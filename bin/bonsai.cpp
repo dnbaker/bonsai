@@ -121,11 +121,11 @@ int compact_main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     Database<khash_t(c)> db(argv[1]);
-    // key domain: 2k bits for 2-bit nucleotide k-mers (k <= 32), checked
-    // against the keys actually present; 64 otherwise
-    unsigned kb = std::min(64u, 2u * db.k_);
+    // key domain (KmerKeys): 2k bits for 2-bit nucleotide k-mers (k <= 32),
+    // 61 for rolling-hash keys (k > 32); checked against the keys present
+    unsigned kb = KmerKeys<>::key_bits_for(db.k_);
     if(CompactKmerMap::key_bits_needed(db.db_) > kb) {
-        LOG_WARNING("k-mers span more than 2k = %u bits; using 64-bit keys\n", kb);
+        LOG_WARNING("keys span more than the expected %u bits; using 64-bit keys\n", kb);
         kb = 64;
     }
     CompactKmerMap m(db.db_, CompactKmerMap::DEFAULT_MAX_LOAD, kb);
@@ -184,13 +184,11 @@ int classify_main(int argc, char *argv[]) {
     if(CompactDatabase::is_compact(argv[optind])) {
         // Compact database (bonsai compact): k-mer lookups batched per read.
         CompactDatabase db(argv[optind]);
-        if(db.k_ > 32) LOG_EXIT("Database k %u is too large for 64-bit encodings.\n", db.k_);
         ClassifierGeneric<score::Lex, CompactKmerMap> c(db.db_.get(), db.s_, db.k_, db.k_, num_threads,
                                                         emit_all, emit_fastq, emit_kraken, canonicalize);
         process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
     } else {
         Database<khash_t(c)> db(argv[optind]);
-        if(db.k_ > 32) LOG_EXIT("Database k %u is too large for 64-bit encodings.\n", db.k_);
         ClassifierGeneric<score::Lex> c(db.db_, db.s_, db.k_, db.k_, num_threads,
                                        emit_all, emit_fastq, emit_kraken, canonicalize);
         process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
@@ -254,8 +252,10 @@ int phase2_main(int argc, char *argv[]) {
     dbpath = argv[optind];
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
     if(wsz < k) wsz = k;
-    // The build pipeline encodes k-mers in 64-bit words; k > 32 would alias.
-    if(k > 32) LOG_EXIT("k must be <= 32 for this alphabet (64-bit encodings).\n");
+    // k <= 32: exact 64-bit packed k-mers. k > 32 (lex LCA databases only):
+    // 61-bit rolling-hash keys (KmerKeys::HASHED64), which need an unspaced seed.
+    if(k > 32 && (mode != score_scheme::LEX || !spacing.empty()))
+        LOG_EXIT("k > 32 uses hashed keys and needs the default lex mode with an unspaced seed.\n");
 #ifdef ZWRAP_USE_ZSTD
     const std::string suf(".zst");
 #else

@@ -154,7 +154,7 @@ TEST_CASE("classify output is identical with khash and compact databases") {
     // is the root 1).
     khash_t(c) *db(kh_init(c));
     ClassifierGeneric<score::Lex> builder(db, spvec_t{}, k, k, 1, true, false, true, true);
-    Encoder<score::Lex> enc(builder.enc_);
+    KmerKeys<score::Lex> enc(builder.enc_);
     for(int g = 0; g < 4; ++g) {
         enc.for_each([&](u64 km) {
             const khint_t ki = kh_put(c, db, km, &khr);

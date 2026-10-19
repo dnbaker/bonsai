@@ -1,0 +1,138 @@
+// Key tiers through the REAL build path (lca_map over genome files, a seq2tax
+// file and a taxonomy), then classify with the khash and the compact database:
+//  - k = 31: exact 64-bit packed k-mers (KmerKeys::EXACT64), 62-bit keys;
+//  - k = 40: 61-bit rolling-hash keys (KmerKeys::HASHED64; formerly rejected).
+// For each k: the database keys span the expected width, kraken-style output
+// is byte-identical between khash and compact databases, and error-free reads
+// classify to their own genome's taxon (which fails if build and classify
+// ever disagree on keys).
+#include "test/catch.hpp"
+
+#include "classifier.h"
+#include "feature_min.h"
+#include "kmermap.h"
+
+#include <cstdio>
+#include <map>
+#include <random>
+#include <sstream>
+#include <string>
+#include <vector>
+
+using namespace bns;
+
+namespace {
+
+std::string random_dna(size_t n, std::mt19937_64 &rng) {
+    static const char b[] = "ACGT";
+    std::string s(n, 'A');
+    for(auto &c: s) c = b[rng() & 3];
+    return s;
+}
+std::string slurp(std::FILE *fp) {
+    std::fflush(fp);
+    std::rewind(fp);
+    std::string ret;
+    char buf[1 << 14];
+    size_t n;
+    while((n = std::fread(buf, 1, sizeof(buf), fp)) > 0) ret.append(buf, n);
+    return ret;
+}
+void put(const std::string &path, const std::string &content) {
+    std::FILE *fp = std::fopen(path.data(), "w");
+    REQUIRE(fp != nullptr);
+    std::fputs(content.data(), fp);
+    std::fclose(fp);
+}
+
+} // namespace
+
+TEST_CASE("KmerKeys tiers by alphabet capacity") {
+    REQUIRE(KmerKeys<>::tier_for(32) == KmerKeys<>::EXACT64);
+    REQUIRE(KmerKeys<>::tier_for(33) == KmerKeys<>::HASHED64);
+    REQUIRE(KmerKeys<>::key_bits_for(31) == 62);
+    REQUIRE(KmerKeys<>::key_bits_for(32) == 64);
+    REQUIRE(KmerKeys<>::key_bits_for(40) == 61);
+    REQUIRE(KmerKeys<>::key_bits_for(40, DNA, 40) == 40);
+    // bonsai's PROTEIN packs 8 bits/residue (8 per word); PROTEIN20 is the
+    // base-20 integer encoding (14 per word: 20^14 < 2^61)
+    REQUIRE(KmerKeys<>::tier_for(8, PROTEIN) == KmerKeys<>::EXACT64);
+    REQUIRE(KmerKeys<>::tier_for(9, PROTEIN) == KmerKeys<>::HASHED64);
+    REQUIRE(KmerKeys<>::tier_for(14, PROTEIN20) == KmerKeys<>::EXACT64);
+    REQUIRE(KmerKeys<>::tier_for(15, PROTEIN20) == KmerKeys<>::HASHED64);
+    REQUIRE(KmerKeys<>::key_bits_for(14, PROTEIN20) == 61);   // bit width of 20^14 - 1
+}
+
+TEST_CASE("lca_map + classify for exact (k = 31) and hashed (k = 40) keys") {
+    char tmpl[] = "/tmp/bns_hk_XXXXXX";
+    const std::string dir(mkdtemp(tmpl));
+    std::mt19937_64 rng(13);
+    std::vector<std::string> genomes, fns;
+    std::string seq2tax;
+    for(int g = 0; g < 4; ++g) {
+        genomes.push_back(random_dna(40000, rng));
+        const std::string fn = dir + "/g" + std::to_string(g) + ".fa";
+        put(fn, ">g" + std::to_string(g) + " synthetic\n" + genomes.back() + "\n");
+        fns.push_back(fn);
+        seq2tax += "g" + std::to_string(g) + "\t" + std::to_string(2 + g) + "\n";
+    }
+    put(dir + "/seq2tax.txt", seq2tax);
+    put(dir + "/tax.txt", "2\t|\t1\n3\t|\t1\n4\t|\t1\n5\t|\t1\n");
+    khash_t(p) *taxmap(build_parent_map((dir + "/tax.txt").data()));
+    // reads: error-free substrings (for the taxon check), plus N-containing and random reads
+    const std::string fq = dir + "/r.fq";
+    std::map<std::string, tax_t> truth;
+    {
+        std::FILE *a = std::fopen(fq.data(), "w");
+        for(int r = 0; r < 1200; ++r) {
+            std::string s;
+            const std::string name = "r" + std::to_string(r);
+            if(r % 10 == 9) s = random_dna(150, rng);
+            else {
+                const int g = int(rng() % 4);
+                s = genomes[g].substr(rng() % (genomes[g].size() - 150), 150);
+                if(r % 10 == 8) s[75] = 'N';
+                else truth[name] = tax_t(2 + g);
+            }
+            std::fprintf(a, "@%s\n%s\n+\n%s\n", name.data(), s.data(), std::string(s.size(), 'I').data());
+        }
+        std::fclose(a);
+    }
+    for(const unsigned k: {31u, 40u}) {
+        Spacer sp(k, k);
+        khash_t(c) *db(lca_map<score::Lex>(fns, taxmap, (dir + "/seq2tax.txt").data(), sp, 2, true, 1 << 16));
+        REQUIRE(kh_size(db) > 100000);
+        const unsigned kb = KmerKeys<>::key_bits_for(k);
+        REQUIRE(CompactKmerMap::key_bits_needed(db) <= kb);
+        CompactKmerMap cm(db, CompactKmerMap::DEFAULT_MAX_LOAD, kb);
+        REQUIRE(cm.key_bits() == kb);
+        ClassifierGeneric<score::Lex> ck(db, spvec_t{}, k, k, 2, true, false, true, true);
+        ClassifierGeneric<score::Lex, CompactKmerMap> cc(&cm, spvec_t{}, k, k, 2, true, false, true, true);
+        REQUIRE(ck.enc_.tier() == (k <= 32 ? KmerKeys<>::EXACT64: KmerKeys<>::HASHED64));
+        std::FILE *ok = std::tmpfile(), *oc = std::tmpfile();
+        process_dataset(ck, taxmap, fq.data(), nullptr, ok, 256, 32);
+        process_dataset(cc, taxmap, fq.data(), nullptr, oc, 256, 32);
+        const std::string a = slurp(ok), b = slurp(oc);
+        std::fclose(ok); std::fclose(oc);
+        REQUIRE(a == b);
+        size_t right = 0, total = 0;
+        std::istringstream is(a);
+        std::string line;
+        while(std::getline(is, line)) {
+            std::istringstream ls(line);
+            std::string cu, name;
+            tax_t taxon = 0;
+            ls >> cu >> name >> taxon;
+            const auto t = truth.find(name);
+            if(t == truth.end()) continue;
+            ++total;
+            right += taxon == t->second;
+        }
+        REQUIRE(total == truth.size());
+        REQUIRE(right == total);           // random genomes: every error-free read is unique to its genome
+        std::fprintf(stderr, "k=%u (%s keys, %u bits): %zu k-mers; %zu/%zu error-free reads to their own taxon; khash == compact\n",
+                     k, k <= 32 ? "exact": "hashed", kb, size_t(kh_size(db)), right, total);
+        kh_destroy(c, db);
+    }
+    kh_destroy(p, taxmap);
+}

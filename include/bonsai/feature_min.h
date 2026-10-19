@@ -134,8 +134,8 @@ size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, si
     LOG_DEBUG("Filling from genome at path %s. kseq is pre-allocated ? %s. %p\n", path, ks ? "true": "false", (void *)ks);
     if(!ks) BNS_KHASH_PRESIZE(all, ret, path);
 
-    Encoder<ScoreType> enc(0, 0, sp, data, canon);
-    enc.for_each([&](auto x) {
+    KmerKeys<ScoreType> enc(sp, canon, data);   // exact k-mers for k <= 32, rolling-hash keys beyond
+    enc.for_each([&](u64 x) {
         auto it = kh_get(all, ret, x);
         if(it == kh_end(ret)) {
             int khr;

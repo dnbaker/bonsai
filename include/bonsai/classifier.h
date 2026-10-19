@@ -138,7 +138,7 @@ struct ClassifierGeneric {
     using db_type = DB;
     const DB *db_;
     const Spacer sp_;
-    Encoder<ScoreType> enc_;
+    KmerKeys<ScoreType> enc_;   // k-mer -> key (exact 64-bit k-mer, or a rolling hash for k > 32)
     uint32_t          nt_:16;
     uint32_t output_flag_:16;
     mutable std::atomic<u64> classified_[2];
@@ -227,7 +227,7 @@ struct kt_data {
 
 template<typename ScoreType, typename DB>
 unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
-                      Encoder<ScoreType> &enc,
+                      KmerKeys<ScoreType> &enc,
                       const khash_t(p) *taxmap, bseq1_t *bs, const int is_paired, std::vector<tax_t> &taxa,
                       LookupScratch &scratch) {
     LOG_DEBUG("starting classify_seq with bs at pointer = %p\n", static_cast<const void*>(bs));
@@ -244,7 +244,7 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
     // number of positions and the number of emitted k-mers.
     const auto n_not_ambig = [&]() {return taxa.size() + missing_count;};
     const auto count_ambig = [&](u64 l, u64 prev_not_ambig) {
-        const u64 np = l + 1 > enc.sp_.c_ ? l - enc.sp_.c_ + 1: 0; // positions holding a c_-span
+        const u64 np = l + 1 > enc.span() ? l - enc.span() + 1: 0; // positions holding a c_-span
         const u64 emitted = n_not_ambig() - prev_not_ambig;
         return u32(np > emitted ? np - emitted: 0);
     };
@@ -301,7 +301,7 @@ inline void kt_for_helper(void *data_, long index, int) {
     kt_data<C> *data((kt_data<C> *)data_);
     size_t retstr_size(0);
     const int inc(!!data->is_paired_ + 1);
-    Encoder<score::Lex> enc(data->c_.enc_);
+    KmerKeys<score::Lex> enc(data->c_.enc_);
     std::vector<tax_t> taxa;
     LookupScratch scratch;
     // Each task covers [per_set * index, per_set * (index + 1)); the previous
