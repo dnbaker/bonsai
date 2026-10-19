@@ -140,7 +140,7 @@ int classify_main(int argc, char *argv[]) {
     int co, num_threads(1), emit_kraken(1), emit_fastq(0), emit_all(0), chunk_size(1 << 20), per_set(32);
     double confidence(0.), confidence_hi(0.), window_agree(0.5);
     unsigned min_hit_groups(0), window(0);
-    bool canonicalize(true), emit_evidence(false);
+    bool canonicalize(true), emit_evidence(false), nearest(false), hits_only(false);
     std::ios_base::sync_with_stdio(false);
     std::FILE *ofp(stdout);
     if(argc < 4) {
@@ -161,6 +161,10 @@ int classify_main(int argc, char *argv[]) {
                              "-w:\tAdjudicate across windows of this many k-mer positions (~bp; e.g. 512): each window is\n"
                              "   \tcalled on its own hits and the read's call walks up until -W of the windows agree. [0: off]\n"
                              "-W:\tFraction of called windows that must be consistent (call, ancestor or descendant). [0.5]\n"
+                             "-N:\tCall from nearest-hit attribution: each read position belongs to its nearest k-mer hit\n"
+                             "   \tand taxa are scored by positions owned, not hit counts (no scale parameter).\n"
+                             "-R:\tConfidence (-x, -X) over the read's hits only, not hits + misses (with -N: over\n"
+                             "   \tattributed positions); keeps error-heavy reads from failing every clade.\n"
                              "-E:\tEmit lineage evidence of the call: E:exact,ancestor,descendant,conflict k-mer hits,\n"
                              "   \tand W:consistent/windows with -w.\n"
                              "-K:\tDo not emit fastq-formatted output.\n"
@@ -169,7 +173,7 @@ int classify_main(int argc, char *argv[]) {
                  *argv, 1 << 14);
         std::exit(EXIT_FAILURE);
     }
-    while((co = getopt(argc, argv, "Cc:p:o:S:x:g:X:w:W:EafFkKh?")) >= 0) {
+    while((co = getopt(argc, argv, "Cc:p:o:S:x:g:X:w:W:ENRafFkKh?")) >= 0) {
         switch(co) {
             case 'h': case '?': goto usage;
             case 'C': canonicalize = false; break;
@@ -188,6 +192,8 @@ int classify_main(int argc, char *argv[]) {
             case 'w': window = unsigned(std::atoi(optarg)); break;
             case 'W': window_agree = std::atof(optarg); break;
             case 'E': emit_evidence = true; break;
+            case 'N': nearest = true; break;
+            case 'R': hits_only = true; break;
         }
     }
     LOG_ASSERT(ofp);
@@ -207,13 +213,13 @@ int classify_main(int argc, char *argv[]) {
             using C = ClassifierGeneric<score::Lex, CompactKmerMap128>;
             C c(db.db128_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, db.keyspec());
             c.set_confidence(confidence); c.set_min_hit_groups(min_hit_groups);
-            c.set_confidence_hi(confidence_hi); c.set_window(window, window_agree); c.set_emit_evidence(emit_evidence);
+            c.set_confidence_hi(confidence_hi); c.set_window(window, window_agree); c.set_emit_evidence(emit_evidence); c.set_nearest(nearest); c.set_confidence_hits_only(hits_only);
             process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
         } else {
             using C = ClassifierGeneric<score::Lex, CompactKmerMap>;
             C c(db.db_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, db.keyspec());
             c.set_confidence(confidence); c.set_min_hit_groups(min_hit_groups);
-            c.set_confidence_hi(confidence_hi); c.set_window(window, window_agree); c.set_emit_evidence(emit_evidence);
+            c.set_confidence_hi(confidence_hi); c.set_window(window, window_agree); c.set_emit_evidence(emit_evidence); c.set_nearest(nearest); c.set_confidence_hits_only(hits_only);
             process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
         }
     } else {
@@ -221,7 +227,7 @@ int classify_main(int argc, char *argv[]) {
         ClassifierGeneric<score::Lex> c(db.db_, db.s_, db.k_, db.k_, num_threads,
                                        emit_all, emit_fastq, emit_kraken, canonicalize);
         c.set_confidence(confidence); c.set_min_hit_groups(min_hit_groups);
-            c.set_confidence_hi(confidence_hi); c.set_window(window, window_agree); c.set_emit_evidence(emit_evidence);
+            c.set_confidence_hi(confidence_hi); c.set_window(window, window_agree); c.set_emit_evidence(emit_evidence); c.set_nearest(nearest); c.set_confidence_hits_only(hits_only);
         process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
     }
     if(ofp != stdout) std::fclose(ofp);

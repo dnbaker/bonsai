@@ -9,6 +9,7 @@
 //    read is called 2. E: shows the conflict against the pooled call;
 //  - clean long reads keep their taxon with windows on; short reads (one
 //    window) classify identically with and without windows;
+//  - nearest-hit attribution (-N) also calls the novel read 2;
 //  - H: (high-confidence call) is the call or an ancestor of it; with -X <= -x
 //    it equals the call.
 #include "test/catch.hpp"
@@ -171,6 +172,21 @@ TEST_CASE("windowed adjudication rejects a conserved-island wrong-family call") 
     REQUIRE(nw.wtot == 9);               // 5000 bp -> 4970 positions -> 9 windows (tail merged)
     REQUIRE(2 * nw.wcons >= nw.wtot);
     REQUIRE(nw.wcons < nw.wtot);         // the island windows disagree
+    // Nearest-hit attribution: the island owns only its own 1500 positions.
+    ck.set_nearest(true); cc.set_nearest(true);
+    {
+        const auto r = both(fq_long, 0, 0., 0., false);
+        REQUIRE(r.at("novel").taxon == 2);
+        for(const tax_t t: {2, 3, 4})
+            for(int i = 0; i < 5; ++i) REQUIRE(r.at("clean" + std::to_string(t) + "_" + std::to_string(i)).taxon == t);
+        // error-free short reads from one genome: every hit agrees, so the same call as pooled
+        const auto sh = both(fq_short, 0, 0., 0., false);
+        ck.set_nearest(false); cc.set_nearest(false);
+        const auto sp = both(fq_short, 0, 0., 0., false);
+        for(int i = 0; i < 120; ++i)
+            if(i % 4 != 1 && i % 10 != 7) REQUIRE(sh.at(short_names[i]).taxon == sp.at(short_names[i]).taxon);
+    }
+    ck.set_nearest(false); cc.set_nearest(false);
     // A strict agreement requirement (all windows) walks it up to the root.
     ck.set_window(512, 1.0); cc.set_window(512, 1.0);
     {

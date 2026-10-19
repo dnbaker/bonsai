@@ -238,6 +238,7 @@ public:
             return ret;
         }
     }
+    void clear() {keys_.clear(); vals_.clear();} // keeps capacity
     size_type count(const K &key) const {
         auto it = std::find(keys_.begin(), keys_.end(), key);
         return it == keys_.end() ? size_type(0): vals_[it - keys_.begin()];
