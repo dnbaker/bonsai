@@ -46,6 +46,21 @@ template<> struct RHTraits<PROTEIN> {
 
 static constexpr inline size_t rh2n(InputType rht, size_t itemsize);
 static inline std::string to_string(InputType it);
+// Alphabet name -> InputType for command lines ("DNA", "PROTEIN20"/"AMINO20",
+// "PROTEIN14"/"SEB14", "PROTEIN8"/"SEB8", "PROTEIN6"/"SEB6", "PROTEIN").
+// Returns false when the name is unknown.
+static inline bool input_type_from_string(const std::string &name, InputType &out) {
+    std::string u(name);
+    for(auto &c: u) c = char(std::toupper(static_cast<unsigned char>(c)));
+    if(u == "DNA") out = DNA;
+    else if(u == "PROTEIN20" || u == "AMINO20" || u == "PROTEIN_20") out = PROTEIN20;
+    else if(u == "PROTEIN14" || u == "SEB14" || u == "PROTEIN_14") out = PROTEIN_14;
+    else if(u == "PROTEIN8" || u == "SEB8" || u == "PROTEIN_3BIT") out = PROTEIN_3BIT;
+    else if(u == "PROTEIN6" || u == "SEB6" || u == "PROTEIN_6") out = PROTEIN_6;
+    else if(u == "PROTEIN") out = PROTEIN;
+    else return false;
+    return true;
+}
 static constexpr inline size_t mul(InputType it);
 
 // True for alphabets whose size is a power of two, so that k-mers are packed

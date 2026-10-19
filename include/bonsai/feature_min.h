@@ -51,7 +51,8 @@ template<typename ScoreType>
     } \
 } while(0)
 
-size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks=nullptr);
+size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks=nullptr,
+                       const KeySpec &spec=KeySpec{});
 template<typename ScoreType>
 size_t fill_count_genome(const char *path, const Spacer &sp, khash_t(64) *ret, size_t index, void *data, bool canon, kseq_t *ks=nullptr);
 
@@ -61,8 +62,9 @@ struct LcaMap {
     using CounterType = khash_t(all);
     static constexpr size_t ValSize = sizeof(*(ReturnType{0})->vals);
     template<typename ScoreType>
-    static size_t fill(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks) {
-        return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks);
+    static size_t fill(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                       const KeySpec &spec) {
+        return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks, spec);
     }
     static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *, khash_t(c) *r32, khash_t(64) *, tax_t taxid) {
         update_lca_map(r32, set, tax, taxid);
@@ -74,8 +76,9 @@ struct LcaMap {
 // and returns release().
 // 128-bit keys: a genome's distinct keys as a sorted vector (khash_t(all) is u64).
 template<typename ScoreType>
-size_t fill_vec_genome128(const char *path, const Spacer &sp, std::vector<u128> *ret, size_t index, void *data, bool canon, kseq_t *ks) {
-    KmerKeys<ScoreType, u128> enc(sp, canon, data);   // exact k-mers for 32 < k <= 64 (DNA), wide hashes beyond
+size_t fill_vec_genome128(const char *path, const Spacer &sp, std::vector<u128> *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                          const KeySpec &spec = KeySpec{}) {
+    KmerKeys<ScoreType, u128> enc(sp, canon, data, spec);   // exact k-mers for 32 < k <= 64 (DNA), wide hashes beyond
     ret->clear();
     enc.for_each([&](u128 x) {ret->push_back(x);}, path, ks);
     std::sort(ret->begin(), ret->end());
@@ -92,10 +95,12 @@ struct CompactLcaMapT {
     static constexpr size_t ValSize = 4;
     static constexpr bool kCustomSink = true;
     std::unique_ptr<CompactLcaBuilder<KeyT>> b;
+    KeySpec spec;   // alphabet / translation / hash width of the database being built
     template<typename ScoreType>
-    static size_t fill(const char *path, const Spacer &sp, CounterType *ret, size_t index, void *data, bool canon, kseq_t *ks) {
-        if constexpr(std::is_same<KeyT, u64>::value) return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks);
-        else return fill_vec_genome128<ScoreType>(path, sp, ret, index, data, canon, ks);
+    static size_t fill(const char *path, const Spacer &sp, CounterType *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                       const KeySpec &spec) {
+        if constexpr(std::is_same<KeyT, u64>::value) return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks, spec);
+        else return fill_vec_genome128<ScoreType>(path, sp, ret, index, data, canon, ks, spec);
     }
     void update(const khash_t(p) *tax, const CounterType *set, const khash_t(64) *, khash_t(c) *, khash_t(64) *, tax_t taxid) {
         if constexpr(std::is_same<KeyT, u64>::value) b->update(set, tax, taxid);
@@ -104,6 +109,12 @@ struct CompactLcaMapT {
     ReturnType release() {return b->finish();}
 };
 using CompactLcaMap = CompactLcaMapT<u64>;
+template<typename T, typename = void> struct has_keyspec: std::false_type {};
+template<typename T> struct has_keyspec<T, std::void_t<decltype(std::declval<T>().spec)>>: std::true_type {};
+template<typename T> KeySpec keyspec_of(const T &mu) {
+    if constexpr(has_keyspec<T>::value) return mu.spec;
+    else {(void)mu; return KeySpec{};}
+}
 template<typename T, typename = void> struct has_custom_sink: std::false_type {};
 template<typename T> struct has_custom_sink<T, std::void_t<decltype(T::kCustomSink)>>: std::integral_constant<bool, T::kCustomSink> {};
 
@@ -112,8 +123,9 @@ struct TdMap {
     using CounterType = khash_t(all);
     static constexpr size_t ValSize = sizeof(*(ReturnType{0})->vals);
     template<typename ScoreType>
-    static size_t fill(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks) {
-        return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks);
+    static size_t fill(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                       const KeySpec &spec) {
+        return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks, spec);
     }
     static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *, khash_t(c) *, khash_t(64) *r64, tax_t taxid) {
         update_td_map(r64, set, tax, taxid);
@@ -124,8 +136,9 @@ struct FcMap {
     using CounterType = khash_t(all);
     static constexpr size_t ValSize = sizeof(*(ReturnType{0})->vals);
     template<typename ScoreType>
-    static size_t fill(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks) {
-        return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks);
+    static size_t fill(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                       const KeySpec &spec) {
+        return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks, spec);
     }
     static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *, khash_t(c) *, khash_t(64) *r64, tax_t taxid) {
         update_feature_counter(r64, set, tax, taxid);
@@ -136,8 +149,9 @@ struct MinMap {
     using CounterType = khash_t(all);
     static constexpr size_t ValSize = sizeof(*(ReturnType{0})->vals);
     template<typename ScoreType>
-    static size_t fill(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks) {
-        return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks);
+    static size_t fill(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                       const KeySpec &spec) {
+        return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks, spec);
     }
     static void update(const khash_t(p) *, const khash_t(all) *set, const khash_t(64) *d64, khash_t(c) *r32, khash_t(64) *, tax_t) {
         update_minimized_map(set, d64, r32);
@@ -148,7 +162,8 @@ struct FqMap {
     using CounterType = khash_t(64);
     static constexpr size_t ValSize = sizeof(*(ReturnType{0})->vals);
     template<typename ScoreType>
-    static size_t fill(const char *path, const Spacer &sp, khash_t(64) *ret, size_t index, void *data, bool canon, kseq_t *ks) {
+    static size_t fill(const char *path, const Spacer &sp, khash_t(64) *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                       const KeySpec &) {
         return fill_count_genome<ScoreType>(path, sp, ret, index, data, canon, ks);
     }
     static void update(const khash_t(p) *tax, const khash_t(64) *counts, const khash_t(64) *, khash_t(c) *, khash_t(64) *r64, tax_t taxid) {
@@ -169,12 +184,13 @@ static inline void clear_counter(khash_t(all) *c) { kh_clear(all, c); }
 static inline void clear_counter(khash_t(64) *c) { kh_clear(64, c); }
 
 template<typename ScoreType>
-size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks) {
+size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                       const KeySpec &spec) {
     LOG_ASSERT(ret);
     LOG_DEBUG("Filling from genome at path %s. kseq is pre-allocated ? %s. %p\n", path, ks ? "true": "false", (void *)ks);
     if(!ks) BNS_KHASH_PRESIZE(all, ret, path);
 
-    KmerKeys<ScoreType> enc(sp, canon, data);   // exact k-mers for k <= 32, rolling-hash keys beyond
+    KmerKeys<ScoreType> enc(sp, canon, data, spec);   // exact k-mers within 64 bits, folded/rolling-hash keys beyond
     enc.for_each([&](u64 x) {
         auto it = kh_get(all, ret, x);
         if(it == kh_end(ret)) {
@@ -252,7 +268,7 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
     std::vector<uint32_t> genome_counter(todo);
     for(size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
         futures.emplace_back(std::async(
-          std::launch::async, &MapUpdater::template fill<ScoreType>, fns[i].data(), sp, counters.data() + i, i, (void *)data, canon, kseqs.data() + submitted));
+          std::launch::async, &MapUpdater::template fill<ScoreType>, fns[i].data(), sp, counters.data() + i, i, (void *)data, canon, kseqs.data() + submitted, keyspec_of(mu)));
         genome_counter[i] = i;
         LOG_DEBUG("Submitted for %zu.\n", submitted);
         ++submitted;
@@ -275,7 +291,7 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
             kseq_t *ks_to_submit = kseqs.data() + coffset;
             f = std::async(
               std::launch::async, &MapUpdater::template fill<ScoreType>, fns[submitted].data(),
-              sp, counter, submitted, (void *)data, canon, ks_to_submit);
+              sp, counter, submitted, (void *)data, canon, ks_to_submit, keyspec_of(mu));
             genome_counter[submitted] = coffset;
             ++submitted, ++completed;
             LOG_DEBUG("Have now submitted %zu element\n", submitted);
@@ -328,9 +344,10 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, const khash_t(p) *tax_m
 template<typename ScoreType, typename KeyT = u64>
 std::unique_ptr<BasicCompactKmerMap<KeyT>> compact_lca_map(const std::vector<std::string> &fns, const khash_t(p) *tax_map,
                                                            const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon,
-                                                           size_t estimated_kmers, unsigned key_bits) {
+                                                           size_t estimated_kmers, unsigned key_bits, const KeySpec &spec = KeySpec{}) {
     CompactLcaMapT<KeyT> mu;
     mu.b = std::make_unique<CompactLcaBuilder<KeyT>>(estimated_kmers, kh_size(tax_map), key_bits);
+    mu.spec = spec;
     return make_map<ScoreType, CompactLcaMapT<KeyT>>(fns, tax_map, seq2tax_path, sp, num_threads, canon, 0, nullptr, std::move(mu));
 }
 

@@ -246,22 +246,38 @@ private:
 using CompactKmerMap = BasicCompactKmerMap<u64>;
 using CompactKmerMap128 = BasicCompactKmerMap<u128>;
 
-// Compact classification database file: magic "BNSCKM02", then k, w and the
-// spacing exactly as Database<khash_t(c)> writes them, then the dense taxon
-// table (count, capacity, taxids) and the cht_map_t stream. Uncompressed. `bonsai compact` converts a khash database into one.
+// Compact classification database file: magic "BNSCKM03", then k, w and the
+// spacing exactly as Database<khash_t(c)> writes them, the key encoding
+// (alphabet InputType, translate flag), then the dense taxon table (count,
+// capacity, taxids) and the cht_map_t stream (whose key width is the hashed
+// tier's hash width). Uncompressed. "BNSCKM02" files (no key encoding field)
+// read as DNA, untranslated. `bonsai compact` converts a khash database into one.
 struct CompactDatabase {
     unsigned k_ = 0, w_ = 0;
     spvec_t s_;
     std::unique_ptr<CompactKmerMap> db_;        // keys of up to 64 bits
     std::unique_ptr<CompactKmerMap128> db128_;  // wider keys (DNA 32 < k <= 64 exactly)
-    static constexpr char MAGIC[9] = "BNSCKM02";
+    InputType rht_ = DNA;                       // key alphabet
+    bool translate_ = false;                    // references were 6-frame translated at build (informational)
+    static constexpr char MAGIC[9] = "BNSCKM03";
+    static constexpr char MAGIC_V2[9] = "BNSCKM02";
     bool wide() const {return bool(db128_);}
+    // the KeySpec to classify with: reads are nucleotide, so a protein database
+    // translates them (whether its references were translated or protein FASTA);
+    // hash width = the stored key width, for hashed tiers
+    KeySpec keyspec() const {
+        KeySpec ks{rht_, rht_ != DNA, 0};
+        const unsigned kb = wide() ? db128_->key_bits(): db_->key_bits();
+        if(wide() ? KmerKeys<score::Lex, u128>::tier_for(k_, rht_) == KmerKeys<score::Lex, u128>::HASHED128
+                  : KmerKeys<>::tier_for(k_, rht_) == KmerKeys<>::HASHED64) ks.hash_bits = kb;
+        return ks;
+    }
 
     static bool is_compact(const char *fn) {
         std::FILE *fp = std::fopen(fn, "rb");
         if(!fp) return false;
         char m[8];
-        const bool ret = std::fread(m, 1, 8, fp) == 8 && std::memcmp(m, MAGIC, 8) == 0;
+        const bool ret = std::fread(m, 1, 8, fp) == 8 && (std::memcmp(m, MAGIC, 8) == 0 || std::memcmp(m, MAGIC_V2, 8) == 0);
         std::fclose(fp);
         return ret;
     }
@@ -269,8 +285,9 @@ struct CompactDatabase {
         std::FILE *fp = std::fopen(fn, "rb");
         if(!fp) LOG_EXIT("Could not open %s for reading.\n", fn);
         char m[8];
-        if(std::fread(m, 1, 8, fp) != 8 || std::memcmp(m, MAGIC, 8))
+        if(std::fread(m, 1, 8, fp) != 8 || (std::memcmp(m, MAGIC, 8) && std::memcmp(m, MAGIC_V2, 8)))
             throw std::runtime_error(std::string("Not a compact bonsai database: ") + fn);
+        const bool v3 = std::memcmp(m, MAGIC, 8) == 0;
         if(std::fread(&k_, sizeof(k_), 1, fp) != 1 || std::fread(&w_, sizeof(w_), 1, fp) != 1)
             throw std::runtime_error("Error: Could not read k/w from compact database");
         s_ = spvec_t(k_ - 1);
@@ -278,6 +295,12 @@ struct CompactDatabase {
             uint8_t bv;
             if(std::fread(&bv, sizeof(bv), 1, fp) != 1) throw std::runtime_error("Error: Could not read spacing from file");
             v = bv;
+        }
+        if(v3) {
+            uint32_t enc[2];
+            if(std::fread(enc, sizeof(enc), 1, fp) != 1) throw std::runtime_error("Error: Could not read key encoding");
+            rht_ = InputType(enc[0]);
+            translate_ = enc[1] != 0;
         }
         // the key width (cht_map_t header, after the taxon table) picks the map type
         const long pos = std::ftell(fp);
@@ -294,7 +317,8 @@ struct CompactDatabase {
         std::fclose(fp);
     }
     template<typename KeyT>
-    static void write(const char *fn, unsigned k, unsigned w, const spvec_t &s, const BasicCompactKmerMap<KeyT> &m) {
+    static void write(const char *fn, unsigned k, unsigned w, const spvec_t &s, const BasicCompactKmerMap<KeyT> &m,
+                      const KeySpec &spec = KeySpec{}) {
         std::FILE *fp = std::fopen(fn, "wb");
         if(!fp) LOG_EXIT("Could not open %s for writing.\n", fn);
         if(std::fwrite(MAGIC, 1, 8, fp) != 8) throw std::runtime_error("Error writing database");
@@ -304,6 +328,8 @@ struct CompactDatabase {
             const uint8_t bv = static_cast<uint8_t>(v);
             if(std::fwrite(&bv, sizeof(bv), 1, fp) != 1) throw std::runtime_error("Error writing database");
         }
+        const uint32_t enc[2] = {uint32_t(spec.rht), uint32_t(spec.translate)};
+        if(std::fwrite(enc, sizeof(enc), 1, fp) != 1) throw std::runtime_error("Error writing database");
         m.write(fp);
         std::fclose(fp);
     }

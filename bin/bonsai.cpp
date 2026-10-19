@@ -194,15 +194,12 @@ int classify_main(int argc, char *argv[]) {
         CompactDatabase db(argv[optind]);
         if(db.wide()) {
             using C = ClassifierGeneric<score::Lex, CompactKmerMap128>;
-            const unsigned hb = KmerKeys<score::Lex, u128>::tier_for(db.k_) == KmerKeys<score::Lex, u128>::HASHED128
-                              ? db.db128_->key_bits(): C::keys_type::DEFAULT_HASH_BITS;
-            C c(db.db128_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, hb);
+            C c(db.db128_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, db.keyspec());
             c.set_confidence(confidence); c.set_min_hit_groups(min_hit_groups);
             process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
         } else {
             using C = ClassifierGeneric<score::Lex, CompactKmerMap>;
-            const unsigned hb = KmerKeys<>::tier_for(db.k_) == KmerKeys<>::HASHED64 ? db.db_->key_bits(): C::keys_type::DEFAULT_HASH_BITS;
-            C c(db.db_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, hb);
+            C c(db.db_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, db.keyspec());
             c.set_confidence(confidence); c.set_min_hit_groups(min_hit_groups);
             process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
         }
@@ -226,6 +223,7 @@ bool endswith(const std::string &path, const std::string &suf) {
 int phase2_main(int argc, char *argv[]) {
     int c, mode(score_scheme::LEX), wsz(-1), num_threads(1), k(31);
     bool canon(true), compact_out(false);
+    KeySpec keyspec;              // -P alphabet, -6 translate, -H hash bits (compact builds)
     WRITE write_fmt = UNCOMPRESSED;
     std::size_t start_size(1<<16);
     std::string spacing, tax_path, seq2taxpath, paths_file;
@@ -250,10 +248,14 @@ int phase2_main(int argc, char *argv[]) {
                      "-z: Write gzip-compressed.\n"
                      "-Z: Build a compact database (sketch cht_map_t; see `bonsai compact`) directly, without\n"
                      "    an intermediate khash. Lex LCA databases only; classify detects the format.\n"
+                     "-P: Amino-acid key alphabet for a protein database (-Z): PROTEIN20, PROTEIN14, PROTEIN8, PROTEIN6.\n"
+                     "    k counts residues. References are protein FASTA unless -6 is given.\n"
+                     "-6: 6-frame translate nucleotide references (and, at classify, reads) into -P residues.\n"
+                     "-H: Key width in bits for hashed-tier keys (-Z): 16..61 [61], or 65..128 for 128-bit keys.\n"
                      , *argv);
         std::exit(EXIT_FAILURE);
     }
-    while((c = getopt(argc, argv, "Cw:M:S:p:k:T:F:tefHZh?")) >= 0) {
+    while((c = getopt(argc, argv, "Cw:M:S:p:k:T:F:P:H:tef6Zh?")) >= 0) {
         switch(c) {
             case 'C': canon = false; break;
             case 'h': case '?': goto usage;
@@ -270,20 +272,28 @@ int phase2_main(int argc, char *argv[]) {
             case 'e': mode = score_scheme::ENTROPY; break;
             case 'z': write_fmt = ZLIB; break;
             case 'Z': compact_out = true; break;
+            case 'P': if(!input_type_from_string(optarg, keyspec.rht)) LOG_EXIT("Unknown alphabet %s\n", optarg); break;
+            case '6': keyspec.translate = true; break;
+            case 'H': keyspec.hash_bits = unsigned(std::atoi(optarg)); break;
         }
     }
     dbpath = argv[optind];
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
     if(compact_out && mode != score_scheme::LEX) LOG_EXIT("-Z (compact output) builds lex LCA databases only.\n");
+    if((keyspec.rht != DNA || keyspec.translate || keyspec.hash_bits) && !compact_out)
+        LOG_EXIT("-P / -6 / -H describe the key encoding, which only compact databases (-Z) record.\n");
+    if(keyspec.translate && keyspec.rht == DNA) LOG_EXIT("-6 translates into an amino-acid alphabet; give one with -P.\n");
+    if(keyspec.rht != DNA) canon = false;
     if(wsz < k) wsz = k;
     // k <= 32: exact 64-bit packed k-mers. 32 < k <= 64 (lex LCA databases):
     // 61-bit keys folded from the exact 128-bit k-mer (spaced seeds and windows
     // supported), or exact 128-bit keys with -Z. k > 64: rolling-hash keys,
     // unspaced only.
-    if(k > 32 && mode != score_scheme::LEX)
-        LOG_EXIT("k > 32 needs the default lex mode.\n");
-    if(k > 64 && !spacing.empty())
-        LOG_EXIT("k > 64 uses rolling-hash keys, which need an unspaced seed.\n");
+    // capacities are per alphabet (DNA: 32 / 64 per 64- / 128-bit word)
+    if(k > int(rh2n(keyspec.rht, 8)) && mode != score_scheme::LEX)
+        LOG_EXIT("k beyond a 64-bit key needs the default lex mode.\n");
+    if(k > int(rh2n(keyspec.rht, 16)) && !spacing.empty())
+        LOG_EXIT("k beyond a 128-bit key uses rolling-hash keys, which need an unspaced seed.\n");
 #ifdef ZWRAP_USE_ZSTD
     const std::string suf(".zst");
 #else
@@ -335,16 +345,19 @@ int phase2_main(int argc, char *argv[]) {
             // key tiers: k <= 32 exact 64-bit; 32 < k <= 64 exact 128-bit (compact
             // databases only); k > 64 61-bit rolling-hash keys
             auto write_out = [&](const auto &m) {
-                CompactDatabase::write(dbpath.data(), phase2_map.k_, phase2_map.w_, phase2_map.s_, *m);
+                CompactDatabase::write(dbpath.data(), phase2_map.k_, phase2_map.w_, phase2_map.s_, *m, keyspec);
                 LOG_INFO("Wrote compact database %s: %zu k-mers, %u-bit keys, %u-bit values, %zu bytes\n",
                          dbpath.data(), m->size(), m->key_bits(), m->value_bits(), m->bytes_used());
             };
-            if(KmerKeys<score::Lex, u128>::tier_for(k) == KmerKeys<score::Lex, u128>::EXACT128 && k > 32) {
-                write_out(compact_lca_map<score::Lex, u128>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon,
-                                                            hash_size, KmerKeys<score::Lex, u128>::key_bits_for(k)));
+            const unsigned rk = unsigned(k);
+            if(rk > rh2n(keyspec.rht, 8) && rk <= rh2n(keyspec.rht, 16)) {   // exact 128-bit keys
+                using K = KmerKeys<score::Lex, u128>;
+                write_out(compact_lca_map<score::Lex, u128>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size,
+                          K::key_bits_for(rk, keyspec.rht, keyspec.hash_bits ? keyspec.hash_bits: K::DEFAULT_HASH_BITS), keyspec));
             } else {
-                write_out(compact_lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon,
-                                                      hash_size, KmerKeys<>::key_bits_for(k)));
+                using K = KmerKeys<>;
+                write_out(compact_lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size,
+                          K::key_bits_for(rk, keyspec.rht, keyspec.hash_bits ? keyspec.hash_bits: K::DEFAULT_HASH_BITS), keyspec));
             }
             kh_destroy(p, taxmap);
             return EXIT_SUCCESS;

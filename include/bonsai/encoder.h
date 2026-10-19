@@ -19,6 +19,7 @@
 #include "ntHash/nthash.hpp"
 #include "alphabet.h"
 #include "rhtraits.h"
+#include "sixframe.h"
 #include "sketch/hash.h"
 #include "sketch/div.h"
 #include "sketch/exception.h"
@@ -1158,6 +1159,18 @@ u64 count_cardinality(const std::vector<std::string> paths,
 }
 
 
+// How a database turns sequence into keys, beyond k/w/spacing: the alphabet
+// (DNA, or an amino-acid alphabet such as PROTEIN20 / PROTEIN_14 / PROTEIN_3BIT /
+// PROTEIN_6), whether nucleotide input is 6-frame translated first
+// (Kraken2-style translated search; sixframe.h), and the hashed-tier key width
+// (0 = the default). Build and classify must use the same KeySpec; compact
+// databases record it.
+struct KeySpec {
+    InputType rht = DNA;
+    bool translate = false;
+    unsigned hash_bits = 0;
+};
+
 // KmerKeys<ScoreType, KeyT>: the k-mer -> table key used by the
 // classification database (estimate, build, classify), chosen by the
 // alphabet's capacity (rhtraits rh2n). With KeyT = u64:
@@ -1204,6 +1217,7 @@ private:
     std::unique_ptr<Encoder<ScoreType, KeyT>> enc_;
     std::unique_ptr<Encoder<ScoreType, u128>> enc128_;   // HASHED64 for k within 128 bits: fold the exact k-mer
     std::unique_ptr<RollingHasher<KeyT>> rh_;
+    bool translate_ = false;
     // fixed 128 -> 64-bit fold (splitmix64 finalizer over both halves)
     static u64 mix64_(u64 z) {
         z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
@@ -1216,10 +1230,14 @@ private:
     static KeyT mask_of(unsigned b) {return b >= sizeof(KeyT) * CHAR_BIT ? ~KeyT(0): ((KeyT(1) << b) - 1);}
     bool exact() const {return tier_ == EXACT64 || tier_ == EXACT128;}
     void make() {
+        if(rht_ != DNA) canon_ = false;   // reverse complements are a nucleotide notion
+        if(translate_ && rht_ == DNA) RUNTIME_ERROR("KmerKeys: 6-frame translation needs an amino-acid alphabet");
         if(exact()) {
             enc_.reset(new Encoder<ScoreType, KeyT>(nullptr, 0, sp_, data_, canon_));
+            if(rht_ != DNA) enc_->hashtype(rht_);
         } else if(!wide && sp_.k_ <= rh2n(rht_, 16)) {
             enc128_.reset(new Encoder<ScoreType, u128>(nullptr, 0, sp_, data_, canon_));
+            if(rht_ != DNA) enc128_->hashtype(rht_);
         } else {
             if(!sp_.unspaced())
                 RUNTIME_ERROR(ks::sprintf("k %u exceeds the %zu bases a %zu-bit key holds for alphabet %s; the hashed-key tier needs an unspaced seed.",
@@ -1243,36 +1261,65 @@ public:
         while(b < 128 && (v >> b)) ++b;
         return b;
     }
-    KmerKeys(const Spacer &sp, bool canon, void *data = nullptr, InputType rht = DNA, unsigned hash_bits = DEFAULT_HASH_BITS):
-        tier_(tier_for(sp.k_, rht)), sp_(sp), canon_(canon), data_(data), rht_(rht), hash_bits_(hash_bits), hmask_(mask_of(hash_bits)) {
+    KmerKeys(const Spacer &sp, bool canon, void *data, const KeySpec &spec):
+        KmerKeys(sp, canon, data, spec.rht, spec.hash_bits ? spec.hash_bits: DEFAULT_HASH_BITS, spec.translate) {}
+    KmerKeys(const Spacer &sp, bool canon, void *data = nullptr, InputType rht = DNA, unsigned hash_bits = DEFAULT_HASH_BITS,
+             bool translate = false):
+        tier_(tier_for(sp.k_, rht)), sp_(sp), canon_(canon), data_(data), rht_(rht), hash_bits_(hash_bits), hmask_(mask_of(hash_bits)),
+        translate_(translate) {
         if(wide ? (hash_bits < 65 || hash_bits > 128): (hash_bits < 16 || hash_bits > 61))
             RUNTIME_ERROR(std::string(wide ? "KmerKeys<u128>: hash_bits must lie in [65, 128]": "KmerKeys<u64>: hash_bits must lie in [16, 61]"));
         make();
     }
     KmerKeys(const KmerKeys &o): tier_(o.tier_), sp_(o.sp_), canon_(o.canon_), data_(o.data_), rht_(o.rht_),
-        hash_bits_(o.hash_bits_), hmask_(o.hmask_) {make();}
+        hash_bits_(o.hash_bits_), hmask_(o.hmask_), translate_(o.translate_) {make();}
     KmerKeys &operator=(const KmerKeys &o) {
         tier_ = o.tier_; sp_ = o.sp_; canon_ = o.canon_; data_ = o.data_; rht_ = o.rht_;
-        hash_bits_ = o.hash_bits_; hmask_ = o.hmask_; make();
+        hash_bits_ = o.hash_bits_; hmask_ = o.hmask_; translate_ = o.translate_; make();
         return *this;
     }
+    bool translated() const {return translate_;}
+    InputType alphabet() const {return rht_;}
     Tier tier() const {return tier_;}
     unsigned key_bits() const {return key_bits_for(sp_.k_, rht_, hash_bits_);}
     unsigned hash_bits() const {return hash_bits_;}
     const Spacer &spacer() const {return sp_;}
     unsigned span() const {return sp_.c_;}   // positions one key covers
+    // keys of one sequence (residues in the key alphabet, or nucleotides
+    // to translate when translated())
     template<typename Functor>
     void for_each(const Functor &func, const char *s, size_t l) {
-        if(exact()) enc_->for_each([&](KeyT x) {func(x);}, s, l);
-        else if(enc128_) enc128_->for_each([&](u128 x) {func(KeyT(fold128_(x)) & hmask_);}, s, l);
-        else rh_->for_each_hash([&](KeyT h) {func(KeyT(h & hmask_));}, s, l);
+        if(translate_) {
+            sixframe::for_each_peptide(s, l, [&](const char *pep, size_t pl, int) {encode_(func, pep, pl);});
+            return;
+        }
+        encode_(func, s, l);
     }
     template<typename Functor>
     void for_each(const Functor &func, const char *path, kseq_t *ks) {
+        if(translate_) {   // per record: translate, then encode
+            gzFile fp = gzopen(path, "rb");
+            if(!fp) RUNTIME_ERROR(std::string("Could not open ") + path);
+            const bool own = !ks;
+            if(own) ks = kseq_init(fp);
+            else kseq_assign(ks, fp);
+            while(kseq_read(ks) >= 0) for_each(func, ks->seq.s, ks->seq.l);
+            if(own) kseq_destroy(ks);
+            gzclose(fp);
+            return;
+        }
         if(exact()) enc_->for_each([&](KeyT x) {func(x);}, path, ks);
         else if(enc128_) enc128_->for_each([&](u128 x) {func(KeyT(fold128_(x)) & hmask_);}, path, ks);
         else rh_->for_each_hash([&](KeyT h) {func(KeyT(h & hmask_));}, path, ks);
     }
+private:
+    template<typename Functor>
+    void encode_(const Functor &func, const char *s, size_t l) {
+        if(exact()) enc_->for_each([&](KeyT x) {func(x);}, s, l);
+        else if(enc128_) enc128_->for_each([&](u128 x) {func(KeyT(fold128_(x)) & hmask_);}, s, l);
+        else rh_->for_each_hash([&](KeyT h) {func(KeyT(h & hmask_));}, s, l);
+    }
+public:
 };
 
 template<typename ScoreType, typename SketchType>

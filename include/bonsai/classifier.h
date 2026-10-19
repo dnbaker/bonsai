@@ -184,9 +184,14 @@ struct ClassifierGeneric {
     ClassifierGeneric(const DB *map, const spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads=16,
                       bool emit_all=true, bool emit_fastq=true, bool emit_kraken=false, bool canonicalize=true,
                       unsigned hash_bits = keys_type::DEFAULT_HASH_BITS):
+        ClassifierGeneric(map, spaces, k, wsz, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize,
+                          KeySpec{DNA, false, hash_bits}) {}
+    // spec: the database's key encoding (alphabet, 6-frame translation, hash width)
+    ClassifierGeneric(const DB *map, const spvec_t &spaces, u8 k, std::uint16_t wsz, int num_threads,
+                      bool emit_all, bool emit_fastq, bool emit_kraken, bool canonicalize, const KeySpec &spec):
         db_(map),
         sp_(k, wsz, spaces),
-        enc_(sp_, canonicalize, nullptr, DNA, hash_bits),
+        enc_(sp_, canonicalize, nullptr, spec),
         nt_(num_threads > 0 ? (uint16_t)(num_threads): (uint16_t)std::thread::hardware_concurrency()),
         output_flag_(0)
     {
@@ -297,6 +302,7 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
     // number of positions and the number of emitted k-mers.
     const auto n_not_ambig = [&]() {return taxa.size() + missing_count;};
     const auto count_ambig = [&](u64 l, u64 prev_not_ambig) {
+        if(enc.translated()) return u32(0);   // nucleotide positions do not map onto peptide k-mers
         const u64 np = l + 1 > enc.span() ? l - enc.span() + 1: 0; // positions holding a c_-span
         const u64 emitted = n_not_ambig() - prev_not_ambig;
         return u32(np > emitted ? np - emitted: 0);
