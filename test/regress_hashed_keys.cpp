@@ -130,6 +130,25 @@ TEST_CASE("lca_map + classify for exact (k = 31) and hashed (k = 40) keys") {
         }
         REQUIRE(total == truth.size());
         REQUIRE(right == total);           // random genomes: every error-free read is unique to its genome
+        // direct compact build (no khash), from a good estimate and from a tiny
+        // one that forces repeated growth: identical content to the khash build
+        for(const size_t est: {size_t(kh_size(db)), size_t(1000)}) {
+            auto dm = compact_lca_map<score::Lex>(fns, taxmap, (dir + "/seq2tax.txt").data(), sp, 2, true, est, kb);
+            REQUIRE(dm->size() == kh_size(db));
+            REQUIRE(dm->key_bits() == kb);
+            REQUIRE(dm->value_bits() == CompactKmerMap::bits_for(dm->num_taxa()));
+            size_t bad = 0;
+            for(khint_t ki = kh_begin(db); ki != kh_end(db); ++ki)
+                if(kh_exist(db, ki)) bad += dm->get(kh_key(db, ki)) != kh_val(db, ki);
+            REQUIRE(bad == 0);
+            ClassifierGeneric<score::Lex, CompactKmerMap> cd(dm.get(), spvec_t{}, k, k, 2, true, false, true, true);
+            std::FILE *od = std::tmpfile();
+            process_dataset(cd, taxmap, fq.data(), nullptr, od, 256, 32);
+            REQUIRE(slurp(od) == a);
+            std::fclose(od);
+            std::fprintf(stderr, "  direct compact build from estimate %zu: %zu k-mers, %zu bytes, identical to khash build\n",
+                         est, dm->size(), dm->bytes_used());
+        }
         std::fprintf(stderr, "k=%u (%s keys, %u bits): %zu k-mers; %zu/%zu error-free reads to their own taxon; khash == compact\n",
                      k, k <= 32 ? "exact": "hashed", kb, size_t(kh_size(db)), right, total);
         kh_destroy(c, db);

@@ -124,6 +124,15 @@ public:
         return t_.bytes_used() + taxa_.size() * sizeof(tax_t)
              + ids_.size() * (sizeof(tax_t) + sizeof(uint32_t) + 2 * sizeof(void *));
     }
+    // Pre-assign dense ids 1..n to `taxa` in the given order (e.g. sorted, so
+    // a database encodes deterministically); only on an empty map.
+    void reserve_taxa_sorted(const std::vector<tax_t> &taxa) {
+        if(!taxa_.empty() || size()) throw std::logic_error("CompactKmerMap: reserve_taxa_sorted needs an empty map");
+        if(taxa.size() > max_taxa_) throw std::length_error("CompactKmerMap: more taxa than this map was sized for");
+        taxa_ = taxa;
+        ids_.clear();
+        for(size_t i = 0; i < taxa_.size(); ++i) ids_.emplace(taxa_[i], uint32_t(i + 1));
+    }
     // Drop the taxid -> dense id index (needed only by set()); it is rebuilt
     // on demand if set() is called again.
     void finalize() {decltype(ids_)().swap(ids_);}
@@ -268,6 +277,75 @@ struct CompactDatabase {
         }
         m.write(fp);
         std::fclose(fp);
+    }
+};
+
+// CompactLcaBuilder: build the k-mer -> LCA database straight into a
+// CompactKmerMap, with no intermediate khash_t(c). Each genome's k-mer set is
+// merged with update_lca_map's rule: absent -> the genome's taxon; present
+// with a different taxon -> lca(taxon, stored).
+// - Sizing: from the cardinality estimate (phase2 already computes an HLL
+//   estimate), with the taxonomy's node count as the dense-id capacity.
+// - Growth: when the estimate was low, the table grows to the next size by a
+//   rebuild; the peak is old + new compact tables, far below khash.
+// - finish(): one final rebuild at the minimum value width for the taxa
+//   actually stored, with dense ids renumbered in sorted taxid order, sized
+//   for the final count.
+// Content (k-mer -> LCA) is independent of genome merge order; the slot
+// layout is not, since linear-probing placement depends on insertion order.
+class CompactLcaBuilder {
+    std::unique_ptr<CompactKmerMap> m_;
+    size_t taxa_cap_;
+    double max_load_;
+    unsigned key_bits_;
+    size_t grows_ = 0;
+    void grow() {
+        auto next = std::make_unique<CompactKmerMap>(size_t(double(m_->size() + 1) * 2), taxa_cap_, max_load_, key_bits_);
+        m_->for_each([&](u64 k, tax_t t) {next->set(k, t);});
+        m_ = std::move(next);
+        ++grows_;
+    }
+public:
+    CompactLcaBuilder(size_t estimated_kmers, size_t taxonomy_nodes, unsigned key_bits = 64,
+                      double max_load = CompactKmerMap::DEFAULT_MAX_LOAD):
+        taxa_cap_(std::max<size_t>(taxonomy_nodes + 1, 2)), max_load_(max_load), key_bits_(key_bits) {
+        m_ = std::make_unique<CompactKmerMap>(size_t(double(std::max<size_t>(estimated_kmers, 16)) * 1.05),
+                                              taxa_cap_, max_load_, key_bits_);
+    }
+    size_t size() const {return m_->size();}
+    size_t grows() const {return grows_;}
+    const CompactKmerMap &map() const {return *m_;}
+    void update(const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid) {
+        static int warn_missing = 1;
+        for(khiter_t ki(kh_begin(set)); ki < kh_end(set); ++ki) {
+            if(!kh_exist(set, ki)) continue;
+            const u64 kmer = kh_key(set, ki);
+            const tax_t cur = m_->get(kmer);
+            if(cur == CompactKmerMap::NOT_FOUND) {
+                if(double(m_->size() + 1) > max_load_ * double(m_->table().nslots())) grow();
+                m_->set(kmer, taxid);
+            } else if(cur != taxid) {
+                const tax_t l = lca(tax, taxid, cur);
+                if(l == UINT32_C(1) && warn_missing)
+                    LOG_WARNING("ancestor of %u missing from taxonomy. This is not unexpected considering the issues the NCBI taxonomy has.\n", taxid), warn_missing = 0;
+                m_->set(kmer, l);
+            }
+        }
+    }
+    // Final rebuild: minimum value width, sorted dense ids, sized for size().
+    std::unique_ptr<CompactKmerMap> finish() {
+        std::vector<tax_t> taxa;
+        {
+            std::unordered_set<tax_t> seen;
+            m_->for_each([&](u64, tax_t t) {if(seen.insert(t).second) taxa.push_back(t);});
+        }
+        std::sort(taxa.begin(), taxa.end());
+        auto out = std::make_unique<CompactKmerMap>(m_->size(), taxa.size(), max_load_, key_bits_);
+        out->reserve_taxa_sorted(taxa);
+        m_->for_each([&](u64 k, tax_t t) {out->set(k, t);});
+        out->finalize();
+        m_.reset();
+        return out;
     }
 };
 

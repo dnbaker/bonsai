@@ -205,7 +205,7 @@ bool endswith(const std::string &path, const std::string &suf) {
 
 int phase2_main(int argc, char *argv[]) {
     int c, mode(score_scheme::LEX), wsz(-1), num_threads(1), k(31);
-    bool canon(true);
+    bool canon(true), compact_out(false);
     WRITE write_fmt = UNCOMPRESSED;
     std::size_t start_size(1<<16);
     std::string spacing, tax_path, seq2taxpath, paths_file;
@@ -228,10 +228,12 @@ int phase2_main(int argc, char *argv[]) {
                      "-M: Set seq2taxpath.\n"
                      "-S: Set spacing.\n"
                      "-z: Write gzip-compressed.\n"
+                     "-Z: Build a compact database (sketch cht_map_t; see `bonsai compact`) directly, without\n"
+                     "    an intermediate khash. Lex LCA databases only; classify detects the format.\n"
                      , *argv);
         std::exit(EXIT_FAILURE);
     }
-    while((c = getopt(argc, argv, "Cw:M:S:p:k:T:F:tefHh?")) >= 0) {
+    while((c = getopt(argc, argv, "Cw:M:S:p:k:T:F:tefHZh?")) >= 0) {
         switch(c) {
             case 'C': canon = false; break;
             case 'h': case '?': goto usage;
@@ -247,10 +249,12 @@ int phase2_main(int argc, char *argv[]) {
             case 'F': paths_file = optarg; break;
             case 'e': mode = score_scheme::ENTROPY; break;
             case 'z': write_fmt = ZLIB; break;
+            case 'Z': compact_out = true; break;
         }
     }
     dbpath = argv[optind];
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
+    if(compact_out && mode != score_scheme::LEX) LOG_EXIT("-Z (compact output) builds lex LCA databases only.\n");
     if(wsz < k) wsz = k;
     // k <= 32: exact 64-bit packed k-mers. k > 32 (lex LCA databases only):
     // 61-bit rolling-hash keys (KmerKeys::HASHED64), which need an unspaced seed.
@@ -303,6 +307,15 @@ int phase2_main(int argc, char *argv[]) {
         if(tax_path.empty()) RUNTIME_ERROR("Tax path required. [See -T option.]");
         LOG_INFO("Parent map bulding from %s\n", tax_path.data());
         khash_t(p) *taxmap(build_parent_map(tax_path.data()));
+        if(compact_out) {
+            const unsigned kb = KmerKeys<>::key_bits_for(k);
+            auto m = compact_lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size, kb);
+            CompactDatabase::write(dbpath.data(), phase2_map.k_, phase2_map.w_, phase2_map.s_, *m);
+            LOG_INFO("Wrote compact database %s: %zu k-mers, %u-bit keys, %u-bit values, %zu bytes\n",
+                     dbpath.data(), m->size(), m->key_bits(), m->value_bits(), m->bytes_used());
+            kh_destroy(p, taxmap);
+            return EXIT_SUCCESS;
+        }
         //LOG_INFO("I just feel like stopping this executable now for testing.\n");
         //goto fail;
         phase2_map.db_ = score_scheme::LEX == mode ? lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size)

@@ -5,6 +5,7 @@
 #include "khash64.h"
 #include "util.h"
 #include "klib/kthread.h"
+#include "kmermap.h"
 #include <set>
 
 // Decode 64-bit hash (contains both tax id and taxonomy depth for id)
@@ -67,6 +68,28 @@ struct LcaMap {
         update_lca_map(r32, set, tax, taxid);
     }
 };
+// Builds the LCA database straight into a CompactKmerMap (see
+// CompactLcaBuilder, kmermap.h) through make_map's scheduling; no khash_t(c)
+// is allocated. A "custom sink" updater: make_map hands it each genome's set
+// and returns release().
+struct CompactLcaMap {
+    using ReturnType = std::unique_ptr<CompactKmerMap>;
+    using CounterType = khash_t(all);
+    static constexpr size_t ValSize = 4;
+    static constexpr bool kCustomSink = true;
+    std::unique_ptr<CompactLcaBuilder> b;
+    template<typename ScoreType>
+    static size_t fill(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks) {
+        return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks);
+    }
+    void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *, khash_t(c) *, khash_t(64) *, tax_t taxid) {
+        b->update(set, tax, taxid);
+    }
+    ReturnType release() {return b->finish();}
+};
+template<typename T, typename = void> struct has_custom_sink: std::false_type {};
+template<typename T> struct has_custom_sink<T, std::void_t<decltype(T::kCustomSink)>>: std::integral_constant<bool, T::kCustomSink> {};
+
 struct TdMap {
     using ReturnType = khash_t(64) *;
     using CounterType = khash_t(all);
@@ -179,8 +202,9 @@ size_t fill_count_genome(const char *path, const Spacer &sp, khash_t(64) *ret, s
 
 template<typename ScoreType, typename MapUpdater, typename CounterT=typename MapUpdater::CounterType>
 typename MapUpdater::ReturnType
-make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon, size_t start_size, const khash_t(64) *data) {
-    MapUpdater mu;
+make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon, size_t start_size, const khash_t(64) *data,
+         MapUpdater mu = MapUpdater{}) {
+    constexpr bool custom_sink = has_custom_sink<MapUpdater>::value;
 
     khash_t(c) *r32 = nullptr;
     khash_t(64) *r64 = nullptr;
@@ -190,12 +214,14 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
     std::vector<CounterT> counters(num_threads);
     std::memset(counters.data(), 0, sizeof(CounterT) * counters.size());
     LOG_DEBUG("Started things\n");
-    if(MapUpdater::ValSize == 8) {
-        r64 = static_cast<khash_t(64) *>(std::calloc(1, sizeof(khash_t(64))));
-        kh_resize(64, r64, start_size);
-    } else {
-        r32 = static_cast<khash_t(c) *>(std::calloc(1, sizeof(khash_t(c))));
-        kh_resize(c, r32, start_size);
+    if constexpr(!custom_sink) {
+        if(MapUpdater::ValSize == 8) {
+            r64 = static_cast<khash_t(64) *>(std::calloc(1, sizeof(khash_t(64))));
+            kh_resize(64, r64, start_size);
+        } else {
+            r32 = static_cast<khash_t(c) *>(std::calloc(1, sizeof(khash_t(c))));
+            kh_resize(c, r32, start_size);
+        }
     }
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
     std::vector<std::future<size_t>> futures;
@@ -250,9 +276,13 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
     for(auto &counter: counters) free_counter(counter);
     kh_destroy(name, name_hash);
     LOG_DEBUG("Finished making map!\n");
-    if (MapUpdater::ValSize == 8)
-        r32 = reinterpret_cast<khash_t(c) *>(r64);
-    return reinterpret_cast<typename MapUpdater::ReturnType>(r32);
+    if constexpr(custom_sink) {
+        return mu.release();
+    } else {
+        if (MapUpdater::ValSize == 8)
+            r32 = reinterpret_cast<khash_t(c) *>(r64);
+        return reinterpret_cast<typename MapUpdater::ReturnType>(r32);
+    }
 }
 
 template<typename ScoreType>
@@ -271,6 +301,17 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, const khash_t(p) *tax_m
                     const char *seq2tax_path,
                     const Spacer &sp, int num_threads, bool canon, size_t start_size) {
     return make_map<ScoreType, LcaMap>(fns, tax_map, seq2tax_path, sp, num_threads, canon, start_size, nullptr);
+}
+
+// lca_map straight into a compact database (no khash_t(c)): estimated_kmers
+// from the cardinality estimate, key_bits from KmerKeys::key_bits_for(k).
+template<typename ScoreType>
+std::unique_ptr<CompactKmerMap> compact_lca_map(const std::vector<std::string> &fns, const khash_t(p) *tax_map,
+                                                const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon,
+                                                size_t estimated_kmers, unsigned key_bits) {
+    CompactLcaMap mu;
+    mu.b = std::make_unique<CompactLcaBuilder>(estimated_kmers, kh_size(tax_map), key_bits);
+    return make_map<ScoreType, CompactLcaMap>(fns, tax_map, seq2tax_path, sp, num_threads, canon, 0, nullptr, std::move(mu));
 }
 
 template<typename ScoreType>
