@@ -121,10 +121,18 @@ int compact_main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
     Database<khash_t(c)> db(argv[1]);
-    CompactKmerMap m(db.db_);
+    // key domain: 2k bits for 2-bit nucleotide k-mers (k <= 32), checked
+    // against the keys actually present; 64 otherwise
+    unsigned kb = std::min(64u, 2u * db.k_);
+    if(CompactKmerMap::key_bits_needed(db.db_) > kb) {
+        LOG_WARNING("k-mers span more than 2k = %u bits; using 64-bit keys\n", kb);
+        kb = 64;
+    }
+    CompactKmerMap m(db.db_, CompactKmerMap::DEFAULT_MAX_LOAD, kb);
+    m.finalize();
     CompactDatabase::write(argv[2], db.k_, db.w_, db.s_, m);
-    LOG_INFO("Wrote compact database %s: %zu k-mers, %zu bytes (khash: %zu bytes)\n",
-             argv[2], m.size(), m.bytes_used(), khash_bytes(db.db_));
+    LOG_INFO("Wrote compact database %s: %zu k-mers, %u-bit keys, %u-bit values, %zu bytes (khash: %zu bytes)\n",
+             argv[2], m.size(), m.key_bits(), m.value_bits(), m.bytes_used(), khash_bytes(db.db_));
     return EXIT_SUCCESS;
 }
 

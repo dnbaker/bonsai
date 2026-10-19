@@ -195,12 +195,27 @@ TEST_CASE("classify output is identical with khash and compact databases") {
     // Compact database through a file round trip.
     const std::string cdb = dir + "/db.cdb";
     {
-        CompactKmerMap m(db);
+        REQUIRE(CompactKmerMap::key_bits_needed(db) <= 2 * k);
+        CompactKmerMap m(db, CompactKmerMap::DEFAULT_MAX_LOAD, 2 * k);   // 62-bit key domain for k = 31
+        REQUIRE(m.key_bits() == 2 * k);
+        // out-of-domain keys: rejected by set(), absent for get/get_many (never aliased)
+        const u64 outside = (u64(1) << 62) | 12345;
+        REQUIRE_THROWS_AS(m.set(outside, 2), std::invalid_argument);
+        REQUIRE(m.get(outside) == CompactKmerMap::NOT_FOUND);
+        std::vector<u64> qs{outside, outside & ((u64(1) << 62) - 1)};
+        std::vector<tax_t> got(2);
+        std::vector<uint64_t> scratch;
+        m.get_many(qs.begin(), qs.end(), got.begin(), scratch);
+        REQUIRE(got[0] == CompactKmerMap::NOT_FOUND);
+        REQUIRE(got[1] == m.get(qs[1]));
+        m.finalize();
         CompactDatabase::write(cdb.data(), k, k, spvec_t(k - 1, 0), m);
     }
     REQUIRE(CompactDatabase::is_compact(cdb.data()));
     CompactDatabase cd(cdb.data());
     REQUIRE(cd.k_ == k);
+    REQUIRE(cd.db_->key_bits() == 2 * k);
+    REQUIRE(cd.db_->table().cell_bits() == 2 * k - cd.db_->table().q() + cd.db_->value_bits() + 8);
     REQUIRE(cd.db_->size() == kh_size(db));
     REQUIRE(cd.db_->table().structure_check());
 

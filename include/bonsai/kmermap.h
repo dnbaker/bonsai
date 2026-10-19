@@ -3,10 +3,14 @@
 // CompactKmerMap: the k-mer -> taxon (LCA) database in sketch's compact hash
 // table (hll/include/sketch/cht.h) instead of khash_t(c).
 //
-// Layout: cht_map_t<uint64_t, cht_splitmix64_hash, 0> (sketch's single-stream
-// exact map, value width chosen at construction).
-// - The 64-bit k-mer is mixed by an invertible SplitMix64. Only 64 - q
-//   remainder bits are stored, since the home slot supplies the top q bits.
+// Layout: cht_map_t<uint64_t, cht_mixbits_hash, 0> (sketch's single-stream
+// exact map; key and value widths chosen at construction).
+// - KEY WIDTH: a 2-bit-encoded k-mer spans 2k bits, so the key is mixed by
+//   an invertible hash on exactly that domain (cht_mixbits_hash(2k), k <= 32)
+//   and only 2k - q remainder bits are stored, since the home slot supplies
+//   the top q bits. With the default of 64 any 64-bit key is accepted. Keys
+//   outside the domain are rejected by set() and reported absent by
+//   get/get_many: the hash masks its input, so they must not alias.
 // - DENSE TAXON IDS: a database holds far fewer distinct taxa than 2^32, so
 //   each value is a dense id + 1 (0 means empty). A small table maps dense
 //   ids back to taxids (taxa_; ids follow sorted taxid order, so one
@@ -45,7 +49,7 @@ namespace bns {
 
 class CompactKmerMap {
 public:
-    using table_type = sketch::cht::cht_map_t<uint64_t, sketch::cht::cht_splitmix64_hash, 0>;
+    using table_type = sketch::cht::cht_map_t<uint64_t, sketch::cht::cht_mixbits_hash, 0>;
     static constexpr tax_t NOT_FOUND = std::numeric_limits<tax_t>::max();
     static constexpr double DEFAULT_MAX_LOAD = 0.85;
 
@@ -66,31 +70,50 @@ public:
 
     // Incremental build: room for expected_size k-mers and up to max_taxa
     // distinct taxa (set() throws past either).
-    CompactKmerMap(size_t expected_size, size_t max_taxa, double max_load = DEFAULT_MAX_LOAD)
-        : t_(q_for(expected_size, max_load), bits_for(max_taxa)), max_taxa_(max_taxa) {}
+    CompactKmerMap(size_t expected_size, size_t max_taxa, double max_load = DEFAULT_MAX_LOAD, unsigned key_bits = 64)
+        : t_(q_for(expected_size, max_load), bits_for(max_taxa), sketch::cht::cht_mixbits_hash(key_bits)), max_taxa_(max_taxa) {}
     // Conversion from khash_t(c): one pass to collect the distinct taxa (the
     // minimum value width), one to fill.
-    explicit CompactKmerMap(const khash_t(c) *map, double max_load = DEFAULT_MAX_LOAD)
-        : CompactKmerMap(map, collect_taxa(map), max_load) {}
+    explicit CompactKmerMap(const khash_t(c) *map, double max_load = DEFAULT_MAX_LOAD, unsigned key_bits = 64)
+        : CompactKmerMap(map, collect_taxa(map), max_load, key_bits) {}
+    // Bits the keys of a khash_t(c) actually span (an upper bound for key_bits).
+    static unsigned key_bits_needed(const khash_t(c) *map) {
+        u64 acc = 0;
+        for(khint_t ki = kh_begin(map); ki != kh_end(map); ++ki) if(kh_exist(map, ki)) acc |= kh_key(map, ki);
+        unsigned b = 4;
+        while(b < 64 && (acc >> b)) ++b;
+        return b;
+    }
 
     // Insert kmer, or overwrite its taxon (kh_put + kh_val semantics).
     void set(u64 kmer, tax_t tax) {
         if(tax == NOT_FOUND)
             throw std::invalid_argument("CompactKmerMap: taxon tax_t(-1) is not storable");
+        if(!in_domain(kmer))
+            throw std::invalid_argument("CompactKmerMap: k-mer outside the key domain (key_bits)");
         t_.assign(kmer, dense_id(tax));
     }
     tax_t get(u64 kmer) const {
+        if(!in_domain(kmer)) return NOT_FOUND;
         const uint64_t v = t_.get(kmer);
         return v ? taxa_[v - 1]: NOT_FOUND;
     }
-    bool contains(u64 kmer) const {return t_.get(kmer) != 0;}
+    bool contains(u64 kmer) const {return in_domain(kmer) && t_.get(kmer) != 0;}
+    bool in_domain(u64 kmer) const {return (kmer & ~mask_) == 0;}
+    unsigned key_bits() const {return t_.kbits();}
     // Batched lookups in input order (identical to get() on each k-mer).
     // `scratch` avoids a per-call allocation in hot loops.
     template<typename It, typename Ot>
     void get_many(It f, It l, Ot o, std::vector<uint64_t> &scratch, size_t ahead = 16) const {
         scratch.resize(std::distance(f, l));
         t_.get_many_prefetch(f, l, scratch.begin(), ahead);
-        for(const uint64_t v: scratch) *o++ = v ? taxa_[v - 1]: NOT_FOUND;
+        if(mask_ == ~u64(0)) {
+            for(const uint64_t v: scratch) *o++ = v ? taxa_[v - 1]: NOT_FOUND;
+        } else {
+            size_t i = 0;
+            for(It it = f; it != l; ++it, ++i)
+                *o++ = (scratch[i] && in_domain(*it)) ? taxa_[scratch[i] - 1]: NOT_FOUND;
+        }
     }
     size_t size() const {return t_.size();}
     size_t num_taxa() const {return taxa_.size();}
@@ -137,8 +160,10 @@ private:
     std::vector<tax_t> taxa_;                       // dense id - 1 -> taxid
     std::unordered_map<tax_t, uint32_t> ids_;       // taxid -> dense id (build-time index)
     size_t max_taxa_ = 0;
+    u64 mask_ = mask_of(t_.kbits());
+    static u64 mask_of(unsigned b) {return b >= 64 ? ~u64(0): ((u64(1) << b) - 1);}
 
-    explicit CompactKmerMap(table_type &&t): t_(std::move(t)) {}
+    explicit CompactKmerMap(table_type &&t): t_(std::move(t)), mask_(mask_of(t_.kbits())) {}
 
     // Distinct taxa of a khash_t(c) with a taxid -> dense id lookup for the
     // fill pass. Taxids below DIRECT_MAX (NCBI ids reach ~3.3M) use a direct
@@ -174,10 +199,14 @@ private:
         }
         return ix;
     }
-    CompactKmerMap(const khash_t(c) *map, TaxIndex &&ix, double max_load)
-        : t_(q_for(kh_size(map), max_load), bits_for(ix.taxa.size())) {
-        for(khint_t ki = kh_begin(map); ki != kh_end(map); ++ki)
-            if(kh_exist(map, ki)) t_.assign(kh_key(map, ki), ix.id(kh_val(map, ki)));
+    CompactKmerMap(const khash_t(c) *map, TaxIndex &&ix, double max_load, unsigned key_bits)
+        : t_(q_for(kh_size(map), max_load), bits_for(ix.taxa.size()), sketch::cht::cht_mixbits_hash(key_bits)) {
+        for(khint_t ki = kh_begin(map); ki != kh_end(map); ++ki) {
+            if(!kh_exist(map, ki)) continue;
+            if(!in_domain(kh_key(map, ki)))
+                throw std::invalid_argument("CompactKmerMap: a database k-mer exceeds key_bits");
+            t_.assign(kh_key(map, ki), ix.id(kh_val(map, ki)));
+        }
         taxa_ = std::move(ix.taxa);
         max_taxa_ = taxa_.size();
     }

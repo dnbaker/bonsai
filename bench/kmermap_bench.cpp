@@ -41,7 +41,8 @@ int main(int argc, char **argv) {
     const uint32_t ntaxa = argc > 6 ? uint32_t(std::strtoul(argv[6], nullptr, 10)): 300000u;
     std::mt19937_64 rng(17);
     std::vector<u64> keys(n);
-    for(auto &k: keys) k = rng();
+    const unsigned kbits = 62;                       // 2k for k = 31
+    for(auto &k: keys) k = rng() >> (64 - kbits);
     // ntaxa distinct taxids spread over the NCBI id range
     auto tax_of = [ntaxa](u64 k) {return tax_t(((k * 0x9e3779b97f4a7c15ull) >> 40) % ntaxa) * 11u + 2u;};
     auto t = clk::now();
@@ -50,20 +51,20 @@ int main(int argc, char **argv) {
     for(const u64 k: keys) {const khint_t ki(kh_put(c, km, k, &khr)); kh_val(km, ki) = tax_of(k);}
     const double tkb = secs(t);
     t = clk::now();
-    CompactKmerMap cm(km, load);     // the `bonsai compact` path: dense taxon ids
+    CompactKmerMap cm(km, load, kbits);   // the `bonsai compact` path: dense taxon ids, 2k-bit keys
     cm.finalize();
     const double tcb = secs(t);
-    std::printf("kmers %zu, taxa %zu | khash_t(c) %.0f MB (buckets 2^%d, load %.2f) | CompactKmerMap %.0f MB (q=%u, load %.2f, %u-bit values, %u-bit cells) | ratio %.3f\n",
+    std::printf("kmers %zu, taxa %zu | khash_t(c) %.0f MB (buckets 2^%d, load %.2f) | CompactKmerMap %.0f MB (q=%u, load %.2f, %u-bit keys, %u-bit values, %u-bit cells, mode %u) | ratio %.3f\n",
                 cm.size(), cm.num_taxa(), khash_bytes(km) / 1e6, __builtin_ctz(km->n_buckets), double(kh_size(km)) / km->n_buckets,
-                cm.bytes_used() / 1e6, cm.table().q(), cm.load_factor(), cm.value_bits(), cm.table().cell_bits(),
+                cm.bytes_used() / 1e6, cm.table().q(), cm.load_factor(), cm.key_bits(), cm.value_bits(), cm.table().cell_bits(), cm.table().cell_mode(),
                 double(cm.bytes_used()) / khash_bytes(km));
     std::printf("build: khash %.2fs, compact %.2fs\n", tkb, tcb);
     // the struct-of-arrays cht_t (4 arrays per hit) for comparison
-    sketch::cht::cht_t<uint64_t, sketch::cht::cht_splitmix64_hash, 32> soa(cm.table().q());
+    sketch::cht::cht_t<uint64_t, sketch::cht::cht_splitmix64_hash, 32> soa(cm.table().q());   // 64-bit keys, 32-bit values
     for(const u64 k: keys) soa.assign(k, uint64_t(tax_of(k)) + 1);
     std::printf("cht_t (struct-of-arrays) %.0f MB\n", soa.bytes_used() / 1e6);
     std::vector<u64> q(nreads * K);
-    for(auto &x: q) x = (std::uniform_real_distribution<double>(0, 1)(rng) < hit) ? keys[rng() % n]: rng();
+    for(auto &x: q) x = (std::uniform_real_distribution<double>(0, 1)(rng) < hit) ? keys[rng() % n]: (rng() >> (64 - kbits));
     std::vector<tax_t> out(K);
     std::vector<uint64_t> scratch;
     auto run = [&](const char *name, auto &&per_read) {
