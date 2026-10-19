@@ -148,7 +148,22 @@ struct ClassifierGeneric {
     uint32_t          nt_:16;
     uint32_t output_flag_:16;
     mutable std::atomic<u64> classified_[2];
+    // Kraken2-style guards against divergent k-mers (defaults: off, the
+    // original behavior). confidence_: after the best root-to-leaf path is
+    // chosen, walk up until the clade under the call holds >= confidence_ of
+    // the read's non-ambiguous k-mers (hits and misses); past the root ->
+    // unclassified. min_hit_groups_: a call needs at least this many distinct
+    // hitting keys (repeats of one minimizer count once).
+    double confidence_ = 0.;
+    unsigned min_hit_groups_ = 0;
     public:
+    void set_confidence(double c) {
+        if(!(c >= 0. && c <= 1.)) RUNTIME_ERROR("confidence must lie in [0, 1]");
+        confidence_ = c;
+    }
+    void set_min_hit_groups(unsigned n) {min_hit_groups_ = n;}
+    double confidence() const {return confidence_;}
+    unsigned min_hit_groups() const {return min_hit_groups_;}
     void set_emit_all(bool setting) {
         if(setting) output_flag_ |= output_format::EMIT_ALL;
         else        output_flag_ &= (~output_format::EMIT_ALL);
@@ -217,6 +232,9 @@ using Classifier = ClassifierGeneric<score::Lex>;
 // Per-thread buffers for the batched (compact map) lookup path.
 template<typename KeyT = u64>
 struct LookupScratch {
+    std::vector<KeyT> hits;          // distinct-hit counting (min_hit_groups)
+    std::vector<KeyT> uniq;          // consecutive-deduplicated keys of a mate
+    std::vector<uint32_t> runs;      // run length of each uniq key
     std::vector<KeyT> kmers;
     std::vector<tax_t> taxa;
     std::vector<uint64_t> buf;
@@ -233,6 +251,31 @@ struct kt_data {
     std::atomic<u64> &retstr_size_;
     const int is_paired_;
 };
+}
+
+// Kraken2's confidence rule: from the call, walk up until the clade rooted at
+// the current node holds >= confidence * total of the read's non-ambiguous
+// k-mers (hits + misses); returns 0 (unclassified) if even the root falls short.
+inline tax_t confident_ancestor(tax_t taxon, const tax_counter &hit_counts, const khash_t(p) *taxmap,
+                                size_t total, double confidence) {
+    const double need = confidence * double(total);
+    auto in_clade = [&](tax_t t, tax_t root) {
+        for(unsigned guard = 0; t && guard < 4096; ++guard) {
+            if(t == root) return true;
+            t = get_parent(taxmap, t);
+            if(t == tax_t(-1)) return false;
+        }
+        return false;
+    };
+    while(taxon) {
+        double clade = 0.;
+        for(unsigned i = 0; i < hit_counts.size(); ++i)
+            if(in_clade(hit_counts.keys()[i], taxon)) clade += hit_counts.vals()[i];
+        if(clade >= need) return taxon;
+        const tax_t p = get_parent(taxmap, taxon);
+        taxon = (p == tax_t(-1)) ? 0: p;
+    }
+    return 0;
 }
 
 template<typename ScoreType, typename DB>
@@ -267,21 +310,34 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
             auto fn = [&] (u64 kmer) {
                 //If the kmer is missing from our database, just say we don't know what it is.
                 if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count;
-                else taxa.push_back(kh_val(c.db_, ki)), hit_counts.add(kh_val(c.db_, ki));
+                else {
+                    taxa.push_back(kh_val(c.db_, ki)), hit_counts.add(kh_val(c.db_, ki));
+                    if(c.min_hit_groups_) scratch.hits.push_back(kmer);
+                }
             };
             enc.for_each(fn, seq, len);
         } else {
             (void)ki;
-            scratch.kmers.clear();
-            enc.for_each([&](auto kmer) {scratch.kmers.push_back(kmer);}, seq, len);
-            scratch.taxa.resize(scratch.kmers.size());
-            c.db_->get_many(scratch.kmers.begin(), scratch.kmers.end(), scratch.taxa.begin(), scratch.buf);
-            for(const tax_t t: scratch.taxa) {
-                if(t == DB::NOT_FOUND) ++missing_count;
-                else taxa.push_back(t), hit_counts.add(t);
+            // Consecutive windows often share a minimizer: look each run of
+            // equal keys up once (Kraken2 does the same), then expand the
+            // results in order -- identical hits/misses/taxa to per-key lookups.
+            scratch.uniq.clear();
+            scratch.runs.clear();
+            enc.for_each([&](auto kmer) {
+                if(!scratch.uniq.empty() && scratch.uniq.back() == kmer) ++scratch.runs.back();
+                else scratch.uniq.push_back(kmer), scratch.runs.push_back(1);
+            }, seq, len);
+            scratch.taxa.resize(scratch.uniq.size());
+            c.db_->get_many(scratch.uniq.begin(), scratch.uniq.end(), scratch.taxa.begin(), scratch.buf);
+            for(size_t i = 0; i < scratch.uniq.size(); ++i) {
+                const tax_t t = scratch.taxa[i];
+                if(t == DB::NOT_FOUND) {missing_count += scratch.runs[i]; continue;}
+                for(uint32_t r = 0; r < scratch.runs[i]; ++r) taxa.push_back(t), hit_counts.add(t);
+                if(c.min_hit_groups_) scratch.hits.push_back(scratch.uniq[i]);
             }
         }
     };
+    scratch.hits.clear();
     process(bs->seq, bs->l_seq);
     unsigned ambig_count(count_ambig(bs->l_seq, 0));
     if(is_paired) {
@@ -290,7 +346,14 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
         ambig_count += count_ambig((bs + 1)->l_seq, pre);
     }
 
-    ++c.classified_[!(taxon = resolve_tree(hit_counts, taxmap))];
+    taxon = resolve_tree(hit_counts, taxmap);
+    if(taxon && c.min_hit_groups_) {
+        std::sort(scratch.hits.begin(), scratch.hits.end());
+        const size_t groups = std::unique(scratch.hits.begin(), scratch.hits.end()) - scratch.hits.begin();
+        if(groups < c.min_hit_groups_) taxon = 0;
+    }
+    if(taxon && c.confidence_ > 0.) taxon = confident_ancestor(taxon, hit_counts, taxmap, taxa.size() + missing_count, c.confidence_);
+    ++c.classified_[!taxon];
     if(c.get_emit_all() || taxon) {
         switch(c.output_flag_) {
             case EMIT_ALL | FASTQ | KRAKEN: case FASTQ | KRAKEN: case FASTQ: case EMIT_ALL | FASTQ:

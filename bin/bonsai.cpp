@@ -138,6 +138,8 @@ int compact_main(int argc, char *argv[]) {
 
 int classify_main(int argc, char *argv[]) {
     int co, num_threads(1), emit_kraken(1), emit_fastq(0), emit_all(0), chunk_size(1 << 20), per_set(32);
+    double confidence(0.);
+    unsigned min_hit_groups(0);
     bool canonicalize(true);
     std::ios_base::sync_with_stdio(false);
     std::FILE *ofp(stdout);
@@ -151,13 +153,16 @@ int classify_main(int argc, char *argv[]) {
                              "-k:\tEmit kraken-style output.\n"
                              "-K:\tDo not emit kraken-style output.\n"
                              "-f:\tEmit fastq-style output.\n"
+                             "-x:\tConfidence threshold in [0, 1] (Kraken2's --confidence): walk the call up the\n"
+                             "   \ttaxonomy until its clade holds this fraction of the read's non-ambiguous k-mers. [0]\n"
+                             "-g:\tMinimum number of distinct hitting keys (hit groups) to classify a read. [0]\n"
                              "-K:\tDo not emit fastq-formatted output.\n"
                              "\nIf -f and -k are set, full kraken output will be contained in the fastq comment field."
                              "\n  Default: kraken-style only output.\n",
                  *argv, 1 << 14);
         std::exit(EXIT_FAILURE);
     }
-    while((co = getopt(argc, argv, "Cc:p:o:S:afFkKh?")) >= 0) {
+    while((co = getopt(argc, argv, "Cc:p:o:S:x:g:afFkKh?")) >= 0) {
         switch(co) {
             case 'h': case '?': goto usage;
             case 'C': canonicalize = false; break;
@@ -170,6 +175,8 @@ int classify_main(int argc, char *argv[]) {
             case 'p': num_threads = std::atoi(optarg); break;
             case 'o': ofp = std::fopen(optarg, "w"); break;
             case 'S': per_set = std::atoi(optarg); break;
+            case 'x': confidence = std::atof(optarg); break;
+            case 'g': min_hit_groups = unsigned(std::atoi(optarg)); break;
         }
     }
     LOG_ASSERT(ofp);
@@ -190,17 +197,20 @@ int classify_main(int argc, char *argv[]) {
             const unsigned hb = KmerKeys<score::Lex, u128>::tier_for(db.k_) == KmerKeys<score::Lex, u128>::HASHED128
                               ? db.db128_->key_bits(): C::keys_type::DEFAULT_HASH_BITS;
             C c(db.db128_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, hb);
+            c.set_confidence(confidence); c.set_min_hit_groups(min_hit_groups);
             process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
         } else {
             using C = ClassifierGeneric<score::Lex, CompactKmerMap>;
             const unsigned hb = KmerKeys<>::tier_for(db.k_) == KmerKeys<>::HASHED64 ? db.db_->key_bits(): C::keys_type::DEFAULT_HASH_BITS;
             C c(db.db_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, hb);
+            c.set_confidence(confidence); c.set_min_hit_groups(min_hit_groups);
             process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
         }
     } else {
         Database<khash_t(c)> db(argv[optind]);
         ClassifierGeneric<score::Lex> c(db.db_, db.s_, db.k_, db.k_, num_threads,
                                        emit_all, emit_fastq, emit_kraken, canonicalize);
+        c.set_confidence(confidence); c.set_min_hit_groups(min_hit_groups);
         process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
     }
     if(ofp != stdout) std::fclose(ofp);
