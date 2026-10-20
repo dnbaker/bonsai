@@ -188,3 +188,25 @@ replicate has biological dispersion. Each experiment is 6 vs 6 samples, repeated
     and a true read's hits split between its species and conserved ancestor-level k-mers.
   - Fix to try: a per-clade expected hits/read from the database (the fraction of a genome's k-mers that fall
     within its clade), recorded at build time.
+
+### R1-R2 (2026-10-20)
+- **R1** (R0 profiles, no new data):
+  - Protocol bias is multiplicative and consistent (within/across SD 0.15). Cross-validated calibration cuts the
+    ONT-vs-Illumina Bray-Curtis from 0.42 to 0.07.
+  - Host-background subtraction restores composition at 1:10^2 (0.42 -> 0.11) and 1:10^3 (0.76 -> 0.21).
+  - A decontam-style frequency test separates mock members from contaminants and host artefacts (AUROC 0.98).
+- **Report columns** (0c92af9): per-clade lambda, present k-mers and containment. True species sit at
+  containment 2e-3 to 1.5e-2; host artefacts at ~1e-6 (thousands of reads on ~10 k-mers). The host-spiked
+  libraries are heavily duplicated (lambda 3-19 on few distinct k-mers), so lambda carries duplication as well as
+  coverage.
+- **R2: gather paper samples (podar, Zymo D6300), database = gather's matched genomes (circular for presence).**
+  - Agreement with the paper's read mapping: bonsai per-species reads give Spearman 0.80 (podar) and 0.97 (Zymo).
+    Genome level is 0.79 / 0.34 against all mapping, and 0.73 / 0.26 against unique mapping.
+  - 91% (podar) and 70% (Zymo) of reads resolve to a genome leaf.
+  - Gather false positives (genomes mapping covers < 50%): bonsai coverage AUROC 0.96 / 0.94, gather 0.97 / 0.88.
+  - **NOT a fair head-to-head with gather.** Its f_unique_weighted is an abundance-weighted fraction of the
+    sample's known k-mers, not a read fraction. It gives Cryptococcus 23% of Zymo D6300, where the paper's own
+    mapping and bonsai give < 1%.
+  - **Fair version (to do):** run sourmash gather ourselves on the same 300 MB heads and genomes, and score both
+    against mapping.
+  - hu-s1 and iHMP are held: the podar build peaked at 7.18 GB, and hu-s1 projects to ~10 GB.

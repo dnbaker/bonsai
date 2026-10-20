@@ -182,6 +182,35 @@ def bh(ps):
     return q
 
 
+def ranks(xs):
+    order = sorted(range(len(xs)), key=lambda i: xs[i])
+    r = [0.0] * len(xs)
+    i = 0
+    while i < len(order):
+        j = i
+        while j + 1 < len(order) and xs[order[j + 1]] == xs[order[i]]:
+            j += 1
+        for k in range(i, j + 1):
+            r[order[k]] = (i + j) / 2.0 + 1
+        i = j + 1
+    return r
+
+
+def pearson(x, y):
+    n = len(x)
+    if n < 3:
+        return float("nan")
+    mx, my = sum(x) / n, sum(y) / n
+    sxy = sum((a - mx) * (b - my) for a, b in zip(x, y))
+    sxx = sum((a - mx) ** 2 for a in x)
+    syy = sum((b - my) ** 2 for b in y)
+    return sxy / math.sqrt(sxx * syy) if sxx > 0 and syy > 0 else float("nan")
+
+
+def spearman(x, y):
+    return pearson(ranks(x), ranks(y))
+
+
 def fmt(x, d=3):
     return "NA" if x is None or (isinstance(x, float) and math.isnan(x)) else f"{x:.{d}f}"
 
