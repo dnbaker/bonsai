@@ -278,13 +278,12 @@ struct ClassifierGeneric {
     double species_identity_ = 0.95, family_identity_ = 0.85;
     // uniq_: KrakenUniq-style per-taxon k-mer counters (uniq.h), one per
     // classification thread; null (the default) collects nothing.
-    std::shared_ptr<std::vector<UniqAccumulator>> uniq_;
+    std::shared_ptr<UniqTable> uniq_;
     public:
     void enable_uniq(unsigned p = 12, UniqSketch kind = UniqSketch::HLL) {
-        uniq_ = std::make_shared<std::vector<UniqAccumulator>>(std::max<unsigned>(1, nt_));
-        for(auto &a: *uniq_) a.p = p, a.kind = kind;
+        uniq_ = std::make_shared<UniqTable>(std::max<unsigned>(1, nt_), p, kind);
     }
-    std::vector<UniqAccumulator> *uniq() const {return uniq_.get();}
+    UniqTable *uniq() const {return uniq_.get();}
     void set_identity_placement(const rank_map_t *ranks, double species_identity = 0.95, double family_identity = 0.85) {
         if(!(family_identity <= species_identity && species_identity <= 1. && family_identity >= 0.))
             RUNTIME_ERROR("identity thresholds must satisfy 0 <= family <= species <= 1");
@@ -494,7 +493,7 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
                       typename ClassifierGeneric<ScoreType, DB>::keys_type &enc,
                       const khash_t(p) *taxmap, bseq1_t *bs, const int is_paired, std::vector<tax_t> &taxa,
                       LookupScratch<typename ClassifierGeneric<ScoreType, DB>::key_type> &scratch,
-                      UniqAccumulator *acc = nullptr) {
+                      UniqBatch *acc = nullptr) {
     LOG_DEBUG("starting classify_seq with bs at pointer = %p\n", static_cast<const void*>(bs));
     khiter_t ki;
     tax_counter hit_counts;
@@ -592,14 +591,8 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
     if((ev.emit_lineage = c.emit_evidence_)) lineage_evidence(taxon, hit_counts, taxmap, ev);
     ++c.classified_[!taxon];
     if(acc) {   // hits to the taxon each k-mer maps to; the read to its call (0: unclassified)
-        TaxonTally *cur = nullptr;
-        tax_t last = 0;
-        for(size_t i = 0; i < taxa.size(); ++i) {
-            if(!cur || taxa[i] != last) cur = &acc->at(last = taxa[i]);
-            ++cur->kmers;
-            cur->uniq.add(uniq_hash(scratch.hitkeys[i]));
-        }
-        ++acc->at(taxon).reads;
+        for(size_t i = 0; i < taxa.size(); ++i) acc->add_kmer(taxa[i], uniq_hash(scratch.hitkeys[i]));
+        acc->add_read(taxon);
     }
     if(c.get_emit_all() || taxon) {
         switch(c.output_flag_) {
@@ -624,7 +617,7 @@ inline void kt_for_helper(void *data_, long index, int tid) {
     typename C::keys_type enc(data->c_.enc_);
     std::vector<tax_t> taxa;
     LookupScratch<typename C::key_type> scratch;
-    UniqAccumulator *acc = data->c_.uniq() ? &(*data->c_.uniq())[tid]: nullptr;
+    UniqBatch *acc = data->c_.uniq() ? &data->c_.uniq()->batch(tid): nullptr;
     // Each task covers [per_set * index, per_set * (index + 1)); the previous
     // (per_set + 1) * index bound left task 0 empty and dropped records.
     for(unsigned i(index * data->per_set_); i < std::min(data->per_set_ * (static_cast<unsigned>(index) + 1), data->total_); retstr_size += classify_seq(data->c_, enc, data->taxmap, data->bs_ + i, data->is_paired_, taxa, scratch, acc), i += inc);

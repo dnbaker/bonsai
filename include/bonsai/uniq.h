@@ -12,11 +12,17 @@
 // HyperLogLog (sketch::hll_t, 2^p registers; -U) or a b-bit MinHash
 // (sketch::BBitMinHasher, 2^p registers; -B), whose finalized per-clade
 // sketches can be written and compared against reference sketches by
-// containment or Jaccard. One accumulator per classification thread, merged
-// when the report is written; without -U nothing is collected.
+// containment or Jaccard. One shared counter per taxon (UniqTable): sketch
+// adds are lock-free (atomic register min/max), exact counters take a
+// per-taxon mutex, and each thread batches its exact adds (UniqBatch). After
+// classification, merge_up folds every node into its parent, deepest first,
+// so intermediate nodes hold their whole subtree. Without -U nothing is
+// collected.
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -96,6 +102,14 @@ public:
         return double(exact_.size());
     }
     bool sketched() const {return hll_ || bbmh_;}
+    // A sketched counter only (see SharedTally): safe concurrently with
+    // other sketched adds, since both sketches update registers by CAS.
+    void add_concurrent(uint64_t h) {
+        if(hll_) hll_->add(h);
+        else bbmh_->add(h);
+    }
+    // Drop the contents (the report frees each taxon's counter once merged).
+    void release() {hll_.reset(); bbmh_.reset(); std::vector<uint64_t>().swap(exact_); sorted_ = 0;}
     UniqSketch kind() const {return kind_;}
     // The counter as a b-bit MinHash sketch (an exact counter is sketched on
     // the fly), finalized at b bits per register.
@@ -108,30 +122,166 @@ public:
     }
 };
 
-struct TaxonTally {
-    uint64_t reads = 0;      // reads called this taxon
-    uint64_t kmers = 0;      // k-mer hits mapping to this taxon
-    UniqCounter uniq;
-    explicit TaxonTally(unsigned p = 12, UniqSketch kind = UniqSketch::HLL): uniq(p, kind) {}
+// One tally per taxon, shared by all classification threads, so sketch
+// memory does not grow with the thread count. Sketched counters take
+// concurrent adds without a lock (HyperLogLog and b-bit MinHash registers are
+// updated by compare-and-swap); only the exact phase (a vector of hashes, and
+// its promotion to a sketch) holds the tally's mutex, and threads batch those
+// adds (UniqBatch) so a flush takes each tally's lock once.
+struct SharedTally {
+    std::atomic<uint64_t> reads{0};     // reads called this taxon
+    std::atomic<uint64_t> kmers{0};     // k-mer hits mapping to this taxon
+    std::atomic<bool> sketched{false};  // set (release) once uniq is a sketch
+    std::mutex m;                       // guards uniq while it is exact
+    UniqCounter uniq;                   // the taxon's k-mers; its clade's after UniqTable::merge_up
+    // Set by UniqTable::merge_up: the taxon's own totals, and its clade's
+    // (the taxon and all its descendants).
+    uint64_t taxon_reads = 0, taxon_kmers = 0, clade_reads = 0, clade_kmers = 0;
+    double taxon_uniq = 0.;
+    SharedTally(unsigned p, UniqSketch kind): uniq(p, kind) {}
+    template<typename It>
+    void add(It beg, It end) {
+        if(sketched.load(std::memory_order_acquire)) {
+            for(; beg != end; ++beg) uniq.add_concurrent(*beg);
+            return;
+        }
+        std::lock_guard<std::mutex> lock(m);
+        for(; beg != end; ++beg) uniq.add(*beg);   // CAS adds once sketched
+        if(uniq.sketched()) sketched.store(true, std::memory_order_release);
+    }
 };
 
-struct UniqAccumulator {
-    std::unordered_map<tax_t, TaxonTally> taxa;
-    unsigned p = 12;
-    UniqSketch kind = UniqSketch::HLL;
-    TaxonTally &at(tax_t t) {
-        auto it = taxa.find(t);
-        if(it == taxa.end()) it = taxa.emplace(t, TaxonTally(p, kind)).first;
-        return it->second;
+class UniqTable;
+
+// A thread's working group: pointers to the tallies it has touched (the
+// table's shard lock is taken once per thread per taxon) and pending adds
+// to exact tallies, applied in groups of FLUSH_AT.
+class UniqBatch {
+    struct Local {SharedTally *t; uint64_t reads = 0, kmers = 0;};
+    UniqTable *table_ = nullptr;
+    std::unordered_map<tax_t, Local> cache_;
+    std::vector<std::pair<SharedTally *, uint64_t>> pending_;
+    Local *last_ = nullptr;     // hits come in runs of one taxon
+    tax_t last_t_ = 0;
+    Local &local(tax_t t) {
+        if(last_ && t == last_t_) return *last_;
+        return *(last_ = &local_slow(last_t_ = t));
     }
-    void merge(UniqAccumulator &o) {
-        for(auto &kv: o.taxa) {
-            auto &t = at(kv.first);
-            t.reads += kv.second.reads; t.kmers += kv.second.kmers;
-            t.uniq.merge(kv.second.uniq);
+    Local &local_slow(tax_t t);
+public:
+    static constexpr size_t FLUSH_AT = 4096;
+    void bind(UniqTable *t) {table_ = t;}
+    void add_kmer(tax_t t, uint64_t h) {
+        Local &l = local(t);
+        ++l.kmers;
+        if(l.t->sketched.load(std::memory_order_acquire)) l.t->uniq.add_concurrent(h);
+        else {
+            pending_.emplace_back(l.t, h);
+            if(pending_.size() >= FLUSH_AT) flush_pending();
         }
     }
+    void add_read(tax_t t) {++local(t).reads;}
+    void flush_pending() {
+        std::sort(pending_.begin(), pending_.end(), [](const auto &a, const auto &b) {return a.first < b.first;});
+        std::vector<uint64_t> group;
+        for(size_t i = 0; i < pending_.size();) {
+            size_t j = i;
+            group.clear();
+            for(; j < pending_.size() && pending_[j].first == pending_[i].first; ++j) group.push_back(pending_[j].second);
+            pending_[i].first->add(group.begin(), group.end());
+            i = j;
+        }
+        pending_.clear();
+    }
+    // Everything into the shared tallies; the cache is dropped.
+    void flush() {
+        flush_pending();
+        for(auto &kv: cache_) {
+            kv.second.t->reads.fetch_add(kv.second.reads, std::memory_order_relaxed);
+            kv.second.t->kmers.fetch_add(kv.second.kmers, std::memory_order_relaxed);
+        }
+        std::unordered_map<tax_t, Local>().swap(cache_);
+        last_ = nullptr;
+    }
 };
+
+class UniqTable {
+    static constexpr unsigned NSHARDS = 64;
+    struct Shard {std::mutex m; std::unordered_map<tax_t, SharedTally> taxa;};
+    std::unique_ptr<Shard[]> shards_{new Shard[NSHARDS]};
+    std::vector<UniqBatch> batches_;
+    bool merged_ = false;
+public:
+    const unsigned p;
+    const UniqSketch kind;
+    UniqTable(unsigned nthreads, unsigned p = 12, UniqSketch kind = UniqSketch::HLL): batches_(std::max(1u, nthreads)), p(p), kind(kind) {
+        for(auto &b: batches_) b.bind(this);
+    }
+    UniqTable(const UniqTable &) = delete;
+    SharedTally &at(tax_t t) {   // stable: unordered_map nodes do not move
+        Shard &s = shards_[uniq_hash(uint64_t(t)) % NSHARDS];
+        std::lock_guard<std::mutex> lock(s.m);
+        return s.taxa.try_emplace(t, p, kind).first->second;
+    }
+    SharedTally *find(tax_t t) {
+        Shard &s = shards_[uniq_hash(uint64_t(t)) % NSHARDS];
+        std::lock_guard<std::mutex> lock(s.m);
+        auto it = s.taxa.find(t);
+        return it == s.taxa.end() ? nullptr: &it->second;
+    }
+    UniqBatch &batch(unsigned tid) {return batches_.at(tid);}
+    // After classification (no thread is adding).
+    void flush() {for(auto &b: batches_) b.flush();}
+    // After classification: flush, then fold every node into its parent,
+    // deepest first, so each intermediate node's counter and clade totals hold
+    // its whole subtree; each tree edge is merged once, in place (no second
+    // copy of the counters). Ancestors without tallies of their own are added.
+    // Idempotent.
+    void merge_up(const khash_t(p) *taxmap) {
+        flush();
+        if(merged_) return;
+        auto parent = [&](tax_t t) -> tax_t {
+            const tax_t par = get_parent(taxmap, t);
+            return par == tax_t(-1) || par == t ? 0: par;
+        };
+        std::vector<tax_t> nodes;
+        for_each([&](tax_t t, SharedTally &) {if(t) nodes.push_back(t);});
+        std::unordered_map<tax_t, unsigned> depth;
+        for(size_t i = 0; i < nodes.size(); ++i) {   // nodes grows with missing ancestors
+            unsigned d = 0;
+            for(tax_t a = parent(nodes[i]); a && d < 4096; a = parent(a), ++d)
+                if(!find(a)) {at(a); nodes.push_back(a);}
+            depth[nodes[i]] = d;
+        }
+        std::sort(nodes.begin(), nodes.end(), [&](tax_t a, tax_t b) {
+            return depth[a] != depth[b] ? depth[a] > depth[b]: a < b;
+        });
+        for(const tax_t t: nodes) {
+            SharedTally &st = *find(t);
+            st.taxon_reads = st.reads.load(); st.taxon_kmers = st.kmers.load();
+            st.clade_reads += st.taxon_reads; st.clade_kmers += st.taxon_kmers;
+            st.taxon_uniq = st.uniq.estimate();   // before any child is folded in
+        }
+        for(const tax_t t: nodes) {   // children before parents
+            SharedTally &st = *find(t);
+            if(const tax_t par = parent(t)) {
+                SharedTally &pt = *find(par);
+                pt.clade_reads += st.clade_reads; pt.clade_kmers += st.clade_kmers;
+                pt.uniq.merge(st.uniq);
+            }
+        }
+        merged_ = true;
+    }
+    template<typename F> void for_each(F &&f) {
+        for(unsigned i = 0; i < NSHARDS; ++i) for(auto &kv: shards_[i].taxa) f(kv.first, kv.second);
+    }
+};
+
+inline UniqBatch::Local &UniqBatch::local_slow(tax_t t) {
+    auto it = cache_.find(t);
+    if(it == cache_.end()) it = cache_.emplace(t, Local{&table_->at(t)}).first;
+    return it->second;
+}
 
 // Report: one row per taxon with reads or k-mers in its clade, by clade reads
 // (descending). db_kmers (optional): database k-mers per taxon (direct), for
@@ -139,64 +289,43 @@ struct UniqAccumulator {
 // MinHash counters): each clade's read k-mer sketch is written to
 // <sketch_dir>/<taxid>.bbmh, finalized at sketch_b bits per register.
 template<typename RankName>
-void write_uniq_report(std::FILE *fp, std::vector<UniqAccumulator> &accs, const khash_t(p) *taxmap,
+void write_uniq_report(std::FILE *fp, UniqTable &table, const khash_t(p) *taxmap,
                        const std::unordered_map<tax_t, uint64_t> *db_kmers, RankName &&rank_name,
                        const std::string *sketch_dir = nullptr, unsigned sketch_b = 16) {
-    UniqAccumulator all;
-    if(!accs.empty()) all.p = accs.front().p, all.kind = accs.front().kind;
-    for(auto &a: accs) all.merge(a);
-    struct Clade {uint64_t reads = 0, taxon_reads = 0, kmers = 0, db = 0; UniqCounter uniq; double taxon_uniq = 0.;
-                  Clade(unsigned p, UniqSketch k): uniq(p, k) {}};
-    std::unordered_map<tax_t, Clade> clades;
-    auto clade = [&](tax_t t) -> Clade & {
-        auto it = clades.find(t);
-        if(it == clades.end()) it = clades.emplace(t, Clade(all.p, all.kind)).first;
-        return it->second;
-    };
-    auto ancestors = [&](tax_t t, auto &&f) {
-        for(unsigned guard = 0; t && t != tax_t(-1) && guard < 4096; ++guard) {
-            f(t);
-            t = get_parent(taxmap, t);
-        }
-    };
+    table.merge_up(taxmap);
     uint64_t unclassified = 0, total_reads = 0;
-    for(auto &kv: all.taxa) {
-        total_reads += kv.second.reads;
-        if(!kv.first) {unclassified += kv.second.reads; continue;}
-        clade(kv.first).taxon_reads += kv.second.reads;
-        clade(kv.first).taxon_uniq = kv.second.uniq.estimate();
-        ancestors(kv.first, [&](tax_t a) {
-            auto &c = clade(a);
-            c.reads += kv.second.reads;
-            c.kmers += kv.second.kmers;
-            c.uniq.merge(kv.second.uniq);
-        });
-    }
+    std::vector<std::pair<tax_t, SharedTally *>> rows;
+    table.for_each([&](tax_t t, SharedTally &st) {
+        if(!t) {unclassified = st.reads.load(); total_reads += unclassified;}
+        else {total_reads += st.taxon_reads; rows.emplace_back(t, &st);}
+    });
+    std::unordered_map<tax_t, uint64_t> db;   // database k-mers per clade
     if(db_kmers)
         for(const auto &kv: *db_kmers)
-            ancestors(kv.first, [&](tax_t a) {
-                auto it = clades.find(a);
-                if(it != clades.end()) it->second.db += kv.second;
-            });
-    std::vector<std::pair<tax_t, Clade *>> rows;
-    for(auto &kv: clades) rows.emplace_back(kv.first, &kv.second);
+            for(tax_t a = kv.first, guard = 0; a && a != tax_t(-1) && guard < 4096; ++guard) {
+                if(table.find(a)) db[a] += kv.second;
+                const tax_t par = get_parent(taxmap, a);
+                if(par == a) break;
+                a = par;
+            }
     std::sort(rows.begin(), rows.end(), [](const auto &a, const auto &b) {
-        return a.second->reads != b.second->reads ? a.second->reads > b.second->reads: a.first < b.first;
+        return a.second->clade_reads != b.second->clade_reads ? a.second->clade_reads > b.second->clade_reads: a.first < b.first;
     });
     std::fprintf(fp, "#taxid\tparent\trank\tpct_reads\tclade_reads\ttaxon_reads\tclade_kmers\tclade_uniq_kmers\ttaxon_uniq_kmers\tdup\tcov\n");
     std::fprintf(fp, "0\t0\tunclassified\t%.4f\t%llu\t%llu\t0\t0\t0\t0\tNA\n",
                  total_reads ? 100. * unclassified / total_reads: 0., (unsigned long long)unclassified, (unsigned long long)unclassified);
     for(auto &r: rows) {
-        Clade &c = *r.second;
+        SharedTally &c = *r.second;
         const double u = c.uniq.estimate();
         const tax_t par = get_parent(taxmap, r.first);
         std::fprintf(fp, "%u\t%u\t%s\t%.4f\t%llu\t%llu\t%llu\t%.0f\t%.0f\t%.3f\t", r.first, par == tax_t(-1) ? 0u: par,
-                     rank_name(r.first).data(), total_reads ? 100. * c.reads / total_reads: 0.,
-                     (unsigned long long)c.reads, (unsigned long long)c.taxon_reads, (unsigned long long)c.kmers,
-                     u, c.taxon_uniq, u > 0. ? double(c.kmers) / u: 0.);
-        if(db_kmers && c.db) std::fprintf(fp, "%.6f\n", std::min(1., u / double(c.db)));
+                     rank_name(r.first).data(), total_reads ? 100. * c.clade_reads / total_reads: 0.,
+                     (unsigned long long)c.clade_reads, (unsigned long long)c.taxon_reads, (unsigned long long)c.clade_kmers,
+                     u, c.taxon_uniq, u > 0. ? double(c.clade_kmers) / u: 0.);
+        const auto it = db.find(r.first);
+        if(it != db.end() && it->second) std::fprintf(fp, "%.6f\n", std::min(1., u / double(it->second)));
         else std::fprintf(fp, "NA\n");
-        if(sketch_dir && all.kind == UniqSketch::BBMH)
+        if(sketch_dir && table.kind == UniqSketch::BBMH)
             c.uniq.bbmh(sketch_b).write((*sketch_dir + "/" + std::to_string(r.first) + ".bbmh").data());
     }
 }

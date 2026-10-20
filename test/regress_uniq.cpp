@@ -19,6 +19,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace bns;
@@ -259,4 +260,46 @@ TEST_CASE("-B through the classifier: per-clade sketches written next to the rep
     }
     kh_destroy(c, db);
     kh_destroy(p, taxmap);
+}
+
+TEST_CASE("UniqTable: concurrent batches give the serial counts (exact tallies locked, sketches lock-free)") {
+    // Taxon t gets hashes [0, n_t) from every thread, in a different order per
+    // thread; taxa 1-3 stay exact (<= 512 distinct), 4-6 become sketches part
+    // way through, while other threads may still be in their exact phase.
+    const std::vector<uint64_t> n{0, 50, 300, 512, 900, 5000, 60000};
+    for(const UniqSketch kind: {UniqSketch::HLL, UniqSketch::BBMH}) {
+        const unsigned p = kind == UniqSketch::HLL ? 12: 10, nt = 8;
+        UniqTable shared(nt, p, kind), serial(1, p, kind);
+        std::vector<std::thread> threads;
+        for(unsigned tid = 0; tid < nt; ++tid)
+            threads.emplace_back([&, tid] {
+                std::mt19937_64 rng(tid);
+                std::vector<std::pair<tax_t, uint64_t>> adds;
+                for(tax_t t = 1; t < n.size(); ++t) for(uint64_t i = 0; i < n[t]; ++i) adds.emplace_back(t, uniq_hash(i * 7 + t));
+                std::shuffle(adds.begin(), adds.end(), rng);
+                UniqBatch &b = shared.batch(tid);
+                for(const auto &a: adds) b.add_kmer(a.first, a.second);
+                for(tax_t t = 1; t < n.size(); ++t) b.add_read(t);
+            });
+        for(auto &th: threads) th.join();
+        for(unsigned tid = 0; tid < nt; ++tid)
+            for(tax_t t = 1; t < n.size(); ++t) {
+                for(uint64_t i = 0; i < n[t]; ++i) serial.batch(0).add_kmer(t, uniq_hash(i * 7 + t));
+                serial.batch(0).add_read(t);
+            }
+        shared.flush(); serial.flush();
+        for(tax_t t = 1; t < n.size(); ++t) {
+            SharedTally &a = shared.at(t), &b = serial.at(t);
+            REQUIRE(a.reads.load() == nt);
+            REQUIRE(a.kmers.load() == nt * n[t]);
+            REQUIRE(b.kmers.load() == a.kmers.load());
+            REQUIRE(a.uniq.sketched() == (n[t] > UniqCounter::EXACT_MAX));
+            const double ea = a.uniq.estimate(), eb = b.uniq.estimate();
+            std::fprintf(stderr, "[uniq] table %s taxon %u: n=%llu shared %.1f serial %.1f\n", kind == UniqSketch::HLL ? "hll": "bbmh",
+                         t, (unsigned long long)n[t], ea, eb);
+            REQUIRE(ea == eb);   // register max/min are order-independent: identical sketches
+            if(!a.uniq.sketched()) REQUIRE(ea == double(n[t]));
+            else REQUIRE(std::abs(ea - double(n[t])) < 0.1 * double(n[t]));
+        }
+    }
 }
