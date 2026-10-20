@@ -1,4 +1,5 @@
 #include <fstream>
+#include <numeric>
 #include <sstream>
 #include <omp.h>
 #include "bonsai/feature_min.h"
@@ -11,6 +12,7 @@
 #include "bonsai/flextree.h"
 #include "bonsai/grafting.h"
 #include "bonsai/kraken_export.h"
+#include "bonsai/profile_stats.h"
 #include "sketch/hll.h"
 // #include "sketch/filterhll.h"
 
@@ -136,6 +138,10 @@ int compact_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
+bool endswith(const std::string &path, const std::string &suf) {
+    return path.size() >= suf.size() && std::equal(std::crbegin(suf), std::crend(suf), std::crbegin(path));
+}
+
 int classify_main(int argc, char *argv[]) {
     int co, num_threads(1), emit_kraken(1), emit_fastq(0), emit_all(0), chunk_size(1 << 20), per_set(32);
     double confidence(0.), confidence_hi(0.);
@@ -143,7 +149,8 @@ int classify_main(int argc, char *argv[]) {
     bool canonicalize(true), emit_evidence(false), hits_only(false), quality(false), placement(false);
     double species_identity(0.95), family_identity(0.85);
     bool uniq_p_set(false);
-    std::string uniq_path, sketch_dir;
+    std::string uniq_path, sketch_dir, profile_path;
+    bool minhash(false);
     unsigned uniq_hll_p(12), sketch_b(16);
     std::ios_base::sync_with_stdio(false);
     std::FILE *ofp(stdout);
@@ -178,6 +185,11 @@ int classify_main(int argc, char *argv[]) {
                              "   \tk-mer sketch to this directory as <taxid>.bbmh (compare with reference sketches by\n"
                              "   \tcontainment / Jaccard).\n"
                              "-b:\tBits per register of the written -B sketches. [16]\n"
+                             "-P:\tAlso write this sample's profile to this path (.bprof): per taxon its reads, k-mer hits\n"
+                             "   \tand distinct k-mer counter, before clade folding, so profiles of read subsets merge\n"
+                             "   \texactly and samples can be compared without the database (bonsai profile).\n"
+                             "-m:\tCount distinct k-mers with b-bit MinHash (as -B does) rather than HyperLogLog: much\n"
+                             "   \ttighter shared-k-mer estimates in bonsai profile compare.\n"
                              "-E:\tEmit lineage evidence of the call: E:exact,ancestor,descendant,conflict k-mer hits\n"
                              "   \tand I:estimated identity.\n"
                              "-K:\tDo not emit fastq-formatted output.\n"
@@ -186,7 +198,7 @@ int classify_main(int argc, char *argv[]) {
                  *argv, 1 << 14);
         std::exit(EXIT_FAILURE);
     }
-    while((co = getopt(argc, argv, "Cc:p:o:S:x:g:X:I:U:u:B:b:ERQafFkKh?")) >= 0) {
+    while((co = getopt(argc, argv, "Cc:p:o:S:x:g:X:I:U:u:B:b:P:ERQafFkKmh?")) >= 0) {
         switch(co) {
             case 'h': case '?': goto usage;
             case 'C': canonicalize = false; break;
@@ -209,6 +221,8 @@ int classify_main(int argc, char *argv[]) {
             case 'u': uniq_hll_p = unsigned(std::atoi(optarg)); uniq_p_set = true; break;
             case 'B': sketch_dir = optarg; break;
             case 'b': sketch_b = unsigned(std::atoi(optarg)); break;
+            case 'P': profile_path = optarg; break;
+            case 'm': minhash = true; break;
             case 'I': placement = true;
                       if(std::sscanf(optarg, "%lf,%lf", &species_identity, &family_identity) != 2)
                           RUNTIME_ERROR("-I takes species,family identity thresholds, e.g. 0.95,0.85");
@@ -227,29 +241,41 @@ int classify_main(int argc, char *argv[]) {
     const rank_map_t ranks = placement ? build_rank_map(argv[optind + 1]): rank_map_t{};
     if(placement && ranks.empty()) RUNTIME_ERROR(std::string("-I needs ranks (nodes.dmp third field) in ") + argv[optind + 1]);
     const rank_map_t *rp = placement ? &ranks: nullptr;
-    const rank_map_t report_ranks = uniq_path.size() ? (placement ? ranks: build_rank_map(argv[optind + 1])): rank_map_t{};
-    auto rank_name = [&](tax_t t) -> std::string {
-        static const char *names[] = {"strain-level", "species", "genus", "family", "order", "class", "phylum", "kingdom", "domain"};
+    const bool collect = uniq_path.size() || profile_path.size();
+    const rank_map_t report_ranks = collect ? (placement ? ranks: build_rank_map(argv[optind + 1])): rank_map_t{};
+    auto rank_of = [&](tax_t t) -> uint8_t {
         const auto it = report_ranks.find(t);
-        if(it == report_ranks.end()) return report_ranks.empty() ? "-": "no rank";
-        return it->second <= RANK_DOMAIN ? names[it->second]: "no rank";
+        return it == report_ranks.end() ? uint8_t(RANK_UNKNOWN): it->second;
     };
+    auto rank_name = [&](tax_t t) -> std::string {return report_ranks.empty() ? "-": profile_rank_name(rank_of(t));};
+    // Parent lookups for the -U report and -P profile (sketch cht table).
+    const CompactTaxMap ctaxmap = collect ? CompactTaxMap(taxmap): CompactTaxMap(1);
+    unsigned db_k = 0;
     // Configure, classify, and (with -U) write the KrakenUniq-style report;
     // for_each_db_taxon(f) calls f(taxon) once per database k-mer (coverage).
     auto run = [&](auto &c, auto &&for_each_db_taxon) {
         c.set_confidence(confidence); c.set_min_hit_groups(min_hit_groups);
         c.set_confidence_hi(confidence_hi); c.set_emit_evidence(emit_evidence); c.set_confidence_hits_only(hits_only);
         c.set_confidence_quality(quality); c.set_identity_placement(rp, species_identity, family_identity);
-        if(uniq_path.size()) c.enable_uniq(uniq_p_set ? uniq_hll_p: sketch_dir.size() ? 10u: 12u, sketch_dir.size() ? UniqSketch::BBMH: UniqSketch::HLL);
+        const bool bbmh = sketch_dir.size() || minhash;
+        if(collect) c.enable_uniq(uniq_p_set ? uniq_hll_p: bbmh ? 10u: 12u, bbmh ? UniqSketch::BBMH: UniqSketch::HLL);
         // We can use optind + 3 for both single-end and paired-end mode since the argument at
         // index argc is null when argc - optind == 3.
         process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
+        std::unordered_map<tax_t, uint64_t> db_kmers;
+        if(collect) for_each_db_taxon([&](tax_t t) {++db_kmers[t];});
+        if(profile_path.size()) {   // before -U folds the counters
+            Profile header;
+            header.name = profile_path.substr(profile_path.find_last_of('/') + 1);
+            if(endswith(header.name, ".bprof")) header.name.resize(header.name.size() - 6);
+            header.k = db_k; header.canonical = canonicalize; header.has_ranks = !report_ranks.empty();
+            header.fingerprint = db_fingerprint(db_kmers, db_k, canonicalize);
+            write_profile(profile_path, header, *c.uniq(), ctaxmap, db_kmers, rank_of);
+        }
         if(uniq_path.size()) {
-            std::unordered_map<tax_t, uint64_t> db_kmers;
-            for_each_db_taxon([&](tax_t t) {++db_kmers[t];});
             std::FILE *ufp = std::fopen(uniq_path.data(), "w");
             if(!ufp) RUNTIME_ERROR("could not open " + uniq_path);
-            write_uniq_report(ufp, *c.uniq(), taxmap, &db_kmers, rank_name, sketch_dir.size() ? &sketch_dir: nullptr, sketch_b);
+            write_uniq_report(ufp, *c.uniq(), ctaxmap, &db_kmers, rank_name, sketch_dir.size() ? &sketch_dir: nullptr, sketch_b);
             std::fclose(ufp);
         }
     };
@@ -257,6 +283,7 @@ int classify_main(int argc, char *argv[]) {
         // Compact database (bonsai compact / build -Z): k-mer lookups batched per
         // read; a hashed-tier database's key width is its hash width.
         CompactDatabase db(argv[optind]);
+        db_k = db.k_;
         if(db.wide()) {
             ClassifierGeneric<score::Lex, CompactKmerMap128> c(db.db128_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, db.keyspec());
             run(c, [&](auto &&f) {db.db128_->for_each([&](auto, tax_t t) {f(t);});});
@@ -266,6 +293,7 @@ int classify_main(int argc, char *argv[]) {
         }
     } else {
         Database<khash_t(c)> db(argv[optind]);
+        db_k = db.k_;
         ClassifierGeneric<score::Lex> c(db.db_, db.s_, db.k_, db.k_, num_threads,
                                        emit_all, emit_fastq, emit_kraken, canonicalize);
         run(c, [&](auto &&f) {
@@ -278,9 +306,6 @@ int classify_main(int argc, char *argv[]) {
     return EXIT_SUCCESS;
 }
 
-bool endswith(const std::string &path, const std::string &suf) {
-    return std::equal(std::crbegin(suf), std::crend(suf), std::crbegin(path));
-}
 
 int phase2_main(int argc, char *argv[]) {
     int c, mode(score_scheme::LEX), wsz(-1), num_threads(1), k(31);
@@ -547,7 +572,7 @@ int hist_main(int argc, char *argv[]) {
  }
 
 int err_main(int argc, char *argv[]) {
-    std::fprintf(stderr, "[bonsai:%s] No valid subcommand provided. Options: prebuild/p1/phase, build/p2/phase2, classify, compact, metatree\n", BONSAI_VERSION);
+    std::fprintf(stderr, "[bonsai:%s] No valid subcommand provided. Options: prebuild/p1/phase, build/p2/phase2, classify, compact, metatree, profile\n", BONSAI_VERSION);
     return EXIT_FAILURE;
 }
 
@@ -870,6 +895,406 @@ int export_main(int argc, char *argv[]) {
     return result.seqid2taxid.empty() ? EXIT_FAILURE: EXIT_SUCCESS;
 }
 
+// bonsai profile: tools over classify -P sample profiles (see bonsai/profile.h).
+namespace {
+int profile_usage(const char *arg) {
+    std::fprintf(stderr, "Usage: %s <subcommand> ...  (profiles: classify -P <out.bprof>)\n"
+                 "  report [-B dir] [-b bits] <in.bprof> [out.tsv]\n"
+                 "      The classify -U report (identical to classify's) recomputed from a profile; -B writes each\n"
+                 "      clade's read k-mer sketch to dir/<taxid>.bbmh (b-bit MinHash profiles, classify -m or -B).\n"
+                 "  merge [-n name] <out.bprof> <in.bprof>...\n"
+                 "      Union of profiles of one database: lanes or read subsets of a sample (the result is the\n"
+                 "      profile of all their reads, byte for byte), or a pooled group. Name: out's basename.\n"
+                 "  compare [-r rank] [-m min_reads] [-K kmers.tsv] <in.bprof>...\n"
+                 "      Every pair of samples, to stdout: Bray-Curtis and presence-Jaccard distances over taxa\n"
+                 "      (clades at -r rank, e.g. species or genus; default: the taxa reads were called to) and the\n"
+                 "      taxonomy earth mover's distance (unit edges). -K: per clade (at -r rank, default all) with\n"
+                 "      >= min_reads reads in both samples, distinct read k-mers in each and shared (Jaccard,\n"
+                 "      containments): same strain vs different strains of one species. -m: [1]\n"
+                 "  table [-r rank] [-m min_reads] [-u] <in.bprof>...\n"
+                 "      Taxon x sample matrix of clade reads (-u: distinct k-mers) to stdout, for taxa with\n"
+                 "      >= min_reads in some sample (at -r rank if given). -m: [1]\n"
+                 "  index [-a] <out.bidx> <in.bprof>...\n"
+                 "      A searchable index of samples: per sample its taxon and clade reads and one k-mer counter\n"
+                 "      of all its classified k-mers. -a appends to an existing index.\n"
+                 "  search [-n hits] [-M emd|bc|jaccard|containment] <index.bidx> <query.bprof>...\n"
+                 "      The indexed samples nearest each query: tree EMD [default], Bray-Curtis (taxa), k-mer\n"
+                 "      Jaccard or containment of the query's k-mers in the sample's. -n: [10]\n"
+                 "  diff [-r rank] [-m min_reads] [-N permutations] [-s seed] [-K] <groups.tsv>\n"
+                 "      Differential abundance between two groups; groups.tsv: \"<profile>\\t<group>\" per line,\n"
+                 "      two groups (the first named is A). Per clade (at -r rank, default every clade) present in\n"
+                 "      >= 2 samples: Welch t on log proportions, permutation p, Benjamini-Hochberg q; with -K\n"
+                 "      also PERMANOVA on the samples' k-mer Jaccard distances for that clade (k-mer content\n"
+                 "      shifts, e.g. strain replacement, at equal abundance) and the share of B's pooled k-mers\n"
+                 "      absent from A's. Header lines: community PERMANOVA on tree EMD and Bray-Curtis.\n"
+                 "      -N: [9999] (all relabelings when fewer), -s: [1], -m: [1]\n", arg);
+    return EXIT_FAILURE;
+}
+uint8_t parse_rank(const char *r) {
+    const uint8_t ret = rank_level(r);
+    if(ret == RANK_UNKNOWN) RUNTIME_ERROR(std::string("unknown rank ") + r);
+    return ret;
+}
+// Loads the profiles one at a time into summaries, checking they share a database.
+template<typename Keep>
+std::vector<ProfileSummary> load_summaries(char **paths, int n, Keep &&keep, std::unordered_map<tax_t, uint8_t> &ranks, bool &has_ranks) {
+    std::vector<ProfileSummary> ret;
+    Profile first;
+    has_ranks = true;
+    for(int i = 0; i < n; ++i) {
+        Profile pr = Profile::read(paths[i]);
+        if(i == 0) {
+            first.k = pr.k; first.canonical = pr.canonical; first.kind = pr.kind; first.p = pr.p; first.fingerprint = pr.fingerprint;
+        } else if(const auto why = first.incompatibility(pr); why.size()) {
+            RUNTIME_ERROR(std::string(paths[i]) + " is not comparable with " + paths[0] + ": " + why);
+        }
+        has_ranks &= bool(pr.has_ranks);
+        for(const auto &kv: pr.taxa) if(kv.second.rank != RANK_UNKNOWN) ranks.emplace(kv.first, kv.second.rank);
+        ret.push_back(summarize(std::move(pr), keep));
+    }
+    return ret;
+}
+// Taxon reads (rank == RANK_UNKNOWN), else clade reads of the taxa at that rank.
+std::unordered_map<tax_t, uint64_t> rank_counts(const ProfileSummary &s, uint8_t rank, const std::unordered_map<tax_t, uint8_t> &ranks) {
+    if(rank == RANK_UNKNOWN) return s.taxon_reads;
+    std::unordered_map<tax_t, uint64_t> ret;
+    for(const auto &kv: s.clade_reads) {
+        const auto it = ranks.find(kv.first);
+        if(it != ranks.end() && it->second == rank && kv.second) ret.emplace(kv.first, kv.second);
+    }
+    return ret;
+}
+} // namespace
+
+int profile_main(int argc, char *argv[]) {
+    if(argc < 2) return profile_usage(*argv);
+    const std::string sub = argv[1];
+    --argc, ++argv;
+    int c;
+    if(sub == "report") {
+        std::string dir;
+        unsigned b = 16;
+        while((c = getopt(argc, argv, "B:b:h?")) >= 0) switch(c) {
+            case 'B': dir = optarg; break;
+            case 'b': b = unsigned(std::atoi(optarg)); break;
+            default: return profile_usage(argv[-1]);
+        }
+        if(argc - optind < 1 || argc - optind > 2) return profile_usage(argv[-1]);
+        Profile pr = Profile::read(argv[optind]);
+        if(dir.size() && UniqSketch(pr.kind) != UniqSketch::BBMH) RUNTIME_ERROR("-B needs a b-bit MinHash profile (classify -m or -B)");
+        std::unordered_map<tax_t, uint64_t> db;
+        for(const auto &kv: pr.taxa) db.emplace(kv.first, kv.second.db_kmers);
+        const CompactTaxMap parents = pr.parents();
+        auto table = pr.to_table();
+        std::FILE *ofp = argc - optind == 2 ? std::fopen(argv[optind + 1], "w"): stdout;
+        if(!ofp) RUNTIME_ERROR(std::string("could not open ") + argv[optind + 1]);
+        write_uniq_rows(ofp, *table, parents, db, [&](tax_t t) -> std::string {
+            return pr.has_ranks ? profile_rank_name(pr.taxa.at(t).rank): "-";
+        }, dir.size() ? &dir: nullptr, b);
+        if(ofp != stdout) std::fclose(ofp);
+        return EXIT_SUCCESS;
+    }
+    if(sub == "merge") {
+        std::string name;
+        while((c = getopt(argc, argv, "n:h?")) >= 0) switch(c) {
+            case 'n': name = optarg; break;
+            default: return profile_usage(argv[-1]);
+        }
+        if(argc - optind < 2) return profile_usage(argv[-1]);
+        const std::string out = argv[optind];
+        Profile pr = Profile::read(argv[optind + 1]);
+        for(int i = optind + 2; i < argc; ++i) pr.merge(Profile::read(argv[i]));
+        if(name.empty()) {
+            name = out.substr(out.find_last_of('/') + 1);
+            if(endswith(name, ".bprof")) name.resize(name.size() - 6);
+        }
+        pr.name = name;
+        pr.write(out);
+        return EXIT_SUCCESS;
+    }
+    if(sub == "compare" || sub == "table") {
+        uint8_t rank = RANK_UNKNOWN;
+        uint64_t min_reads = 1;
+        std::string kpath;
+        bool uniq = false;
+        while((c = getopt(argc, argv, "r:m:K:uh?")) >= 0) switch(c) {
+            case 'r': rank = parse_rank(optarg); break;
+            case 'm': min_reads = std::strtoull(optarg, nullptr, 10); break;
+            case 'K': kpath = optarg; break;
+            case 'u': uniq = true; break;
+            default: return profile_usage(argv[-1]);
+        }
+        const int n = argc - optind;
+        if(n < (sub == "compare" ? 2: 1)) return profile_usage(argv[-1]);
+        std::unordered_map<tax_t, uint8_t> ranks;
+        bool has_ranks;
+        // Only -K keeps clade counters (at the rank, with enough reads).
+        auto keep = [&](tax_t, uint64_t reads, uint8_t r) {
+            return kpath.size() && reads >= min_reads && (rank == RANK_UNKNOWN || r == rank);
+        };
+        auto sums = load_summaries(argv + optind, n, keep, ranks, has_ranks);
+        if(rank != RANK_UNKNOWN && !has_ranks) RUNTIME_ERROR("-r needs profiles with ranks (classify with a nodes.dmp-style taxonomy)");
+        std::vector<std::unordered_map<tax_t, uint64_t>> counts;
+        for(const auto &s: sums) counts.push_back(rank_counts(s, rank, ranks));
+        auto rank_label = [&](tax_t t) -> std::string {
+            if(!has_ranks) return "-";
+            const auto it = ranks.find(t);
+            return profile_rank_name(it == ranks.end() ? uint8_t(RANK_UNKNOWN): it->second);
+        };
+        if(sub == "table") {
+            std::set<tax_t> rows;
+            for(const auto &m: counts) for(const auto &kv: m) if(kv.second >= min_reads) rows.insert(kv.first);
+            std::fprintf(stdout, "#taxid\trank");
+            for(const auto &s: sums) std::fprintf(stdout, "\t%s", s.name.data());
+            std::fputc('\n', stdout);
+            for(const tax_t t: rows) {
+                std::fprintf(stdout, "%u\t%s", t, rank_label(t).data());
+                for(size_t i = 0; i < sums.size(); ++i) {
+                    if(uniq) {
+                        const auto it = sums[i].clade_uniq.find(t);
+                        std::fprintf(stdout, "\t%.0f", it == sums[i].clade_uniq.end() ? 0.: it->second);
+                    } else {
+                        const auto it = counts[i].find(t);
+                        std::fprintf(stdout, "\t%llu", it == counts[i].end() ? 0ull: (unsigned long long)it->second);
+                    }
+                }
+                std::fputc('\n', stdout);
+            }
+            return EXIT_SUCCESS;
+        }
+        std::fprintf(stdout, "#sample_a\tsample_b\tclassified_a\tclassified_b\tbray_curtis\tjaccard_dist\tshared_taxa\ttree_emd\n");
+        for(size_t i = 0; i < sums.size(); ++i) for(size_t j = i + 1; j < sums.size(); ++j) {
+            const auto d = abundance_distance(counts[i], counts[j], sums[i].clade_reads, sums[i].classified,
+                                              sums[j].clade_reads, sums[j].classified, min_reads);
+            std::fprintf(stdout, "%s\t%s\t%llu\t%llu\t%.6f\t%.6f\t%zu\t%.6f\n", sums[i].name.data(), sums[j].name.data(),
+                         (unsigned long long)sums[i].classified, (unsigned long long)sums[j].classified,
+                         d.bray_curtis, d.jaccard, d.shared, d.tree_emd);
+        }
+        if(kpath.size()) {
+            std::FILE *kfp = std::fopen(kpath.data(), "w");
+            if(!kfp) RUNTIME_ERROR("could not open " + kpath);
+            std::fprintf(kfp, "#taxid\trank\tsample_a\tsample_b\treads_a\treads_b\tuniq_a\tuniq_b\tshared\tjaccard\tcont_a_in_b\tcont_b_in_a\n");
+            for(size_t i = 0; i < sums.size(); ++i) for(size_t j = i + 1; j < sums.size(); ++j) {
+                std::vector<tax_t> both;
+                for(const auto &kv: sums[i].counters) if(sums[j].counters.count(kv.first)) both.push_back(kv.first);
+                std::sort(both.begin(), both.end());
+                for(const tax_t t: both) {
+                    const auto o = counter_overlap(sums[i].counters.at(t), sums[j].counters.at(t));
+                    std::fprintf(kfp, "%u\t%s\t%s\t%s\t%llu\t%llu\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.6f\n", t, rank_label(t).data(),
+                                 sums[i].name.data(), sums[j].name.data(),
+                                 (unsigned long long)sums[i].clade_reads.at(t), (unsigned long long)sums[j].clade_reads.at(t),
+                                 o.a, o.b, o.shared, o.jaccard, o.a > 0. ? std::min(1., o.shared / o.a): 0., o.b > 0. ? std::min(1., o.shared / o.b): 0.);
+                }
+            }
+            std::fclose(kfp);
+        }
+        return EXIT_SUCCESS;
+    }
+    if(sub == "index") {
+        bool append = false;
+        while((c = getopt(argc, argv, "ah?")) >= 0) switch(c) {
+            case 'a': append = true; break;
+            default: return profile_usage(argv[-1]);
+        }
+        if(argc - optind < 2) return profile_usage(argv[-1]);
+        const std::string out = argv[optind];
+        Profile header;
+        bool have = append && isfile(out);
+        if(have) header = std::move(SampleIndex::read(out, false).header);
+        gzFile fp = Profile::open(out, have ? "ab": "wb");
+        for(int i = optind + 1; i < argc; ++i) {
+            Profile pr = Profile::read(argv[i]);
+            if(!have) {
+                header.k = pr.k; header.canonical = pr.canonical; header.kind = pr.kind; header.p = pr.p; header.fingerprint = pr.fingerprint;
+                SampleIndex::write_header(fp, header);
+                have = true;
+            } else if(const auto why = header.incompatibility(pr); why.size()) {
+                gzclose(fp);
+                RUNTIME_ERROR(std::string(argv[i]) + " does not match the index: " + why);
+            }
+            IndexEntry e = index_entry(summarize(std::move(pr), [](tax_t, uint64_t, uint8_t) {return false;}));
+            SampleIndex::write_entry(fp, e);
+        }
+        if(gzclose(fp) != Z_OK) RUNTIME_ERROR("could not finish index " + out);
+        return EXIT_SUCCESS;
+    }
+    if(sub == "search") {
+        size_t nhits = 10;
+        std::string metric = "emd";
+        while((c = getopt(argc, argv, "n:M:h?")) >= 0) switch(c) {
+            case 'n': nhits = std::strtoull(optarg, nullptr, 10); break;
+            case 'M': metric = optarg; break;
+            default: return profile_usage(argv[-1]);
+        }
+        if(metric != "emd" && metric != "bc" && metric != "jaccard" && metric != "containment") RUNTIME_ERROR("-M: emd, bc, jaccard or containment");
+        if(argc - optind < 2) return profile_usage(argv[-1]);
+        SampleIndex idx = SampleIndex::read(argv[optind]);
+        std::fprintf(stdout, "#query\thit\tsample\tbray_curtis\ttree_emd\tkmer_jaccard\tcont_query_in_sample\tcont_sample_in_query\n");
+        for(int qi = optind + 1; qi < argc; ++qi) {
+            Profile pr = Profile::read(argv[qi]);
+            if(const auto why = idx.header.incompatibility(pr); why.size()) RUNTIME_ERROR(std::string(argv[qi]) + " does not match the index: " + why);
+            ProfileSummary q = summarize(std::move(pr), [](tax_t, uint64_t, uint8_t) {return false;});
+            struct Hit {size_t i; AbundanceDistance d; CounterOverlap o; double key;};
+            std::vector<Hit> hits;
+            for(size_t i = 0; i < idx.entries.size(); ++i) {
+                IndexEntry &e = idx.entries[i];
+                Hit h{i, abundance_distance(q.taxon_reads, e.taxon_reads, q.clade_reads, q.classified, e.clade_reads, e.classified, 1),
+                      counter_overlap(q.all, e.sample), 0.};
+                h.key = metric == "emd" ? h.d.tree_emd: metric == "bc" ? h.d.bray_curtis
+                      : metric == "jaccard" ? -h.o.jaccard: -(h.o.a > 0. ? h.o.shared / h.o.a: 0.);
+                hits.push_back(h);
+            }
+            std::sort(hits.begin(), hits.end(), [&](const Hit &a, const Hit &b) {return a.key != b.key ? a.key < b.key: idx.entries[a.i].name < idx.entries[b.i].name;});
+            for(size_t r = 0; r < std::min(nhits, hits.size()); ++r) {
+                const Hit &h = hits[r];
+                std::fprintf(stdout, "%s\t%zu\t%s\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\n", q.name.data(), r + 1, idx.entries[h.i].name.data(),
+                             h.d.bray_curtis, h.d.tree_emd, h.o.jaccard, h.o.a > 0. ? std::min(1., h.o.shared / h.o.a): 0.,
+                             h.o.b > 0. ? std::min(1., h.o.shared / h.o.b): 0.);
+            }
+        }
+        return EXIT_SUCCESS;
+    }
+    if(sub == "diff") {
+        uint8_t rank = RANK_UNKNOWN;
+        uint64_t min_reads = 1, seed = 1;
+        size_t nperm = 9999;
+        bool kmers = false;
+        while((c = getopt(argc, argv, "r:m:N:s:Kh?")) >= 0) switch(c) {
+            case 'r': rank = parse_rank(optarg); break;
+            case 'm': min_reads = std::strtoull(optarg, nullptr, 10); break;
+            case 'N': nperm = std::strtoull(optarg, nullptr, 10); break;
+            case 's': seed = std::strtoull(optarg, nullptr, 10); break;
+            case 'K': kmers = true; break;
+            default: return profile_usage(argv[-1]);
+        }
+        if(argc - optind != 1) return profile_usage(argv[-1]);
+        std::vector<std::string> paths, gnames;
+        std::vector<uint8_t> labels;
+        {
+            std::ifstream is(argv[optind]);
+            if(!is) RUNTIME_ERROR(std::string("could not open ") + argv[optind]);
+            for(std::string line; std::getline(is, line);) {
+                if(line.empty() || line[0] == '#') continue;
+                const size_t tab = line.find('\t');
+                if(tab == std::string::npos) RUNTIME_ERROR("groups file: \"<profile>\\t<group>\" per line: " + line);
+                const std::string g = line.substr(tab + 1);
+                auto it = std::find(gnames.begin(), gnames.end(), g);
+                if(it == gnames.end()) {gnames.push_back(g); it = gnames.end() - 1;}
+                paths.push_back(line.substr(0, tab));
+                labels.push_back(uint8_t(it - gnames.begin()));
+            }
+        }
+        if(gnames.size() != 2) RUNTIME_ERROR("diff compares exactly two groups; the groups file names " + std::to_string(gnames.size()));
+        const size_t n = paths.size();
+        std::vector<char *> cpaths;
+        for(auto &p: paths) cpaths.push_back(p.data());
+        std::unordered_map<tax_t, uint8_t> ranks;
+        bool has_ranks;
+        auto keep = [&](tax_t, uint64_t reads, uint8_t r) {return kmers && reads >= min_reads && (rank == RANK_UNKNOWN || r == rank);};
+        auto sums = load_summaries(cpaths.data(), int(n), keep, ranks, has_ranks);
+        if(rank != RANK_UNKNOWN && !has_ranks) RUNTIME_ERROR("-r needs profiles with ranks (classify with a nodes.dmp-style taxonomy)");
+        auto rank_label = [&](tax_t t) -> std::string {
+            if(!has_ranks) return "-";
+            const auto it = ranks.find(t);
+            return profile_rank_name(it == ranks.end() ? uint8_t(RANK_UNKNOWN): it->second);
+        };
+        size_t na = std::count(labels.begin(), labels.end(), 0);
+        std::fprintf(stdout, "#groups\tA=%s\t%zu\tB=%s\t%zu\tseed=%llu\tpermutations=%zu\n", gnames[0].data(), na, gnames[1].data(), n - na,
+                     (unsigned long long)seed, nperm);
+        // community-wide
+        std::vector<std::unordered_map<tax_t, uint64_t>> counts;
+        for(const auto &s: sums) counts.push_back(rank_counts(s, rank, ranks));
+        std::vector<double> demd(n * n, 0.), dbc(n * n, 0.);
+        for(size_t i = 0; i < n; ++i) for(size_t j = i + 1; j < n; ++j) {
+            const auto d = abundance_distance(counts[i], counts[j], sums[i].clade_reads, sums[i].classified, sums[j].clade_reads, sums[j].classified, min_reads);
+            demd[i * n + j] = demd[j * n + i] = d.tree_emd;
+            dbc[i * n + j] = dbc[j * n + i] = d.bray_curtis;
+        }
+        for(const auto &m: {std::make_pair("tree_emd", &demd), std::make_pair("bray_curtis", &dbc)}) {
+            const double f = permanova_f(*m.second, n, labels);
+            const auto pp = permutation_p(labels, [&](const std::vector<uint8_t> &l) {return permanova_f(*m.second, n, l);}, nperm, seed);
+            std::fprintf(stdout, "#permanova\t%s\tF=%.6g\tp=%.6g\trelabelings=%zu\n", m.first, f, pp.first, pp.second);
+        }
+        // per clade
+        std::set<tax_t> taxa;
+        for(const auto &m: counts) for(const auto &kv: m) taxa.insert(kv.first);
+        if(rank == RANK_UNKNOWN) for(const auto &s: sums) for(const auto &kv: s.clade_reads) taxa.insert(kv.first);
+        struct Row {tax_t t; size_t prev[2]; double mean[2], lfc, p, kp = NAN, kf = NAN, within = NAN, between = NAN, novel = NAN; size_t krel = 0;};
+        std::vector<Row> rows;
+        for(const tax_t t: taxa) {
+            Row r{t, {0, 0}, {0., 0.}, 0., NAN};
+            std::vector<double> x(n);
+            for(size_t i = 0; i < n; ++i) {
+                const auto it = sums[i].clade_reads.find(t);
+                const uint64_t v = it == sums[i].clade_reads.end() ? 0: it->second;
+                r.prev[labels[i]] += v >= min_reads;
+                r.mean[labels[i]] += sums[i].classified ? double(v) / sums[i].classified: 0.;
+                x[i] = std::log((v + .5) / (sums[i].classified + .5));   // 0 iff the clade holds every read
+            }
+            if(r.prev[0] + r.prev[1] < 2) continue;
+            r.mean[0] /= na; r.mean[1] /= (n - na);
+            double mx[2] = {0., 0.};
+            for(size_t i = 0; i < n; ++i) mx[labels[i]] += x[i];
+            r.lfc = (mx[1] / (n - na) - mx[0] / na) / std::log(2.);
+            r.p = permutation_p(labels, [&](const std::vector<uint8_t> &l) {return welch_abs_t(x, l);}, nperm, seed ^ uniq_hash(uint64_t(t))).first;
+            if(kmers) {
+                std::vector<size_t> who;
+                for(size_t i = 0; i < n; ++i) if(sums[i].counters.count(t)) who.push_back(i);
+                std::vector<uint8_t> kl;
+                for(const size_t i: who) kl.push_back(labels[i]);
+                const size_t kb = std::count(kl.begin(), kl.end(), 1);
+                if(kb >= 1 && who.size() - kb >= 1) {
+                    const size_t m = who.size();
+                    std::vector<double> dj(m * m, 0.);
+                    double ws = 0., bs = 0.; size_t wn = 0, bn = 0;
+                    for(size_t a = 0; a < m; ++a) for(size_t b = a + 1; b < m; ++b) {
+                        const double d = 1. - counter_overlap(sums[who[a]].counters.at(t), sums[who[b]].counters.at(t)).jaccard;
+                        dj[a * m + b] = dj[b * m + a] = d;
+                        if(kl[a] == kl[b]) ws += d, ++wn; else bs += d, ++bn;
+                    }
+                    r.within = wn ? 1. - ws / wn: NAN; r.between = bn ? 1. - bs / bn: NAN;
+                    if(kb >= 2 && m - kb >= 2) {
+                        r.kf = permanova_f(dj, m, kl);
+                        const auto pp = permutation_p(kl, [&](const std::vector<uint8_t> &l) {return permanova_f(dj, m, l);}, nperm, seed ^ uniq_hash(uint64_t(t) + 1));
+                        r.kp = pp.first; r.krel = pp.second;
+                    }
+                    UniqCounter pool[2];
+                    bool init[2] = {false, false};
+                    for(size_t a = 0; a < m; ++a) {
+                        UniqCounter &c = sums[who[a]].counters.at(t);
+                        if(!init[kl[a]]) pool[kl[a]] = c.clone(), init[kl[a]] = true;
+                        else pool[kl[a]].merge(c);
+                    }
+                    const auto o = counter_overlap(pool[0], pool[1]);
+                    r.novel = o.b > 0. ? std::max(0., 1. - o.shared / o.b): NAN;
+                }
+            }
+            rows.push_back(r);
+        }
+        std::vector<double> ps, kps;
+        for(const auto &r: rows) ps.push_back(r.p), kps.push_back(r.kp);
+        const auto qs = bh_qvalues(ps), kqs = bh_qvalues(kps);
+        std::vector<size_t> order(rows.size());
+        std::iota(order.begin(), order.end(), size_t(0));
+        std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+            const double pa = std::isnan(rows[a].p) ? 2.: rows[a].p, pb = std::isnan(rows[b].p) ? 2.: rows[b].p;
+            return pa != pb ? pa < pb: rows[a].t < rows[b].t;
+        });
+        std::fprintf(stdout, "#taxid\trank\tprev_a\tprev_b\tmean_prop_a\tmean_prop_b\tlog2fc\tp\tq");
+        if(kmers) std::fprintf(stdout, "\tkmer_jaccard_within\tkmer_jaccard_between\tkmer_F\tkmer_p\tkmer_q\tkmer_relabelings\tb_kmers_novel_vs_a");
+        std::fputc('\n', stdout);
+        for(const size_t i: order) {
+            const Row &r = rows[i];
+            std::fprintf(stdout, "%u\t%s\t%zu\t%zu\t%.6g\t%.6g\t%.4f\t%.6g\t%.6g", r.t, rank_label(r.t).data(), r.prev[0], r.prev[1],
+                         r.mean[0], r.mean[1], r.lfc, r.p, qs[i]);
+            if(kmers) std::fprintf(stdout, "\t%.6f\t%.6f\t%.6g\t%.6g\t%.6g\t%zu\t%.6f", r.within, r.between, r.kf, r.kp, kqs[i], r.krel, r.novel);
+            std::fputc('\n', stdout);
+        }
+        return EXIT_SUCCESS;
+    }
+    return profile_usage(argv[-1]);
+}
+
 int main(int argc, char *argv[]) {
     const static std::unordered_map<std::string, bns::MainFnPtr> md {
         {"phase1",   phase1_main},
@@ -883,7 +1308,8 @@ int main(int argc, char *argv[]) {
         {"metatree", metatree_main},
         {"export",   export_main},
         {"classify", classify_main},
-        {"compact",  compact_main}
+        {"compact",  compact_main},
+        {"profile",  profile_main}
     };
     if(std::find_if(argv, argv + argc, [&](char *s) {return std::strcmp("-v", s) == 0 || std::strcmp("--version", s) == 0;}) != argv + argc) {
         std::fprintf(stdout, "bonsai|%s\n", BONSAI_VERSION);

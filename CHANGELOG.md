@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased
+
+### Added: sample profiles and cross-sample analysis
+- `classify -P <out.bprof>`: the sample's classification result as sufficient statistics
+  (per taxon: own reads and k-mer hits, parent, rank, clade database k-mers, and the raw
+  distinct-k-mer counter), written before clade folding. Self-contained (no taxonomy needed
+  to read it) and mergeable: merging profiles of read subsets gives byte for byte the
+  profile of all the reads. `-m` counts with b-bit MinHash (tight shared-k-mer estimates).
+- `bonsai profile report`: the `classify -U` report (identical) and `-B` sketches from a profile.
+- `bonsai profile merge`: lanes/replicates/pools.
+- `bonsai profile compare`: pairwise Bray-Curtis, presence Jaccard and taxonomy earth mover's
+  distance (unit edges); `-K` per-clade distinct-k-mer Jaccard and containment (same vs
+  different strains). `bonsai profile table`: taxon x sample matrix (reads or distinct k-mers).
+- `bonsai profile index` / `search`: nearest samples to a query profile by tree EMD,
+  Bray-Curtis, k-mer Jaccard or containment.
+- `bonsai profile diff`: differential abundance between two groups: per clade, Welch t on
+  log proportions with permutation p and BH q; `-K` PERMANOVA on per-clade k-mer Jaccard
+  distances (k-mer content shifts at equal abundance) and B's pooled k-mers unseen in A;
+  community PERMANOVA on tree EMD and Bray-Curtis. Seeded; exact enumeration when small.
+  Counters hold database k-mers only, so k-mer content is measured over the database.
+- `make check`: unit tests and the CLI smokes (`test/cli_profile_smoke.sh` is new).
+
+### Changed (results change, -U)
+- A distinct-k-mer counter is exact iff it holds at most 512 distinct k-mers, else a sketch,
+  whatever order hits arrived in (before, a taxon with 513 to ~1023 distinct k-mers could be
+  reported exactly or by its sketch depending on hit order). The -U report now depends only on
+  the k-mer sets.
+- The -U report and profiles look parents up in the sketch cht table (`CompactTaxMap`).
+
 ## v0.6.0 (2026-10-20)
 
 ### Fixed
