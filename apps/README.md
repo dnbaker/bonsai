@@ -260,3 +260,24 @@ Every node carries two dimensions, count (reads, hits) and cardinality (distinct
 
 Priority: X1 + X2 (testing), then X3 enrichment, then X4. X1 code (panel file and fitting) can be written and
 unit-tested now. Real evaluation needs a normals corpus (to be decided with the PI).
+
+### PI feedback 2026-10-20 and revised priorities
+1. **X1 / X2 with pruning, so output is interpretable by construction.**
+   - Parsimonious explanation: fit effects only at a node set S, inherited by descendants, and select the smallest
+     S within a BIC / e-value budget of the saturated fit. A child is dropped if its parent explains it; a parent
+     is dropped if one child carries its change. This is a sparse Dirichlet-tree effect model; prior art: `trac`
+     (Bien et al. 2021) tree aggregation.
+   - Report only S, with effects, CIs and e-values; e-BH over S.
+   - **Endpoint:** on X1 spike-ins, |S| against the number of spiked nodes, and recovery of the spiked set.
+2. **X5 (new, replaces the X4 functional tree): taxon x gene-kind product tree.**
+   - Each database k-mer carries (taxon LCA, gene-family LCA). Reads accumulate count + cardinality on sparse
+     product cells, and every tool works along either axis.
+   - Gene-kind tree: EC (a.b.c.d), with GO or KEGG BRITE as alternatives. Annotations come from GenBank
+     `_genomic.gff.gz` / `_cds_from_genomic.fna.gz`, e.g. for the podar genomes.
+   - **Killer application: metatranscriptomics.** Count = expression; containment = genuinely expressed vs a
+     spurious hit; lambda = depth; with a paired metagenome, the per-cell RNA/DNA ratio.
+   - **Prototype:** podar with EC.
+   - **Test data later:** HMP2 IBDMDB MTX/MGX pairs (volume to be asked).
+   - **bonsai needs:** a two-ID database value and a profile-format extension for cells.
+3. X3 localization stays as is. BugSigDB GSEA (tree-aware null): lower priority.
+4. X4 (separate functional tree): left as is.
