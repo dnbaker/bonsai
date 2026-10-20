@@ -7,7 +7,7 @@
 //  - abundance_distance: Bray-Curtis and tree EMD on a two-leaf tree.
 #include "test/catch.hpp"
 
-#include "profile.h"
+#include "profile_stats.h"
 
 #include <cstdio>
 #include <random>
@@ -115,4 +115,39 @@ TEST_CASE("abundance_distance: Bray-Curtis and tree EMD") {
     REQUIRE(std::abs(d.jaccard - 0.5) < 1e-12);
     REQUIRE(d.shared == 1);
     REQUIRE(std::abs(d.tree_emd - 1.) < 1e-12);   // half the mass moves 3 -> 2 -> 4
+}
+
+TEST_CASE("profile statistics: Clopper-Pearson, G, e-values, e-BH, lambda") {
+    // Clopper-Pearson pinned to scipy.stats.beta.ppf (checked 2026-10-20)
+    auto ci = clopper_pearson(3, 10);
+    REQUIRE(std::abs(ci.first - 6.6739e-02) < 1e-6);
+    REQUIRE(std::abs(ci.second - 6.5245e-01) < 1e-5);
+    ci = clopper_pearson(0, 10);
+    REQUIRE(ci.first == 0.);
+    REQUIRE(std::abs(ci.second - 3.0850e-01) < 1e-5);
+    ci = clopper_pearson(57, 400);
+    REQUIRE(std::abs(ci.first - 1.0975e-01) < 1e-5);
+    REQUIRE(std::abs(ci.second - 1.8065e-01) < 1e-5);
+    // G statistic and its chi-square p (scipy chi2.sf)
+    REQUIRE(std::abs(binomial_g(57, 400, 0.3) - 54.3512) < 1e-3);
+    REQUIRE(std::abs(chisq1_p(binomial_g(10, 10, 0.3)) - 9.244e-07) < 1e-9);
+    // e-value with rho = 0: the uniform-share Bayes factor 1 / ((n + 1) Binom(k; n, p0))
+    {
+        const double k = 7, n = 20, p0 = 0.2;
+        const double lb = std::lgamma(n + 1) - std::lgamma(k + 1) - std::lgamma(n - k + 1) + k * std::log(p0) + (n - k) * std::log1p(-p0);
+        REQUIRE(std::abs(log_evalue_share(k, n, p0, 0.) - (-std::log(n + 1) - lb)) < 1e-9);
+        // with overdispersion the e-value shrinks (the null explains more)
+        REQUIRE(log_evalue_share(k, n, p0, 0.05) < log_evalue_share(k, n, p0, 0.));
+        // interval null containing the observed share: no evidence beyond the band's best null
+        REQUIRE(log_evalue_share_band(10, 40, 0.2, 0.3, 0.) <= log_evalue_share(10, 40, 0.25, 0.) + 1e-9);
+    }
+    // e-BH: 4 e-values, alpha 0.05 -> reject the k largest with e_(k) >= m / (alpha k)
+    REQUIRE(ebh_threshold({200, 50, 1, 0.5}, 0.05) == 4. / (0.05 * 2));   // e_(2) = 50 >= 40: reject 2
+    REQUIRE(std::isinf(ebh_threshold({10, 5}, 0.05)));
+    // lambda: hits = P lambda, distinct = P (1 - e^-lambda) -> recovered
+    for(const double lam: {0.2, 1.0, 5.0}) {
+        const double P = 1e5, hits = P * lam, distinct = P * -std::expm1(-lam);
+        REQUIRE(std::abs(clade_lambda(hits, distinct) - lam) < 1e-6 * std::max(1., lam));
+    }
+    REQUIRE(std::isnan(clade_lambda(100, 100)));   // no duplicates: unidentifiable
 }
