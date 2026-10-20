@@ -210,3 +210,53 @@ replicate has biological dispersion. Each experiment is 6 vs 6 samples, repeated
   - **Fair version (to do):** run sourmash gather ourselves on the same 300 MB heads and genomes, and score both
     against mapping.
   - hu-s1 and iHMP are held: the podar build peaked at 7.18 GB, and hu-s1 projects to ~10 GB.
+
+## Extensions beyond pairwise (PI 2026-10-20): design and pre-specified endpoints
+Every node carries two dimensions, count (reads, hits) and cardinality (distinct k-mers), joined through lambda
+(coverage, containment). Every extension below therefore yields one statistic per node, per dimension.
+
+### X1. Query vs panel of normals (PoN)
+- **Panel:** per node and dimension, the sufficient moments of a beta-binomial over N normal profiles
+  (rate mu_v and node-specific overdispersion rho_v; containment mean and dispersion). It is mergeable like
+  profiles: adding normals adds moments, and leave-one-out is a subtraction.
+- **Query:** the predictive tail p at the query's own depth replaces taxdiff's single global rho.
+- **Endpoints:**
+  - (a) Leave-one-normal-out calibration: p uniform (KS) and FPR <= alpha + 2 SE, per dimension.
+  - (b) Spiked deviations (merge a synthetic profile into a held-out normal) are detected, and localized to the
+    spiked node, per dimension.
+  - (c) Power against panel size N.
+- **Kill criterion:** if (a) fails for every reasonable N, the beta-binomial does not describe between-sample
+  variation and needs replacing (e.g. a Dirichlet-tree).
+
+### X2. e-values
+- **Testing:** per node, e = predictive likelihood ratio of query vs panel (alternative: a mixture over effect
+  sizes, so e is a valid betting score). Nested clades make per-node tests dependent, so FDR uses e-BH (Wang &
+  Ramdas), which is valid under arbitrary dependence, unlike BH. Merging is valid by averaging across nodes or sets,
+  and by product across independent samples, e.g. repeated samples of one subject.
+- **Search:** E-value = the expected number of database samples scoring >= s under the null, from a tail fit to
+  null scores across the database.
+- **Endpoints:** e-BH FDR on the X1 spike-ins (realized FDR <= alpha); power relative to BH on the same p-values;
+  and E-value calibration on held-out queries (count of null hits with E <= x is about x).
+
+### X3. Interpretation
+- **Localization:** the minimal set of deepest nodes whose conditional tests explain the difference, each with
+  effect sizes and CIs (as in the ONT-vs-Illumina call within Enterobacteriaceae).
+- **Set enrichment (GSEA-like):** nodes ranked by the signed statistic. Sets come from traits (BugSigDB
+  signatures, butyrate producers, oxygen tolerance, Gram stain...).
+  - The null must be tree-aware: traits are phylogenetically clustered, so naive label permutation is
+    anti-conservative. Use within-clade permutation or tree-rotation nulls.
+  - **Endpoint:** FPR of the naive vs the tree-aware null on random, phylogenetically clustered sets (the naive
+    null should fail; the tree-aware one should not).
+
+### X4. Function: a second tree
+- The bonsai "taxonomy" can be any tree. A functional tree (pathway -> gene family -> gene, with k-mers as leaves)
+  reuses profiles, count + cardinality, taxdiff, the PoN and e-values unchanged.
+- Cardinality then gives direct evidence of gene or pathway content, not function inferred from which taxa are
+  present.
+- Links to metabolism go through annotations (KEGG / GMM modules, AGORA2 reconstructions).
+- Needs: genome annotation of the database (a download / compute decision for the PI).
+- **Endpoint (mock):** pathway presence and absence in D6331 and podar, from the functional tree, against the
+  reference genomes' annotations.
+
+Priority: X1 + X2 (testing), then X3 enrichment, then X4. X1 code (panel file and fitting) can be written and
+unit-tested now. Real evaluation needs a normals corpus (to be decided with the PI).
