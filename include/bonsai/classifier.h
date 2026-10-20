@@ -661,21 +661,21 @@ inline void process_dataset(const C &c, const khash_t(p) *taxmap, const char *fq
                             std::FILE *out, unsigned chunk_size,
                             unsigned per_set) {
     // TODO: consider reusing buffers for processing large numbers of files.
-    int nseq(0), max_nseq(0);
+    int nseq(0), max_nseq(0), cap(0);
     gzFile ifp1(gzopen(fq1, "rb")), ifp2(fq2 ? gzopen(fq2, "rb"): nullptr);
     kseq_t *ks1(kseq_init(ifp1)), *ks2(ifp2 ? kseq_init(ifp2): nullptr);
     ks::string cks(256u);
     const int fn = fileno(out), is_paired(fq2 != 0);
     del_data dd{nullptr, per_set, chunk_size};
     ForPool pool(c.nt_);
-    if((dd.seqs_ = bseq_read(chunk_size, &nseq, (void *)ks1, (void *)ks2)) == nullptr) {
+    if((dd.seqs_ = bseq_read(chunk_size, &nseq, (void *)ks1, (void *)ks2, &cap)) == nullptr) {
         LOG_WARNING("Could not get any sequences from file, fyi.\n");
         goto fail; // Wheeeeee
     }
     classify_seqs(c, taxmap, dd.seqs_, cks, nseq, per_set, is_paired, pool);
     std::fprintf(stderr, "nseq: %i\n", nseq);
     max_nseq = std::max(max_nseq, nseq);
-    while((dd.seqs_ = bseq_realloc_read(chunk_size, &nseq, (void *)ks1, (void *)ks2, dd.seqs_)) && nseq) {
+    while((dd.seqs_ = bseq_realloc_read(chunk_size, &nseq, (void *)ks1, (void *)ks2, dd.seqs_, &cap)) && nseq) {
         LOG_INFO("Read %i seqs with chunk size %u\n", nseq, chunk_size);
         max_nseq = std::max(max_nseq, nseq);
         // Classify
