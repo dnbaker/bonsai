@@ -444,6 +444,10 @@ INLINE tax_t get_parent(const khash_t(p) *taxmap, tax_t key) noexcept {
                                                              : std::numeric_limits<tax_t>::max();
 }
 
+// Parent lookup shared by the classifier and reports: a khash_t(p), or (in
+// taxmap.h) a CompactTaxMap; tax_t(-1) when absent.
+inline tax_t tax_parent(const khash_t(p) *m, tax_t t) noexcept {return get_parent(m, t);}
+
 inline bool isfile(const char *path) noexcept {return access(path, F_OK) != -1;}
 inline bool isfile(const std::string &path) noexcept {return isfile(path.data());}
 
@@ -903,8 +907,9 @@ static void kset_union(khash_t(all) *a, khash_t(all) *b) noexcept {
  // return leaf of highest weighted leaf-to-root path.
  // Taken, modified from Kraken with new, faster containers.
 #if !NDEBUG
+template<typename Parents>
 static tax_t resolve_tree(const std::map<tax_t, tax_t> &hit_counts,
-                          const khash_t(p) *parent_map) noexcept
+                          const Parents &parent_map) noexcept
 {
   linear::set<tax_t> max_taxa;
   tax_t max_taxon(0), max_score(0);
@@ -918,7 +923,8 @@ static tax_t resolve_tree(const std::map<tax_t, tax_t> &hit_counts,
     while(node) {
         const auto hit = hit_counts.find(node);
         score += hit == hit_counts.end() ? 0: hit->second;
-        node = kh_val(parent_map, kh_get(p, parent_map, node));
+        node = tax_parent(parent_map, node);
+        if(node == tax_t(-1)) break;   // not in the taxonomy (khash: was a read past kh_end)
     }
     if(score > max_score) {
       max_taxa.clear();
@@ -940,8 +946,9 @@ static tax_t resolve_tree(const std::map<tax_t, tax_t> &hit_counts,
 }
 #endif
 
+template<typename Parents>
 static tax_t resolve_tree(const linear::counter<tax_t, u32> &hit_counts,
-                          const khash_t(p) *parent_map) noexcept
+                          const Parents &parent_map) noexcept
 {
   linear::set<tax_t> max_taxa;
   tax_t max_taxon(0), max_score(0);
@@ -952,7 +959,8 @@ static tax_t resolve_tree(const linear::counter<tax_t, u32> &hit_counts,
     // Instead of while node > 0
     while(node) {
         score += hit_counts.count(node);
-        node = kh_val(parent_map, kh_get(p, parent_map, node));
+        node = tax_parent(parent_map, node);
+        if(node == tax_t(-1)) break;   // not in the taxonomy (khash: was a read past kh_end)
     }
     // In C++20, we can use the spaceship operator!
     if(score > max_score) {

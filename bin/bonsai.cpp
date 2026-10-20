@@ -237,7 +237,8 @@ int classify_main(int argc, char *argv[]) {
         case 3:  LOG_DEBUG("Processing in single-end mode.\n"); break;
         case 4:  LOG_DEBUG("Processing in paired-end mode.\n"); break;
     }
-    khash_t(p) *taxmap(build_parent_map(argv[optind + 1]));
+    // Parent map on the sketch cht table (same parsing as build_parent_map).
+    const CompactTaxMap taxmap = build_compact_parent_map(argv[optind + 1]);
     const rank_map_t ranks = placement ? build_rank_map(argv[optind + 1]): rank_map_t{};
     if(placement && ranks.empty()) RUNTIME_ERROR(std::string("-I needs ranks (nodes.dmp third field) in ") + argv[optind + 1]);
     const rank_map_t *rp = placement ? &ranks: nullptr;
@@ -248,8 +249,6 @@ int classify_main(int argc, char *argv[]) {
         return it == report_ranks.end() ? uint8_t(RANK_UNKNOWN): it->second;
     };
     auto rank_name = [&](tax_t t) -> std::string {return report_ranks.empty() ? "-": profile_rank_name(rank_of(t));};
-    // Parent lookups for the -U report and -P profile (sketch cht table).
-    const CompactTaxMap ctaxmap = collect ? CompactTaxMap(taxmap): CompactTaxMap(1);
     unsigned db_k = 0;
     // Configure, classify, and (with -U) write the KrakenUniq-style report;
     // for_each_db_taxon(f) calls f(taxon) once per database k-mer (coverage).
@@ -270,12 +269,12 @@ int classify_main(int argc, char *argv[]) {
             if(endswith(header.name, ".bprof")) header.name.resize(header.name.size() - 6);
             header.k = db_k; header.canonical = canonicalize; header.has_ranks = !report_ranks.empty();
             header.fingerprint = db_fingerprint(db_kmers, db_k, canonicalize);
-            write_profile(profile_path, header, *c.uniq(), ctaxmap, db_kmers, rank_of);
+            write_profile(profile_path, header, *c.uniq(), taxmap, db_kmers, rank_of);
         }
         if(uniq_path.size()) {
             std::FILE *ufp = std::fopen(uniq_path.data(), "w");
             if(!ufp) RUNTIME_ERROR("could not open " + uniq_path);
-            write_uniq_report(ufp, *c.uniq(), ctaxmap, &db_kmers, rank_name, sketch_dir.size() ? &sketch_dir: nullptr, sketch_b);
+            write_uniq_report(ufp, *c.uniq(), taxmap, &db_kmers, rank_name, sketch_dir.size() ? &sketch_dir: nullptr, sketch_b);
             std::fclose(ufp);
         }
     };
@@ -301,7 +300,6 @@ int classify_main(int argc, char *argv[]) {
         });
     }
     if(ofp != stdout) std::fclose(ofp);
-    kh_destroy(p, taxmap);
     LOG_INFO("Successfully completed classify!\n");
     return EXIT_SUCCESS;
 }

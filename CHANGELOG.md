@@ -28,6 +28,13 @@
   output path or `-z` needs `-L` (compact databases are uncompressed); `-z` is now accepted
   (it was documented but missing from the option string). classify reads both formats.
 
+### Changed: classify's parent map on the sketch cht table
+- classify reads the taxonomy into `CompactTaxMap` (sketch cht; same parsing as
+  build_parent_map) instead of khash. The classifier, confidence walk-up, identity
+  placement, lineage evidence and tree resolution are generic over the parent map, and
+  regress_classify_modes checks khash and CompactTaxMap parents give identical output.
+- resolve_tree stops at a taxon missing from the taxonomy (it read past kh_end before).
+
 ### Changed (results change, -U)
 - A distinct-k-mer counter is exact iff it holds at most 512 distinct k-mers, else a sketch,
   whatever order hits arrived in (before, a taxon with 513 to ~1023 distinct k-mers could be

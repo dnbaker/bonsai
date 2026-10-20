@@ -43,10 +43,6 @@ inline uint64_t uniq_hash(u128 x) {return uniq_hash(uint64_t(x) ^ uniq_hash(uint
 
 enum class UniqSketch: uint8_t {HLL, BBMH};
 
-// Parent lookups for merge_up and the reports: a CompactTaxMap (sketch cht
-// table), or a khash_t(p) for older callers; tax_t(-1) when absent.
-inline tax_t tax_parent(const CompactTaxMap &m, tax_t t) {return m.parent(t);}
-inline tax_t tax_parent(const khash_t(p) *m, tax_t t) {return get_parent(m, t);}
 using uniq_bbmh_t = sketch::BBitMinHasher<uint64_t>;
 
 class UniqCounter {

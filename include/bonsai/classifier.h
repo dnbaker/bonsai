@@ -210,11 +210,12 @@ inline rank_map_t build_rank_map(const char *fn) {
 }
 // Walks `taxon` up until it reaches a node of known rank >= cap; unknown-rank
 // nodes are passed through. Stops at the root.
-inline tax_t cap_rank(tax_t taxon, uint8_t cap, const khash_t(p) *taxmap, const rank_map_t &ranks) {
+template<typename Parents>
+inline tax_t cap_rank(tax_t taxon, uint8_t cap, const Parents &taxmap, const rank_map_t &ranks) {
     for(unsigned guard = 0; taxon && guard < 4096; ++guard) {
         const auto it = ranks.find(taxon);
         if(it != ranks.end() && it->second != RANK_UNKNOWN && it->second >= cap) return taxon;
-        const tax_t p = get_parent(taxmap, taxon);
+        const tax_t p = tax_parent(taxmap, taxon);
         if(p == tax_t(-1) || p == 0) return taxon;
         taxon = p;
     }
@@ -386,10 +387,10 @@ struct LookupScratch {
 };
 
 namespace {
-template<typename C>
+template<typename C, typename Parents>
 struct kt_data {
     const C &c_;
-    const khash_t(p) *taxmap;
+    const Parents &taxmap;
     bseq1_t *bs_;
     const unsigned per_set_;
     const unsigned total_;
@@ -401,13 +402,14 @@ struct kt_data {
 // Kraken2's confidence rule: from the call, walk up until the clade rooted at
 // the current node holds >= confidence * total of the read's non-ambiguous
 // k-mers (hits + misses); returns 0 (unclassified) if even the root falls short.
-inline tax_t confident_ancestor(tax_t taxon, const tax_counter &hit_counts, const khash_t(p) *taxmap,
+template<typename Parents>
+inline tax_t confident_ancestor(tax_t taxon, const tax_counter &hit_counts, const Parents &taxmap,
                                 double total, double confidence) {
     const double need = confidence * total;
     auto in_clade = [&](tax_t t, tax_t root) {
         for(unsigned guard = 0; t && guard < 4096; ++guard) {
             if(t == root) return true;
-            t = get_parent(taxmap, t);
+            t = tax_parent(taxmap, t);
             if(t == tax_t(-1)) return false;
         }
         return false;
@@ -417,7 +419,7 @@ inline tax_t confident_ancestor(tax_t taxon, const tax_counter &hit_counts, cons
         for(unsigned i = 0; i < hit_counts.size(); ++i)
             if(in_clade(hit_counts.keys()[i], taxon)) clade += hit_counts.vals()[i];
         if(clade >= need) return taxon;
-        const tax_t p = get_parent(taxmap, taxon);
+        const tax_t p = tax_parent(taxmap, taxon);
         taxon = (p == tax_t(-1)) ? 0: p;
     }
     return 0;
@@ -458,11 +460,12 @@ inline double expected_intact_windows(const char *seq, const char *qual, size_t 
 
 // Relation of hit taxon t to call x: 0 exact, 1 strict ancestor of x,
 // 2 strict descendant of x, 3 unrelated (conflicting).
-inline int lineage_relation(tax_t t, tax_t x, const khash_t(p) *taxmap) {
+template<typename Parents>
+inline int lineage_relation(tax_t t, tax_t x, const Parents &taxmap) {
     if(t == x) return 0;
     auto descends = [&](tax_t a, tax_t root) {
         for(unsigned guard = 0; a && guard < 4096; ++guard) {
-            a = get_parent(taxmap, a);
+            a = tax_parent(taxmap, a);
             if(a == tax_t(-1)) return false;
             if(a == root) return true;
         }
@@ -472,7 +475,8 @@ inline int lineage_relation(tax_t t, tax_t x, const khash_t(p) *taxmap) {
     if(descends(x, t)) return 1;
     return 3;
 }
-inline void lineage_evidence(tax_t call, const tax_counter &hit_counts, const khash_t(p) *taxmap, ReadEvidence &ev) {
+template<typename Parents>
+inline void lineage_evidence(tax_t call, const tax_counter &hit_counts, const Parents &taxmap, ReadEvidence &ev) {
     ev.exact = ev.ancestor = ev.descendant = ev.conflict = 0;
     if(!call) {
         for(unsigned i = 0; i < hit_counts.size(); ++i) ev.conflict += hit_counts.vals()[i];
@@ -488,10 +492,10 @@ inline void lineage_evidence(tax_t call, const tax_counter &hit_counts, const kh
         }
     }
 }
-template<typename ScoreType, typename DB>
+template<typename ScoreType, typename DB, typename Parents>
 unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
                       typename ClassifierGeneric<ScoreType, DB>::keys_type &enc,
-                      const khash_t(p) *taxmap, bseq1_t *bs, const int is_paired, std::vector<tax_t> &taxa,
+                      const Parents &taxmap, bseq1_t *bs, const int is_paired, std::vector<tax_t> &taxa,
                       LookupScratch<typename ClassifierGeneric<ScoreType, DB>::key_type> &scratch,
                       UniqBatch *acc = nullptr) {
     LOG_DEBUG("starting classify_seq with bs at pointer = %p\n", static_cast<const void*>(bs));
@@ -609,9 +613,9 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
 }
 
 
-template<typename C>
+template<typename C, typename Parents>
 inline void kt_for_helper(void *data_, long index, int tid) {
-    kt_data<C> *data((kt_data<C> *)data_);
+    kt_data<C, Parents> *data((kt_data<C, Parents> *)data_);
     size_t retstr_size(0);
     const int inc(!!data->is_paired_ + 1);
     typename C::keys_type enc(data->c_.enc_);
@@ -628,14 +632,14 @@ inline void kt_for_helper(void *data_, long index, int tid) {
 
 using Classifier = ClassifierGeneric<score::Lex>;
 
-template<typename C>
-inline void classify_seqs(const C &c, const khash_t(p) *taxmap, bseq1_t *bs,
+template<typename C, typename Parents>
+inline void classify_seqs(const C &c, const Parents &taxmap, bseq1_t *bs,
                           ks::string &cks, const unsigned chunk_size, const unsigned per_set, const int is_paired, ForPool &pool) {
     assert(per_set && ((per_set & (per_set - 1)) == 0));
 
     std::atomic<u64> retstr_size(0);
-    kt_data<C> data{c, taxmap, bs, per_set, chunk_size, retstr_size, is_paired};
-    pool.forpool(&kt_for_helper<C>, (void *)&data, chunk_size / per_set + 1);
+    kt_data<C, Parents> data{c, taxmap, bs, per_set, chunk_size, retstr_size, is_paired};
+    pool.forpool(&kt_for_helper<C, Parents>, (void *)&data, chunk_size / per_set + 1);
     cks.resize(retstr_size.load());
     const int inc((is_paired != 0) + 1);
 #if !NDEBUG
@@ -656,8 +660,9 @@ struct del_data {
 };
 
 
-template<typename C>
-inline void process_dataset(const C &c, const khash_t(p) *taxmap, const char *fq1, const char *fq2,
+// taxmap: a CompactTaxMap (bonsai classify) or a khash_t(p) *, identical calls.
+template<typename C, typename Parents>
+inline void process_dataset(const C &c, const Parents &taxmap, const char *fq1, const char *fq2,
                             std::FILE *out, unsigned chunk_size,
                             unsigned per_set) {
     // TODO: consider reusing buffers for processing large numbers of files.

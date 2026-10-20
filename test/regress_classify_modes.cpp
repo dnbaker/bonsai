@@ -67,8 +67,8 @@ std::map<std::string, Call> parse(const std::string &out) {
     }
     return ret;
 }
-template<typename CL>
-std::string run(const CL &cl, const khash_t(p) *taxmap, const std::string &fq1, const char *fq2 = nullptr) {
+template<typename CL, typename Parents>
+std::string run(const CL &cl, const Parents &taxmap, const std::string &fq1, const char *fq2 = nullptr) {
     std::FILE *o = std::tmpfile();
     process_dataset(cl, taxmap, fq1.data(), fq2, o, 1 << 16, 8);
     const std::string out = slurp(o);
@@ -94,7 +94,9 @@ rank_map_t tree_ranks() {
 } // namespace
 
 TEST_CASE("lineage relation, evidence and confidence walk-up on a fixed tree") {
-    khash_t(p) *tm = tree(TREE);
+    khash_t(p) *kt = tree(TREE);
+    const CompactTaxMap ct(kt);
+    auto check = [](const auto &tm) {
     REQUIRE(lineage_relation(562, 562, tm) == 0);
     REQUIRE(lineage_relation(561, 562, tm) == 1);
     REQUIRE(lineage_relation(1, 562, tm) == 1);
@@ -117,7 +119,10 @@ TEST_CASE("lineage relation, evidence and confidence walk-up on a fixed tree") {
     REQUIRE(confident_ancestor(9, hits, tm, 14., 1.0) == 543);    // hits-only denominator
     REQUIRE(confident_ancestor(9, hits, tm, 14.5, 0.96) == 543);  // fractional (quality-aware) total: 13.92 <= 14
     REQUIRE(confident_ancestor(9, hits, tm, 14.5, 0.99) == 0);    // 14.355 > 14
-    kh_destroy(p, tm);
+    };
+    check(kt);   // khash_t(p)
+    check(ct);   // CompactTaxMap: the same answers
+    kh_destroy(p, kt);
 }
 
 TEST_CASE("expected_intact_windows: lowercase and RNA bases are valid") {
@@ -165,9 +170,13 @@ TEST_CASE("identity-capped placement end to end (khash and compact; FASTQ, FASTA
     }
     ClassifierGeneric<score::Lex> ck(db, spvec_t{}, k, k, 2, true, false, true, true);
     ClassifierGeneric<score::Lex, CompactKmerMap> cc(&cm, spvec_t{}, k, k, 2, true, false, true, true);
+    // khash and compact databases, each with khash and CompactTaxMap parents: identical output
+    const CompactTaxMap ctm(tm);
     auto both = [&](const std::string &in, const char *in2 = nullptr) {
         const std::string a = run(ck, tm, in, in2), b = run(cc, tm, in, in2);
         REQUIRE(a == b);
+        REQUIRE(run(ck, ctm, in, in2) == a);
+        REQUIRE(run(cc, ctm, in, in2) == a);
         return parse(a);
     };
     ck.set_emit_evidence(true); cc.set_emit_evidence(true);
@@ -198,6 +207,10 @@ TEST_CASE("identity-capped placement end to end (khash and compact; FASTQ, FASTA
         REQUIRE(strict.at("d0_" + std::to_string(r)).taxon == 543);
         REQUIRE(strict.at("d1_" + std::to_string(r)).taxon == 100);
     }
+    // confidence walk-up (-x, -X) under both parent maps
+    ck.set_identity_placement(nullptr); cc.set_identity_placement(nullptr);
+    ck.set_confidence(0.6); cc.set_confidence(0.6); ck.set_confidence_hi(0.9); cc.set_confidence_hi(0.9);
+    both(fq);
     REQUIRE_THROWS(ck.set_identity_placement(&ranks, 0.8, 0.9));
     REQUIRE_THROWS(ck.set_identity_placement(&ranks, 1.1, 0.9));
     kh_destroy(c, db);

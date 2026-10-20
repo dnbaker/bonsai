@@ -198,6 +198,8 @@ private:
 };
 
 // Bytes khash_t(p) holds for its buckets (keys + vals + flags), for comparison.
+inline tax_t tax_parent(const CompactTaxMap &m, tax_t t) noexcept {return m.parent(t);}
+
 inline size_t khash_bytes(const khash_t(p) *map) {
     return size_t(map->n_buckets) * (sizeof(*map->keys) + sizeof(*map->vals))
          + __ac_fsize(map->n_buckets) * sizeof(khint32_t);
