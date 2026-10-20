@@ -147,6 +147,23 @@ int main(int argc, char **argv) {
                 const std::string *gs[] = {&g2, &g3, &g4a};
                 for(unsigned r = 0; r < nr; ++r) reads.push_back(gs[r % 3]->substr(rng() % (gs[r % 3]->size() - L), L));
                 write_fq(fq, reads);
+                {   // cost of the KrakenUniq-style counters (-U), pooled
+                    ClassifierGeneric<score::Lex> cu(db, spvec_t{}, k, k, 1, true, false, true, true);
+                    cu.enable_uniq();
+                    classify(cl, taxmap, fq); classify(cu, taxmap, fq);   // warm
+                    double tp = 0., tu = 0.;
+                    for(int rep = 0; rep < 3; ++rep) {
+                        set_mode(cl, MODES[0]);
+                        auto t0 = std::chrono::steady_clock::now();
+                        classify(cl, taxmap, fq);
+                        tp += std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+                        t0 = std::chrono::steady_clock::now();
+                        classify(cu, taxmap, fq);
+                        tu += std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+                    }
+                    std::fprintf(stderr, "[sweep] -U cost read_bp=%u: %.3f s plain vs %.3f s with counters (+%.1f%%)\n",
+                                 L, tp / 3, tu / 3, 100. * (tu - tp) / tp);
+                }
                 for(const Mode &m: MODES) {
                     set_mode(cl, m);
                     classify(cl, taxmap, fq);   // warm

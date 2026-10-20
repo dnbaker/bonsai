@@ -6,6 +6,7 @@
 // [Morganellaceae]; Yersinia, Serratia [Yersiniaceae]; Vibrio, Pseudomonas
 // [other Gammaproteobacteria]), with NCBI lineages. Holdouts (reads from all
 // five E. coli strains):
+//   none:           full database; truth E. coli 562 (a strain call is "below")
 //   escherichia:    Escherichia removed; truth Enterobacteriaceae 543 (a Shigella call
 //                   is "below": wrong genus by taxonomy, though Shigella is nested in E. coli)
 //   esch+shigella:  Escherichia and Shigella removed; truth 543
@@ -15,9 +16,10 @@
 // 150 bp error-free; 2/5/10 kb "hifi" (0.5% subs) and "ont" (3% subs,
 // 1% ins, 1% del). Call C vs truth T: exact, below (strict descendant of T:
 // a wrong genus/family), above (strict ancestor), wrong (unrelated), unclassified.
-// Usage: real_crossfamily <bonsai test dir> [reads=300] [seed=13] > out.csv
+// Usage: real_crossfamily <bonsai test dir> [reads=300] [seed=13] [identity_dump.csv] > out.csv
 #include "classifier.h"
 
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstring>
@@ -63,7 +65,8 @@ const std::pair<tax_t, tax_t> PARENTS[] = {
     {135623, 1236}, {641, 135623}, {662, 641}, {666, 662},
     {72274, 1236}, {135621, 72274}, {286, 135621}, {287, 286},
 };
-struct Mode {const char *name; double conf; bool hits_only, quality;};
+const std::pair<tax_t, uint8_t> RANKS[] = {{2, RANK_DOMAIN}, {1224, RANK_PHYLUM}, {1236, RANK_CLASS}, {91347, RANK_ORDER}, {543, RANK_FAMILY}, {561, RANK_GENUS}, {562, RANK_SPECIES}, {620, RANK_GENUS}, {623, RANK_SPECIES}, {590, RANK_GENUS}, {28901, RANK_SPECIES}, {59201, RANK_BELOW_SPECIES}, {90371, RANK_BELOW_SPECIES}, {588858, RANK_BELOW_SPECIES}, {570, RANK_GENUS}, {573, RANK_SPECIES}, {544, RANK_GENUS}, {545, RANK_SPECIES}, {547, RANK_GENUS}, {550, RANK_SPECIES}, {1903414, RANK_FAMILY}, {583, RANK_GENUS}, {584, RANK_SPECIES}, {581, RANK_GENUS}, {582, RANK_SPECIES}, {1903411, RANK_FAMILY}, {629, RANK_GENUS}, {632, RANK_SPECIES}, {613, RANK_GENUS}, {615, RANK_SPECIES}, {83333, RANK_BELOW_SPECIES}, {511145, RANK_BELOW_SPECIES}, {316407, RANK_BELOW_SPECIES}, {469008, RANK_BELOW_SPECIES}, {199310, RANK_BELOW_SPECIES}, {386585, RANK_BELOW_SPECIES}, {135623, RANK_ORDER}, {641, RANK_FAMILY}, {662, RANK_GENUS}, {666, RANK_SPECIES}, {72274, RANK_ORDER}, {135621, RANK_FAMILY}, {286, RANK_GENUS}, {287, RANK_SPECIES}};
+struct Mode {const char *name; double conf; bool hits_only, quality, place = false;};
 const Mode MODES[] = {
     {"pooled", 0., false, false},
     {"conf0.3", 0.3, false, false},
@@ -72,7 +75,9 @@ const Mode MODES[] = {
     {"hits0.9", 0.9, true, false},
     {"qual0.3", 0.3, false, true},
     {"qual0.5", 0.5, false, true},
-    {"qual0.7", 0.7, false, true},
+    {"place", 0., false, false, true},
+    {"hits0.5+place", 0.5, true, false, true},
+    {"hits0.7+place", 0.7, true, false, true},
 };
 
 std::vector<std::string> read_fasta_gz(const std::string &path) {
@@ -123,13 +128,20 @@ int main(int argc, char **argv) {
     khash_t(p) *taxmap(kh_init(p));
     int khr;
     for(const auto &pc: PARENTS) {const khint_t ki = kh_put(p, taxmap, pc.first, &khr); kh_val(taxmap, ki) = pc.second;}
+    rank_map_t ranks;
+    for(const auto &r: RANKS) ranks[r.first] = r.second;
     std::vector<std::vector<std::string>> seqs;
     for(const auto &g: GENOMES) seqs.push_back(read_fasta_gz(dir + "/" + g.file));
     char tmpl[] = "/tmp/bns_xfam_XXXXXX";
     const std::string fq = std::string(mkdtemp(tmpl)) + "/r.fq";
     std::printf("holdout,read_bp,errors,mode,reads,exact,below,above,wrong,unclassified\n");
+    // Optional per-read identity dump (argv[4]): holdout,read_bp,errors,read,call,hits,expected,len
+    std::FILE *dump = argc > 4 ? std::fopen(argv[4], "w"): nullptr;
+    if(dump) std::fprintf(dump, "holdout,read_bp,errors,read,call,hits,expected,len\n");
+    std::map<unsigned, std::pair<double, size_t>> expected;
     struct Holdout {const char *name; std::vector<const char *> removed; tax_t truth;};
     const Holdout HOLDOUTS[] = {
+        {"none", {}, 562},
         {"escherichia", {"escherichia"}, 543},
         {"esch+shigella", {"escherichia", "shigella"}, 543},
         {"enterobacteriaceae", {"escherichia", "shigella", "entero"}, 91347},
@@ -179,12 +191,36 @@ int main(int argc, char **argv) {
                     // constant Phred quality matching the simulated per-base error rate (Q40 when error-free)
                     const double perr = cd.sub + cd.ins + cd.del;
                     const int q = perr > 0 ? std::min(40, int(std::lround(-10 * std::log10(perr)))): 40;
-                    std::fprintf(a, "@r%u\n%s\n+\n%s\n", r++, s.data(), std::string(s.size(), char(33 + q)).data());
+                    const std::string qs(s.size(), char(33 + q));
+                    expected[r] = {expected_intact_windows(s.data(), qs.data(), s.size(), k), s.size()};
+                    std::fprintf(a, "@r%u\n%s\n+\n%s\n", r++, s.data(), qs.data());
                 }
                 std::fclose(a);
             }
+            if(dump) {   // identity dump: pooled call, total hits, expected error-free windows
+                cl.set_confidence(0.); cl.set_confidence_hits_only(false); cl.set_confidence_quality(false); cl.set_identity_placement(nullptr);
+                std::FILE *o = std::tmpfile();
+                process_dataset(cl, taxmap, fq.data(), nullptr, o, 1 << 14, 32);
+                std::fflush(o); std::rewind(o);
+                static char line[1 << 22];
+                while(std::fgets(line, sizeof(line), o)) {
+                    std::istringstream ls(line);
+                    std::string cu, name, tok;
+                    tax_t t = 0;
+                    unsigned len, hits = 0;
+                    ls >> cu >> name >> t >> len;
+                    while(ls >> tok) {
+                        const auto c = tok.find(':');
+                        if(c == std::string::npos || !std::isdigit((unsigned char)tok[0])) continue;
+                        if(std::strtoul(tok.data(), nullptr, 10)) hits += std::strtoul(tok.data() + c + 1, nullptr, 10);
+                    }
+                    const auto &ex = expected.at(std::strtoul(name.data() + 1, nullptr, 10));
+                    std::fprintf(dump, "%s,%u,%s,%s,%u,%u,%.2f,%zu\n", ho.name, cd.L, cd.name, name.data(), t, hits, ex.first, ex.second);
+                }
+                std::fclose(o);
+            }
             for(const Mode &m: MODES) {
-                cl.set_confidence(m.conf); cl.set_confidence_hits_only(m.hits_only); cl.set_confidence_quality(m.quality);
+                cl.set_confidence(m.conf); cl.set_confidence_hits_only(m.hits_only); cl.set_confidence_quality(m.quality); cl.set_identity_placement(m.place ? &ranks: nullptr);
                 std::FILE *o = std::tmpfile();
                 process_dataset(cl, taxmap, fq.data(), nullptr, o, 1 << 14, 32);
                 std::fflush(o); std::rewind(o);
@@ -209,5 +245,6 @@ int main(int argc, char **argv) {
         }
         kh_destroy(c, db);
     }
+    if(dump) std::fclose(dump);
     kh_destroy(p, taxmap);
 }

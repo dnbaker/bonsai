@@ -2,12 +2,15 @@
 #include <array>
 #include <atomic>
 #include <cmath>
+#include <fstream>
+#include <unordered_map>
 #include "kspp/ks.h"
 #include "encoder.h"
 #include "feature_min.h"
 #include "kmermap.h"
 #include "klib/kthread.h"
 #include "util.h"
+#include "uniq.h"
 
 namespace bns {
 using tax_counter = linear::counter<tax_t, u32>; // u32: long reads exceed 65535 hits
@@ -78,9 +81,10 @@ INLINE void append_counts(u32 count, const char character, ks::string &ks) {
 struct ReadEvidence {
     u32 exact = 0, ancestor = 0, descendant = 0, conflict = 0;
     tax_t hi = 0;
+    double identity = -1.;   // estimated identity to the database (I:), < 0: not computed
     bool emit_lineage = false, emit_hi = false;
 };
-// Fields, tab-terminated like M:/A:: E:exact,ancestor,descendant,conflict H:taxon
+// Fields, tab-terminated like M:/A:: E:exact,ancestor,descendant,conflict I:identity H:taxon
 INLINE void append_evidence(const ReadEvidence *ev, ks::string &ks) {
     if(!ev) return;
     if(ev->emit_lineage) {
@@ -89,6 +93,11 @@ INLINE void append_evidence(const ReadEvidence *ev, ks::string &ks) {
         ks.putuw_(ev->ancestor); ks.putc_(',');
         ks.putuw_(ev->descendant); ks.putc_(',');
         ks.putuw_(ev->conflict); ks.putc_('\t');
+        if(ev->identity >= 0.) {
+            char buf[16];
+            const int n = std::snprintf(buf, sizeof(buf), "I:%.4f\t", ev->identity);
+            ks.putsn_(buf, n);
+        }
     }
     if(ev->emit_hi) {
         ks.putsn_("H:", 2);
@@ -159,6 +168,59 @@ inline void append_kraken_classification(const tax_counter &,
     bks.terminate();
 }
 
+// Taxonomic rank levels for identity-capped placement. 0: below species
+// (strain, subspecies, serotype, ...), RANK_UNKNOWN: "no rank"/clade/absent.
+enum: uint8_t {RANK_BELOW_SPECIES = 0, RANK_SPECIES = 1, RANK_GENUS = 2, RANK_FAMILY = 3, RANK_ORDER = 4,
+               RANK_CLASS = 5, RANK_PHYLUM = 6, RANK_KINGDOM = 7, RANK_DOMAIN = 8, RANK_UNKNOWN = 255};
+inline uint8_t rank_level(const std::string &r) {
+    static const std::unordered_map<std::string, uint8_t> m {
+        {"strain", RANK_BELOW_SPECIES}, {"subspecies", RANK_BELOW_SPECIES}, {"serotype", RANK_BELOW_SPECIES},
+        {"serogroup", RANK_BELOW_SPECIES}, {"biotype", RANK_BELOW_SPECIES}, {"forma specialis", RANK_BELOW_SPECIES},
+        {"varietas", RANK_BELOW_SPECIES}, {"isolate", RANK_BELOW_SPECIES}, {"genotype", RANK_BELOW_SPECIES},
+        {"species", RANK_SPECIES}, {"species subgroup", RANK_SPECIES}, {"species group", RANK_SPECIES},
+        {"subgenus", RANK_GENUS}, {"genus", RANK_GENUS}, {"subtribe", RANK_GENUS}, {"tribe", RANK_GENUS},
+        {"subfamily", RANK_FAMILY}, {"family", RANK_FAMILY}, {"superfamily", RANK_FAMILY},
+        {"suborder", RANK_ORDER}, {"order", RANK_ORDER}, {"superorder", RANK_ORDER},
+        {"subclass", RANK_CLASS}, {"class", RANK_CLASS}, {"superclass", RANK_CLASS},
+        {"subphylum", RANK_PHYLUM}, {"phylum", RANK_PHYLUM},
+        {"kingdom", RANK_KINGDOM}, {"superkingdom", RANK_DOMAIN}, {"domain", RANK_DOMAIN}, {"realm", RANK_DOMAIN},
+    };
+    const auto it = m.find(r);
+    return it == m.end() ? uint8_t(RANK_UNKNOWN): it->second;
+}
+using rank_map_t = std::unordered_map<tax_t, uint8_t>;
+// Ranks from the third field of an NCBI nodes.dmp-style file
+// ("id\t|\tparent\t|\trank\t|"); files without one give an empty map.
+inline rank_map_t build_rank_map(const char *fn) {
+    rank_map_t ret;
+    std::ifstream is(fn);
+    std::string line;
+    while(std::getline(is, line)) {
+        const size_t a = line.find('|');
+        if(a == std::string::npos) continue;
+        const size_t b = line.find('|', a + 1);
+        if(b == std::string::npos) continue;
+        const size_t c = line.find('|', b + 1);
+        std::string r = line.substr(b + 1, (c == std::string::npos ? line.size(): c) - b - 1);
+        const size_t f = r.find_first_not_of(" \t"), l = r.find_last_not_of(" \t");
+        r = f == std::string::npos ? std::string(): r.substr(f, l - f + 1);
+        ret[tax_t(std::strtoul(line.data(), nullptr, 10))] = rank_level(r);
+    }
+    return ret;
+}
+// Walks `taxon` up until it reaches a node of known rank >= cap; unknown-rank
+// nodes are passed through. Stops at the root.
+inline tax_t cap_rank(tax_t taxon, uint8_t cap, const khash_t(p) *taxmap, const rank_map_t &ranks) {
+    for(unsigned guard = 0; taxon && guard < 4096; ++guard) {
+        const auto it = ranks.find(taxon);
+        if(it != ranks.end() && it->second != RANK_UNKNOWN && it->second >= cap) return taxon;
+        const tax_t p = get_parent(taxmap, taxon);
+        if(p == tax_t(-1) || p == 0) return taxon;
+        taxon = p;
+    }
+    return taxon;
+}
+
 // DB: khash_t(c) (the original k-mer -> taxon hash) or a compact map
 // (kmermap.h: CompactKmerMap with up-to-64-bit keys, CompactKmerMap128 with
 // wider ones; looked up in per-read batches). khash and CompactKmerMap
@@ -201,7 +263,33 @@ struct ClassifierGeneric {
     bool emit_evidence_ = false;
     bool confidence_hits_only_ = false;
     bool confidence_quality_ = false;
+    // Identity-capped placement (ranks_ set): the read's identity to the
+    // database is estimated Mash-style from its hits over the expected
+    // error-free k-mers, (hits / expected)^(1/k) (expected from base qualities
+    // when present, else hits + misses); below species_identity_ the call may be
+    // no more specific than a family, below family_identity_ no more specific
+    // than an order. Reads from a taxon missing from the database are placed
+    // at the deepest rank their divergence supports instead of in a relative's
+    // clade (or left unclassified). Defaults calibrated on held-out E. coli
+    // reads simulated from real genomes (bench/real_crossfamily): database
+    // species >= 0.994 (5th percentile), genus missing ~0.88, family missing
+    // ~0.83 (medians).
+    const rank_map_t *ranks_ = nullptr;
+    double species_identity_ = 0.95, family_identity_ = 0.85;
+    // uniq_: KrakenUniq-style per-taxon k-mer counters (uniq.h), one per
+    // classification thread; null (the default) collects nothing.
+    std::shared_ptr<std::vector<UniqAccumulator>> uniq_;
     public:
+    void enable_uniq(unsigned hll_p = 12) {
+        uniq_ = std::make_shared<std::vector<UniqAccumulator>>(std::max<unsigned>(1, nt_));
+        for(auto &a: *uniq_) a.p = hll_p;
+    }
+    std::vector<UniqAccumulator> *uniq() const {return uniq_.get();}
+    void set_identity_placement(const rank_map_t *ranks, double species_identity = 0.95, double family_identity = 0.85) {
+        if(!(family_identity <= species_identity && species_identity <= 1. && family_identity >= 0.))
+            RUNTIME_ERROR("identity thresholds must satisfy 0 <= family <= species <= 1");
+        ranks_ = ranks; species_identity_ = species_identity; family_identity_ = family_identity;
+    }
     void set_confidence(double c) {
         if(!(c >= 0. && c <= 1.)) RUNTIME_ERROR("confidence must lie in [0, 1]");
         confidence_ = c;
@@ -290,6 +378,7 @@ using Classifier = ClassifierGeneric<score::Lex>;
 template<typename KeyT = u64>
 struct LookupScratch {
     std::vector<KeyT> hits;          // distinct-hit counting (min_hit_groups)
+    std::vector<KeyT> hitkeys;       // key of each hit, parallel to the read's taxa (uniq counting)
     std::vector<KeyT> uniq;          // consecutive-deduplicated keys of a mate
     std::vector<uint32_t> runs;      // run length of each uniq key
     std::vector<KeyT> kmers;
@@ -404,7 +493,8 @@ template<typename ScoreType, typename DB>
 unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
                       typename ClassifierGeneric<ScoreType, DB>::keys_type &enc,
                       const khash_t(p) *taxmap, bseq1_t *bs, const int is_paired, std::vector<tax_t> &taxa,
-                      LookupScratch<typename ClassifierGeneric<ScoreType, DB>::key_type> &scratch) {
+                      LookupScratch<typename ClassifierGeneric<ScoreType, DB>::key_type> &scratch,
+                      UniqAccumulator *acc = nullptr) {
     LOG_DEBUG("starting classify_seq with bs at pointer = %p\n", static_cast<const void*>(bs));
     khiter_t ki;
     tax_counter hit_counts;
@@ -435,6 +525,7 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
                 if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count;
                 else {
                     taxa.push_back(kh_val(c.db_, ki)), hit_counts.add(kh_val(c.db_, ki));
+                    if(acc) scratch.hitkeys.push_back(kmer);
                     if(c.min_hit_groups_) scratch.hits.push_back(kmer);
                 }
             };
@@ -456,11 +547,13 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
                 const tax_t t = scratch.taxa[i];
                 if(t == DB::NOT_FOUND) {missing_count += scratch.runs[i]; continue;}
                 for(uint32_t r = 0; r < scratch.runs[i]; ++r) taxa.push_back(t), hit_counts.add(t);
+                if(acc) scratch.hitkeys.insert(scratch.hitkeys.end(), scratch.runs[i], scratch.uniq[i]);
                 if(c.min_hit_groups_) scratch.hits.push_back(scratch.uniq[i]);
             }
         }
     };
     scratch.hits.clear();
+    scratch.hitkeys.clear();
     process(bs->seq, bs->l_seq);
     unsigned ambig_count(count_ambig(bs->l_seq, 0));
     if(is_paired) {
@@ -481,12 +574,33 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
         if(is_paired && (bs + 1)->qual) total += expected_intact_windows((bs + 1)->seq, (bs + 1)->qual, (bs + 1)->l_seq, enc.span());
     }
     if(taxon && c.confidence_ > 0.) taxon = confident_ancestor(taxon, hit_counts, taxmap, total, c.confidence_);
+    ReadEvidence ev;
+    if(!enc.translated() && (c.ranks_ || c.emit_evidence_)) {
+        double expected = double(taxa.size() + missing_count);
+        if(bs->qual) {
+            expected = expected_intact_windows(bs->seq, bs->qual, bs->l_seq, enc.span());
+            if(is_paired && (bs + 1)->qual) expected += expected_intact_windows((bs + 1)->seq, (bs + 1)->qual, (bs + 1)->l_seq, enc.span());
+        }
+        const double ratio = expected > 0. ? std::min(1., double(taxa.size()) / expected): 0.;
+        ev.identity = ratio > 0. ? std::pow(ratio, 1. / double(enc.k())): 0.;
+        if(taxon && c.ranks_ && ev.identity < c.species_identity_)
+            taxon = cap_rank(taxon, ev.identity < c.family_identity_ ? RANK_ORDER: RANK_FAMILY, taxmap, *c.ranks_);
+    }
     // Two calls: the call above and its stricter confidence_hi_ walk-up
     // (an ancestor-or-self, or unclassified).
-    ReadEvidence ev;
     if((ev.emit_hi = c.confidence_hi_ > 0.) && taxon) ev.hi = confident_ancestor(taxon, hit_counts, taxmap, total, c.confidence_hi_);
     if((ev.emit_lineage = c.emit_evidence_)) lineage_evidence(taxon, hit_counts, taxmap, ev);
     ++c.classified_[!taxon];
+    if(acc) {   // hits to the taxon each k-mer maps to; the read to its call (0: unclassified)
+        TaxonTally *cur = nullptr;
+        tax_t last = 0;
+        for(size_t i = 0; i < taxa.size(); ++i) {
+            if(!cur || taxa[i] != last) cur = &acc->at(last = taxa[i]);
+            ++cur->kmers;
+            cur->uniq.add(uniq_hash(scratch.hitkeys[i]));
+        }
+        ++acc->at(taxon).reads;
+    }
     if(c.get_emit_all() || taxon) {
         switch(c.output_flag_) {
             case EMIT_ALL | FASTQ | KRAKEN: case FASTQ | KRAKEN: case FASTQ: case EMIT_ALL | FASTQ:
@@ -503,16 +617,17 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
 
 
 template<typename C>
-inline void kt_for_helper(void *data_, long index, int) {
+inline void kt_for_helper(void *data_, long index, int tid) {
     kt_data<C> *data((kt_data<C> *)data_);
     size_t retstr_size(0);
     const int inc(!!data->is_paired_ + 1);
     typename C::keys_type enc(data->c_.enc_);
     std::vector<tax_t> taxa;
     LookupScratch<typename C::key_type> scratch;
+    UniqAccumulator *acc = data->c_.uniq() ? &(*data->c_.uniq())[tid]: nullptr;
     // Each task covers [per_set * index, per_set * (index + 1)); the previous
     // (per_set + 1) * index bound left task 0 empty and dropped records.
-    for(unsigned i(index * data->per_set_); i < std::min(data->per_set_ * (static_cast<unsigned>(index) + 1), data->total_); retstr_size += classify_seq(data->c_, enc, data->taxmap, data->bs_ + i, data->is_paired_, taxa, scratch), i += inc);
+    for(unsigned i(index * data->per_set_); i < std::min(data->per_set_ * (static_cast<unsigned>(index) + 1), data->total_); retstr_size += classify_seq(data->c_, enc, data->taxmap, data->bs_ + i, data->is_paired_, taxa, scratch, acc), i += inc);
     data->retstr_size_ += retstr_size;
 }
 

@@ -1285,6 +1285,7 @@ public:
     unsigned hash_bits() const {return hash_bits_;}
     const Spacer &spacer() const {return sp_;}
     unsigned span() const {return sp_.c_;}   // positions one key covers
+    unsigned k() const {return sp_.k_;}      // k-mer length (letters per key)
     // keys of one sequence (residues in the key alphabet, or nucleotides
     // to translate when translated())
     template<typename Functor>

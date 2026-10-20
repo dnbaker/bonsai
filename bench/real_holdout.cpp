@@ -50,7 +50,8 @@ const std::pair<tax_t, tax_t> PARENTS[] = {
     {900001, 2162}, {900002, 2162}, {900003, 2162},
     {183963, 28890}, {2235, 183963}, {367188, 2235}, {900004, 367188},
 };
-struct Mode {const char *name; double conf; bool hits_only, quality;};
+const std::pair<tax_t, uint8_t> RANKS[] = {{2, RANK_DOMAIN}, {1224, RANK_PHYLUM}, {1236, RANK_CLASS}, {91347, RANK_ORDER}, {543, RANK_FAMILY}, {561, RANK_GENUS}, {562, RANK_SPECIES}, {83333, RANK_BELOW_SPECIES}, {511145, RANK_BELOW_SPECIES}, {316407, RANK_BELOW_SPECIES}, {469008, RANK_BELOW_SPECIES}, {199310, RANK_BELOW_SPECIES}, {386585, RANK_BELOW_SPECIES}, {2157, RANK_DOMAIN}, {28890, RANK_PHYLUM}, {183925, RANK_CLASS}, {2158, RANK_ORDER}, {2159, RANK_FAMILY}, {2160, RANK_GENUS}, {2162, RANK_SPECIES}, {900001, RANK_BELOW_SPECIES}, {900002, RANK_BELOW_SPECIES}, {900003, RANK_BELOW_SPECIES}, {183963, RANK_CLASS}, {2235, RANK_ORDER}, {367188, RANK_GENUS}, {900004, RANK_SPECIES}};
+struct Mode {const char *name; double conf; bool hits_only, quality, place = false;};
 const Mode MODES[] = {
     {"pooled", 0., false, false},
     {"conf0.3", 0.3, false, false},
@@ -59,7 +60,9 @@ const Mode MODES[] = {
     {"hits0.9", 0.9, true, false},
     {"qual0.3", 0.3, false, true},
     {"qual0.5", 0.5, false, true},
-    {"qual0.7", 0.7, false, true},
+    {"place", 0., false, false, true},
+    {"hits0.5+place", 0.5, true, false, true},
+    {"hits0.7+place", 0.7, true, false, true},
 };
 
 std::vector<std::string> read_fasta_gz(const std::string &path) {
@@ -110,6 +113,8 @@ int main(int argc, char **argv) {
     khash_t(p) *taxmap(kh_init(p));
     int khr;
     for(const auto &pc: PARENTS) {const khint_t ki = kh_put(p, taxmap, pc.first, &khr); kh_val(taxmap, ki) = pc.second;}
+    rank_map_t ranks;
+    for(const auto &r: RANKS) ranks[r.first] = r.second;
     std::vector<std::vector<std::string>> seqs;
     for(const auto &g: GENOMES) seqs.push_back(read_fasta_gz(dir + "/" + g.file));
     char tmpl[] = "/tmp/bns_real_XXXXXX";
@@ -162,7 +167,7 @@ int main(int argc, char **argv) {
                 std::fclose(a);
             }
             for(const Mode &m: MODES) {
-                cl.set_confidence(m.conf); cl.set_confidence_hits_only(m.hits_only); cl.set_confidence_quality(m.quality);
+                cl.set_confidence(m.conf); cl.set_confidence_hits_only(m.hits_only); cl.set_confidence_quality(m.quality); cl.set_identity_placement(m.place ? &ranks: nullptr);
                 std::FILE *o = std::tmpfile();
                 process_dataset(cl, taxmap, fq.data(), nullptr, o, 1 << 14, 32);
                 std::fflush(o); std::rewind(o);

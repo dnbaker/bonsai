@@ -140,7 +140,10 @@ int classify_main(int argc, char *argv[]) {
     int co, num_threads(1), emit_kraken(1), emit_fastq(0), emit_all(0), chunk_size(1 << 20), per_set(32);
     double confidence(0.), confidence_hi(0.);
     unsigned min_hit_groups(0);
-    bool canonicalize(true), emit_evidence(false), hits_only(false), quality(false);
+    bool canonicalize(true), emit_evidence(false), hits_only(false), quality(false), placement(false);
+    double species_identity(0.95), family_identity(0.85);
+    std::string uniq_path;
+    unsigned uniq_hll_p(12);
     std::ios_base::sync_with_stdio(false);
     std::FILE *ofp(stdout);
     if(argc < 4) {
@@ -162,14 +165,23 @@ int classify_main(int argc, char *argv[]) {
                              "-Q:\tConfidence (-x, -X) over the expected number of error-free k-mers given the read's\n"
                              "   \tbase qualities, not hits + misses: noisy reads from genomes in the database keep\n"
                              "   \ttheir call, distant relatives (hits only in conserved genes) do not. FASTQ only.\n"
-                             "-E:\tEmit lineage evidence of the call: E:exact,ancestor,descendant,conflict k-mer hits.\n"
+                             "-I:\tIdentity-capped placement, \"species,family\" identity thresholds (e.g. 0.95,0.85): the read's\n"
+                             "   \tidentity to the database is estimated from hits over expected error-free k-mers; below\n"
+                             "   \tthe first the call is at most a family, below the second at most an order, so reads of\n"
+                             "   \ttaxa missing from the database land at a supported rank. Needs ranks (nodes.dmp).\n"
+                             "-U:\tAlso write a KrakenUniq-style report to this path: per taxon and clade, reads,\n"
+                             "   \tk-mer hits, distinct k-mers (exact, then HyperLogLog), duplication and coverage of the\n"
+                             "   \tdatabase's k-mers. Classification output is unchanged; off by default.\n"
+                             "-u:\tHyperLogLog precision (2^p registers) for -U. [12]\n"
+                             "-E:\tEmit lineage evidence of the call: E:exact,ancestor,descendant,conflict k-mer hits\n"
+                             "   \tand I:estimated identity.\n"
                              "-K:\tDo not emit fastq-formatted output.\n"
                              "\nIf -f and -k are set, full kraken output will be contained in the fastq comment field."
                              "\n  Default: kraken-style only output.\n",
                  *argv, 1 << 14);
         std::exit(EXIT_FAILURE);
     }
-    while((co = getopt(argc, argv, "Cc:p:o:S:x:g:X:ERQafFkKh?")) >= 0) {
+    while((co = getopt(argc, argv, "Cc:p:o:S:x:g:X:I:U:u:ERQafFkKh?")) >= 0) {
         switch(co) {
             case 'h': case '?': goto usage;
             case 'C': canonicalize = false; break;
@@ -188,6 +200,12 @@ int classify_main(int argc, char *argv[]) {
             case 'E': emit_evidence = true; break;
             case 'R': hits_only = true; break;
             case 'Q': quality = true; break;
+            case 'U': uniq_path = optarg; break;
+            case 'u': uniq_hll_p = unsigned(std::atoi(optarg)); break;
+            case 'I': placement = true;
+                      if(std::sscanf(optarg, "%lf,%lf", &species_identity, &family_identity) != 2)
+                          RUNTIME_ERROR("-I takes species,family identity thresholds, e.g. 0.95,0.85");
+                      break;
         }
     }
     LOG_ASSERT(ofp);
@@ -197,32 +215,53 @@ int classify_main(int argc, char *argv[]) {
         case 4:  LOG_DEBUG("Processing in paired-end mode.\n"); break;
     }
     khash_t(p) *taxmap(build_parent_map(argv[optind + 1]));
-    // We can use optind + 3 for both single-end and paired-end mode since the argument at
-    // index argc is null when argc - optind == 3.
+    const rank_map_t ranks = placement ? build_rank_map(argv[optind + 1]): rank_map_t{};
+    if(placement && ranks.empty()) RUNTIME_ERROR(std::string("-I needs ranks (nodes.dmp third field) in ") + argv[optind + 1]);
+    const rank_map_t *rp = placement ? &ranks: nullptr;
+    const rank_map_t report_ranks = uniq_path.size() ? (placement ? ranks: build_rank_map(argv[optind + 1])): rank_map_t{};
+    auto rank_name = [&](tax_t t) -> std::string {
+        static const char *names[] = {"strain-level", "species", "genus", "family", "order", "class", "phylum", "kingdom", "domain"};
+        const auto it = report_ranks.find(t);
+        if(it == report_ranks.end()) return report_ranks.empty() ? "-": "no rank";
+        return it->second <= RANK_DOMAIN ? names[it->second]: "no rank";
+    };
+    // Configure, classify, and (with -U) write the KrakenUniq-style report;
+    // for_each_db_taxon(f) calls f(taxon) once per database k-mer (coverage).
+    auto run = [&](auto &c, auto &&for_each_db_taxon) {
+        c.set_confidence(confidence); c.set_min_hit_groups(min_hit_groups);
+        c.set_confidence_hi(confidence_hi); c.set_emit_evidence(emit_evidence); c.set_confidence_hits_only(hits_only);
+        c.set_confidence_quality(quality); c.set_identity_placement(rp, species_identity, family_identity);
+        if(uniq_path.size()) c.enable_uniq(uniq_hll_p);
+        // We can use optind + 3 for both single-end and paired-end mode since the argument at
+        // index argc is null when argc - optind == 3.
+        process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
+        if(uniq_path.size()) {
+            std::unordered_map<tax_t, uint64_t> db_kmers;
+            for_each_db_taxon([&](tax_t t) {++db_kmers[t];});
+            std::FILE *ufp = std::fopen(uniq_path.data(), "w");
+            if(!ufp) RUNTIME_ERROR("could not open " + uniq_path);
+            write_uniq_report(ufp, *c.uniq(), taxmap, &db_kmers, rank_name);
+            std::fclose(ufp);
+        }
+    };
     if(CompactDatabase::is_compact(argv[optind])) {
         // Compact database (bonsai compact / build -Z): k-mer lookups batched per
         // read; a hashed-tier database's key width is its hash width.
         CompactDatabase db(argv[optind]);
         if(db.wide()) {
-            using C = ClassifierGeneric<score::Lex, CompactKmerMap128>;
-            C c(db.db128_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, db.keyspec());
-            c.set_confidence(confidence); c.set_min_hit_groups(min_hit_groups);
-            c.set_confidence_hi(confidence_hi); c.set_emit_evidence(emit_evidence); c.set_confidence_hits_only(hits_only); c.set_confidence_quality(quality);
-            process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
+            ClassifierGeneric<score::Lex, CompactKmerMap128> c(db.db128_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, db.keyspec());
+            run(c, [&](auto &&f) {db.db128_->for_each([&](auto, tax_t t) {f(t);});});
         } else {
-            using C = ClassifierGeneric<score::Lex, CompactKmerMap>;
-            C c(db.db_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, db.keyspec());
-            c.set_confidence(confidence); c.set_min_hit_groups(min_hit_groups);
-            c.set_confidence_hi(confidence_hi); c.set_emit_evidence(emit_evidence); c.set_confidence_hits_only(hits_only); c.set_confidence_quality(quality);
-            process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
+            ClassifierGeneric<score::Lex, CompactKmerMap> c(db.db_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, db.keyspec());
+            run(c, [&](auto &&f) {db.db_->for_each([&](auto, tax_t t) {f(t);});});
         }
     } else {
         Database<khash_t(c)> db(argv[optind]);
         ClassifierGeneric<score::Lex> c(db.db_, db.s_, db.k_, db.k_, num_threads,
                                        emit_all, emit_fastq, emit_kraken, canonicalize);
-        c.set_confidence(confidence); c.set_min_hit_groups(min_hit_groups);
-            c.set_confidence_hi(confidence_hi); c.set_emit_evidence(emit_evidence); c.set_confidence_hits_only(hits_only); c.set_confidence_quality(quality);
-        process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
+        run(c, [&](auto &&f) {
+            for(khiter_t ki = 0; ki != kh_end(db.db_); ++ki) if(kh_exist(db.db_, ki)) f(kh_val(db.db_, ki));
+        });
     }
     if(ofp != stdout) std::fclose(ofp);
     kh_destroy(p, taxmap);

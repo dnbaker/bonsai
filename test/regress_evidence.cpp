@@ -235,3 +235,39 @@ TEST_CASE("expected error-free windows from base qualities") {
     REQUIRE(std::abs(expected_intact_windows(seq.data(), mixed.data(), 100, span) - 69.) < 1e-5);
     REQUIRE(expected_intact_windows(seq.data(), q20.data(), 30, span) == 0.);
 }
+
+TEST_CASE("identity-capped placement: rank walk-up and nodes.dmp ranks") {
+    // 1 (root) -> 2 (domain) -> 100 (order) -> 543 (family) -> 7 (clade, no rank) -> 561 (genus) -> 562 (species) -> 9 (strain)
+    khash_t(p) *taxmap(kh_init(p));
+    int khr;
+    for(const auto &pc: std::vector<std::pair<tax_t, tax_t>>{{1, 0}, {2, 1}, {100, 2}, {543, 100}, {7, 543}, {561, 7}, {562, 561}, {9, 562}}) {
+        const khint_t ki = kh_put(p, taxmap, pc.first, &khr);
+        kh_val(taxmap, ki) = pc.second;
+    }
+    char tmpl[] = "/tmp/bns_rank_XXXXXX";
+    const std::string nodes = std::string(mkdtemp(tmpl)) + "/nodes.dmp";
+    {
+        std::FILE *f = std::fopen(nodes.data(), "w");
+        std::fprintf(f, "1\t|\t1\t|\tno rank\t|\n2\t|\t1\t|\tsuperkingdom\t|\n100\t|\t2\t|\torder\t|\n543\t|\t100\t|\tfamily\t|\n"
+                        "7\t|\t543\t|\tclade\t|\n561\t|\t7\t|\tgenus\t|\n562\t|\t561\t|\tspecies\t|\n9\t|\t562\t|\tstrain\t|\n");
+        std::fclose(f);
+    }
+    const rank_map_t ranks = build_rank_map(nodes.data());
+    REQUIRE(ranks.at(562) == RANK_SPECIES);
+    REQUIRE(ranks.at(9) == RANK_BELOW_SPECIES);
+    REQUIRE(ranks.at(7) == RANK_UNKNOWN);
+    REQUIRE(ranks.at(2) == RANK_DOMAIN);
+    REQUIRE(cap_rank(9, RANK_FAMILY, taxmap, ranks) == 543);     // through the unranked clade
+    REQUIRE(cap_rank(9, RANK_ORDER, taxmap, ranks) == 100);
+    REQUIRE(cap_rank(543, RANK_FAMILY, taxmap, ranks) == 543);   // already at the cap
+    REQUIRE(cap_rank(100, RANK_FAMILY, taxmap, ranks) == 100);   // above it: unchanged
+    REQUIRE(cap_rank(9, RANK_SPECIES, taxmap, ranks) == 562);
+    // a file without a rank field gives no ranks
+    {
+        std::FILE *f = std::fopen(nodes.data(), "w");
+        std::fprintf(f, "1|0\n2|1\n");
+        std::fclose(f);
+        REQUIRE(build_rank_map(nodes.data()).empty());
+    }
+    kh_destroy(p, taxmap);
+}
