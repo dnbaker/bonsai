@@ -941,7 +941,8 @@ int profile_usage(const char *arg) {
                  "      arises; the nearest branching ancestor). Overdispersion: beta-binomial, var inflated by\n"
                  "      1 + (n - 1) rho with rho fit robustly per test kind (median G of the adjusted nodes = chi2\n"
                  "      median); p_od from that; BH q over the reported nodes; call over/under at q < alpha. Two\n"
-                 "      single samples: p_od, not raw Poisson p, is the honest one.\n"
+                 "      single samples: p_od, not raw Poisson p, is the honest one. hier: selective testing over\n"
+                 "      families of siblings (Simes per family, BH across families, BH within selected ones).\n"
                  "      -m: nodes with >= min_reads in A + B [10]; -a: [0.05]\n", arg);
     return EXIT_FAILURE;
 }
@@ -1437,6 +1438,38 @@ int profile_main(int argc, char *argv[]) {
         const auto mq0 = bh_qvalues(mp), cq0 = bh_qvalues(cpv);
         std::vector<double> mq(out.size()), cq(out.size());
         for(size_t j = 0; j < out.size(); ++j) {const size_t k = rep_slot.at(rep_of[out_src[j]]); mq[j] = mq0[k]; cq[j] = cq0[k];}
+        // Family-wise selective testing over the tree (Benjamini & Bogomolov 2014): a
+        // family is the chain representatives conditioned on the same branching ancestor;
+        // its p-value is the Simes combination of its members; BH across families at
+        // alpha selects R of m; within each selected family BH at alpha R / m. Controls
+        // the expected average FDR over the selected families without requiring signal at
+        // the root (strict top-down gating misses within-clade shifts that cancel above).
+        std::map<tax_t, std::vector<size_t>> family;   // cond_on -> chain representatives (rows)
+        for(size_t i = 0; i < rows.size(); ++i)
+            if(rep_of[i] == i && !std::isnan(rows[i].cpa)) family[rows[i].cond_on].push_back(i);
+        std::vector<tax_t> fam_ids;
+        std::vector<double> fam_p;
+        for(const auto &kv: family) {
+            std::vector<double> ps;
+            for(const size_t i: kv.second) ps.push_back(rows[i].cpa);
+            std::sort(ps.begin(), ps.end());
+            double simes = 1.;
+            for(size_t j = 0; j < ps.size(); ++j) simes = std::min(simes, ps[j] * ps.size() / double(j + 1));
+            fam_ids.push_back(kv.first);
+            fam_p.push_back(simes);
+        }
+        const auto fam_q = bh_qvalues(fam_p);
+        size_t nsel = 0;
+        for(const double q: fam_q) nsel += q < alpha;
+        std::vector<char> hier(rows.size(), 0);
+        for(size_t f = 0; f < fam_ids.size(); ++f) {
+            if(!(fam_q[f] < alpha)) continue;
+            const auto &mem = family[fam_ids[f]];
+            std::vector<double> ps;
+            for(const size_t i: mem) ps.push_back(rows[i].cpa);
+            const auto qs = bh_qvalues(ps);
+            for(size_t j = 0; j < mem.size(); ++j) if(qs[j] < alpha * double(nsel) / double(fam_ids.size())) hier[mem[j]] = 1;
+        }
         std::vector<size_t> order(out.size());
         std::iota(order.begin(), order.end(), size_t(0));
         std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
@@ -1446,7 +1479,7 @@ int profile_main(int argc, char *argv[]) {
         std::fprintf(stdout, "#taxdiff\tA=%s\t%llu\tB=%s\t%llu\trho_marginal=%.4g\trho_conditional=%.4g\n", A.name.data(),
                      (unsigned long long)A.classified, B.name.data(), (unsigned long long)B.classified, lm, lc);
         std::fprintf(stdout, "#taxid\trank\tparent\treads_a\treads_b\tlog2rr\tci_lo\tci_hi\tG\tp\tp_od\tq\t"
-                             "cond_on\tcond_log2rr\tcond_ci_lo\tcond_ci_hi\tcond_G\tcond_p\tcond_p_od\tcond_q\tcall\n");
+                             "cond_on\tcond_log2rr\tcond_ci_lo\tcond_ci_hi\tcond_G\tcond_p\tcond_p_od\tcond_q\tcall\thier\n");
         auto l2 = [](double x) {return std::log2(x);};
         for(const size_t i: order) {
             const Row &r = out[i];
@@ -1454,9 +1487,11 @@ int profile_main(int argc, char *argv[]) {
             const double dir = std::isnan(r.crr) ? r.rr: r.crr;
             const char *call = qq < alpha ? (dir > 1. ? "over_in_b": "under_in_b"): "ns";
             const auto pit = parent.find(r.t);
-            std::fprintf(stdout, "%u\t%s\t%u\t%.0f\t%.0f\t%.4f\t%.4f\t%.4f\t%.4g\t%.4g\t%.4g\t%.4g\t%u\t%.4f\t%.4f\t%.4f\t%.4g\t%.4g\t%.4g\t%.4g\t%s\n",
+            const bool h = hier[rep_of[out_src[i]]];
+            const char *hcall = h ? (dir > 1. ? "over_in_b": "under_in_b"): "ns";
+            std::fprintf(stdout, "%u\t%s\t%u\t%.0f\t%.0f\t%.4f\t%.4f\t%.4f\t%.4g\t%.4g\t%.4g\t%.4g\t%u\t%.4f\t%.4f\t%.4f\t%.4g\t%.4g\t%.4g\t%.4g\t%s\t%s\n",
                          r.t, rank_label(r.t).data(), pit == parent.end() ? 0u: pit->second, r.ra, r.rb, l2(r.rr), l2(r.lo), l2(r.hi),
-                         r.g, r.p, r.pa, mq[i], r.cond_on, l2(r.crr), l2(r.clo), l2(r.chi), r.cg, r.cp, r.cpa, cq[i], call);
+                         r.g, r.p, r.pa, mq[i], r.cond_on, l2(r.crr), l2(r.clo), l2(r.chi), r.cg, r.cp, r.cpa, cq[i], call, hcall);
         }
         return EXIT_SUCCESS;
     }
