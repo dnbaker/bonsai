@@ -1,0 +1,255 @@
+study	sample_id	condition	country	age_category	runs	r1_url	r1_bytes	platform
+XieH_2016	YSZC12003_37399	Healthy	United Kingdom	Adult	ERR912165	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR912/ERR912165/ERR912165_1.fastq.gz	3174492292	ILLUMINA
+iMSMS_2022	s_11326.S.71802.0018.7.14.16.B	Healthy	Argentina	Adult	ERR3474516	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR347/006/ERR3474516/ERR3474516_1.fastq.gz	33307775	ILLUMINA
+NishiwakiH_2024	N-C050AG	Healthy	Japan	Adult	DRR480332	https://ftp.sra.ebi.ac.uk/vol1/fastq/DRR480/DRR480332/DRR480332_1.fastq.gz	391497875	ILLUMINA
+Heitz-BuschartA_2016	M01.3-V3-stool	Healthy	Luxembourg	Adult	SRR3313113	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR331/003/SRR3313113/SRR3313113_1.fastq.gz	1519438546	ILLUMINA
+XuQ_2021	QCS-081-3	Healthy	China	Adult	SRR11412693	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR114/093/SRR11412693/SRR11412693_1.fastq.gz	1853113689	ILLUMINA
+QinJ_2012	NOF011	Healthy	China	Adult	SRR341641	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR341/SRR341641/SRR341641_1.fastq.gz	723949169	ILLUMINA
+TeeMZ_2022	SRR17643715	Healthy	Malaysia	Adult	SRR17643715	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR176/015/SRR17643715/SRR17643715_1.fastq.gz	708623565	ILLUMINA
+FerrettiP_2018	CA_C10042MS2724FE_t0M16	Healthy	Italy	Adult	SRR5273922	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR527/002/SRR5273922/SRR5273922_1.fastq.gz	479721932	ILLUMINA
+iMSMS_2022	s_11326.S.71802.0024.8.16.16	Healthy	Argentina	Adult	ERR3472750	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR347/000/ERR3472750/ERR3472750_1.fastq.gz	32799590	ILLUMINA
+ZhangX_2015	Zhang_RheumatoidArthritis.C122_S.0.stool	Healthy	China	Adult	ERR589564	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR589/ERR589564/ERR589564_1.fastq.gz	3234369801	ILLUMINA
+RubelMA_2020	CM.177_WGS	Healthy	Cameroon	Adult	SRR9293114	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR929/004/SRR9293114/SRR9293114_1.fastq.gz	643609274	ILLUMINA
+XuQ_2021	QCS-098-3	Healthy	China	Adult	SRR11412734	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR114/034/SRR11412734/SRR11412734_1.fastq.gz	1937604115	ILLUMINA
+ZhangX_2015	Zhang_RheumatoidArthritis.C214_S.0.stool	Healthy	China	Adult	ERR589781	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR589/ERR589781/ERR589781_1.fastq.gz	2656388825	ILLUMINA
+KaurK_2020	KHG_11	Healthy	India	Adult	SRR9108950	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR910/000/SRR9108950/SRR9108950_1.fastq.gz	2057863707	ILLUMINA
+Valles-ColomerM_2023_e	NB_M_CTR43	Healthy	Italy	Adult	SRR14076558	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR140/058/SRR14076558/SRR14076558_1.fastq.gz	2711428816	ILLUMINA
+IaniroG_2022	D_6911_R6_271006	Healthy	Italy	Adult	ERR9707208	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR970/008/ERR9707208/ERR9707208_1.fastq.gz	1785092405	ILLUMINA
+RampelliS_2015	H13	Healthy	Tanzania, United Republic of	Adult	SRR1929563	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR192/003/SRR1929563/SRR1929563_1.fastq.gz	1350497306	ILLUMINA
+YangJ_2020	SAMN08335937	Healthy	China	Adult	SRR6456377	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR645/007/SRR6456377/SRR6456377_1.fastq.gz	1366152165	ILLUMINA
+AsnicarF_2021	SAMEA7041186	Healthy	United Kingdom	Adult	ERR4330079	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR433/009/ERR4330079/ERR4330079_1.fastq.gz	2046616039	ILLUMINA
+BritoIL_2016	M2.63.ST	Healthy	Fiji	Adult	SRR2227732;SRR2231744;SRR2231806;SRR2191079;SRR2191107;SRR2191113;SRR2191117;SRR2191146;SRR2191434;SRR2191462;SRR2191468;SRR2192732;SRR2192799;SRR2193664;SRR2193831;SRR2193853;SRR2194551;SRR2194630;SRR2194844	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR222/002/SRR2227732/SRR2227732_1.fastq.gz	189763328	ILLUMINA
+Valles-ColomerM_2023_a	ARG_M10	Healthy	Argentina	Adult	ERR7384856	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR738/006/ERR7384856/ERR7384856_1.fastq.gz	414777402	ILLUMINA
+RampelliS_2015	H17	Healthy	Tanzania, United Republic of	Adult	SRR1930123	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR193/003/SRR1930123/SRR1930123_1.fastq.gz	3504517708	ILLUMINA
+WampachL_2018	M_C111	Healthy	Luxembourg	Adult	SRR5575599	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR557/009/SRR5575599/SRR5575599_1.fastq.gz	982840240	ILLUMINA
+ZhuF_2020	wHAXPI033821-36	Healthy	China	Adult	ERR2855904	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR285/004/ERR2855904/ERR2855904_1.fastq.gz	1773347567	ILLUMINA
+CosteaPI_2017	SID713A005-11-0-0	Healthy	Kazakhstan	Adult	ERR1728397;ERR1728398;ERR1728399;ERR1728400;ERR1729519;ERR1729520;ERR1729521;ERR1729522	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR172/007/ERR1728397/ERR1728397_1.fastq.gz	589248197	ILLUMINA
+Valles-ColomerM_2023_a	ARG_M9	Healthy	Argentina	Adult	ERR7385054	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR738/004/ERR7385054/ERR7385054_1.fastq.gz	2199075785	ILLUMINA
+XuQ_2021	QCS-049-2	Healthy	China	Adult	SRR11412756	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR114/056/SRR11412756/SRR11412756_1.fastq.gz	1661542062	ILLUMINA
+LiJ_2017	nHM410833	Healthy	China	Adult	ERR1398101	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR139/001/ERR1398101/ERR1398101_1.fastq.gz	1826286633	ILLUMINA
+YassourM_2016	SAMEA2055286	Healthy	Korea, Republic of	Adult	ERR247168	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR247/ERR247168/ERR247168_1.fastq.gz	1287643745	ILLUMINA
+FerrettiP_2018	CA_C10031MS2526FE_t0M15	Healthy	Italy	Adult	SRR5273967	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR527/007/SRR5273967/SRR5273967_1.fastq.gz	5481267891	ILLUMINA
+Obregon-TitoAJ_2015	HCO11	Healthy	Peru	Adult	SRR1761667;SRR1761725	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR176/007/SRR1761667/SRR1761667_1.fastq.gz	466448269	ILLUMINA
+LokmerA_2019	SAMEA4719775	Healthy	Cameroon	Adult	ERR2619722	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR261/002/ERR2619722/ERR2619722_1.fastq.gz	1688267844	ILLUMINA
+ShaoY_2019	SID70e28256-7ae6-11e9-a106-68b59976a384	Healthy	United Kingdom	Adult	ERR3404961	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR340/001/ERR3404961/ERR3404961_1.fastq.gz	629130092	ILLUMINA
+AsnicarF_2021	SAMEA7045765	Healthy	United States	Adult	ERR4341772	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR434/002/ERR4341772/ERR4341772_1.fastq.gz	1910861683	ILLUMINA
+RampelliS_2015	H1	Healthy	Tanzania, United Republic of	Adult	SRR1927149	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR192/009/SRR1927149/SRR1927149_1.fastq.gz	1400715326	ILLUMINA
+DhakanDB_2019	DHAK_HBA	Healthy	India	Adult	SRR5898993	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR589/003/SRR5898993/SRR5898993_1.fastq.gz	281833237	ILLUMINA
+BoktorJC_2023	PD.23.HC	Healthy	United States	Adult	ERR9830107	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR983/007/ERR9830107/ERR9830107_1.fastq.gz	565884786	ILLUMINA
+WibowoMC_2021	SRR12557717	Healthy	Mexico	Adult	SRR12557717	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR125/017/SRR12557717/SRR12557717_1.fastq.gz	1629655416	ILLUMINA
+XieH_2016	YSZC12003_37126	Healthy	United Kingdom	Adult	ERR912106	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR912/ERR912106/ERR912106_1.fastq.gz	3703156322	ILLUMINA
+HallAB_2017	SKST024_7_G103022	Healthy	United States	Adult	SRR5651440	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR565/000/SRR5651440/SRR5651440_1.fastq.gz	778552089	ILLUMINA
+Bengtsson-PalmeJ_2015	TRAVELRES30	Healthy	Sweden	Adult	ERR636378	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR636/ERR636378/ERR636378_1.fastq.gz	6445218938	ILLUMINA
+Valles-ColomerM_2023_d	GUI_200607	Healthy	Guinea-Bissau	Adult	ERR7366491	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR736/001/ERR7366491/ERR7366491_1.fastq.gz	1455354428	ILLUMINA
+ShaoY_2019	aa5efffa-7ae6-11e9-a106-68b59976a384	Healthy	United Kingdom	Adult	ERR3405145	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR340/005/ERR3405145/ERR3405145_1.fastq.gz	628076461	ILLUMINA
+LiJ_2017	nHM512806	Healthy	China	Adult	ERR1398127	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR139/007/ERR1398127/ERR1398127_1.fastq.gz	2165470827	ILLUMINA
+ZeeviD_2015	PNP_Main_490	Healthy	Israel	Adult	ERR1137319;ERR1137041	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR113/009/ERR1137319/ERR1137319_1.fastq.gz	595598939	ILLUMINA
+SmitsSA_2017	TZ_43638	Healthy	Tanzania, United Republic of	Adult	SRR5763471	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR576/001/SRR5763471/SRR5763471.fastq.gz	295584278	ILLUMINA
+NielsenHB_2014	MH0093	Healthy	Denmark	Adult	ERR210119;ERR210118;ERR210117;ERR210116;ERR210115;ERR210114;ERR209267;ERR209266;ERR209265;ERR209264;ERR209263;ERR209262	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR210/ERR210119/ERR210119.fastq.gz	24772895	ILLUMINA
+SmitsSA_2017	TZ_73414	Healthy	Tanzania, United Republic of	Adult	SRR5763451	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR576/001/SRR5763451/SRR5763451.fastq.gz	959622961	ILLUMINA
+TeeMZ_2022	SRR17643818	Healthy	Malaysia	Adult	SRR17643818	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR176/018/SRR17643818/SRR17643818_1.fastq.gz	751960885	ILLUMINA
+Obregon-TitoAJ_2015	SM29	Healthy	Peru	Adult	SRR1761767;SRR1761709	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR176/007/SRR1761767/SRR1761767.fastq.gz	140670621	ILLUMINA
+YeZ_2018	YEZ_N-26	Healthy	China	Adult	SRR8675907	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR867/007/SRR8675907/SRR8675907_1.fastq.gz	2111626450	ILLUMINA
+HansenLBS_2018	SID5428-2	Healthy	Denmark	Adult	SRR7989806	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR798/006/SRR7989806/SRR7989806_1.fastq.gz	2364018201	ILLUMINA
+YassourM_2018	G102380	Healthy	Finland	Adult	SRR7281026	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR728/006/SRR7281026/SRR7281026_1.fastq.gz	814431428	ILLUMINA
+Bengtsson-PalmeJ_2015	TRAVELRES11	Healthy	Sweden	Adult	ERR636359	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR636/ERR636359/ERR636359_1.fastq.gz	5258409095	ILLUMINA
+MehtaRS_2018	SID30026822_SF06	Healthy	United States	Adult	SRR6054693	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR605/003/SRR6054693/SRR6054693_1.fastq.gz	714560395	ILLUMINA
+PasolliE_2019	A20_03_1FE	Healthy	Madagascar	Adult	SRR7658624	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR765/004/SRR7658624/SRR7658624_1.fastq.gz	1268247987	ILLUMINA
+TeeMZ_2022	SRR17643780	Healthy	Malaysia	Adult	SRR17643780	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR176/080/SRR17643780/SRR17643780_1.fastq.gz	652380048	ILLUMINA
+AsnicarF_2021	SAMEA7041159	Healthy	United Kingdom	Adult	ERR4330052	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR433/002/ERR4330052/ERR4330052_1.fastq.gz	1962023150	ILLUMINA
+YeZ_2020	YeZ_N-57	Healthy	China	Adult	SRR5106500	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR510/000/SRR5106500/SRR5106500_1.fastq.gz	1771321438	ILLUMINA
+XieH_2016	YSZC12003_37175	Healthy	United Kingdom	Adult	ERR912143	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR912/ERR912143/ERR912143_1.fastq.gz	2837918796	ILLUMINA
+Bengtsson-PalmeJ_2015	TRAVELRES24	Healthy	Sweden	Adult	ERR636372	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR636/ERR636372/ERR636372_1.fastq.gz	6017756860	ILLUMINA
+YassourM_2016	SAMEA2055280	Healthy	Korea, Republic of	Adult	ERR247162	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR247/ERR247162/ERR247162_1.fastq.gz	1446304000	ILLUMINA
+NishiwakiH_2024	N-C034AG	Healthy	Japan	Adult	DRR480323	https://ftp.sra.ebi.ac.uk/vol1/fastq/DRR480/DRR480323/DRR480323_1.fastq.gz	500359816	ILLUMINA
+YeZ_2018	YEZ_N-39	Healthy	China	Adult	SRR8675897	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR867/007/SRR8675897/SRR8675897_1.fastq.gz	1428846731	ILLUMINA
+Valles-ColomerM_2023_e	NB_M_CTR48	Healthy	Italy	Adult	SRR14076552	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR140/052/SRR14076552/SRR14076552_1.fastq.gz	3002982369	ILLUMINA
+DhakanDB_2019	DHAK_HF	Healthy	India	Adult	SRR5898977	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR589/007/SRR5898977/SRR5898977_1.fastq.gz	584392580	ILLUMINA
+BedarfJR_2017	MMPD19359459ST	Healthy	Germany	Adult	ERR1913007;ERR1913008;ERR1913009;ERR1913199;ERR1913200;ERR1913201	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR191/007/ERR1913007/ERR1913007_1.fastq.gz	451527618	ILLUMINA
+HeQ_2017	SZAXPI029490-88	Healthy	China	Adult	ERR1620365	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR162/005/ERR1620365/ERR1620365_1.fastq.gz	2165832737	ILLUMINA
+BackhedF_2015	SID78_M	Healthy	Sweden	Adult	ERR526073	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR526/ERR526073/ERR526073_1.fastq.gz	1444761150	ILLUMINA
+RaymondF_2016	P14E90	Healthy	Canada	Adult	ERR719455;ERR719450;ERR719449;ERR719447;ERR719445;ERR719444;ERR719439;ERR719454;ERR719448;ERR719446;ERR719442;ERR719441;ERR719440;ERR719438;ERR719457;ERR719456;ERR719453;ERR719452;ERR719451;ERR719443	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR719/ERR719455/ERR719455_1.fastq.gz	349872567	ILLUMINA
+KeohaneDM_2020	Travel016	Healthy	Ireland	Adult	ERR3957692	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR395/002/ERR3957692/ERR3957692_1.fastq.gz	970937506	ILLUMINA
+QinJ_2012	NOM013	Healthy	China	Adult	SRR341648	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR341/SRR341648/SRR341648_1.fastq.gz	986203924	ILLUMINA
+XieH_2016	YSZC12003_35505	Healthy	United Kingdom	Adult	ERR912124	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR912/ERR912124/ERR912124_1.fastq.gz	3302381423	ILLUMINA
+LiuW_2016	SRR3993011	Healthy	Mongolia	Adult	SRR3993011	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR399/001/SRR3993011/SRR3993011_1.fastq.gz	1520962752	ILLUMINA
+ZhouC_2020	HC015B	Healthy	China	Adult	ERR2868455	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR286/005/ERR2868455/ERR2868455_1.fastq.gz	1519575915	ILLUMINA
+PehrssonE_2016	SID190101	Healthy	El Salvador	Adult	SRR2938470;SRR2938192	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR293/000/SRR2938470/SRR2938470_1.fastq.gz	598557	ILLUMINA
+VincentC_2016	MM083.3	Healthy	Canada	Adult	SRR2565922	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR256/002/SRR2565922/SRR2565922.fastq.gz	945729768	ILLUMINA
+YeZ_2018	YEZ_N-27	Healthy	China	Adult	SRR8675908	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR867/008/SRR8675908/SRR8675908_1.fastq.gz	1437096075	ILLUMINA
+JieZ_2017	SAMEA104142138	Healthy	China	Adult	ERR2017548	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR201/008/ERR2017548/ERR2017548_1.fastq.gz	2499568766	ILLUMINA
+Valles-ColomerM_2023_c	COL_1MH	Healthy	Colombia	Adult	ERR7350757	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR735/007/ERR7350757/ERR7350757_1.fastq.gz	1163007857	ILLUMINA
+HeQ_2017	SZAXPI029560-51	Healthy	China	Adult	ERR1620331	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR162/001/ERR1620331/ERR1620331_1.fastq.gz	2647076921	ILLUMINA
+HansenLBS_2018	SID5459-1	Healthy	Denmark	Adult	SRR8097424	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR809/004/SRR8097424/SRR8097424_1.fastq.gz	2624412728	ILLUMINA
+ZhangX_2015	Zhang_RheumatoidArthritis.C54.0.stool	Healthy	China	Adult	ERR589836	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR589/ERR589836/ERR589836_1.fastq.gz	2178055088	ILLUMINA
+HeQ_2017	SZAXPI029556-40	Healthy	China	Adult	ERR1620327	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR162/007/ERR1620327/ERR1620327_1.fastq.gz	2284140088	ILLUMINA
+YangJ_2020	SAMN08335040	Healthy	China	Adult	SRR6456174	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR645/004/SRR6456174/SRR6456174_1.fastq.gz	1701054446	ILLUMINA
+NagySzakalD_2017	ESS-0513	Healthy	United States	Adult	SRR6784408	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR678/008/SRR6784408/SRR6784408_1.fastq.gz	608375465	ILLUMINA
+LiuW_2016	SRR3993003	Healthy	Mongolia	Adult	SRR3993003	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR399/003/SRR3993003/SRR3993003_1.fastq.gz	1987925933	ILLUMINA
+LiJ_2017	nHF511704	Healthy	China	Adult	ERR1398129	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR139/009/ERR1398129/ERR1398129_1.fastq.gz	1831257130	ILLUMINA
+NielsenHB_2014	MH0078	Healthy	Denmark	Adult	ERR210076;ERR210075;ERR209224;ERR209223	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR210/ERR210076/ERR210076.fastq.gz	288612	ILLUMINA
+HansenLBS_2018	SID5413-1	Healthy	Denmark	Adult	SRR7989979	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR798/009/SRR7989979/SRR7989979_1.fastq.gz	2626601163	ILLUMINA
+ContevilleLC_2019	Y9	Healthy	Brazil	Adult	SRR8732218	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR873/008/SRR8732218/SRR8732218_1.fastq.gz	20760891	ILLUMINA
+XuQ_2021	QCS-061-3	Healthy	China	Adult	SRR11412676	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR114/076/SRR11412676/SRR11412676_1.fastq.gz	2299879538	ILLUMINA
+DhakanDB_2019	DHAK_HC	Healthy	India	Adult	SRR5898961	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR589/001/SRR5898961/SRR5898961_1.fastq.gz	494882511	ILLUMINA
+ZhouC_2020	HC020B	Healthy	China	Adult	ERR2868422	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR286/002/ERR2868422/ERR2868422_1.fastq.gz	1619777568	ILLUMINA
+Valles-ColomerM_2023_a	ARG_M12	Healthy	Argentina	Adult	ERR7384875	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR738/005/ERR7384875/ERR7384875_1.fastq.gz	2573595817	ILLUMINA
+YeZ_2020	YeZ_N-29	Healthy	China	Adult	SRR5106490	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR510/000/SRR5106490/SRR5106490_1.fastq.gz	1787306314	ILLUMINA
+RaymondF_2016	P15E7	Healthy	Canada	Adult	ERR719491;ERR719490;ERR719489;ERR719488;ERR719487;ERR719479;ERR719482;ERR719481;ERR719480;ERR719478;ERR719486;ERR719485;ERR719484;ERR719483	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR719/ERR719491/ERR719491_1.fastq.gz	191603599	ILLUMINA
+YassourM_2016	SAMEA2055276	Healthy	Korea, Republic of	Adult	ERR247157	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR247/ERR247157/ERR247157_1.fastq.gz	878008250	ILLUMINA
+WibowoMC_2021	SRR12557729	Healthy	Mexico	Adult	SRR12557729	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR125/029/SRR12557729/SRR12557729_1.fastq.gz	2339466445	ILLUMINA
+YassourM_2016	SAMEA2055293	Healthy	Korea, Republic of	Adult	ERR247175	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR247/ERR247175/ERR247175_1.fastq.gz	1550839300	ILLUMINA
+YassourM_2018	G104644	Healthy	Finland	Adult	SRR7280991	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR728/001/SRR7280991/SRR7280991_1.fastq.gz	1035404587	ILLUMINA
+Valles-ColomerM_2023_d	GUI_0140108	Healthy	Guinea-Bissau	Adult	ERR7365044	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR736/004/ERR7365044/ERR7365044_1.fastq.gz	1636860109	ILLUMINA
+LiJ_2017	nHF512818	Healthy	China	Adult	ERR1398248	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR139/008/ERR1398248/ERR1398248_1.fastq.gz	1942157095	ILLUMINA
+DhakanDB_2019	DHAK_HQ	Healthy	India	Adult	SRR5899004	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR589/004/SRR5899004/SRR5899004_1.fastq.gz	603575227	ILLUMINA
+PasolliE_2019	A90_03_1FE	Healthy	Madagascar	Adult	SRR7658654	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR765/004/SRR7658654/SRR7658654_1.fastq.gz	2122117043	ILLUMINA
+LiJ_2017	nHM511720	Healthy	China	Adult	ERR1398083	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR139/003/ERR1398083/ERR1398083_1.fastq.gz	2062792067	ILLUMINA
+DhakanDB_2019	DHAK_HR	Healthy	India	Adult	SRR5899007	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR589/007/SRR5899007/SRR5899007_1.fastq.gz	362715609	ILLUMINA
+YeZ_2020	YeZ_N-27	Healthy	China	Adult	SRR5106315	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR510/005/SRR5106315/SRR5106315_1.fastq.gz	2128129272	ILLUMINA
+BoktorJC_2023	HC.39	Healthy	United States	Adult	ERR9830306	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR983/006/ERR9830306/ERR9830306_1.fastq.gz	1100533426	ILLUMINA
+LokmerA_2019	SAMEA4719769	Healthy	Cameroon	Adult	ERR2619716	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR261/006/ERR2619716/ERR2619716_1.fastq.gz	2221564368	ILLUMINA
+FerrettiP_2018	CA_C10034MS2580FE_t0M15	Healthy	Italy	Adult	SRR5273948	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR527/008/SRR5273948/SRR5273948_1.fastq.gz	227040306	ILLUMINA
+PehrssonE_2016	SID03B_000	Healthy	Peru	Adult	SRR2938511;SRR2938226	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR293/001/SRR2938511/SRR2938511_1.fastq.gz	15502	ILLUMINA
+LiSS_2016	FAT_DON_11-22-0-6	Healthy	Netherlands	Adult	ERR1297801;ERR1297774;ERR1297755;ERR1297676;ERR1297627;ERR1297527;ERR1297500;ERR1297426	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR129/001/ERR1297801/ERR1297801_1.fastq.gz	445209193	ILLUMINA
+TettAJ_2019_a	C16-20238-TZ	Healthy	Tanzania, United Republic of	Adult	SRR8803225	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR880/005/SRR8803225/SRR8803225_1.fastq.gz	1569910091	ILLUMINA
+JacobsonDK_2021	SRR13378579	Healthy	Burkina Faso	Adult	SRR13378579	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR133/079/SRR13378579/SRR13378579_1.fastq.gz	1948068258	ILLUMINA
+ShaoY_2019	SID887747d0-7ae6-11e9-a106-68b59976a384	Healthy	United Kingdom	Adult	ERR3405461	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR340/001/ERR3405461/ERR3405461_1.fastq.gz	570995398	ILLUMINA
+Valles-ColomerM_2023_d	GUI_70120	Healthy	Guinea-Bissau	Adult	ERR7366508	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR736/008/ERR7366508/ERR7366508_1.fastq.gz	1654967030	ILLUMINA
+TeeMZ_2022	SRR17643549	Healthy	Malaysia	Adult	SRR17643549	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR176/049/SRR17643549/SRR17643549_1.fastq.gz	777434281	ILLUMINA
+KeohaneDM_2020	Travel112	Healthy	Ireland	Adult	ERR3957778	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR395/008/ERR3957778/ERR3957778_1.fastq.gz	937244250	ILLUMINA
+LiuW_2016	SRR3993052	Healthy	Mongolia	Adult	SRR3993052	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR399/002/SRR3993052/SRR3993052_1.fastq.gz	1349116654	ILLUMINA
+BoktorJC_2023	PD.40.PC	Healthy	United States	Adult	ERR9830154	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR983/004/ERR9830154/ERR9830154_1.fastq.gz	599683218	ILLUMINA
+PasolliE_2019	A58_01_1FE	Healthy	Madagascar	Adult	SRR7658681	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR765/001/SRR7658681/SRR7658681_1.fastq.gz	499404651	ILLUMINA
+HallAB_2017	SKST007_2_G102967	Healthy	United States	Adult	SRR5651472	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR565/002/SRR5651472/SRR5651472_1.fastq.gz	1159980472	ILLUMINA
+SmitsSA_2017	TZ_86771	Healthy	Tanzania, United Republic of	Adult	SRR5763474	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR576/004/SRR5763474/SRR5763474.fastq.gz	301835911	ILLUMINA
+MehtaRS_2018	SID10057608_SF06	Healthy	United States	Adult	SRR6028633	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR602/003/SRR6028633/SRR6028633_1.fastq.gz	899372490	ILLUMINA
+HallAB_2017	SKST007_7_G103016	Healthy	United States	Adult	SRR5651468	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR565/008/SRR5651468/SRR5651468_1.fastq.gz	1493016545	ILLUMINA
+SankaranarayananK_2015	CA01	Healthy	United States	Adult	SRR2912775	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR291/005/SRR2912775/SRR2912775_1.fastq.gz	1513467144	ILLUMINA
+SankaranarayananK_2015	CA34	Healthy	United States	Adult	SRR2912797	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR291/007/SRR2912797/SRR2912797_1.fastq.gz	1369811095	ILLUMINA
+WibowoMC_2021	SRR12557714	Healthy	Mexico	Adult	SRR12557714	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR125/014/SRR12557714/SRR12557714_1.fastq.gz	1192471482	ILLUMINA
+ShaoY_2019	b67500c8-7ae6-11e9-a106-68b59976a384	Healthy	United Kingdom	Adult	ERR3405737	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR340/007/ERR3405737/ERR3405737_1.fastq.gz	693667024	ILLUMINA
+MehtaRS_2018	SID13092959_SF05	Healthy	United States	Adult	SRR6028361	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR602/001/SRR6028361/SRR6028361_1.fastq.gz	1398475198	ILLUMINA
+KeohaneDM_2020	Travel003	Healthy	Ireland	Adult	ERR3957680	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR395/000/ERR3957680/ERR3957680_1.fastq.gz	625144943	ILLUMINA
+TettAJ_2019_b	C16-20363-GH	Healthy	Ghana	Adult	SRR8791387	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR879/007/SRR8791387/SRR8791387_1.fastq.gz	1007128514	ILLUMINA
+HeQ_2017	SZAXPI029586-105	Healthy	China	Adult	ERR1620357	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR162/007/ERR1620357/ERR1620357_1.fastq.gz	2332139332	ILLUMINA
+SchirmerM_2016	G89008	Healthy	Netherlands	Adult	SRR5128895;SRR5127457	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR512/005/SRR5128895/SRR5128895.fastq.gz	473601	ILLUMINA
+Bengtsson-PalmeJ_2015	TRAVELRES23	Healthy	Sweden	Adult	ERR636371	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR636/ERR636371/ERR636371_1.fastq.gz	7191588685	ILLUMINA
+MehtaRS_2018	SID11608039_SF07	Healthy	United States	Adult	SRR6028377	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR602/007/SRR6028377/SRR6028377_1.fastq.gz	2129812509	ILLUMINA
+LiJ_2017	nHM512705	Healthy	China	Adult	ERR1398173	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR139/003/ERR1398173/ERR1398173_1.fastq.gz	1793818141	ILLUMINA
+MetaCardis_2020_a	M0x30MCx2201	Healthy	Denmark	Adult	ERR4090723;ERR4090724;ERR4090725;ERR4090726;ERR4090727;ERR4090728	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR409/003/ERR4090723/ERR4090723.fastq.gz	481783710	ION_TORRENT
+CosteaPI_2017	SID713A057-11-0-0	Healthy	Kazakhstan	Adult	ERR1727538;ERR1727539;ERR1727540;ERR1727541;ERR1728660;ERR1728661;ERR1728662;ERR1728663	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR172/008/ERR1727538/ERR1727538_1.fastq.gz	678057215	ILLUMINA
+YeZ_2020	YeZ_N-53	Healthy	China	Adult	SRR5106274	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR510/004/SRR5106274/SRR5106274_1.fastq.gz	1719613425	ILLUMINA
+KaurK_2020	LDK_8	Healthy	India	Adult	SRR9108964	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR910/004/SRR9108964/SRR9108964_1.fastq.gz	3428850176	ILLUMINA
+BritoIL_2016	W3.1.ST	Healthy	Fiji	Adult	SRR2225830;SRR2225848;SRR2225801;SRR2225820;SRR2225823;SRR2225839;SRR2225851;SRR2225856;SRR2226817;SRR2227742;SRR2227760;SRR2228234;SRR2228249;SRR2228436;SRR2228453;SRR2228552	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR222/000/SRR2225830/SRR2225830_1.fastq.gz	226822050	ILLUMINA
+JacobsonDK_2021	SRR13378627	Healthy	Burkina Faso	Adult	SRR13378627	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR133/027/SRR13378627/SRR13378627_1.fastq.gz	1210563689	ILLUMINA
+YassourM_2018	G102258	Healthy	Finland	Adult	SRR7281069	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR728/009/SRR7281069/SRR7281069_1.fastq.gz	675554874	ILLUMINA
+WallenZD_2022	DC290	Healthy	United States	Adult	SRR19064909	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR190/009/SRR19064909/SRR19064909_1.fastq.gz	2071143598	ILLUMINA
+BackhedF_2015	SID587_M	Healthy	Sweden	Adult	ERR526007	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR526/ERR526007/ERR526007_1.fastq.gz	2065131316	ILLUMINA
+NishiwakiH_2024	N-C037AG	Healthy	Japan	Adult	DRR480325	https://ftp.sra.ebi.ac.uk/vol1/fastq/DRR480/DRR480325/DRR480325_1.fastq.gz	534154641	ILLUMINA
+JacobsonDK_2021	SRR13378609	Healthy	Burkina Faso	Adult	SRR13378609	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR133/009/SRR13378609/SRR13378609_1.fastq.gz	3597807717	ILLUMINA
+YangJ_2020	SAMN08335082	Healthy	China	Adult	SRR6456210	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR645/000/SRR6456210/SRR6456210_1.fastq.gz	1594893977	ILLUMINA
+CosteaPI_2017	bugkiller-11-392-3	Healthy	Germany	Adult	ERR1727799;ERR1727800;ERR1727801;ERR1727802;ERR1728921;ERR1728922;ERR1728923;ERR1728924	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR172/009/ERR1727799/ERR1727799_1.fastq.gz	304007367	ILLUMINA
+ShaoY_2019	b642688e-7ae6-11e9-a106-68b59976a384	Healthy	United Kingdom	Adult	ERR3405734	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR340/004/ERR3405734/ERR3405734_1.fastq.gz	625803075	ILLUMINA
+Obregon-TitoAJ_2015	SM39	Healthy	Peru	Adult	SRR1761774;SRR1761716	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR176/004/SRR1761774/SRR1761774.fastq.gz	199624605	ILLUMINA
+FanY_2023	DKAN_112	Healthy	Denmark	Adult	ERR10906286;ERR10906287;ERR10906288;ERR10906289;ERR10906290	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR109/086/ERR10906286/ERR10906286.fastq.gz	462044675	ION_TORRENT
+RampelliS_2015	H23	Healthy	Tanzania, United Republic of	Adult	SRR1930140	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR193/000/SRR1930140/SRR1930140_1.fastq.gz	792453973	ILLUMINA
+LiuW_2016	SRR3993049	Healthy	Mongolia	Adult	SRR3993049	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR399/009/SRR3993049/SRR3993049_1.fastq.gz	1908911552	ILLUMINA
+YangJ_2020	SAMN08335935	Healthy	China	Adult	SRR6456375	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR645/005/SRR6456375/SRR6456375_1.fastq.gz	1312764990	ILLUMINA
+NishiwakiH_2024	I-C054AG	Healthy	Japan	Adult	DRR480303	https://ftp.sra.ebi.ac.uk/vol1/fastq/DRR480/DRR480303/DRR480303_1.fastq.gz	486989433	ILLUMINA
+KeohaneDM_2020	Travel065	Healthy	Ireland	Adult	ERR3957734	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR395/004/ERR3957734/ERR3957734_1.fastq.gz	663876984	ILLUMINA
+DhakanDB_2019	DHAK_HCS	Healthy	India	Adult	SRR5898982	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR589/002/SRR5898982/SRR5898982_1.fastq.gz	246679238	ILLUMINA
+NagySzakalD_2017	ESS-0053	Healthy	United States	Adult	SRR6784590	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR678/000/SRR6784590/SRR6784590_1.fastq.gz	2157005222	ILLUMINA
+Valles-ColomerM_2023_e	NB_M_CTR29	Healthy	Italy	Adult	SRR14076574	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR140/074/SRR14076574/SRR14076574_1.fastq.gz	3514848884	ILLUMINA
+TeeMZ_2022	SRR17643900	Healthy	Malaysia	Adult	SRR17643900	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR176/000/SRR17643900/SRR17643900_1.fastq.gz	637093277	ILLUMINA
+PehrssonE_2016	SID01F_573	Healthy	Peru	Adult	SRR2938530;SRR2938245	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR293/000/SRR2938530/SRR2938530_1.fastq.gz	10456	ILLUMINA
+RubelMA_2020	CM.345_WGS	Healthy	Cameroon	Adult	SRR9293159	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR929/009/SRR9293159/SRR9293159_1.fastq.gz	890691377	ILLUMINA
+YeZ_2018	YEZ_N-33	Healthy	China	Adult	SRR8675914	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR867/004/SRR8675914/SRR8675914_1.fastq.gz	1609341702	ILLUMINA
+BedarfJR_2017	MMPD91172559ST	Healthy	Germany	Adult	ERR1913084;ERR1913085;ERR1913086;ERR1913087;ERR1913276;ERR1913277;ERR1913278;ERR1913279	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR191/004/ERR1913084/ERR1913084_1.fastq.gz	612371020	ILLUMINA
+KeohaneDM_2020	Travel118	Healthy	Ireland	Adult	ERR3957783	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR395/003/ERR3957783/ERR3957783_1.fastq.gz	875409387	ILLUMINA
+ZhouC_2020	HC009B	Healthy	China	Adult	ERR2868480	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR286/000/ERR2868480/ERR2868480_1.fastq.gz	1989924243	ILLUMINA
+WallenZD_2022	DC234	Healthy	United States	Adult	SRR19064677	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR190/077/SRR19064677/SRR19064677_1.fastq.gz	2773689712	ILLUMINA
+Valles-ColomerM_2023_d	GUI_0140101	Healthy	Guinea-Bissau	Adult	ERR7364832	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR736/002/ERR7364832/ERR7364832_1.fastq.gz	857053887	ILLUMINA
+VincentC_2016	MM010	Healthy	Canada	Adult	SRR2583965;SRR2583977	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR258/005/SRR2583965/SRR2583965.fastq.gz	2250128169	ILLUMINA
+RampelliS_2015	IT2	Healthy	Italy	Adult	SRR1930253	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR193/003/SRR1930253/SRR1930253_1.fastq.gz	989764673	ILLUMINA
+LiJ_2014	NOF013-IE	Healthy	China	Adult	ERR504989	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR504/ERR504989/ERR504989.fastq.gz	1325765604	ILLUMINA
+LiJ_2017	nHM410727	Healthy	China	Adult	ERR1398218	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR139/008/ERR1398218/ERR1398218_1.fastq.gz	2575984316	ILLUMINA
+LokmerA_2019	SAMEA4719771	Healthy	Cameroon	Adult	ERR2619718	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR261/008/ERR2619718/ERR2619718_1.fastq.gz	2685260462	ILLUMINA
+LiuW_2016	SRR3993031	Healthy	Mongolia	Adult	SRR3993031	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR399/001/SRR3993031/SRR3993031_1.fastq.gz	2861361288	ILLUMINA
+JacobsonDK_2021	SRR13378590	Healthy	Burkina Faso	Adult	SRR13378590	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR133/090/SRR13378590/SRR13378590_1.fastq.gz	1186166582	ILLUMINA
+Valles-ColomerM_2023_d	GUI_120301	Healthy	Guinea-Bissau	Adult	ERR7365746	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR736/006/ERR7365746/ERR7365746_1.fastq.gz	203717525	ILLUMINA
+JacobsonDK_2021	SRR13378588	Healthy	Burkina Faso	Adult	SRR13378588	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR133/088/SRR13378588/SRR13378588_1.fastq.gz	934914416	ILLUMINA
+RubelMA_2020	CM.24_WGS	Healthy	Cameroon	Adult	SRR9292828	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR929/008/SRR9292828/SRR9292828_1.fastq.gz	1726517985	ILLUMINA
+BoktorJC_2023	PD.7.PC	Healthy	United States	Adult	ERR9830172	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR983/002/ERR9830172/ERR9830172_1.fastq.gz	630432091	ILLUMINA
+FerrettiP_2018	CA_C10052MS2904FE_t0M16	Healthy	Italy	Adult	SRR5273895	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR527/005/SRR5273895/SRR5273895_1.fastq.gz	163844473	ILLUMINA
+LiuW_2016	SRR3993059	Healthy	Mongolia	Adult	SRR3993059	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR399/009/SRR3993059/SRR3993059_1.fastq.gz	2951109323	ILLUMINA
+XieH_2016	YSZC12003_35742	Healthy	United Kingdom	Adult	ERR911985	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR911/ERR911985/ERR911985_1.fastq.gz	3140927094	ILLUMINA
+MetaCardis_2020_a	M0x14MCx1583	Healthy	France	Adult	ERR4089027;ERR4089028;ERR4089029;ERR4089030;ERR4089031;ERR4089032;ERR4089033;ERR4089034;ERR4089035;ERR4089036	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR408/007/ERR4089027/ERR4089027.fastq.gz	409955858	ION_TORRENT
+MehtaRS_2018	SID70995736_SF07	Healthy	United States	Adult	SRR6038323	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR603/003/SRR6038323/SRR6038323_1.fastq.gz	236459774	ILLUMINA
+ZhangX_2015	Zhang_RheumatoidArthritis.C25.0.stool	Healthy	China	Adult	ERR589863	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR589/ERR589863/ERR589863_1.fastq.gz	2712273800	ILLUMINA
+TeeMZ_2022	SRR17643466	Healthy	Malaysia	Adult	SRR17643466	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR176/066/SRR17643466/SRR17643466_1.fastq.gz	793042453	ILLUMINA
+HallAB_2017	p9281_mo2	Healthy	United States	Adult	SRR5650054	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR565/004/SRR5650054/SRR5650054_1.fastq.gz	1266770579	ILLUMINA
+TettAJ_2019_a	C16-20117-TZ	Healthy	Tanzania, United Republic of	Adult	SRR8803181	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR880/001/SRR8803181/SRR8803181_1.fastq.gz	966354353	ILLUMINA
+HeQ_2017	SZAXPI029601-32	Healthy	China	Adult	ERR1620375	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR162/005/ERR1620375/ERR1620375_1.fastq.gz	2433383730	ILLUMINA
+JieZ_2017	SAMEA104142362	Healthy	China	Adult	ERR2017423	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR201/003/ERR2017423/ERR2017423_1.fastq.gz	1895370554	ILLUMINA
+MehtaRS_2018	SID10230266_SF07	Healthy	United States	Adult	SRR6028260	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR602/000/SRR6028260/SRR6028260_1.fastq.gz	946114602	ILLUMINA
+Valles-ColomerM_2023_a	ARG_M3	Healthy	Argentina	Adult	ERR7384897	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR738/007/ERR7384897/ERR7384897_1.fastq.gz	2337785581	ILLUMINA
+TettAJ_2019_a	C16-20118-TZ	Healthy	Tanzania, United Republic of	Adult	SRR8803185	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR880/005/SRR8803185/SRR8803185_1.fastq.gz	1363550905	ILLUMINA
+KaurK_2020	KHG_2	Healthy	India	Adult	SRR9108957	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR910/007/SRR9108957/SRR9108957_1.fastq.gz	2297879144	ILLUMINA
+BackhedF_2015	SID521_M	Healthy	Sweden	Adult	ERR525935	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR525/ERR525935/ERR525935_1.fastq.gz	2340812055	ILLUMINA
+LiuW_2016	SRR3992998	Healthy	Mongolia	Adult	SRR3992998	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR399/008/SRR3992998/SRR3992998_1.fastq.gz	2920775855	ILLUMINA
+LouisS_2016	AS51_12	Healthy	Germany	Adult	SRR2155184	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR215/004/SRR2155184/SRR2155184_1.fastq.gz	714127037	ILLUMINA
+QinJ_2012	NLF010	Healthy	China	Adult	SRR341622	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR341/SRR341622/SRR341622_1.fastq.gz	812868671	ILLUMINA
+JieZ_2017	SAMEA104142146	Healthy	China	Adult	ERR2017540	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR201/000/ERR2017540/ERR2017540_1.fastq.gz	2544164367	ILLUMINA
+YangJ_2020	SAMN08335048	Healthy	China	Adult	SRR6456169	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR645/009/SRR6456169/SRR6456169_1.fastq.gz	1744020615	ILLUMINA
+MetaCardis_2020_a	M0x20MCx3119	Healthy	Germany	Adult	ERR4090058;ERR4090059;ERR4090060;ERR4090061	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR409/008/ERR4090058/ERR4090058.fastq.gz	732306622	ION_TORRENT
+ShaoY_2019	f8e289a8-7ae6-11e9-a106-68b59976a384	Healthy	United Kingdom	Adult	ERR3405685	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR340/005/ERR3405685/ERR3405685_1.fastq.gz	611975145	ILLUMINA
+YeZ_2020	YeZ_N-14	Healthy	China	Adult	SRR5106455	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR510/005/SRR5106455/SRR5106455_1.fastq.gz	1140196873	ILLUMINA
+DavidLA_2015	LD-Run2-37	Healthy	Bangladesh	Adult	ERR866609	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR866/ERR866609/ERR866609_1.fastq.gz	201086288	ILLUMINA
+CosteaPI_2017	SID713B053-11-90-0	Healthy	Kazakhstan	Adult	ERR1728369;ERR1728370;ERR1728371;ERR1728372;ERR1729491;ERR1729492;ERR1729493;ERR1729494	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR172/009/ERR1728369/ERR1728369_1.fastq.gz	640562587	ILLUMINA
+YeZ_2018	YEZ_N-46	Healthy	China	Adult	SRR8675917	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR867/007/SRR8675917/SRR8675917_1.fastq.gz	1798931126	ILLUMINA
+DhakanDB_2019	DHAK_HAL	Healthy	India	Adult	SRR5898920	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR589/000/SRR5898920/SRR5898920_1.fastq.gz	393564063	ILLUMINA
+MehtaRS_2018	SID30095454_SF08	Healthy	United States	Adult	SRR6054689	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR605/009/SRR6054689/SRR6054689_1.fastq.gz	1191494893	ILLUMINA
+QinJ_2012	NLF006	Healthy	China	Adult	SRR341619	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR341/SRR341619/SRR341619_1.fastq.gz	828542085	ILLUMINA
+LiJ_2017	nHM511730	Healthy	China	Adult	ERR1398178	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR139/008/ERR1398178/ERR1398178_1.fastq.gz	1916345320	ILLUMINA
+YangJ_2020	SAMN08335936	Healthy	China	Adult	SRR6456374	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR645/004/SRR6456374/SRR6456374_1.fastq.gz	1179750698	ILLUMINA
+YassourM_2018	G104711	Healthy	Finland	Adult	SRR7281066	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR728/006/SRR7281066/SRR7281066_1.fastq.gz	758858646	ILLUMINA
+LiuW_2016	SRR3993001	Healthy	Mongolia	Adult	SRR3993001	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR399/001/SRR3993001/SRR3993001_1.fastq.gz	2707214371	ILLUMINA
+NielsenHB_2014	MH0072	Healthy	Denmark	Adult	ERR210064;ERR210063;ERR209212;ERR209211	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR210/ERR210064/ERR210064.fastq.gz	268616324	ILLUMINA
+LokmerA_2019	SAMEA4719782	Healthy	Cameroon	Adult	ERR2619729	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR261/009/ERR2619729/ERR2619729_1.fastq.gz	2409583770	ILLUMINA
+RampelliS_2015	IT5	Healthy	Italy	Adult	SRR1931170	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR193/000/SRR1931170/SRR1931170_1.fastq.gz	1599361683	ILLUMINA
+PasolliE_2019	V40_01_1FE	Healthy	Madagascar	Adult	SRR7658661	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR765/001/SRR7658661/SRR7658661_1.fastq.gz	2646328364	ILLUMINA
+Valles-ColomerM_2023_a	ARG_M5	Healthy	Argentina	Adult	ERR7385074	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR738/004/ERR7385074/ERR7385074_1.fastq.gz	5051196665	ILLUMINA
+Valles-ColomerM_2023_b	CHN_7E3	Healthy	China	Adult	ERR7342705	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR734/005/ERR7342705/ERR7342705_1.fastq.gz	4383830507	ILLUMINA
+ZhouC_2020	HC027B	Healthy	China	Adult	ERR2868442	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR286/002/ERR2868442/ERR2868442_1.fastq.gz	2185176096	ILLUMINA
+NagySzakalD_2017	ESS-0308	Healthy	United States	Adult	SRR6784551	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR678/001/SRR6784551/SRR6784551_1.fastq.gz	847347335	ILLUMINA
+YeZ_2020	YeZ_N-55	Healthy	China	Adult	SRR5106467	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR510/007/SRR5106467/SRR5106467_1.fastq.gz	1847606924	ILLUMINA
+DhakanDB_2019	DHAK_HBK	Healthy	India	Adult	SRR5899010	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR589/000/SRR5899010/SRR5899010_1.fastq.gz	273556020	ILLUMINA
+Bengtsson-PalmeJ_2015	TRAVELRES22	Healthy	Sweden	Adult	ERR636370	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR636/ERR636370/ERR636370_1.fastq.gz	10477000252	ILLUMINA
+SmitsSA_2017	TZ_83893	Healthy	Tanzania, United Republic of	Adult	SRR5763452	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR576/002/SRR5763452/SRR5763452.fastq.gz	595915011	ILLUMINA
+MetaCardis_2020_a	M0x14MCx2468	Healthy	France	Adult	ERR4089289;ERR4089290;ERR4089291;ERR4089292;ERR4089293;ERR4089294;ERR4089295;ERR4089296	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR408/009/ERR4089289/ERR4089289.fastq.gz	341095262	ION_TORRENT
+YassourM_2018	G102283	Healthy	Finland	Adult	SRR7280951	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR728/001/SRR7280951/SRR7280951_1.fastq.gz	755468702	ILLUMINA
+QinJ_2012	NLF012	Healthy	China	Adult	SRR341691	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR341/SRR341691/SRR341691_1.fastq.gz	1142761611	ILLUMINA
+MetaCardis_2020_a	M0x20MCx1756	Healthy	Germany	Adult	ERR4089693;ERR4089694;ERR4089695;ERR4089696	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR408/003/ERR4089693/ERR4089693.fastq.gz	908951492	ION_TORRENT
+LouisS_2016	AS60_6	Healthy	Germany	Adult	SRR2155387	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR215/007/SRR2155387/SRR2155387_1.fastq.gz	821079056	ILLUMINA
+YeZ_2020	YeZ_N-28	Healthy	China	Adult	SRR5106332	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR510/002/SRR5106332/SRR5106332_1.fastq.gz	1556252129	ILLUMINA
+XieH_2016	YSZC12003_37297R1	Healthy	United Kingdom	Adult	ERR912058	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR912/ERR912058/ERR912058_1.fastq.gz	3734428365	ILLUMINA
+YassourM_2018	G104676	Healthy	Finland	Adult	SRR7280969	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR728/009/SRR7280969/SRR7280969_1.fastq.gz	1029146417	ILLUMINA
+Valles-ColomerM_2023_b	CHN_21D3	Healthy	China	Adult	ERR7342377	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR734/007/ERR7342377/ERR7342377_1.fastq.gz	2928692972	ILLUMINA
+HansenLBS_2018	SID5450-1	Healthy	Denmark	Adult	SRR7989993	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR798/003/SRR7989993/SRR7989993_1.fastq.gz	3024408995	ILLUMINA
+JieZ_2017	SAMEA104142406	Healthy	China	Adult	ERR2017513	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR201/003/ERR2017513/ERR2017513_1.fastq.gz	2891741700	ILLUMINA
+TettAJ_2019_a	C16-20215-TZ	Healthy	Tanzania, United Republic of	Adult	SRR8803198	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR880/008/SRR8803198/SRR8803198_1.fastq.gz	1537957113	ILLUMINA
+JacobsonDK_2021	SRR13378551	Healthy	Burkina Faso	Adult	SRR13378551	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR133/051/SRR13378551/SRR13378551_1.fastq.gz	1200776062	ILLUMINA
+ZeeviD_2015	PNP_Main_652	Healthy	Israel	Adult	ERR1137478	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR113/008/ERR1137478/ERR1137478_1.fastq.gz	2016981449	ILLUMINA
+ZeeviD_2015	PNP_Main_585	Healthy	Israel	Adult	ERR1137493	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR113/003/ERR1137493/ERR1137493_1.fastq.gz	553291503	ILLUMINA
+BackhedF_2015	SID201_M	Healthy	Sweden	Adult	ERR525763	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR525/ERR525763/ERR525763_1.fastq.gz	1425785819	ILLUMINA
+AsnicarF_2021	SAMEA7045838	Healthy	United Kingdom	Adult	ERR4341845	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR434/005/ERR4341845/ERR4341845_1.fastq.gz	1634631597	ILLUMINA
+FanY_2023	DKAN_146	Healthy	Denmark	Adult	ERR10906445;ERR10906446;ERR10906447;ERR10906448;ERR10906449	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR109/045/ERR10906445/ERR10906445.fastq.gz	89494217	ION_TORRENT
+Valles-ColomerM_2023_c	COL_13MH	Healthy	Colombia	Adult	ERR7356464	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR735/004/ERR7356464/ERR7356464_1.fastq.gz	1681391289	ILLUMINA
+PasolliE_2019	A47_01_1FE	Healthy	Madagascar	Adult	SRR7658600	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR765/000/SRR7658600/SRR7658600_1.fastq.gz	566886898	ILLUMINA
+XuQ_2021	QCS-096-3	Healthy	China	Adult	SRR11413012	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR114/012/SRR11413012/SRR11413012_1.fastq.gz	1667330112	ILLUMINA
+TeeMZ_2022	SRR17643585	Healthy	Malaysia	Adult	SRR17643585	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR176/085/SRR17643585/SRR17643585_1.fastq.gz	669801719	ILLUMINA
+HansenLBS_2018	SID5473-2	Healthy	Denmark	Adult	SRR7989931	https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR798/001/SRR7989931/SRR7989931_1.fastq.gz	2935114697	ILLUMINA
+MetaCardis_2020_a	M0x14MCx2641	Healthy	France	Adult	ERR4089347;ERR4089348;ERR4089349;ERR4089350;ERR4089351;ERR4089352	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR408/007/ERR4089347/ERR4089347.fastq.gz	378665981	ION_TORRENT
+RaymondF_2016	P6C0	Healthy	Canada	Adult	ERR720162;ERR720161;ERR720160;ERR720157;ERR720156;ERR720155;ERR720154;ERR720153;ERR720152;ERR720151;ERR720150;ERR720149;ERR720148;ERR720159;ERR720158	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR720/ERR720162/ERR720162_1.fastq.gz	144800698	ILLUMINA
+BackhedF_2015	SID565_M	Healthy	Sweden	Adult	ERR525975	https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR525/ERR525975/ERR525975_1.fastq.gz	1674007712	ILLUMINA

@@ -23,8 +23,8 @@ def work(*parts):
 
 # Shared-host etiquette (swarm board 2026-10-20 ledger): before any heavy step,
 # wait while swap use > SWAP_MAX or free+inactive memory < FREE_MIN (macOS).
-SWAP_MAX = float(os.environ.get("BNS_APPS_SWAP_MAX_GB", 4)) * 1e9
-FREE_MIN = float(os.environ.get("BNS_APPS_FREE_MIN_GB", 2)) * 1e9
+SWAP_MAX = float(os.environ.get("BNS_APPS_SWAP_MAX_GB", 4)) * 1e9    # overnight (Kimi's heavy lane): 2
+FREE_MIN = float(os.environ.get("BNS_APPS_FREE_MIN_GB", 2)) * 1e9    # overnight: 4
 
 
 def memory_state():
