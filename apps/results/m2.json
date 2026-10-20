@@ -1,0 +1,630 @@
+{
+ "analysis": "m2",
+ "hifi": {
+  "eval": {
+   "coverage": {
+    "absent_with_reads": 0,
+    "auroc": 0.9083333333333333,
+    "ci95": [
+     0.7583333333333333,
+     1.0
+    ],
+    "fp_at_detected_recall": 3,
+    "present_detected": 14
+   },
+   "distinct": {
+    "absent_with_reads": 0,
+    "auroc": 0.9083333333333333,
+    "ci95": [
+     0.7583333333333333,
+     1.0
+    ],
+    "fp_at_detected_recall": 3,
+    "present_detected": 14
+   },
+   "reads": {
+    "absent_with_reads": 0,
+    "auroc": 0.9333333333333333,
+    "ci95": [
+     0.8333333333333334,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 13
+   }
+  },
+  "scores": {
+   "1351": {
+    "coverage": 0.0,
+    "distinct": 0.0,
+    "reads": 0.0
+   },
+   "1496": {
+    "coverage": 0.763422,
+    "distinct": 3139605.0,
+    "reads": 634.0
+   },
+   "1502": {
+    "coverage": 6e-06,
+    "distinct": 21.0,
+    "reads": 0.0
+   },
+   "1613": {
+    "coverage": 0.58684,
+    "distinct": 1053072.0,
+    "reads": 282.0
+   },
+   "1680": {
+    "coverage": 0.860541,
+    "distinct": 1773541.0,
+    "reads": 466.0
+   },
+   "2173": {
+    "coverage": 0.059013,
+    "distinct": 107382.0,
+    "reads": 14.0
+   },
+   "239935": {
+    "coverage": 0.727007,
+    "distinct": 2031360.0,
+    "reads": 460.0
+   },
+   "28128": {
+    "coverage": 0.933516,
+    "distinct": 2515548.0,
+    "reads": 1790.0
+   },
+   "28901": {
+    "coverage": 0.001944,
+    "distinct": 8750.0,
+    "reads": 1.0
+   },
+   "301301": {
+    "coverage": 0.988285,
+    "distinct": 3368803.0,
+    "reads": 1380.0
+   },
+   "423477": {
+    "coverage": 0.977798,
+    "distinct": 2061271.0,
+    "reads": 3802.0
+   },
+   "545": {
+    "coverage": 1.9e-05,
+    "distinct": 83.0,
+    "reads": 0.0
+   },
+   "550": {
+    "coverage": 3.3e-05,
+    "distinct": 161.0,
+    "reads": 0.0
+   },
+   "562": {
+    "coverage": 0.89139,
+    "distinct": 4353537.0,
+    "reads": 3881.0
+   },
+   "573": {
+    "coverage": 3e-06,
+    "distinct": 18.0,
+    "reads": 0.0
+   },
+   "582": {
+    "coverage": 2e-06,
+    "distinct": 8.0,
+    "reads": 0.0
+   },
+   "584": {
+    "coverage": 1e-06,
+    "distinct": 4.0,
+    "reads": 0.0
+   },
+   "615": {
+    "coverage": 3e-06,
+    "distinct": 17.0,
+    "reads": 0.0
+   },
+   "623": {
+    "coverage": 0.001029,
+    "distinct": 1224.0,
+    "reads": 0.0
+   },
+   "632": {
+    "coverage": 1e-06,
+    "distinct": 6.0,
+    "reads": 0.0
+   },
+   "817": {
+    "coverage": 0.925251,
+    "distinct": 4713879.0,
+    "reads": 4446.0
+   },
+   "851": {
+    "coverage": 0.948607,
+    "distinct": 2257211.0,
+    "reads": 1262.0
+   },
+   "853": {
+    "coverage": 0.978338,
+    "distinct": 2794773.0,
+    "reads": 4857.0
+   }
+  }
+ },
+ "seed": 20261021,
+ "sim150": {
+  "eval": {
+   "coverage": {
+    "absent_with_reads": 5,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   },
+   "distinct": {
+    "absent_with_reads": 5,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   },
+   "reads": {
+    "absent_with_reads": 5,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   }
+  },
+  "scores": {
+   "1351": {
+    "coverage": 0.473814,
+    "distinct": 1333372.0,
+    "reads": 19991.0
+   },
+   "1496": {
+    "coverage": 0.35023,
+    "distinct": 1440337.0,
+    "reads": 19999.0
+   },
+   "1502": {
+    "coverage": 0.394239,
+    "distinct": 1327594.0,
+    "reads": 19997.0
+   },
+   "1613": {
+    "coverage": 0.581827,
+    "distinct": 1044077.0,
+    "reads": 20000.0
+   },
+   "1680": {
+    "coverage": 0.541664,
+    "distinct": 1116350.0,
+    "reads": 19997.0
+   },
+   "2173": {
+    "coverage": 0.633749,
+    "distinct": 1153196.0,
+    "reads": 19997.0
+   },
+   "239935": {
+    "coverage": 0.455492,
+    "distinct": 1272710.0,
+    "reads": 19998.0
+   },
+   "28128": {
+    "coverage": 0.449204,
+    "distinct": 1210472.0,
+    "reads": 19971.0
+   },
+   "28901": {
+    "coverage": 0.303074,
+    "distinct": 1364018.0,
+    "reads": 19931.0
+   },
+   "301301": {
+    "coverage": 0.392658,
+    "distinct": 1338468.0,
+    "reads": 19998.0
+   },
+   "423477": {
+    "coverage": 0.561315,
+    "distinct": 1183294.0,
+    "reads": 19997.0
+   },
+   "545": {
+    "coverage": 0.000173,
+    "distinct": 765.0,
+    "reads": 60.0
+   },
+   "550": {
+    "coverage": 9.8e-05,
+    "distinct": 475.0,
+    "reads": 37.0
+   },
+   "562": {
+    "coverage": 0.463071,
+    "distinct": 2261633.0,
+    "reads": 69951.0
+   },
+   "573": {
+    "coverage": 9.4e-05,
+    "distinct": 511.0,
+    "reads": 46.0
+   },
+   "582": {
+    "coverage": 1.3e-05,
+    "distinct": 52.0,
+    "reads": 0.0
+   },
+   "584": {
+    "coverage": 8e-06,
+    "distinct": 29.0,
+    "reads": 1.0
+   },
+   "615": {
+    "coverage": 1.8e-05,
+    "distinct": 93.0,
+    "reads": 0.0
+   },
+   "623": {
+    "coverage": 0.002586,
+    "distinct": 3074.0,
+    "reads": 66.0
+   },
+   "632": {
+    "coverage": 1.8e-05,
+    "distinct": 82.0,
+    "reads": 0.0
+   },
+   "817": {
+    "coverage": 0.284103,
+    "distinct": 1447422.0,
+    "reads": 19985.0
+   },
+   "851": {
+    "coverage": 0.513472,
+    "distinct": 1221806.0,
+    "reads": 19998.0
+   },
+   "853": {
+    "coverage": 0.471074,
+    "distinct": 1345694.0,
+    "reads": 19990.0
+   }
+  }
+ },
+ "sim150+novel": {
+  "eval": {
+   "coverage": {
+    "absent_with_reads": 8,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   },
+   "distinct": {
+    "absent_with_reads": 8,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   },
+   "reads": {
+    "absent_with_reads": 8,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   }
+  },
+  "scores": {
+   "1351": {
+    "coverage": 0.464869,
+    "distinct": 1308200.0,
+    "reads": 20000.0
+   },
+   "1496": {
+    "coverage": 0.361898,
+    "distinct": 1488319.0,
+    "reads": 20022.0
+   },
+   "1502": {
+    "coverage": 0.394533,
+    "distinct": 1328586.0,
+    "reads": 19999.0
+   },
+   "1613": {
+    "coverage": 0.607809,
+    "distinct": 1090701.0,
+    "reads": 20000.0
+   },
+   "1680": {
+    "coverage": 0.575322,
+    "distinct": 1185718.0,
+    "reads": 20022.0
+   },
+   "2173": {
+    "coverage": 0.626713,
+    "distinct": 1140393.0,
+    "reads": 20000.0
+   },
+   "239935": {
+    "coverage": 0.436412,
+    "distinct": 1219398.0,
+    "reads": 20000.0
+   },
+   "28128": {
+    "coverage": 0.448748,
+    "distinct": 1209242.0,
+    "reads": 19983.0
+   },
+   "28901": {
+    "coverage": 0.316914,
+    "distinct": 1426306.0,
+    "reads": 20074.0
+   },
+   "301301": {
+    "coverage": 0.410203,
+    "distinct": 1398274.0,
+    "reads": 20002.0
+   },
+   "423477": {
+    "coverage": 0.540821,
+    "distinct": 1140092.0,
+    "reads": 20018.0
+   },
+   "545": {
+    "coverage": 0.000234,
+    "distinct": 1037.0,
+    "reads": 158.0
+   },
+   "550": {
+    "coverage": 0.000365,
+    "distinct": 1769.0,
+    "reads": 270.0
+   },
+   "562": {
+    "coverage": 0.476998,
+    "distinct": 2329650.0,
+    "reads": 69920.0
+   },
+   "573": {
+    "coverage": 0.000385,
+    "distinct": 2082.0,
+    "reads": 296.0
+   },
+   "582": {
+    "coverage": 0.000532,
+    "distinct": 2204.0,
+    "reads": 290.0
+   },
+   "584": {
+    "coverage": 7.9e-05,
+    "distinct": 299.0,
+    "reads": 114.0
+   },
+   "615": {
+    "coverage": 0.000345,
+    "distinct": 1786.0,
+    "reads": 542.0
+   },
+   "623": {
+    "coverage": 0.002426,
+    "distinct": 2884.0,
+    "reads": 73.0
+   },
+   "632": {
+    "coverage": 7.7e-05,
+    "distinct": 348.0,
+    "reads": 155.0
+   },
+   "817": {
+    "coverage": 0.28919,
+    "distinct": 1473338.0,
+    "reads": 19992.0
+   },
+   "851": {
+    "coverage": 0.487958,
+    "distinct": 1161095.0,
+    "reads": 20010.0
+   },
+   "853": {
+    "coverage": 0.440771,
+    "distinct": 1259129.0,
+    "reads": 20013.0
+   }
+  }
+ },
+ "staggered+novel": {
+  "eval": {
+   "coverage": {
+    "absent_with_reads": 8,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   },
+   "distinct": {
+    "absent_with_reads": 8,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   },
+   "reads": {
+    "absent_with_reads": 8,
+    "auroc": 0.8916666666666667,
+    "ci95": [
+     0.7416666666666667,
+     0.9916666666666667
+    ],
+    "fp_at_detected_recall": 4,
+    "present_detected": 15
+   }
+  },
+  "scores": {
+   "1351": {
+    "coverage": 0.00941,
+    "distinct": 26480.0,
+    "reads": 296.0
+   },
+   "1496": {
+    "coverage": 0.009786,
+    "distinct": 40247.0,
+    "reads": 470.0
+   },
+   "1502": {
+    "coverage": 0.015189,
+    "distinct": 51150.0,
+    "reads": 574.0
+   },
+   "1613": {
+    "coverage": 0.075363,
+    "distinct": 135238.0,
+    "reads": 1711.0
+   },
+   "1680": {
+    "coverage": 0.009337,
+    "distinct": 19244.0,
+    "reads": 230.0
+   },
+   "2173": {
+    "coverage": 0.351502,
+    "distinct": 639607.0,
+    "reads": 9422.0
+   },
+   "239935": {
+    "coverage": 0.007191,
+    "distinct": 20092.0,
+    "reads": 232.0
+   },
+   "28128": {
+    "coverage": 0.037959,
+    "distinct": 102289.0,
+    "reads": 1223.0
+   },
+   "28901": {
+    "coverage": 0.001307,
+    "distinct": 5883.0,
+    "reads": 209.0
+   },
+   "301301": {
+    "coverage": 0.141897,
+    "distinct": 483691.0,
+    "reads": 5757.0
+   },
+   "423477": {
+    "coverage": 0.012983,
+    "distinct": 27369.0,
+    "reads": 346.0
+   },
+   "545": {
+    "coverage": 5.9e-05,
+    "distinct": 262.0,
+    "reads": 117.0
+   },
+   "550": {
+    "coverage": 0.00023,
+    "distinct": 1111.0,
+    "reads": 228.0
+   },
+   "562": {
+    "coverage": 0.077144,
+    "distinct": 376772.0,
+    "reads": 8230.0
+   },
+   "573": {
+    "coverage": 0.000319,
+    "distinct": 1725.0,
+    "reads": 236.0
+   },
+   "582": {
+    "coverage": 0.000462,
+    "distinct": 1914.0,
+    "reads": 273.0
+   },
+   "584": {
+    "coverage": 6.2e-05,
+    "distinct": 235.0,
+    "reads": 104.0
+   },
+   "615": {
+    "coverage": 0.000307,
+    "distinct": 1589.0,
+    "reads": 537.0
+   },
+   "623": {
+    "coverage": 0.000199,
+    "distinct": 237.0,
+    "reads": 14.0
+   },
+   "632": {
+    "coverage": 7e-05,
+    "distinct": 317.0,
+    "reads": 187.0
+   },
+   "817": {
+    "coverage": 0.094051,
+    "distinct": 479159.0,
+    "reads": 5314.0
+   },
+   "851": {
+    "coverage": 0.058301,
+    "distinct": 138727.0,
+    "reads": 1591.0
+   },
+   "853": {
+    "coverage": 0.243194,
+    "distinct": 694720.0,
+    "reads": 9446.0
+   }
+  }
+ },
+ "staggered_reads": {
+  "1351": 294,
+  "1496": 450,
+  "1502": 573,
+  "1613": 1708,
+  "1680": 211,
+  "2173": 9423,
+  "239935": 227,
+  "28128": 1223,
+  "28901": 64,
+  "301301": 5752,
+  "423477": 324,
+  "817": 5316,
+  "851": 1585,
+  "853": 9423,
+  "910001": 560,
+  "910002": 118,
+  "910003": 8913,
+  "910004": 1780,
+  "910005": 476
+ },
+ "written": "2026-10-20 11:26:38"
+}
