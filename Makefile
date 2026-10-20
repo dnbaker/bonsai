@@ -188,3 +188,13 @@ rolling: rolling_multk rolling_multk_sketch
 
 mostlyclean:
 	rm -f $(ZOBJS) $(ZTEST_OBJS) $(ZW_OBJS) $(OBJS) $(DEX) $(ZEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o
+
+# Release gate (sketch's scripts/release_check.sh runs this with candidate
+# sketch trees in hll/): unit tests and the CLI smokes.
+JOBS ?= 2
+check:
+	$(MAKE) -j$(JOBS) bonsai unit
+	./unit
+	bash test/cli_classify_smoke.sh ./bonsai
+	if [ -f test/cli_profile_smoke.sh ]; then bash test/cli_profile_smoke.sh ./bonsai; fi
+.PHONY: check
