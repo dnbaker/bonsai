@@ -186,6 +186,26 @@ def fmt(x, d=3):
     return "NA" if x is None or (isinstance(x, float) and math.isnan(x)) else f"{x:.{d}f}"
 
 
+def saturation_universe(distinct, hits):
+    """g solving distinct = g (1 - exp(-hits / g)): the size of the k-mer universe a
+    clade's hits were drawn from (Poisson sampling), from the counter (set) and the hit
+    count together. inf when no duplicates are seen (distinct >= hits: unidentifiable)."""
+    if hits <= 0 or distinct <= 0:
+        return float("nan")
+    if distinct >= hits * (1 - 1e-9):
+        return float("inf")
+    lo, hi = distinct, distinct
+    while hi * (1 - math.exp(-hits / hi)) < distinct:   # f(g) increasing in g, f -> hits as g -> inf
+        hi *= 2
+    for _ in range(100):
+        mid = (lo + hi) / 2
+        if mid * (1 - math.exp(-hits / mid)) < distinct:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2
+
+
 # ---- results ----
 
 def _str_keys(o):

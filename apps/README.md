@@ -153,3 +153,19 @@ replicate has biological dispersion. Each experiment is 6 vs 6 samples, repeated
 - **M5 negative for whole-sample k-mer search.** Abundance metrics beat k-mer metrics in both synthetic
   regimes (beta 5: Bray-Curtis top-1 0.92 vs k-mer 0.68). At these depths, whole-sample counters reflect
   resampling. If search is to use k-mers at all, it has to be per clade.
+
+### Counts and sets together (PI: "both info together is stronger than one alone")
+- **M2 read saturation.** Score = distinct k-mers / E[distinct | reads], where E = g (1 - exp(-r w / g)).
+  - g is the clade's database k-mer count; w is the sample's mean hits per classified read.
+  - Staggered + novel: AUROC 1.00, with a margin. Every present species scores >= 0.34 (one at 209 reads); every
+    absent relative scores <= 0.20 (0.06-0.09 at 230-270 spurious reads).
+  - The score does not grow with abundance, so one threshold should transfer across depths, unlike raw
+    distinct counts.
+  - Hits are the wrong sampling unit (each read is a run of ~120 distinct k-mers); a hits-based saturation
+    score failed (AUROC 0.16-0.98).
+- **M3 capture-recapture.** Each sample's clade universe comes from distinct = g (1 - exp(-hits / g)), giving
+  the coverage-corrected genome Jaccard I / (gA + gB - I), with I = shared gA gB / (uA uB).
+  - Strain absent from the database: best k-mer statistic at 1x (0.888 vs Jaccard 0.861, leaf 0.874).
+  - Worse at <= 0.3x, where few duplicates leave g unidentifiable and MinHash error (~3%) dominates.
+  - Below Jaccard at 3x.
+  - Post hoc, same samples.

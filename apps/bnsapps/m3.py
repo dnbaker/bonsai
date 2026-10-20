@@ -10,6 +10,7 @@ E3b: leave one strain out of the database (5 folds); pairs where >= 1 sample
 Endpoint: AUROC (bootstrap 95% CI over pairs) per coverage; detection limit =
 lowest coverage with AUROC >= 0.95."""
 import itertools
+import math
 import random
 
 from . import common, mock, simreads, stream
@@ -19,7 +20,7 @@ COVERAGES = (0.1, 0.3, 1.0, 3.0)
 N_PER_COV = 16
 READ_LEN, ERR = 150, 0.01
 BACKGROUND_READS = 1500
-METRICS = ("kmer_jaccard", "kmer_containment_min", "kmer_coverage_normalized", "leaf_abundance_sim")
+METRICS = ("kmer_jaccard", "kmer_containment_min", "kmer_coverage_normalized", "genome_jaccard_cr", "leaf_abundance_sim")
 ECOLI = [(f, t) for f, t in mock.MOCK if t in mock.STRAINS]
 OTHERS = [(f, t) for f, t in mock.MOCK if t not in mock.STRAINS]
 
@@ -35,12 +36,30 @@ def sample_plan(rng, cov):
     return strains, comp
 
 
+def clade_universe(profile, taxid=562):
+    """(distinct, hits, g_hat) of a clade from the profile's report: set and count together."""
+    rep = profile[:-6] + ".report.tsv"
+    if not common.reuse(rep):
+        common.bonsai("profile", "report", profile, rep)
+    _, _, rows = common.read_tsv(rep)
+    r = next((r for r in rows if r["taxid"] == str(taxid)), None)
+    if r is None:
+        return 0.0, 0.0, float("nan")
+    u, h = float(r["clade_uniq_kmers"]), float(r["clade_kmers"])
+    return u, h, common.saturation_universe(u, h)
+
+
 def pair_scores(profiles, names):
-    """k-mer Jaccard at clade 562 and 1 - Bray-Curtis over strain leaves, per pair."""
+    """k-mer Jaccard at clade 562 and 1 - Bray-Curtis over strain leaves, per pair; plus
+    genome_jaccard_cr: the capture-recapture estimate of the Jaccard of the underlying
+    clade k-mer universes, from each sample's counter and hit count (see clade_universe):
+    with f = u / g_hat the fraction of its universe a sample saw, E[shared] = |GA & GB| fA fB,
+    so I_hat = shared gA gB / (uA uB) and J = I_hat / (gA + gB - I_hat)."""
+    univ = {n: clade_universe(p) for n, p in zip(names, profiles)}
     kpath = common.work("m3", "tmp", "kmers.tsv")
     common.bonsai("profile", "compare", "-r", "species", "-K", kpath, *profiles)
     _, _, krows = common.read_tsv(kpath)
-    jac, cmin, cnorm = {}, {}, {}
+    jac, cmin, cnorm, cr = {}, {}, {}, {}
     for r in krows:
         if r["taxid"] == "562":
             key = frozenset((r["sample_a"], r["sample_b"]))
@@ -51,6 +70,12 @@ def pair_scores(profiles, names):
             # size g (constant across pairs), E[shared] ~ rho |A||B| / g, so this ranks
             # pairs by the shared fraction rho independently of coverage
             cnorm[key] = sh / (a * b) if a > 0 and b > 0 else 0.0
+            ga, gb = univ[r["sample_a"]][2], univ[r["sample_b"]][2]
+            if a > 0 and b > 0 and math.isfinite(ga) and math.isfinite(gb):
+                inter = min(sh * ga * gb / (a * b), ga, gb)
+                cr[key] = inter / (ga + gb - inter)
+            else:
+                cr[key] = jac[key]   # no duplicates seen: universe unidentifiable; fall back
     _, header, trows = common.bonsai_tsv("profile", "table", "-r", "strain", *profiles)
     leaves = {n: {} for n in names}
     for r in trows:
@@ -66,7 +91,8 @@ def pair_scores(profiles, names):
             bc = 1.0
         key = frozenset((a, b))
         out[(a, b)] = {"kmer_jaccard": jac.get(key, 0.0), "kmer_containment_min": cmin.get(key, 0.0),
-                       "kmer_coverage_normalized": cnorm.get(key, 0.0), "leaf_abundance_sim": 1 - bc}
+                       "kmer_coverage_normalized": cnorm.get(key, 0.0), "genome_jaccard_cr": cr.get(key, 0.0),
+                       "leaf_abundance_sim": 1 - bc}
     return out
 
 

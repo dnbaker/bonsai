@@ -28,20 +28,39 @@ SEED = 20261021
 def species_scores(report_tsv):
     _, _, rows = common.read_tsv(report_tsv)
     by = {int(r["taxid"]): r for r in rows if r["taxid"] != "0"}
+    # w: the sample's mean k-mer hits per classified read (root clade), from the profile itself
+    root = by.get(1)
+    w = float(root["clade_kmers"]) / float(root["clade_reads"]) if root and float(root["clade_reads"]) > 0 else 0.0
     out = {}
     for t in mock.MOCK_SPECIES + mock.ABSENT_SPECIES:
         r = by.get(t)
         if r is None:
-            out[t] = {"reads": 0.0, "distinct": 0.0, "coverage": 0.0}
+            out[t] = {"reads": 0.0, "distinct": 0.0, "coverage": 0.0, "saturation": 0.0, "reads_x_saturation": 0.0,
+                      "read_saturation": 0.0, "distinct_x_read_saturation": 0.0}
         else:
-            out[t] = {"reads": float(r["clade_reads"]), "distinct": float(r["clade_uniq_kmers"]),
-                      "coverage": float(r["cov"]) if r["cov"] != "NA" else 0.0}
+            u, h = float(r["clade_uniq_kmers"]), float(r["clade_kmers"])
+            cov = float(r["cov"]) if r["cov"] != "NA" else 0.0
+            # set and count together: distinct k-mers seen vs expected from h hits drawn
+            # uniformly from the clade's g database k-mers, E[u] = g (1 - exp(-h / g));
+            # hits piled on a few conserved k-mers (false positives) give u << E[u]
+            g = u / cov if cov > 0 else 0.0
+            eu = g * (1 - math.exp(-h / g)) if g > 0 else 0.0
+            sat = min(1.0, u / eu) if eu > 0 else 0.0
+            # reads as the sampling unit: a true taxon's r reads each hit ~w of its k-mers,
+            # E[u | r] = g (1 - exp(-r w / g)); a false positive's reads hit a few scattered
+            # conserved k-mers, so u << E[u | r]
+            nr = float(r["clade_reads"])
+            eur = g * (1 - math.exp(-nr * w / g)) if g > 0 and w > 0 else 0.0
+            rsat = min(1.0, u / eur) if eur > 0 else 0.0
+            out[t] = {"reads": nr, "distinct": u, "coverage": cov, "saturation": sat,
+                      "reads_x_saturation": nr * sat, "read_saturation": rsat, "distinct_x_read_saturation": u * rsat}
     return out
 
 
 def evaluate(scores):
     res = {}
-    for s in ("reads", "distinct", "coverage"):
+    for s in ("reads", "distinct", "coverage", "saturation", "reads_x_saturation", "read_saturation",
+              "distinct_x_read_saturation"):
         pos = [scores[t][s] for t in mock.MOCK_SPECIES]
         neg = [scores[t][s] for t in mock.ABSENT_SPECIES]
         a = common.auroc(pos, neg)

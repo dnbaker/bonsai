@@ -1,6 +1,15 @@
 {
  "E3a": {
   "0.1": {
+   "genome_jaccard_cr": {
+    "auroc": 0.5778388278388278,
+    "ci95": [
+     0.4732905982905983,
+     0.684981684981685
+    ],
+    "n_neg": 78,
+    "n_pos": 42
+   },
    "kmer_containment_min": {
     "auroc": 0.7805250305250305,
     "ci95": [
@@ -39,6 +48,15 @@
    }
   },
   "0.3": {
+   "genome_jaccard_cr": {
+    "auroc": 0.7448138675760159,
+    "ci95": [
+     0.6507530548451265,
+     0.8323387325944871
+    ],
+    "n_neg": 69,
+    "n_pos": 51
+   },
    "kmer_containment_min": {
     "auroc": 0.8687127024722933,
     "ci95": [
@@ -77,6 +95,15 @@
    }
   },
   "1.0": {
+   "genome_jaccard_cr": {
+    "auroc": 0.906074074074074,
+    "ci95": [
+     0.8500740740740741,
+     0.9517037037037037
+    ],
+    "n_neg": 75,
+    "n_pos": 45
+   },
    "kmer_containment_min": {
     "auroc": 0.8877037037037037,
     "ci95": [
@@ -115,6 +142,15 @@
    }
   },
   "3.0": {
+   "genome_jaccard_cr": {
+    "auroc": 0.9575358851674641,
+    "ci95": [
+     0.9246411483253588,
+     0.9823564593301436
+    ],
+    "n_neg": 76,
+    "n_pos": 44
+   },
    "kmer_containment_min": {
     "auroc": 0.958732057416268,
     "ci95": [
@@ -152,6 +188,7 @@
     "n_pos": 44
    }
   },
+  "detection_limit_genome_jaccard_cr": 3.0,
   "detection_limit_kmer_containment_min": 3.0,
   "detection_limit_kmer_coverage_normalized": null,
   "detection_limit_kmer_jaccard": 3.0,
@@ -159,6 +196,15 @@
  },
  "E3b": {
   "0.1": {
+   "genome_jaccard_cr": {
+    "auroc": 0.5708744247205786,
+    "ci95": [
+     0.49562787639710715,
+     0.6461209730440499
+    ],
+    "n_neg": 195,
+    "n_pos": 78
+   },
    "kmer_containment_min": {
     "auroc": 0.778698224852071,
     "ci95": [
@@ -197,6 +243,15 @@
    }
   },
   "0.3": {
+   "genome_jaccard_cr": {
+    "auroc": 0.7639558459112412,
+    "ci95": [
+     0.709168731696328,
+     0.8186077945483217
+    ],
+    "n_neg": 193,
+    "n_pos": 115
+   },
    "kmer_containment_min": {
     "auroc": 0.8514079747690921,
     "ci95": [
@@ -235,6 +290,15 @@
    }
   },
   "1.0": {
+   "genome_jaccard_cr": {
+    "auroc": 0.8878347037739827,
+    "ci95": [
+     0.8515707358212102,
+     0.9219903014969428
+    ],
+    "n_neg": 204,
+    "n_pos": 93
+   },
    "kmer_containment_min": {
     "auroc": 0.8340712629137677,
     "ci95": [
@@ -273,6 +337,15 @@
    }
   },
   "3.0": {
+   "genome_jaccard_cr": {
+    "auroc": 0.9177207977207977,
+    "ci95": [
+     0.8864387464387464,
+     0.9461538461538461
+    ],
+    "n_neg": 195,
+    "n_pos": 90
+   },
    "kmer_containment_min": {
     "auroc": 0.9136752136752136,
     "ci95": [
@@ -310,6 +383,7 @@
     "n_pos": 90
    }
   },
+  "detection_limit_genome_jaccard_cr": null,
   "detection_limit_kmer_containment_min": null,
   "detection_limit_kmer_coverage_normalized": null,
   "detection_limit_kmer_jaccard": 3.0,
@@ -324,5 +398,5 @@
  ],
  "n_per_cov": 16,
  "seed": 20261022,
- "written": "2026-10-20 12:21:59"
+ "written": "2026-10-20 13:27:15"
 }

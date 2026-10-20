@@ -22,6 +22,26 @@
     "fp_at_detected_recall": 3,
     "present_detected": 14
    },
+   "distinct_x_read_saturation": {
+    "absent_with_reads": 0,
+    "auroc": 0.9333333333333333,
+    "ci95": [
+     0.8333333333333334,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 13
+   },
+   "read_saturation": {
+    "absent_with_reads": 0,
+    "auroc": 0.9333333333333333,
+    "ci95": [
+     0.8333333333333334,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 13
+   },
    "reads": {
     "absent_with_reads": 0,
     "auroc": 0.9333333333333333,
@@ -31,123 +51,235 @@
     ],
     "fp_at_detected_recall": 0,
     "present_detected": 13
+   },
+   "reads_x_saturation": {
+    "absent_with_reads": 0,
+    "auroc": 0.9333333333333333,
+    "ci95": [
+     0.8333333333333334,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 13
+   },
+   "saturation": {
+    "absent_with_reads": 0,
+    "auroc": 0.5333333333333333,
+    "ci95": [
+     0.25833333333333336,
+     0.825
+    ],
+    "fp_at_detected_recall": 4,
+    "present_detected": 14
    }
   },
   "scores": {
    "1351": {
     "coverage": 0.0,
     "distinct": 0.0,
-    "reads": 0.0
+    "distinct_x_read_saturation": 0.0,
+    "read_saturation": 0.0,
+    "reads": 0.0,
+    "reads_x_saturation": 0.0,
+    "saturation": 0.0
    },
    "1496": {
     "coverage": 0.763422,
     "distinct": 3139605.0,
-    "reads": 634.0
+    "distinct_x_read_saturation": 3139605.0,
+    "read_saturation": 1.0,
+    "reads": 634.0,
+    "reads_x_saturation": 634.0,
+    "saturation": 1.0
    },
    "1502": {
     "coverage": 6e-06,
     "distinct": 21.0,
-    "reads": 0.0
+    "distinct_x_read_saturation": 0.0,
+    "read_saturation": 0.0,
+    "reads": 0.0,
+    "reads_x_saturation": 0.0,
+    "saturation": 0.9545484545491532
    },
    "1613": {
     "coverage": 0.58684,
     "distinct": 1053072.0,
-    "reads": 282.0
+    "distinct_x_read_saturation": 827315.265346616,
+    "read_saturation": 0.785620798337261,
+    "reads": 282.0,
+    "reads_x_saturation": 249.89393823519234,
+    "saturation": 0.8861487171460721
    },
    "1680": {
     "coverage": 0.860541,
     "distinct": 1773541.0,
-    "reads": 466.0
+    "distinct_x_read_saturation": 1771441.4575655682,
+    "read_saturation": 0.9988161861302153,
+    "reads": 466.0,
+    "reads_x_saturation": 463.3469904079266,
+    "saturation": 0.9943068463689413
    },
    "2173": {
     "coverage": 0.059013,
     "distinct": 107382.0,
-    "reads": 14.0
+    "distinct_x_read_saturation": 97387.1301834223,
+    "read_saturation": 0.9069222978098964,
+    "reads": 14.0,
+    "reads_x_saturation": 14.0,
+    "saturation": 1.0
    },
    "239935": {
     "coverage": 0.727007,
     "distinct": 2031360.0,
-    "reads": 460.0
+    "distinct_x_read_saturation": 1935533.081607632,
+    "read_saturation": 0.9528262255866179,
+    "reads": 460.0,
+    "reads_x_saturation": 431.9966536632094,
+    "saturation": 0.9391231601374117
    },
    "28128": {
     "coverage": 0.933516,
     "distinct": 2515548.0,
-    "reads": 1790.0
+    "distinct_x_read_saturation": 2355371.1840693327,
+    "read_saturation": 0.936325279449779,
+    "reads": 1790.0,
+    "reads_x_saturation": 1673.7174741562494,
+    "saturation": 0.9350376950593572
    },
    "28901": {
     "coverage": 0.001944,
     "distinct": 8750.0,
-    "reads": 1.0
+    "distinct_x_read_saturation": 8750.0,
+    "read_saturation": 1.0,
+    "reads": 1.0,
+    "reads_x_saturation": 1.0,
+    "saturation": 1.0
    },
    "301301": {
     "coverage": 0.988285,
     "distinct": 3368803.0,
-    "reads": 1380.0
+    "distinct_x_read_saturation": 3368803.0,
+    "read_saturation": 1.0,
+    "reads": 1380.0,
+    "reads_x_saturation": 1380.0,
+    "saturation": 1.0
    },
    "423477": {
     "coverage": 0.977798,
     "distinct": 2061271.0,
-    "reads": 3802.0
+    "distinct_x_read_saturation": 2015506.946145178,
+    "read_saturation": 0.9777981382094727,
+    "reads": 3802.0,
+    "reads_x_saturation": 3717.588017953108,
+    "saturation": 0.9777980057740947
    },
    "545": {
     "coverage": 1.9e-05,
     "distinct": 83.0,
-    "reads": 0.0
+    "distinct_x_read_saturation": 0.0,
+    "read_saturation": 0.0,
+    "reads": 0.0,
+    "reads_x_saturation": 0.0,
+    "saturation": 0.7980864231145458
    },
    "550": {
     "coverage": 3.3e-05,
     "distinct": 161.0,
-    "reads": 0.0
+    "distinct_x_read_saturation": 0.0,
+    "read_saturation": 0.0,
+    "reads": 0.0,
+    "reads_x_saturation": 0.0,
+    "saturation": 0.8385581667739102
    },
    "562": {
     "coverage": 0.89139,
     "distinct": 4353537.0,
-    "reads": 3881.0
+    "distinct_x_read_saturation": 3884426.303947839,
+    "read_saturation": 0.8922460757650248,
+    "reads": 3881.0,
+    "reads_x_saturation": 3615.015678108467,
+    "saturation": 0.9314650033776004
    },
    "573": {
     "coverage": 3e-06,
     "distinct": 18.0,
-    "reads": 0.0
+    "distinct_x_read_saturation": 0.0,
+    "read_saturation": 0.0,
+    "reads": 0.0,
+    "reads_x_saturation": 0.0,
+    "saturation": 1.0
    },
    "582": {
     "coverage": 2e-06,
     "distinct": 8.0,
-    "reads": 0.0
+    "distinct_x_read_saturation": 0.0,
+    "read_saturation": 0.0,
+    "reads": 0.0,
+    "reads_x_saturation": 0.0,
+    "saturation": 1.0
    },
    "584": {
     "coverage": 1e-06,
     "distinct": 4.0,
-    "reads": 0.0
+    "distinct_x_read_saturation": 0.0,
+    "read_saturation": 0.0,
+    "reads": 0.0,
+    "reads_x_saturation": 0.0,
+    "saturation": 1.0
    },
    "615": {
     "coverage": 3e-06,
     "distinct": 17.0,
-    "reads": 0.0
+    "distinct_x_read_saturation": 0.0,
+    "read_saturation": 0.0,
+    "reads": 0.0,
+    "reads_x_saturation": 0.0,
+    "saturation": 1.0
    },
    "623": {
     "coverage": 0.001029,
     "distinct": 1224.0,
-    "reads": 0.0
+    "distinct_x_read_saturation": 0.0,
+    "read_saturation": 0.0,
+    "reads": 0.0,
+    "reads_x_saturation": 0.0,
+    "saturation": 0.5158830922636449
    },
    "632": {
     "coverage": 1e-06,
     "distinct": 6.0,
-    "reads": 0.0
+    "distinct_x_read_saturation": 0.0,
+    "read_saturation": 0.0,
+    "reads": 0.0,
+    "reads_x_saturation": 0.0,
+    "saturation": 0.7500004999954613
    },
    "817": {
     "coverage": 0.925251,
     "distinct": 4713879.0,
-    "reads": 4446.0
+    "distinct_x_read_saturation": 4363637.237708537,
+    "read_saturation": 0.9256998827735156,
+    "reads": 4446.0,
+    "reads_x_saturation": 4114.596416398825,
+    "saturation": 0.9254602825908287
    },
    "851": {
     "coverage": 0.948607,
     "distinct": 2257211.0,
-    "reads": 1262.0
+    "distinct_x_read_saturation": 2162128.116383802,
+    "read_saturation": 0.957875943535541,
+    "reads": 1262.0,
+    "reads_x_saturation": 1228.5671084206858,
+    "saturation": 0.9735080098420649
    },
    "853": {
     "coverage": 0.978338,
     "distinct": 2794773.0,
-    "reads": 4857.0
+    "distinct_x_read_saturation": 2734233.58106202,
+    "read_saturation": 0.9783383412756671,
+    "reads": 4857.0,
+    "reads_x_saturation": 4751.931567042002,
+    "saturation": 0.9783676275565169
    }
   }
  },
@@ -174,6 +306,26 @@
     "fp_at_detected_recall": 0,
     "present_detected": 15
    },
+   "distinct_x_read_saturation": {
+    "absent_with_reads": 5,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   },
+   "read_saturation": {
+    "absent_with_reads": 5,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   },
    "reads": {
     "absent_with_reads": 5,
     "auroc": 1.0,
@@ -183,123 +335,235 @@
     ],
     "fp_at_detected_recall": 0,
     "present_detected": 15
+   },
+   "reads_x_saturation": {
+    "absent_with_reads": 5,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   },
+   "saturation": {
+    "absent_with_reads": 5,
+    "auroc": 0.15833333333333333,
+    "ci95": [
+     0.03333333333333333,
+     0.3
+    ],
+    "fp_at_detected_recall": 8,
+    "present_detected": 15
    }
   },
   "scores": {
    "1351": {
     "coverage": 0.473814,
     "distinct": 1333372.0,
-    "reads": 19991.0
+    "distinct_x_read_saturation": 1333372.0,
+    "read_saturation": 1.0,
+    "reads": 19991.0,
+    "reads_x_saturation": 19991.0,
+    "saturation": 1.0
    },
    "1496": {
     "coverage": 0.35023,
     "distinct": 1440337.0,
-    "reads": 19999.0
+    "distinct_x_read_saturation": 1440337.0,
+    "read_saturation": 1.0,
+    "reads": 19999.0,
+    "reads_x_saturation": 19999.0,
+    "saturation": 1.0
    },
    "1502": {
     "coverage": 0.394239,
     "distinct": 1327594.0,
-    "reads": 19997.0
+    "distinct_x_read_saturation": 1287497.665524288,
+    "read_saturation": 0.969797743530242,
+    "reads": 19997.0,
+    "reads_x_saturation": 19446.553196436744,
+    "saturation": 0.9724735308514649
    },
    "1613": {
     "coverage": 0.581827,
     "distinct": 1044077.0,
-    "reads": 20000.0
+    "distinct_x_read_saturation": 972880.8055496204,
+    "read_saturation": 0.9318094408263188,
+    "reads": 20000.0,
+    "reads_x_saturation": 18661.15247746964,
+    "saturation": 0.9330576238734821
    },
    "1680": {
     "coverage": 0.541664,
     "distinct": 1116350.0,
-    "reads": 19997.0
+    "distinct_x_read_saturation": 1054099.2012468423,
+    "read_saturation": 0.9442372027113739,
+    "reads": 19997.0,
+    "reads_x_saturation": 18886.22143893534,
+    "saturation": 0.9444527398577456
    },
    "2173": {
     "coverage": 0.633749,
     "distinct": 1153196.0,
-    "reads": 19997.0
+    "distinct_x_read_saturation": 1153196.0,
+    "read_saturation": 1.0,
+    "reads": 19997.0,
+    "reads_x_saturation": 19997.0,
+    "saturation": 1.0
    },
    "239935": {
     "coverage": 0.455492,
     "distinct": 1272710.0,
-    "reads": 19998.0
+    "distinct_x_read_saturation": 1241910.0943021905,
+    "read_saturation": 0.975799745662555,
+    "reads": 19998.0,
+    "reads_x_saturation": 19488.909188093538,
+    "saturation": 0.9745429136960465
    },
    "28128": {
     "coverage": 0.449204,
     "distinct": 1210472.0,
-    "reads": 19971.0
+    "distinct_x_read_saturation": 1136217.9863435728,
+    "read_saturation": 0.9386569754141961,
+    "reads": 19971.0,
+    "reads_x_saturation": 18784.534998905485,
+    "saturation": 0.9405906063244447
    },
    "28901": {
     "coverage": 0.303074,
     "distinct": 1364018.0,
-    "reads": 19931.0
+    "distinct_x_read_saturation": 1282525.7877013609,
+    "read_saturation": 0.9402557647343076,
+    "reads": 19931.0,
+    "reads_x_saturation": 19331.199180675274,
+    "saturation": 0.9699061352002044
    },
    "301301": {
     "coverage": 0.392658,
     "distinct": 1338468.0,
-    "reads": 19998.0
+    "distinct_x_read_saturation": 1304854.7153080963,
+    "read_saturation": 0.9748867476160029,
+    "reads": 19998.0,
+    "reads_x_saturation": 19572.50025912106,
+    "saturation": 0.9787228852445775
    },
    "423477": {
     "coverage": 0.561315,
     "distinct": 1183294.0,
-    "reads": 19997.0
+    "distinct_x_read_saturation": 1174636.6147266694,
+    "read_saturation": 0.9926836565778829,
+    "reads": 19997.0,
+    "reads_x_saturation": 19837.22666298277,
+    "saturation": 0.992010134669339
    },
    "545": {
     "coverage": 0.000173,
     "distinct": 765.0,
-    "reads": 60.0
+    "distinct_x_read_saturation": 111.07857270887102,
+    "read_saturation": 0.14520074863904708,
+    "reads": 60.0,
+    "reads_x_saturation": 60.0,
+    "saturation": 1.0
    },
    "550": {
     "coverage": 9.8e-05,
     "distinct": 475.0,
-    "reads": 37.0
+    "distinct_x_read_saturation": 69.42740790674233,
+    "read_saturation": 0.14616296401419437,
+    "reads": 37.0,
+    "reads_x_saturation": 37.0,
+    "saturation": 1.0
    },
    "562": {
     "coverage": 0.463071,
     "distinct": 2261633.0,
-    "reads": 69951.0
+    "distinct_x_read_saturation": 1462924.546114601,
+    "read_saturation": 0.6468443580875416,
+    "reads": 69951.0,
+    "reads_x_saturation": 61992.68480981229,
+    "saturation": 0.8862301440981871
    },
    "573": {
     "coverage": 9.4e-05,
     "distinct": 511.0,
-    "reads": 46.0
+    "distinct_x_read_saturation": 64.63164696829345,
+    "read_saturation": 0.12648071813756057,
+    "reads": 46.0,
+    "reads_x_saturation": 45.46831290466524,
+    "saturation": 0.988441584884027
    },
    "582": {
     "coverage": 1.3e-05,
     "distinct": 52.0,
-    "reads": 0.0
+    "distinct_x_read_saturation": 0.0,
+    "read_saturation": 0.0,
+    "reads": 0.0,
+    "reads_x_saturation": 0.0,
+    "saturation": 1.0
    },
    "584": {
     "coverage": 8e-06,
     "distinct": 29.0,
-    "reads": 1.0
+    "distinct_x_read_saturation": 9.57196452212354,
+    "read_saturation": 0.33006774214219103,
+    "reads": 1.0,
+    "reads_x_saturation": 1.0,
+    "saturation": 1.0
    },
    "615": {
     "coverage": 1.8e-05,
     "distinct": 93.0,
-    "reads": 0.0
+    "distinct_x_read_saturation": 0.0,
+    "read_saturation": 0.0,
+    "reads": 0.0,
+    "reads_x_saturation": 0.0,
+    "saturation": 1.0
    },
    "623": {
     "coverage": 0.002586,
     "distinct": 3074.0,
-    "reads": 66.0
+    "distinct_x_read_saturation": 1633.5126104242572,
+    "read_saturation": 0.5313964249916256,
+    "reads": 66.0,
+    "reads_x_saturation": 66.0,
+    "saturation": 1.0
    },
    "632": {
     "coverage": 1.8e-05,
     "distinct": 82.0,
-    "reads": 0.0
+    "distinct_x_read_saturation": 0.0,
+    "read_saturation": 0.0,
+    "reads": 0.0,
+    "reads_x_saturation": 0.0,
+    "saturation": 1.0
    },
    "817": {
     "coverage": 0.284103,
     "distinct": 1447422.0,
-    "reads": 19985.0
+    "distinct_x_read_saturation": 1410520.994260472,
+    "read_saturation": 0.9745057034233775,
+    "reads": 19985.0,
+    "reads_x_saturation": 19596.391785250904,
+    "saturation": 0.9805550055166827
    },
    "851": {
     "coverage": 0.513472,
     "distinct": 1221806.0,
-    "reads": 19998.0
+    "distinct_x_read_saturation": 1201546.2298251344,
+    "read_saturation": 0.9834181775381152,
+    "reads": 19998.0,
+    "reads_x_saturation": 19677.022957237165,
+    "saturation": 0.9839495428161399
    },
    "853": {
     "coverage": 0.471074,
     "distinct": 1345694.0,
-    "reads": 19990.0
+    "distinct_x_read_saturation": 1345694.0,
+    "read_saturation": 1.0,
+    "reads": 19990.0,
+    "reads_x_saturation": 19990.0,
+    "saturation": 1.0
    }
   }
  },
@@ -325,6 +589,26 @@
     "fp_at_detected_recall": 0,
     "present_detected": 15
    },
+   "distinct_x_read_saturation": {
+    "absent_with_reads": 8,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   },
+   "read_saturation": {
+    "absent_with_reads": 8,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   },
    "reads": {
     "absent_with_reads": 8,
     "auroc": 1.0,
@@ -334,123 +618,235 @@
     ],
     "fp_at_detected_recall": 0,
     "present_detected": 15
+   },
+   "reads_x_saturation": {
+    "absent_with_reads": 8,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   },
+   "saturation": {
+    "absent_with_reads": 8,
+    "auroc": 0.9,
+    "ci95": [
+     0.6875,
+     1.0
+    ],
+    "fp_at_detected_recall": 1,
+    "present_detected": 15
    }
   },
   "scores": {
    "1351": {
     "coverage": 0.464869,
     "distinct": 1308200.0,
-    "reads": 20000.0
+    "distinct_x_read_saturation": 1308200.0,
+    "read_saturation": 1.0,
+    "reads": 20000.0,
+    "reads_x_saturation": 20000.0,
+    "saturation": 1.0
    },
    "1496": {
     "coverage": 0.361898,
     "distinct": 1488319.0,
-    "reads": 20022.0
+    "distinct_x_read_saturation": 1488319.0,
+    "read_saturation": 1.0,
+    "reads": 20022.0,
+    "reads_x_saturation": 20022.0,
+    "saturation": 1.0
    },
    "1502": {
     "coverage": 0.394533,
     "distinct": 1328586.0,
-    "reads": 19999.0
+    "distinct_x_read_saturation": 1295127.2445852773,
+    "read_saturation": 0.9748162667567454,
+    "reads": 19999.0,
+    "reads_x_saturation": 19457.075051032934,
+    "saturation": 0.9729023976715303
    },
    "1613": {
     "coverage": 0.607809,
     "distinct": 1090701.0,
-    "reads": 20000.0
+    "distinct_x_read_saturation": 1065407.221558347,
+    "read_saturation": 0.9768096128621384,
+    "reads": 20000.0,
+    "reads_x_saturation": 19470.140771825027,
+    "saturation": 0.9735070385912513
    },
    "1680": {
     "coverage": 0.575322,
     "distinct": 1185718.0,
-    "reads": 20022.0
+    "distinct_x_read_saturation": 1185718.0,
+    "read_saturation": 1.0,
+    "reads": 20022.0,
+    "reads_x_saturation": 20022.0,
+    "saturation": 1.0
    },
    "2173": {
     "coverage": 0.626713,
     "distinct": 1140393.0,
-    "reads": 20000.0
+    "distinct_x_read_saturation": 1140393.0,
+    "read_saturation": 1.0,
+    "reads": 20000.0,
+    "reads_x_saturation": 20000.0,
+    "saturation": 1.0
    },
    "239935": {
     "coverage": 0.436412,
     "distinct": 1219398.0,
-    "reads": 20000.0
+    "distinct_x_read_saturation": 1144802.7082546407,
+    "read_saturation": 0.9388261324478477,
+    "reads": 20000.0,
+    "reads_x_saturation": 18694.794942443586,
+    "saturation": 0.9347397471221793
    },
    "28128": {
     "coverage": 0.448748,
     "distinct": 1209242.0,
-    "reads": 19983.0
+    "distinct_x_read_saturation": 1138178.830948373,
+    "read_saturation": 0.9412332940373995,
+    "reads": 19983.0,
+    "reads_x_saturation": 18794.33727179718,
+    "saturation": 0.940516302446939
    },
    "28901": {
     "coverage": 0.316914,
     "distinct": 1426306.0,
-    "reads": 20074.0
+    "distinct_x_read_saturation": 1400891.592299879,
+    "read_saturation": 0.9821816582836215,
+    "reads": 20074.0,
+    "reads_x_saturation": 20074.0,
+    "saturation": 1.0
    },
    "301301": {
     "coverage": 0.410203,
     "distinct": 1398274.0,
-    "reads": 20002.0
+    "distinct_x_read_saturation": 1398274.0,
+    "read_saturation": 1.0,
+    "reads": 20002.0,
+    "reads_x_saturation": 20002.0,
+    "saturation": 1.0
    },
    "423477": {
     "coverage": 0.540821,
     "distinct": 1140092.0,
-    "reads": 20018.0
+    "distinct_x_read_saturation": 1093820.9128941547,
+    "read_saturation": 0.9594146024129233,
+    "reads": 20018.0,
+    "reads_x_saturation": 19165.7625533929,
+    "saturation": 0.9574264438701617
    },
    "545": {
     "coverage": 0.000234,
     "distinct": 1037.0,
-    "reads": 158.0
+    "distinct_x_read_saturation": 78.04316015310916,
+    "read_saturation": 0.07525859224022098,
+    "reads": 158.0,
+    "reads_x_saturation": 116.55191514249032,
+    "saturation": 0.7376703490031032
    },
    "550": {
     "coverage": 0.000365,
     "distinct": 1769.0,
-    "reads": 270.0
+    "distinct_x_read_saturation": 133.01679537039,
+    "read_saturation": 0.07519321388942342,
+    "reads": 270.0,
+    "reads_x_saturation": 149.96453463595077,
+    "saturation": 0.5554242023553733
    },
    "562": {
     "coverage": 0.476998,
     "distinct": 2329650.0,
-    "reads": 69920.0
+    "distinct_x_read_saturation": 1557171.4250671298,
+    "read_saturation": 0.6684143219226621,
+    "reads": 69920.0,
+    "reads_x_saturation": 63769.153153738975,
+    "saturation": 0.9120302224505002
    },
    "573": {
     "coverage": 0.000385,
     "distinct": 2082.0,
-    "reads": 296.0
+    "distinct_x_read_saturation": 168.06058338907167,
+    "read_saturation": 0.08072074130118716,
+    "reads": 296.0,
+    "reads_x_saturation": 115.52860263822663,
+    "saturation": 0.39029933323725213
    },
    "582": {
     "coverage": 0.000532,
     "distinct": 2204.0,
-    "reads": 290.0
+    "distinct_x_read_saturation": 192.3581363487145,
+    "read_saturation": 0.08727683137418989,
+    "reads": 290.0,
+    "reads_x_saturation": 102.2773512854464,
+    "saturation": 0.3526805216739531
    },
    "584": {
     "coverage": 7.9e-05,
     "distinct": 299.0,
-    "reads": 114.0
+    "distinct_x_read_saturation": 8.990152592818049,
+    "read_saturation": 0.030067399975980097,
+    "reads": 114.0,
+    "reads_x_saturation": 31.048219064718605,
+    "saturation": 0.2723527988133211
    },
    "615": {
     "coverage": 0.000345,
     "distinct": 1786.0,
-    "reads": 542.0
+    "distinct_x_read_saturation": 67.68715653774639,
+    "read_saturation": 0.03789874386212004,
+    "reads": 542.0,
+    "reads_x_saturation": 288.53569818875275,
+    "saturation": 0.5323536866951157
    },
    "623": {
     "coverage": 0.002426,
     "distinct": 2884.0,
-    "reads": 73.0
+    "distinct_x_read_saturation": 1307.9471779633081,
+    "read_saturation": 0.45351843896092514,
+    "reads": 73.0,
+    "reads_x_saturation": 73.0,
+    "saturation": 1.0
    },
    "632": {
     "coverage": 7.7e-05,
     "distinct": 348.0,
-    "reads": 155.0
+    "distinct_x_read_saturation": 8.958503921753652,
+    "read_saturation": 0.025742827361361065,
+    "reads": 155.0,
+    "reads_x_saturation": 37.180330327926235,
+    "saturation": 0.23987309888984668
    },
    "817": {
     "coverage": 0.28919,
     "distinct": 1473338.0,
-    "reads": 19992.0
+    "distinct_x_read_saturation": 1468285.7543825756,
+    "read_saturation": 0.9965708848767734,
+    "reads": 19992.0,
+    "reads_x_saturation": 19913.527898123717,
+    "saturation": 0.9960748248361203
    },
    "851": {
     "coverage": 0.487958,
     "distinct": 1161095.0,
-    "reads": 20010.0
+    "distinct_x_read_saturation": 1088996.0452168223,
+    "read_saturation": 0.9379043447924781,
+    "reads": 20010.0,
+    "reads_x_saturation": 18686.22171256395,
+    "saturation": 0.9338441635464244
    },
    "853": {
     "coverage": 0.440771,
     "distinct": 1259129.0,
-    "reads": 20013.0
+    "distinct_x_read_saturation": 1212576.3686835207,
+    "read_saturation": 0.9630279095180245,
+    "reads": 20013.0,
+    "reads_x_saturation": 19228.100183940896,
+    "saturation": 0.9607805018708288
    }
   }
  },
@@ -476,6 +872,26 @@
     "fp_at_detected_recall": 0,
     "present_detected": 15
    },
+   "distinct_x_read_saturation": {
+    "absent_with_reads": 8,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   },
+   "read_saturation": {
+    "absent_with_reads": 8,
+    "auroc": 1.0,
+    "ci95": [
+     1.0,
+     1.0
+    ],
+    "fp_at_detected_recall": 0,
+    "present_detected": 15
+   },
    "reads": {
     "absent_with_reads": 8,
     "auroc": 0.8916666666666667,
@@ -485,123 +901,235 @@
     ],
     "fp_at_detected_recall": 4,
     "present_detected": 15
+   },
+   "reads_x_saturation": {
+    "absent_with_reads": 8,
+    "auroc": 0.975,
+    "ci95": [
+     0.9,
+     1.0
+    ],
+    "fp_at_detected_recall": 1,
+    "present_detected": 15
+   },
+   "saturation": {
+    "absent_with_reads": 8,
+    "auroc": 0.975,
+    "ci95": [
+     0.9,
+     1.0
+    ],
+    "fp_at_detected_recall": 1,
+    "present_detected": 15
    }
   },
   "scores": {
    "1351": {
     "coverage": 0.00941,
     "distinct": 26480.0,
-    "reads": 296.0
+    "distinct_x_read_saturation": 26480.0,
+    "read_saturation": 1.0,
+    "reads": 296.0,
+    "reads_x_saturation": 296.0,
+    "saturation": 1.0
    },
    "1496": {
     "coverage": 0.009786,
     "distinct": 40247.0,
-    "reads": 470.0
+    "distinct_x_read_saturation": 40247.0,
+    "read_saturation": 1.0,
+    "reads": 470.0,
+    "reads_x_saturation": 470.0,
+    "saturation": 1.0
    },
    "1502": {
     "coverage": 0.015189,
     "distinct": 51150.0,
-    "reads": 574.0
+    "distinct_x_read_saturation": 51150.0,
+    "read_saturation": 1.0,
+    "reads": 574.0,
+    "reads_x_saturation": 574.0,
+    "saturation": 1.0
    },
    "1613": {
     "coverage": 0.075363,
     "distinct": 135238.0,
-    "reads": 1711.0
+    "distinct_x_read_saturation": 132876.00754299812,
+    "read_saturation": 0.9825345505183315,
+    "reads": 1711.0,
+    "reads_x_saturation": 1610.3638461947414,
+    "saturation": 0.9411828440647232
    },
    "1680": {
     "coverage": 0.009337,
     "distinct": 19244.0,
-    "reads": 230.0
+    "distinct_x_read_saturation": 19244.0,
+    "read_saturation": 1.0,
+    "reads": 230.0,
+    "reads_x_saturation": 230.0,
+    "saturation": 1.0
    },
    "2173": {
     "coverage": 0.351502,
     "distinct": 639607.0,
-    "reads": 9422.0
+    "distinct_x_read_saturation": 639268.1759396574,
+    "read_saturation": 0.9994702621135437,
+    "reads": 9422.0,
+    "reads_x_saturation": 9065.122911900064,
+    "saturation": 0.9621230006262008
    },
    "239935": {
     "coverage": 0.007191,
     "distinct": 20092.0,
-    "reads": 232.0
+    "distinct_x_read_saturation": 20092.0,
+    "read_saturation": 1.0,
+    "reads": 232.0,
+    "reads_x_saturation": 232.0,
+    "saturation": 1.0
    },
    "28128": {
     "coverage": 0.037959,
     "distinct": 102289.0,
-    "reads": 1223.0
+    "distinct_x_read_saturation": 102289.0,
+    "read_saturation": 1.0,
+    "reads": 1223.0,
+    "reads_x_saturation": 1182.9942250319696,
+    "saturation": 0.9672888185052899
    },
    "28901": {
     "coverage": 0.001307,
     "distinct": 5883.0,
-    "reads": 209.0
+    "distinct_x_read_saturation": 1982.3492697320878,
+    "read_saturation": 0.33696231000035487,
+    "reads": 209.0,
+    "reads_x_saturation": 179.13603391208437,
+    "saturation": 0.8571102101056669
    },
    "301301": {
     "coverage": 0.141897,
     "distinct": 483691.0,
-    "reads": 5757.0
+    "distinct_x_read_saturation": 483691.0,
+    "read_saturation": 1.0,
+    "reads": 5757.0,
+    "reads_x_saturation": 5757.0,
+    "saturation": 1.0
    },
    "423477": {
     "coverage": 0.012983,
     "distinct": 27369.0,
-    "reads": 346.0
+    "distinct_x_read_saturation": 26043.93104577961,
+    "read_saturation": 0.9515850431429577,
+    "reads": 346.0,
+    "reads_x_saturation": 330.8653275814734,
+    "saturation": 0.9562581722007902
    },
    "545": {
     "coverage": 5.9e-05,
     "distinct": 262.0,
-    "reads": 117.0
+    "distinct_x_read_saturation": 7.017470978413922,
+    "read_saturation": 0.026784240375625656,
+    "reads": 117.0,
+    "reads_x_saturation": 60.94579748961789,
+    "saturation": 0.5209042520480162
    },
    "550": {
     "coverage": 0.00023,
     "distinct": 1111.0,
-    "reads": 228.0
+    "distinct_x_read_saturation": 64.80909942506366,
+    "read_saturation": 0.058334022884845786,
+    "reads": 228.0,
+    "reads_x_saturation": 100.545269898851,
+    "saturation": 0.4409880258721535
    },
    "562": {
     "coverage": 0.077144,
     "distinct": 376772.0,
-    "reads": 8230.0
+    "distinct_x_read_saturation": 220957.52920808934,
+    "read_saturation": 0.5864489112993783,
+    "reads": 8230.0,
+    "reads_x_saturation": 7771.942809197566,
+    "saturation": 0.9443429901819643
    },
    "573": {
     "coverage": 0.000319,
     "distinct": 1725.0,
-    "reads": 236.0
+    "distinct_x_read_saturation": 150.91912894537938,
+    "read_saturation": 0.0874893501132634,
+    "reads": 236.0,
+    "reads_x_saturation": 88.46075768027399,
+    "saturation": 0.3748337189842118
    },
    "582": {
     "coverage": 0.000462,
     "distinct": 1914.0,
-    "reads": 273.0
+    "distinct_x_read_saturation": 160.76942562645507,
+    "read_saturation": 0.08399656511309042,
+    "reads": 273.0,
+    "reads_x_saturation": 80.3275956450133,
+    "saturation": 0.2942402770879608
    },
    "584": {
     "coverage": 6.2e-05,
     "distinct": 235.0,
-    "reads": 104.0
+    "distinct_x_read_saturation": 6.3516434402260025,
+    "read_saturation": 0.02702826995840852,
+    "reads": 104.0,
+    "reads_x_saturation": 25.435065967661917,
+    "saturation": 0.2445679419967492
    },
    "615": {
     "coverage": 0.000307,
     "distinct": 1589.0,
-    "reads": 537.0
+    "distinct_x_read_saturation": 56.421277588599374,
+    "read_saturation": 0.03550741195003107,
+    "reads": 537.0,
+    "reads_x_saturation": 285.94273893053077,
+    "saturation": 0.5324818229618823
    },
    "623": {
     "coverage": 0.000199,
     "distinct": 237.0,
-    "reads": 14.0
+    "distinct_x_read_saturation": 47.958702370564026,
+    "read_saturation": 0.2023573939686246,
+    "reads": 14.0,
+    "reads_x_saturation": 13.27339304873836,
+    "saturation": 0.9480995034813114
    },
    "632": {
     "coverage": 7e-05,
     "distinct": 317.0,
-    "reads": 187.0
+    "distinct_x_read_saturation": 6.431500906904059,
+    "read_saturation": 0.020288646394019113,
+    "reads": 187.0,
+    "reads_x_saturation": 35.99865225768271,
+    "saturation": 0.19250616180578986
    },
    "817": {
     "coverage": 0.094051,
     "distinct": 479159.0,
-    "reads": 5314.0
+    "distinct_x_read_saturation": 479159.0,
+    "read_saturation": 1.0,
+    "reads": 5314.0,
+    "reads_x_saturation": 5314.0,
+    "saturation": 1.0
    },
    "851": {
     "coverage": 0.058301,
     "distinct": 138727.0,
-    "reads": 1591.0
+    "distinct_x_read_saturation": 138727.0,
+    "read_saturation": 1.0,
+    "reads": 1591.0,
+    "reads_x_saturation": 1591.0,
+    "saturation": 1.0
    },
    "853": {
     "coverage": 0.243194,
     "distinct": 694720.0,
-    "reads": 9446.0
+    "distinct_x_read_saturation": 694720.0,
+    "read_saturation": 1.0,
+    "reads": 9446.0,
+    "reads_x_saturation": 9133.731902611029,
+    "saturation": 0.966941763985923
    }
   }
  },
@@ -626,5 +1154,5 @@
   "910004": 1780,
   "910005": 476
  },
- "written": "2026-10-20 11:26:38"
+ "written": "2026-10-20 13:29:30"
 }
