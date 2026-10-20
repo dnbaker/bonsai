@@ -160,3 +160,103 @@ TEST_CASE("KrakenUniq-style report: distinct k-mers expose a repeated-read taxon
     kh_destroy(c, db);
     kh_destroy(p, taxmap);
 }
+
+TEST_CASE("b-bit MinHash counters (-B): estimates, union, written sketches, containment") {
+    UniqCounter a(10, UniqSketch::BBMH), b(10, UniqSketch::BBMH);
+    for(uint64_t i = 0; i < 300; ++i) a.add(uniq_hash(i));
+    REQUIRE(!a.sketched());
+    REQUIRE(a.estimate() == 300.);
+    for(uint64_t i = 0; i < 60000; ++i) b.add(uniq_hash(i));
+    REQUIRE(b.sketched());
+    REQUIRE(b.kind() == UniqSketch::BBMH);
+    REQUIRE(std::abs(b.estimate() - 60000.) < 0.08 * 60000.);
+    a.merge(b);                                    // subset absorbed: still ~60000
+    REQUIRE(a.sketched());
+    REQUIRE(std::abs(a.estimate() - 60000.) < 0.08 * 60000.);
+    UniqCounter h(10);                             // a HyperLogLog sketch cannot merge into a MinHash one
+    for(uint64_t i = 0; i < 5000; ++i) h.add(uniq_hash(i));
+    REQUIRE_THROWS(a.merge(h));
+    // written sketches: a taxon's read k-mers are contained in its genome's k-mers
+    char tmpl[] = "/tmp/bns_bbmh_XXXXXX";
+    const std::string dir(mkdtemp(tmpl));
+    UniqCounter reads(10, UniqSketch::BBMH), genome(10, UniqSketch::BBMH), other(10, UniqSketch::BBMH);
+    for(uint64_t i = 0; i < 200000; ++i) genome.add(uniq_hash(i));
+    for(uint64_t i = 0; i < 50000; ++i) reads.add(uniq_hash(i * 4));        // a quarter of the genome
+    for(uint64_t i = 0; i < 50000; ++i) other.add(uniq_hash(i + 10000000)); // disjoint
+    reads.bbmh(16).write((dir + "/reads.bbmh").data());
+    genome.bbmh(16).write((dir + "/genome.bbmh").data());
+    const sketch::FinalBBitMinHash fr((dir + "/reads.bbmh").data()), fg((dir + "/genome.bbmh").data()), fo(other.bbmh(16));
+    REQUIRE(std::abs(fr.cardinality_estimate() - 50000.) < 0.08 * 50000.);
+    const double cont = fr.containment_index(fg), cont_o = fo.containment_index(fg);
+    std::fprintf(stderr, "[uniq] bbmh containment: reads in genome %.3f, disjoint set in genome %.3f, Jaccard %.3f\n",
+                 cont, cont_o, fr.jaccard_index(fg));
+    REQUIRE(cont > 0.8);                           // p = 10: ~1024 registers, a few % noise
+    REQUIRE(cont_o < 0.05);
+    REQUIRE(std::abs(fr.jaccard_index(fg) - 0.25) < 0.05);
+    // a sparse sketch (empty registers) keeps an accurate cardinality when finalized and written
+    UniqCounter sparse(10, UniqSketch::BBMH);
+    for(uint64_t i = 0; i < 3000; ++i) sparse.add(uniq_hash(i + 555));
+    REQUIRE(sparse.sketched());                     // sparse: ~5% of the 1024 registers still empty
+    REQUIRE(std::abs(sparse.estimate() - 3000.) < 0.1 * 3000.);
+    sparse.bbmh(16).write((dir + "/sparse.bbmh").data());
+    const sketch::FinalBBitMinHash fs((dir + "/sparse.bbmh").data());
+    REQUIRE(std::abs(fs.cardinality_estimate() - 3000.) < 0.1 * 3000.);
+    // and in the small range, where linear counting applies
+    UniqCounter small(10, UniqSketch::BBMH);
+    for(uint64_t i = 0; i < 1500; ++i) small.add(uniq_hash(i + 999));   // sketched at the 1024-hash compaction
+    REQUIRE(small.sketched());
+    REQUIRE(std::abs(small.estimate() - 1500.) < 0.1 * 1500.);
+    REQUIRE(std::abs(small.bbmh(16).cardinality_estimate() - 1500.) < 0.1 * 1500.);
+}
+
+TEST_CASE("-B through the classifier: per-clade sketches written next to the report") {
+    const unsigned k = 31;
+    std::mt19937_64 rng(43);
+    std::vector<std::string> genomes {random_dna(30000, rng), random_dna(30000, rng)};
+    khash_t(p) *taxmap(kh_init(p));
+    int khr;
+    for(const auto &pc: std::vector<std::pair<tax_t, tax_t>>{{1, 0}, {10, 1}, {2, 10}, {3, 10}}) {
+        const khint_t ki = kh_put(p, taxmap, pc.first, &khr);
+        kh_val(taxmap, ki) = pc.second;
+    }
+    khash_t(c) *db(kh_init(c));
+    {
+        ClassifierGeneric<score::Lex> builder(db, spvec_t{}, k, k, 1, true, false, true, true);
+        KmerKeys<score::Lex> enc(builder.enc_);
+        for(int g = 0; g < 2; ++g)
+            enc.for_each([&](u64 km) {const khint_t ki = kh_put(c, db, km, &khr); kh_val(db, ki) = tax_t(2 + g);}, genomes[g].data(), genomes[g].size());
+    }
+    char tmpl[] = "/tmp/bns_bbmhc_XXXXXX";
+    const std::string dir(mkdtemp(tmpl)), fq = dir + "/r.fq";
+    {
+        std::FILE *a = std::fopen(fq.data(), "w");
+        for(int r = 0; r < 100; ++r) {
+            const std::string s = genomes[r % 2].substr(rng() % 29000, 150);
+            std::fprintf(a, "@r%d\n%s\n+\n%s\n", r, s.data(), std::string(150, 'I').data());
+        }
+        std::fclose(a);
+    }
+    ClassifierGeneric<score::Lex> hl(db, spvec_t{}, k, k, 2, true, false, true, true), bm(db, spvec_t{}, k, k, 2, true, false, true, true);
+    hl.enable_uniq(12, UniqSketch::HLL);
+    bm.enable_uniq(10, UniqSketch::BBMH);
+    for(auto *cl: {&hl, &bm}) {
+        std::FILE *o = std::tmpfile();
+        process_dataset(*cl, taxmap, fq.data(), nullptr, o, 32, 8);
+        std::fclose(o);
+    }
+    auto rank_name = [](tax_t) {return std::string("-");};
+    std::FILE *u1 = std::tmpfile(), *u2 = std::tmpfile();
+    write_uniq_report(u1, *hl.uniq(), taxmap, nullptr, rank_name);
+    write_uniq_report(u2, *bm.uniq(), taxmap, nullptr, rank_name, &dir, 16);
+    const auto r1 = parse_report(slurp(u1)), r2 = parse_report(slurp(u2));
+    std::fclose(u1); std::fclose(u2);
+    for(const tax_t t: {1u, 10u, 2u, 3u}) {
+        REQUIRE(r1.at(t).reads == r2.at(t).reads);
+        REQUIRE(r1.at(t).kmers == r2.at(t).kmers);
+        REQUIRE(std::abs(r1.at(t).uniq - r2.at(t).uniq) < 0.1 * r1.at(t).uniq);   // HLL vs MinHash estimates
+        const sketch::FinalBBitMinHash f((dir + "/" + std::to_string(t) + ".bbmh").data());
+        REQUIRE(std::abs(f.cardinality_estimate() - r2.at(t).uniq) < 0.1 * r2.at(t).uniq + 1);
+    }
+    kh_destroy(c, db);
+    kh_destroy(p, taxmap);
+}

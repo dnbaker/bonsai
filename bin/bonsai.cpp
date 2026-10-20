@@ -142,8 +142,9 @@ int classify_main(int argc, char *argv[]) {
     unsigned min_hit_groups(0);
     bool canonicalize(true), emit_evidence(false), hits_only(false), quality(false), placement(false);
     double species_identity(0.95), family_identity(0.85);
-    std::string uniq_path;
-    unsigned uniq_hll_p(12);
+    bool uniq_p_set(false);
+    std::string uniq_path, sketch_dir;
+    unsigned uniq_hll_p(12), sketch_b(16);
     std::ios_base::sync_with_stdio(false);
     std::FILE *ofp(stdout);
     if(argc < 4) {
@@ -172,7 +173,11 @@ int classify_main(int argc, char *argv[]) {
                              "-U:\tAlso write a KrakenUniq-style report to this path: per taxon and clade, reads,\n"
                              "   \tk-mer hits, distinct k-mers (exact, then HyperLogLog), duplication and coverage of the\n"
                              "   \tdatabase's k-mers. Classification output is unchanged; off by default.\n"
-                             "-u:\tHyperLogLog precision (2^p registers) for -U. [12]\n"
+                             "-u:\tSketch precision (2^p registers) for -U / -B. [12 HyperLogLog, 10 b-bit MinHash]\n"
+                             "-B:\tWith -U: count with b-bit MinHash instead of HyperLogLog and write each clade's read\n"
+                             "   \tk-mer sketch to this directory as <taxid>.bbmh (compare with reference sketches by\n"
+                             "   \tcontainment / Jaccard).\n"
+                             "-b:\tBits per register of the written -B sketches. [16]\n"
                              "-E:\tEmit lineage evidence of the call: E:exact,ancestor,descendant,conflict k-mer hits\n"
                              "   \tand I:estimated identity.\n"
                              "-K:\tDo not emit fastq-formatted output.\n"
@@ -181,7 +186,7 @@ int classify_main(int argc, char *argv[]) {
                  *argv, 1 << 14);
         std::exit(EXIT_FAILURE);
     }
-    while((co = getopt(argc, argv, "Cc:p:o:S:x:g:X:I:U:u:ERQafFkKh?")) >= 0) {
+    while((co = getopt(argc, argv, "Cc:p:o:S:x:g:X:I:U:u:B:b:ERQafFkKh?")) >= 0) {
         switch(co) {
             case 'h': case '?': goto usage;
             case 'C': canonicalize = false; break;
@@ -201,7 +206,9 @@ int classify_main(int argc, char *argv[]) {
             case 'R': hits_only = true; break;
             case 'Q': quality = true; break;
             case 'U': uniq_path = optarg; break;
-            case 'u': uniq_hll_p = unsigned(std::atoi(optarg)); break;
+            case 'u': uniq_hll_p = unsigned(std::atoi(optarg)); uniq_p_set = true; break;
+            case 'B': sketch_dir = optarg; break;
+            case 'b': sketch_b = unsigned(std::atoi(optarg)); break;
             case 'I': placement = true;
                       if(std::sscanf(optarg, "%lf,%lf", &species_identity, &family_identity) != 2)
                           RUNTIME_ERROR("-I takes species,family identity thresholds, e.g. 0.95,0.85");
@@ -209,6 +216,8 @@ int classify_main(int argc, char *argv[]) {
         }
     }
     LOG_ASSERT(ofp);
+    if(sketch_dir.size() && uniq_path.empty()) RUNTIME_ERROR("-B needs -U <report>");
+    if(sketch_dir.size() && (sketch_b < 1 || sketch_b > 64)) RUNTIME_ERROR("-b must be in [1, 64]");
     switch(argc - optind) {
         default: goto usage;
         case 3:  LOG_DEBUG("Processing in single-end mode.\n"); break;
@@ -231,7 +240,7 @@ int classify_main(int argc, char *argv[]) {
         c.set_confidence(confidence); c.set_min_hit_groups(min_hit_groups);
         c.set_confidence_hi(confidence_hi); c.set_emit_evidence(emit_evidence); c.set_confidence_hits_only(hits_only);
         c.set_confidence_quality(quality); c.set_identity_placement(rp, species_identity, family_identity);
-        if(uniq_path.size()) c.enable_uniq(uniq_hll_p);
+        if(uniq_path.size()) c.enable_uniq(uniq_p_set ? uniq_hll_p: sketch_dir.size() ? 10u: 12u, sketch_dir.size() ? UniqSketch::BBMH: UniqSketch::HLL);
         // We can use optind + 3 for both single-end and paired-end mode since the argument at
         // index argc is null when argc - optind == 3.
         process_dataset(c, taxmap, argv[optind + 2], argv[optind + 3], ofp, chunk_size, per_set);
@@ -240,7 +249,7 @@ int classify_main(int argc, char *argv[]) {
             for_each_db_taxon([&](tax_t t) {++db_kmers[t];});
             std::FILE *ufp = std::fopen(uniq_path.data(), "w");
             if(!ufp) RUNTIME_ERROR("could not open " + uniq_path);
-            write_uniq_report(ufp, *c.uniq(), taxmap, &db_kmers, rank_name);
+            write_uniq_report(ufp, *c.uniq(), taxmap, &db_kmers, rank_name, sketch_dir.size() ? &sketch_dir: nullptr, sketch_b);
             std::fclose(ufp);
         }
     };
@@ -880,6 +889,12 @@ int main(int argc, char *argv[]) {
         std::fprintf(stdout, "bonsai|%s\n", BONSAI_VERSION);
         return EXIT_SUCCESS;
     }
-    return (argc > 1 && md.find(argv[1]) != md.end() ? md.find(argv[1])->second
-                                                     : err_main)(argc - 1, argv + 1);
+    // Report errors (RUNTIME_ERROR and friends) and exit 1 instead of aborting.
+    try {
+        return (argc > 1 && md.find(argv[1]) != md.end() ? md.find(argv[1])->second
+                                                         : err_main)(argc - 1, argv + 1);
+    } catch(const std::exception &e) {
+        std::fprintf(stderr, "bonsai: error: %s\n", e.what());
+        return EXIT_FAILURE;
+    }
 }

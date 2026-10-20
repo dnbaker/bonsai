@@ -280,9 +280,9 @@ struct ClassifierGeneric {
     // classification thread; null (the default) collects nothing.
     std::shared_ptr<std::vector<UniqAccumulator>> uniq_;
     public:
-    void enable_uniq(unsigned hll_p = 12) {
+    void enable_uniq(unsigned p = 12, UniqSketch kind = UniqSketch::HLL) {
         uniq_ = std::make_shared<std::vector<UniqAccumulator>>(std::max<unsigned>(1, nt_));
-        for(auto &a: *uniq_) a.p = hll_p;
+        for(auto &a: *uniq_) a.p = p, a.kind = kind;
     }
     std::vector<UniqAccumulator> *uniq() const {return uniq_.get();}
     void set_identity_placement(const rank_map_t *ranks, double species_identity = 0.95, double family_identity = 0.85) {

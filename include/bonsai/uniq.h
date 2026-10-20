@@ -8,16 +8,21 @@
 // the database). Few distinct k-mers with many reads, or low coverage, flag
 // false-positive taxa that read counts alone do not.
 // Counters are exact (a sorted vector of hashes) up to EXACT_MAX distinct
-// k-mers and a HyperLogLog (sketch::hll_t, 2^p registers) beyond, so the many
-// rarely hit taxa cost little. One accumulator per classification thread,
-// merged when the report is written; without -U nothing is collected.
+// k-mers and a sketch beyond, so the many rarely hit taxa cost little: a
+// HyperLogLog (sketch::hll_t, 2^p registers; -U) or a b-bit MinHash
+// (sketch::BBitMinHasher, 2^p registers; -B), whose finalized per-clade
+// sketches can be written and compared against reference sketches by
+// containment or Jaccard. One accumulator per classification thread, merged
+// when the report is written; without -U nothing is collected.
 #include <algorithm>
 #include <cstdio>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
 #include "sketch/hll.h"
+#include "sketch/bbmh.h"
 #include "util.h"
 
 namespace bns {
@@ -29,63 +34,94 @@ inline uint64_t uniq_hash(uint64_t x) {   // splitmix64 finalizer
 }
 inline uint64_t uniq_hash(u128 x) {return uniq_hash(uint64_t(x) ^ uniq_hash(uint64_t(x >> 64)));}
 
+enum class UniqSketch: uint8_t {HLL, BBMH};
+using uniq_bbmh_t = sketch::BBitMinHasher<uint64_t>;
+
 class UniqCounter {
     std::vector<uint64_t> exact_;          // distinct hashes (unsorted pending tail past sorted_)
     size_t sorted_ = 0;
     std::unique_ptr<sketch::hll_t> hll_;
+    std::unique_ptr<uniq_bbmh_t> bbmh_;
     unsigned p_;
+    UniqSketch kind_;
     void compact() {
         std::sort(exact_.begin(), exact_.end());
         exact_.erase(std::unique(exact_.begin(), exact_.end()), exact_.end());
         sorted_ = exact_.size();
     }
     void promote() {
-        hll_.reset(new sketch::hll_t(p_));
-        for(const auto h: exact_) hll_->add(h);
+        if(kind_ == UniqSketch::HLL) {
+            hll_.reset(new sketch::hll_t(p_));
+            for(const auto h: exact_) hll_->add(h);
+        } else {
+            bbmh_.reset(new uniq_bbmh_t(p_));
+            for(const auto h: exact_) bbmh_->add(h);
+        }
         std::vector<uint64_t>().swap(exact_);
         sorted_ = 0;
     }
 public:
-    // EXACT_MAX hashes take 8 * 512 = 4 KiB, the size of a p = 12 sketch
+    // EXACT_MAX hashes take 8 * 512 = 4 KiB, the size of a p = 12 HyperLogLog.
+    // (b-bit MinHash estimates and finalized cardinalities are correct for
+    // sparse sketches from sketch d45a3c3 on: linear counting while registers
+    // are empty.)
     static constexpr size_t EXACT_MAX = 512;
-    explicit UniqCounter(unsigned p = 12): p_(p) {}
+    explicit UniqCounter(unsigned p = 12, UniqSketch kind = UniqSketch::HLL): p_(p), kind_(kind) {}
     void add(uint64_t h) {
         if(hll_) {hll_->add(h); return;}
+        if(bbmh_) {bbmh_->add(h); return;}
         exact_.push_back(h);
         if(exact_.size() >= 2 * EXACT_MAX) {
             compact();
             if(exact_.size() > EXACT_MAX) promote();
         }
     }
+    // Union. An exact counter absorbing a sketch takes the sketch's kind and
+    // precision; two sketches must share both.
     void merge(UniqCounter &o) {
-        if(o.hll_) {
-            if(!hll_) promote();
-            *hll_ += *o.hll_;
+        if(o.sketched()) {
+            if(!sketched()) p_ = o.p_, kind_ = o.kind_, promote();
+            else if(p_ != o.p_ || kind_ != o.kind_)
+                throw std::invalid_argument("UniqCounter::merge: sketches of different kind or precision");
+            if(hll_) *hll_ += *o.hll_;
+            else *bbmh_ += *o.bbmh_;
             return;
         }
         for(const auto h: o.exact_) add(h);
     }
     double estimate() {
         if(hll_) return hll_->report();
+        if(bbmh_) return bbmh_->cardinality_estimate();
         compact();
         return double(exact_.size());
     }
-    bool sketched() const {return bool(hll_);}
+    bool sketched() const {return hll_ || bbmh_;}
+    UniqSketch kind() const {return kind_;}
+    // The counter as a b-bit MinHash sketch (an exact counter is sketched on
+    // the fly), finalized at b bits per register.
+    sketch::FinalBBitMinHash bbmh(unsigned b) const {
+        if(bbmh_) return bbmh_->finalize(b);
+        if(hll_) throw std::invalid_argument("UniqCounter::bbmh: a HyperLogLog counter cannot be converted");
+        uniq_bbmh_t tmp(p_);
+        for(const auto h: exact_) tmp.add(h);
+        return tmp.finalize(b);
+    }
 };
 
 struct TaxonTally {
     uint64_t reads = 0;      // reads called this taxon
     uint64_t kmers = 0;      // k-mer hits mapping to this taxon
     UniqCounter uniq;
-    explicit TaxonTally(unsigned p = 12): uniq(p) {}
+    explicit TaxonTally(unsigned p = 12, UniqSketch kind = UniqSketch::HLL): uniq(p, kind) {}
 };
 
 struct UniqAccumulator {
     std::unordered_map<tax_t, TaxonTally> taxa;
     unsigned p = 12;
+    UniqSketch kind = UniqSketch::HLL;
     TaxonTally &at(tax_t t) {
         auto it = taxa.find(t);
-        if(it == taxa.end()) it = taxa.emplace(t, TaxonTally(p)).first;
+        if(it == taxa.end()) it = taxa.emplace(t, TaxonTally(p, kind)).first;
         return it->second;
     }
     void merge(UniqAccumulator &o) {
@@ -99,19 +135,22 @@ struct UniqAccumulator {
 
 // Report: one row per taxon with reads or k-mers in its clade, by clade reads
 // (descending). db_kmers (optional): database k-mers per taxon (direct), for
-// coverage; rank_name (optional): rank label per taxon.
+// coverage; rank_name: rank label per taxon. sketch_dir (optional, b-bit
+// MinHash counters): each clade's read k-mer sketch is written to
+// <sketch_dir>/<taxid>.bbmh, finalized at sketch_b bits per register.
 template<typename RankName>
 void write_uniq_report(std::FILE *fp, std::vector<UniqAccumulator> &accs, const khash_t(p) *taxmap,
-                       const std::unordered_map<tax_t, uint64_t> *db_kmers, RankName &&rank_name) {
+                       const std::unordered_map<tax_t, uint64_t> *db_kmers, RankName &&rank_name,
+                       const std::string *sketch_dir = nullptr, unsigned sketch_b = 16) {
     UniqAccumulator all;
-    if(!accs.empty()) all.p = accs.front().p;
+    if(!accs.empty()) all.p = accs.front().p, all.kind = accs.front().kind;
     for(auto &a: accs) all.merge(a);
     struct Clade {uint64_t reads = 0, taxon_reads = 0, kmers = 0, db = 0; UniqCounter uniq; double taxon_uniq = 0.;
-                  explicit Clade(unsigned p): uniq(p) {}};
+                  Clade(unsigned p, UniqSketch k): uniq(p, k) {}};
     std::unordered_map<tax_t, Clade> clades;
     auto clade = [&](tax_t t) -> Clade & {
         auto it = clades.find(t);
-        if(it == clades.end()) it = clades.emplace(t, Clade(all.p)).first;
+        if(it == clades.end()) it = clades.emplace(t, Clade(all.p, all.kind)).first;
         return it->second;
     };
     auto ancestors = [&](tax_t t, auto &&f) {
@@ -157,6 +196,8 @@ void write_uniq_report(std::FILE *fp, std::vector<UniqAccumulator> &accs, const 
                      u, c.taxon_uniq, u > 0. ? double(c.kmers) / u: 0.);
         if(db_kmers && c.db) std::fprintf(fp, "%.6f\n", std::min(1., u / double(c.db)));
         else std::fprintf(fp, "NA\n");
+        if(sketch_dir && all.kind == UniqSketch::BBMH)
+            c.uniq.bbmh(sketch_b).write((*sketch_dir + "/" + std::to_string(r.first) + ".bbmh").data());
     }
 }
 
