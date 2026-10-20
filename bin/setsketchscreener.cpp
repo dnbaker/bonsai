@@ -32,8 +32,8 @@
 using namespace bns::lsh;
 using namespace bns;
 
-#include "hll/include/flat_hash_map/flat_hash_map.hpp"
-using MapT = ska::flat_hash_map<uint64_t, uint32_t>;
+#include "hll/include/ankerl/unordered_dense.h"
+using MapT = ankerl::unordered_dense::map<uint64_t, uint32_t>;
 
 using std::uint64_t;
 using std::uint32_t;
@@ -64,7 +64,7 @@ void for_each_kmer(Encoder<> &enc, RollingHasher<uint64_t> &rolling_hasher, cons
 
 // Step 1: load k-mer files
 // Step 2: invert matrix
-ska::flat_hash_map<uint64_t, std::vector<uint32_t>>
+ankerl::unordered_dense::map<uint64_t, std::vector<uint32_t>>
 read_file(gzFile fp) {
     auto timestart = std::chrono::high_resolution_clock::now();
     uint64_t arr[2];
@@ -73,7 +73,7 @@ read_file(gzFile fp) {
     gzread(fp, data.get(), sizeof(uint32_t) * arr[0]);
     std::unique_ptr<uint64_t[]> keys(new uint64_t[arr[0]]);
     gzread(fp, data.get(), sizeof(uint64_t) * arr[0]);
-    ska::flat_hash_map<uint64_t, std::vector<uint32_t>> map;
+    ankerl::unordered_dense::map<uint64_t, std::vector<uint32_t>> map;
     std::vector<uint32_t> buffer;
     map.reserve(arr[0]);
     size_t total_ids_read = 0;

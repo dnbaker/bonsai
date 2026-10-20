@@ -1,7 +1,7 @@
 #pragma once
 #include "hll/include/circularqueue/cq.h"
 #include "bonsai/kmerutil.h"
-#include "hll/include/flat_hash_map/flat_hash_map.hpp"
+#include "hll/include/ankerl/unordered_dense.h"
 #include "bonsai/rhtraits.h"
 
 namespace bns {
@@ -12,7 +12,7 @@ class CircusEnt {
     size_t        cqsz_;
     const size_t   qsz_;
     const double qszinv_;
-    ska::flat_hash_map<char, size_t> counts_;
+    ankerl::unordered_dense::map<char, size_t> counts_;
 public:
     static constexpr double NOT_FULL = -1.;
     CircusEnt(size_t qsz): q_(qsz), cqsz_(0), qsz_(qsz), qszinv_(1./qsz)

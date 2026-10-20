@@ -14,7 +14,7 @@ namespace lsh {
 using std::int64_t;
 
 using sketch::SetSketchIndex;
-static inline int write_database(const ska::flat_hash_map<uint64_t, std::vector<uint32_t>> &map, std::FILE *ofp, int k) {
+static inline int write_database(const ankerl::unordered_dense::map<uint64_t, std::vector<uint32_t>> &map, std::FILE *ofp, int k) {
     int ret = 0;
     const int fd = ::fileno(ofp);
     if(write_all(fd, &k, 4) != 4) throw std::runtime_error("Failed to write k");
@@ -49,7 +49,7 @@ static inline int write_database(const ska::flat_hash_map<uint64_t, std::vector<
     }
     return ret;
 }
-static inline int write_database(const ska::flat_hash_map<uint64_t, std::vector<uint32_t>> &map, gzFile ofp, int k) {
+static inline int write_database(const ankerl::unordered_dense::map<uint64_t, std::vector<uint32_t>> &map, gzFile ofp, int k) {
     int ret = 0;
     const uint64_t total_vals = map.size();
     const uint64_t total_ids = std::accumulate(map.begin(), map.end(), uint64_t(0), [](uint64_t x, auto &pair) {return x + pair.second.size();});
@@ -86,7 +86,7 @@ static inline int write_database(const ska::flat_hash_map<uint64_t, std::vector<
 }
 // You can use this database for inverted screen sweeps
 static inline
-std::pair<ska::flat_hash_map<uint64_t, std::vector<uint32_t>>, int>
+std::pair<ankerl::unordered_dense::map<uint64_t, std::vector<uint32_t>>, int>
 read_database(std::FILE *fp) {
     auto timestart = std::chrono::high_resolution_clock::now();
     int k;
@@ -100,7 +100,7 @@ read_database(std::FILE *fp) {
     }
     std::unique_ptr<uint64_t[]> keys(new uint64_t[arr[0]]);
     if(std::fread(keys.get(), sizeof(uint64_t), arr[0], fp) != arr[0]) throw 3;
-    ska::flat_hash_map<uint64_t, std::vector<uint32_t>> map;
+    ankerl::unordered_dense::map<uint64_t, std::vector<uint32_t>> map;
     std::vector<uint32_t> buffer;
     map.reserve(arr[0]);
     size_t total_ids_read = 0;
@@ -116,7 +116,7 @@ read_database(std::FILE *fp) {
     std::fprintf(stderr, "Time to deserialize: %gms\n", std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - timestart).count());
     return std::make_pair(map, k);
 }
-static inline ska::flat_hash_map<uint64_t, std::vector<uint32_t>> &operator+=(ska::flat_hash_map<uint64_t, std::vector<uint32_t>> &lhs, const ska::flat_hash_map<uint64_t, std::vector<uint32_t>> &rhs)
+static inline ankerl::unordered_dense::map<uint64_t, std::vector<uint32_t>> &operator+=(ankerl::unordered_dense::map<uint64_t, std::vector<uint32_t>> &lhs, const ankerl::unordered_dense::map<uint64_t, std::vector<uint32_t>> &rhs)
 {
     for(auto &&pair: rhs) {
         auto it = lhs.find(pair.first);
@@ -127,7 +127,7 @@ static inline ska::flat_hash_map<uint64_t, std::vector<uint32_t>> &operator+=(sk
 }
 
 static inline
-std::pair<ska::flat_hash_map<uint64_t, std::vector<uint32_t>>, int>
+std::pair<ankerl::unordered_dense::map<uint64_t, std::vector<uint32_t>>, int>
 read_database(gzFile fp) {
     auto timestart = std::chrono::high_resolution_clock::now();
     uint64_t arr[2];
@@ -138,7 +138,7 @@ read_database(gzFile fp) {
     gzread(fp, data.get(), sizeof(uint32_t) * arr[0]);
     std::unique_ptr<uint64_t[]> keys(new uint64_t[arr[0]]);
     gzread(fp, data.get(), sizeof(uint64_t) * arr[0]);
-    ska::flat_hash_map<uint64_t, std::vector<uint32_t>> map;
+    ankerl::unordered_dense::map<uint64_t, std::vector<uint32_t>> map;
     std::vector<uint32_t> buffer;
     map.reserve(arr[0]);
     size_t total_ids_read = 0;
@@ -153,11 +153,11 @@ read_database(gzFile fp) {
     return std::make_pair(map, k);
 }
 static inline
-std::pair<ska::flat_hash_map<uint64_t, std::vector<uint32_t>>, int>
+std::pair<ankerl::unordered_dense::map<uint64_t, std::vector<uint32_t>>, int>
 read_database(std::string s) {
     gzFile fp = gzopen(s.data(), "rb");
     if(!fp) throw std::runtime_error(std::string("Could not read from file ") + s);
-    std::pair<ska::flat_hash_map<uint64_t, std::vector<uint32_t>>, int> ret = read_database(fp);
+    std::pair<ankerl::unordered_dense::map<uint64_t, std::vector<uint32_t>>, int> ret = read_database(fp);
     gzclose(fp);
     return ret;
 }

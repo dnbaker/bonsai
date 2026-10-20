@@ -2,7 +2,7 @@
 #define BONSAI_KMER_IDX_H__
 #include "encoder.h"
 #include "lazy/vector.h"
-#include "hll/include/flat_hash_map/flat_hash_map.hpp"
+#include "hll/include/ankerl/unordered_dense.h"
 
 namespace bns {
 
@@ -19,7 +19,7 @@ struct KmerIdx {
     std::vector<std::string> comments_;
     std::vector<uint64_t>     seqlens_;
     std::vector<uint64_t>     cm_seqs_; // Cumulative sequence lengths
-    ska::flat_hash_map<KmerType, lazy::vector<IT1>> map_;
+    ankerl::unordered_dense::map<KmerType, lazy::vector<IT1>> map_;
 
     KmerIdx(unsigned k, const char *path=nullptr): k_(k) {
         if(k > sizeof(KmerType) * CHAR_BIT / 2) UNRECOVERABLE_ERROR("Error: k must be <= bits per KmerType / 2.");

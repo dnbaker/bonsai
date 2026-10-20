@@ -1,7 +1,7 @@
 #include "bonsai/encoder.h"
 #include "bonsai/util.h"
 #include "kseq_declare.h"
-#include "hll/include/flat_hash_map/flat_hash_map.hpp"
+#include "hll/include/ankerl/unordered_dense.h"
 #include <getopt.h>
 #ifdef _OPENMP
 #include <omp.h>
@@ -12,7 +12,7 @@ using namespace bns;
 #ifndef VALUE_TYPE
 #define VALUE_TYPE uint32_t
 #endif
-using CType = ska::flat_hash_map<uint64_t, VALUE_TYPE>;
+using CType = ankerl::unordered_dense::map<uint64_t, VALUE_TYPE>;
 
 void update_kmerc(CType &kmerc, const std::string &path, int k, bool canon, const int htype, kseq_t *kseq=static_cast<kseq_t*>(nullptr), RollingHashingType rht=RollingHashingType::DNA) {
     Encoder<> enc(k, canon);

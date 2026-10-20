@@ -5,7 +5,7 @@
 #include "sketch/common.h"
 #include "sketch/exception.h"
 #include "sketch/setsketch.h"
-//#include "hll/flat_hash_map/flat_hash_map.hpp"
+
 #include <getopt.h>
 #ifdef _OPENMP
 #include <omp.h>

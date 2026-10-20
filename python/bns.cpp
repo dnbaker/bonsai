@@ -1,7 +1,7 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/numpy.h"
 #include "bonsai/encoder.h"
-#include "hll/include/flat_hash_map/flat_hash_map.hpp"
+#include "hll/include/ankerl/unordered_dense.h"
 namespace py = pybind11;
 using namespace pybind11::literals;
 
@@ -10,7 +10,7 @@ using namespace bns;
 template<typename Enc>
 py::array_t<uint64_t> get_kmers(Enc &enc, const char *str, size_t n, size_t reservation, bool unique) {
     if(unique) {
-        ska::flat_hash_set<uint64_t> kmerset;
+        ankerl::unordered_dense::set<uint64_t> kmerset;
         auto func = [&kmerset](auto x) {kmerset.insert(x);};
         if(n)
             enc.for_each(func, str, n);
@@ -41,7 +41,7 @@ py::array_t<uint64_t> get_kmers(Enc &enc, const char *str, size_t n, size_t rese
 
 py::array_t<uint64_t> get_kmers(RollingHasher<uint64_t> &enc, const char *str, size_t n, size_t reservation, bool unique) {
     if(unique) {
-        ska::flat_hash_set<uint64_t> kmerset;
+        ankerl::unordered_dense::set<uint64_t> kmerset;
         auto func = [&kmerset](auto x) {kmerset.insert(x);};
         if(n) {
             if(enc.canon_)

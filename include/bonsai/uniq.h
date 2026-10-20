@@ -105,8 +105,8 @@ public:
     // A sketched counter only (see SharedTally): safe concurrently with
     // other sketched adds, since both sketches update registers by CAS.
     void add_concurrent(uint64_t h) {
-        if(hll_) hll_->add(h);
-        else bbmh_->add(h);
+        if(hll_) hll_->add_threadsafe(h);
+        else bbmh_->add_threadsafe(h);
     }
     // Drop the contents (the report frees each taxon's counter once merged).
     void release() {hll_.reset(); bbmh_.reset(); std::vector<uint64_t>().swap(exact_); sorted_ = 0;}
