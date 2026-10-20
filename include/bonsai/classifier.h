@@ -228,6 +228,7 @@ inline tax_t cap_rank(tax_t taxon, uint8_t cap, const Parents &taxmap, const ran
 // classify identically for the same keys.
 template<typename DB> struct db_key_type {using type = u64;};
 template<typename K> struct db_key_type<BasicCompactKmerMap<K>> {using type = K;};
+template<typename K> struct db_key_type<ShardedKmerMap<K>> {using type = K;};
 
 template<typename ScoreType, typename DB=khash_t(c)>
 struct ClassifierGeneric {

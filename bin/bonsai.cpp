@@ -284,7 +284,13 @@ int classify_main(int argc, char *argv[]) {
         // read; a hashed-tier database's key width is its hash width.
         CompactDatabase db(argv[optind]);
         db_k = db.k_;
-        if(db.wide()) {
+        if(db.sharded() && db.wide()) {
+            ClassifierGeneric<score::Lex, ShardedKmerMap<u128>> c(db.sh128_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, db.keyspec());
+            run(c, [&](auto &&f) {db.sh128_->for_each([&](auto, tax_t t) {f(t);});});
+        } else if(db.sharded()) {
+            ClassifierGeneric<score::Lex, ShardedKmerMap<u64>> c(db.sh_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, db.keyspec());
+            run(c, [&](auto &&f) {db.sh_->for_each([&](auto, tax_t t) {f(t);});});
+        } else if(db.wide()) {
             ClassifierGeneric<score::Lex, CompactKmerMap128> c(db.db128_.get(), db.s_, db.k_, db.k_, num_threads, emit_all, emit_fastq, emit_kraken, canonicalize, db.keyspec());
             run(c, [&](auto &&f) {db.db128_->for_each([&](auto, tax_t t) {f(t);});});
         } else {
@@ -309,6 +315,7 @@ int classify_main(int argc, char *argv[]) {
 int phase2_main(int argc, char *argv[]) {
     int c, mode(score_scheme::LEX), wsz(-1), num_threads(1), k(31);
     bool canon(true), compact_out(true), compact_explicit(false);
+    unsigned nshards = 1;
     KeySpec keyspec;              // -P alphabet, -6 translate, -H hash bits (compact builds)
     WRITE write_fmt = UNCOMPRESSED;
     std::size_t start_size(1<<16);
@@ -335,6 +342,9 @@ int phase2_main(int argc, char *argv[]) {
                      "-Z: Compact database (sketch cht_map_t), built directly without an intermediate khash.\n"
                      "    The default for lex LCA databases; classify detects the format.\n"
                      "-L: Legacy khash database instead of compact (also what non-lex modes build).\n"
+                     "-x: Build the compact database in this many shards, by k-mer hash, one at a time (each\n"
+                     "    written out before the next): build memory ~1/x, at x passes over the references. One\n"
+                     "    file; classify loads every shard and gives identical results. [1]\n"
                      "-P: Amino-acid key alphabet for a protein database (-Z): PROTEIN20, PROTEIN14, PROTEIN8, PROTEIN6.\n"
                      "    k counts residues. References are protein FASTA unless -6 is given.\n"
                      "-6: 6-frame translate nucleotide references (and, at classify, reads) into -P residues.\n"
@@ -342,7 +352,7 @@ int phase2_main(int argc, char *argv[]) {
                      , *argv);
         std::exit(EXIT_FAILURE);
     }
-    while((c = getopt(argc, argv, "Cw:M:S:p:k:T:F:P:H:tef6zZLh?")) >= 0) {
+    while((c = getopt(argc, argv, "Cw:M:S:p:k:T:F:P:H:x:tef6zZLh?")) >= 0) {
         switch(c) {
             case 'C': canon = false; break;
             case 'h': case '?': goto usage;
@@ -360,6 +370,7 @@ int phase2_main(int argc, char *argv[]) {
             case 'z': write_fmt = ZLIB; break;
             case 'Z': compact_out = true; compact_explicit = true; break;
             case 'L': compact_out = false; break;
+            case 'x': nshards = unsigned(std::max(1, std::atoi(optarg))); break;
             case 'P': if(!input_type_from_string(optarg, keyspec.rht)) LOG_EXIT("Unknown alphabet %s\n", optarg); break;
             case '6': keyspec.translate = true; break;
             case 'H': keyspec.hash_bits = unsigned(std::atoi(optarg)); break;
@@ -444,7 +455,38 @@ int phase2_main(int argc, char *argv[]) {
                          dbpath.data(), m->size(), m->key_bits(), m->value_bits(), m->bytes_used());
             };
             const unsigned rk = unsigned(k);
-            if(rk > rh2n(keyspec.rht, 8) && rk <= rh2n(keyspec.rht, 16)) {   // exact 128-bit keys
+            const bool wide = rk > rh2n(keyspec.rht, 8) && rk <= rh2n(keyspec.rht, 16);   // exact 128-bit keys
+            if(nshards > 1) {
+                // Sharded build: one pass over the references per shard, each keeping
+                // only its shard's keys; each shard is written out and released before
+                // the next, so the peak is about one shard's build, then concatenated.
+                std::vector<std::string> files;
+                size_t total = 0;
+                for(unsigned i = 0; i < nshards; ++i) {
+                    const std::string sf = dbpath + ".shard" + std::to_string(i);
+                    auto dump = [&](auto &&m) {
+                        std::FILE *fp = std::fopen(sf.data(), "wb");
+                        if(!fp) RUNTIME_ERROR("could not write " + sf);
+                        m->write(fp);
+                        std::fclose(fp);
+                        total += m->size();
+                        LOG_INFO("Shard %u/%u: %zu k-mers, %zu bytes\n", i + 1, nshards, m->size(), m->bytes_used());
+                    };
+                    if(wide) {
+                        using K = KmerKeys<score::Lex, u128>;
+                        dump(compact_lca_map<score::Lex, u128>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size,
+                             K::key_bits_for(rk, keyspec.rht, keyspec.hash_bits ? keyspec.hash_bits: K::DEFAULT_HASH_BITS), keyspec, i, nshards));
+                    } else {
+                        using K = KmerKeys<>;
+                        dump(compact_lca_map<score::Lex>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size,
+                             K::key_bits_for(rk, keyspec.rht, keyspec.hash_bits ? keyspec.hash_bits: K::DEFAULT_HASH_BITS), keyspec, i, nshards));
+                    }
+                    files.push_back(sf);
+                }
+                CompactDatabase::write_sharded(dbpath.data(), phase2_map.k_, phase2_map.w_, phase2_map.s_, files, keyspec);
+                for(const auto &f: files) std::remove(f.data());
+                LOG_INFO("Wrote sharded compact database %s: %u shards, %zu k-mers\n", dbpath.data(), nshards, total);
+            } else if(wide) {
                 using K = KmerKeys<score::Lex, u128>;
                 write_out(compact_lca_map<score::Lex, u128>(inpaths, taxmap, seq2taxpath.data(), sp, num_threads, canon, hash_size,
                           K::key_bits_for(rk, keyspec.rht, keyspec.hash_bits ? keyspec.hash_bits: K::DEFAULT_HASH_BITS), keyspec));

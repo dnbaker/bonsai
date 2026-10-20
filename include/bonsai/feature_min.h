@@ -344,9 +344,12 @@ khash_t(c) *lca_map(const std::vector<std::string> &fns, const khash_t(p) *tax_m
 template<typename ScoreType, typename KeyT = u64>
 std::unique_ptr<BasicCompactKmerMap<KeyT>> compact_lca_map(const std::vector<std::string> &fns, const khash_t(p) *tax_map,
                                                            const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon,
-                                                           size_t estimated_kmers, unsigned key_bits, const KeySpec &spec = KeySpec{}) {
+                                                           size_t estimated_kmers, unsigned key_bits, const KeySpec &spec = KeySpec{},
+                                                           unsigned shard = 0, unsigned nshards = 1) {
+    // sharded builds (build -x): this call keeps only the keys of `shard`, sized for 1/nshards of them
     CompactLcaMapT<KeyT> mu;
-    mu.b = std::make_unique<CompactLcaBuilder<KeyT>>(estimated_kmers, kh_size(tax_map), key_bits);
+    mu.b = std::make_unique<CompactLcaBuilder<KeyT>>(estimated_kmers / std::max(1u, nshards) + 1, kh_size(tax_map), key_bits);
+    mu.b->set_shard(shard, nshards);
     mu.spec = spec;
     return make_map<ScoreType, CompactLcaMapT<KeyT>>(fns, tax_map, seq2tax_path, sp, num_threads, canon, 0, nullptr, std::move(mu));
 }

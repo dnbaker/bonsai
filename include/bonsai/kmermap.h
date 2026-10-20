@@ -53,6 +53,18 @@ template<> struct KeyHasher<u64> {using type = sketch::cht::cht_mixbits_hash; st
 template<> struct KeyHasher<u128> {using type = sketch::cht::cht_mixbits128_hash; static constexpr unsigned max_bits = 128;};
 } // namespace kmermap_detail
 
+// Shard of a key for sharded databases (build -x P): a splitmix64 finalizer,
+// independent of the table's own hash, then the high bits times P (uniform).
+inline unsigned kmer_shard(u64 k, unsigned nshards) {
+    k ^= k >> 30; k *= 0xbf58476d1ce4e5b9ULL;
+    k ^= k >> 27; k *= 0x94d049bb133111ebULL;
+    k ^= k >> 31;
+    return unsigned((static_cast<u128>(k) * nshards) >> 64);
+}
+inline unsigned kmer_shard(u128 k, unsigned nshards) {
+    return kmer_shard(u64(k) ^ (u64(k >> 64) * 0x9e3779b97f4a7c15ULL), nshards);
+}
+
 // KeyT = u64: k-mers of up to 64 bits (DNA k <= 32) or 64-bit hashes;
 // KeyT = u128: 65..128-bit keys (DNA 32 < k <= 64 exactly, or wide hashes).
 // CompactKmerMap / CompactKmerMap128 below.
@@ -252,22 +264,69 @@ using CompactKmerMap128 = BasicCompactKmerMap<u128>;
 // capacity, taxids) and the cht_map_t stream (whose key width is the hashed
 // tier's hash width). Uncompressed. "BNSCKM02" files (no key encoding field)
 // read as DNA, untranslated. `bonsai compact` converts a khash database into one.
+// A database stored as P compact maps, each holding the keys of one shard
+// (kmer_shard). Lookups route each key to its shard; get_many keeps the order of
+// its input, so classification is identical to the unsharded database. Memory is
+// the sum of the shards; the point is the build (one shard at a time).
+template<typename KeyT>
+class ShardedKmerMap {
+public:
+    using map_type = BasicCompactKmerMap<KeyT>;
+    using key_type = KeyT;
+    static constexpr tax_t NOT_FOUND = map_type::NOT_FOUND;
+    std::vector<std::unique_ptr<map_type>> shards;
+    tax_t get(KeyT k) const {return shards[kmer_shard(k, shards.size())]->get(k);}
+    template<typename It, typename Ot>
+    void get_many(It f, It l, Ot o, std::vector<uint64_t> &scratch, size_t ahead = 16) const {
+        const size_t n = std::distance(f, l), P = shards.size();
+        thread_local std::vector<std::vector<KeyT>> keys;
+        thread_local std::vector<std::vector<size_t>> where;
+        thread_local std::vector<std::vector<tax_t>> got;
+        keys.resize(P); where.resize(P); got.resize(P);
+        for(size_t s = 0; s < P; ++s) keys[s].clear(), where[s].clear();
+        size_t i = 0;
+        for(It it = f; it != l; ++it, ++i) {
+            const unsigned s = kmer_shard(KeyT(*it), P);
+            keys[s].push_back(KeyT(*it));
+            where[s].push_back(i);
+        }
+        thread_local std::vector<tax_t> out;
+        out.assign(n, NOT_FOUND);
+        for(size_t s = 0; s < P; ++s) {
+            if(keys[s].empty()) continue;
+            got[s].resize(keys[s].size());
+            shards[s]->get_many(keys[s].begin(), keys[s].end(), got[s].begin(), scratch, ahead);
+            for(size_t j = 0; j < keys[s].size(); ++j) out[where[s][j]] = got[s][j];
+        }
+        for(size_t j = 0; j < n; ++j) *o++ = out[j];
+    }
+    template<typename F> void for_each(F &&f) const {for(const auto &m: shards) m->for_each(f);}
+    size_t size() const {size_t n = 0; for(const auto &m: shards) n += m->size(); return n;}
+    size_t bytes_used() const {size_t n = 0; for(const auto &m: shards) n += m->bytes_used(); return n;}
+    unsigned key_bits() const {return shards.front()->key_bits();}
+    uint32_t value_bits() const {uint32_t v = 0; for(const auto &m: shards) v = std::max(v, m->value_bits()); return v;}
+};
+
 struct CompactDatabase {
     unsigned k_ = 0, w_ = 0;
     spvec_t s_;
     std::unique_ptr<CompactKmerMap> db_;        // keys of up to 64 bits
     std::unique_ptr<CompactKmerMap128> db128_;  // wider keys (DNA 32 < k <= 64 exactly)
+    std::unique_ptr<ShardedKmerMap<u64>> sh_;      // sharded (BNSCKM04): keys of up to 64 bits
+    std::unique_ptr<ShardedKmerMap<u128>> sh128_;  // sharded, wider keys
     InputType rht_ = DNA;                       // key alphabet
     bool translate_ = false;                    // references were 6-frame translated at build (informational)
     static constexpr char MAGIC[9] = "BNSCKM03";
     static constexpr char MAGIC_V2[9] = "BNSCKM02";
-    bool wide() const {return bool(db128_);}
+    static constexpr char MAGIC_V4[9] = "BNSCKM04";   // v3 header, u32 shard count, then the shard maps
+    bool wide() const {return bool(db128_) || bool(sh128_);}
+    bool sharded() const {return bool(sh_) || bool(sh128_);}
     // the KeySpec to classify with: reads are nucleotide, so a protein database
     // translates them (whether its references were translated or protein FASTA);
     // hash width = the stored key width, for hashed tiers
     KeySpec keyspec() const {
         KeySpec ks{rht_, rht_ != DNA, 0};
-        const unsigned kb = wide() ? db128_->key_bits(): db_->key_bits();
+        const unsigned kb = sh128_ ? sh128_->key_bits(): sh_ ? sh_->key_bits(): wide() ? db128_->key_bits(): db_->key_bits();
         if(wide() ? KmerKeys<score::Lex, u128>::tier_for(k_, rht_) == KmerKeys<score::Lex, u128>::HASHED128
                   : KmerKeys<>::tier_for(k_, rht_) == KmerKeys<>::HASHED64) ks.hash_bits = kb;
         return ks;
@@ -277,7 +336,8 @@ struct CompactDatabase {
         std::FILE *fp = std::fopen(fn, "rb");
         if(!fp) return false;
         char m[8];
-        const bool ret = std::fread(m, 1, 8, fp) == 8 && (std::memcmp(m, MAGIC, 8) == 0 || std::memcmp(m, MAGIC_V2, 8) == 0);
+        const bool ret = std::fread(m, 1, 8, fp) == 8 && (std::memcmp(m, MAGIC, 8) == 0 || std::memcmp(m, MAGIC_V2, 8) == 0
+                                                          || std::memcmp(m, MAGIC_V4, 8) == 0);
         std::fclose(fp);
         return ret;
     }
@@ -285,9 +345,10 @@ struct CompactDatabase {
         std::FILE *fp = std::fopen(fn, "rb");
         if(!fp) LOG_EXIT("Could not open %s for reading.\n", fn);
         char m[8];
-        if(std::fread(m, 1, 8, fp) != 8 || (std::memcmp(m, MAGIC, 8) && std::memcmp(m, MAGIC_V2, 8)))
+        if(std::fread(m, 1, 8, fp) != 8 || (std::memcmp(m, MAGIC, 8) && std::memcmp(m, MAGIC_V2, 8) && std::memcmp(m, MAGIC_V4, 8)))
             throw std::runtime_error(std::string("Not a compact bonsai database: ") + fn);
-        const bool v3 = std::memcmp(m, MAGIC, 8) == 0;
+        const bool v4 = std::memcmp(m, MAGIC_V4, 8) == 0;
+        const bool v3 = v4 || std::memcmp(m, MAGIC, 8) == 0;
         if(std::fread(&k_, sizeof(k_), 1, fp) != 1 || std::fread(&w_, sizeof(w_), 1, fp) != 1)
             throw std::runtime_error("Error: Could not read k/w from compact database");
         s_ = spvec_t(k_ - 1);
@@ -302,6 +363,8 @@ struct CompactDatabase {
             rht_ = InputType(enc[0]);
             translate_ = enc[1] != 0;
         }
+        uint32_t nshards = 1;
+        if(v4 && std::fread(&nshards, sizeof(nshards), 1, fp) != 1) throw std::runtime_error("Error: Could not read shard count");
         // the key width (cht_map_t header, after the taxon table) picks the map type
         const long pos = std::ftell(fp);
         uint64_t nt, mt;
@@ -312,7 +375,15 @@ struct CompactDatabase {
            || std::fread(cm, 1, 8, fp) != 8 || std::fread(&kb, sizeof(kb), 1, fp) != 1)
             throw std::runtime_error("Error: truncated compact database");
         std::fseek(fp, pos, SEEK_SET);
-        if(kb > 64) db128_.reset(new CompactKmerMap128(CompactKmerMap128::read(fp)));
+        if(v4) {
+            if(kb > 64) {
+                sh128_.reset(new ShardedKmerMap<u128>);
+                for(uint32_t i = 0; i < nshards; ++i) sh128_->shards.emplace_back(new CompactKmerMap128(CompactKmerMap128::read(fp)));
+            } else {
+                sh_.reset(new ShardedKmerMap<u64>);
+                for(uint32_t i = 0; i < nshards; ++i) sh_->shards.emplace_back(new CompactKmerMap(CompactKmerMap::read(fp)));
+            }
+        } else if(kb > 64) db128_.reset(new CompactKmerMap128(CompactKmerMap128::read(fp)));
         else        db_.reset(new CompactKmerMap(CompactKmerMap::read(fp)));
         std::fclose(fp);
     }
@@ -331,6 +402,32 @@ struct CompactDatabase {
         const uint32_t enc[2] = {uint32_t(spec.rht), uint32_t(spec.translate)};
         if(std::fwrite(enc, sizeof(enc), 1, fp) != 1) throw std::runtime_error("Error writing database");
         m.write(fp);
+        std::fclose(fp);
+    }
+    // Sharded database file: the v3 header, the shard count, then each shard's map,
+    // copied from the per-shard files written during the build (so only one shard
+    // is ever in memory).
+    static void write_sharded(const char *fn, unsigned k, unsigned w, const spvec_t &s, const std::vector<std::string> &shard_files,
+                              const KeySpec &spec = KeySpec{}) {
+        std::FILE *fp = std::fopen(fn, "wb");
+        if(!fp) LOG_EXIT("Could not open %s for writing.\n", fn);
+        if(std::fwrite(MAGIC_V4, 1, 8, fp) != 8 || std::fwrite(&k, sizeof(k), 1, fp) != 1 || std::fwrite(&w, sizeof(w), 1, fp) != 1)
+            throw std::runtime_error("Error writing database");
+        for(const auto v: s) {
+            const uint8_t bv = static_cast<uint8_t>(v);
+            if(std::fwrite(&bv, sizeof(bv), 1, fp) != 1) throw std::runtime_error("Error writing database");
+        }
+        const uint32_t enc[2] = {uint32_t(spec.rht), uint32_t(spec.translate)}, n = uint32_t(shard_files.size());
+        if(std::fwrite(enc, sizeof(enc), 1, fp) != 1 || std::fwrite(&n, sizeof(n), 1, fp) != 1) throw std::runtime_error("Error writing database");
+        std::vector<char> buf(1 << 22);
+        for(const auto &sf: shard_files) {
+            std::FILE *in = std::fopen(sf.data(), "rb");
+            if(!in) throw std::runtime_error("Error reading shard " + sf);
+            size_t r;
+            while((r = std::fread(buf.data(), 1, buf.size(), in)) > 0)
+                if(std::fwrite(buf.data(), 1, r, fp) != r) throw std::runtime_error("Error writing database");
+            std::fclose(in);
+        }
         std::fclose(fp);
     }
 };
@@ -356,6 +453,7 @@ class CompactLcaBuilder {
     double max_load_;
     unsigned key_bits_;
     size_t grows_ = 0;
+    unsigned shard_ = 0, nshards_ = 1;
     void grow() {
         auto next = std::make_unique<map_type>(size_t(double(m_->size() + 1) * 2), taxa_cap_, max_load_, key_bits_);
         m_->for_each([&](KeyT k, tax_t t) {next->set(k, t);});
@@ -369,6 +467,9 @@ public:
         m_ = std::make_unique<map_type>(size_t(double(std::max<size_t>(estimated_kmers, 16)) * 1.05),
                                         taxa_cap_, max_load_, key_bits_);
     }
+    // Sharded builds: only keys of this shard are kept (kmer_shard(key, nshards) == shard).
+    void set_shard(unsigned shard, unsigned nshards) {shard_ = shard; nshards_ = std::max(1u, nshards);}
+    bool mine(KeyT k) const {return nshards_ == 1 || kmer_shard(k, nshards_) == shard_;}
     size_t size() const {return m_->size();}
     size_t grows() const {return grows_;}
     const map_type &map() const {return *m_;}
@@ -388,10 +489,10 @@ public:
     }
     void update(const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid) {
         for(khiter_t ki(kh_begin(set)); ki < kh_end(set); ++ki)
-            if(kh_exist(set, ki)) add(KeyT(kh_key(set, ki)), tax, taxid);
+            if(kh_exist(set, ki) && mine(KeyT(kh_key(set, ki)))) add(KeyT(kh_key(set, ki)), tax, taxid);
     }
     void update(const std::vector<KeyT> &set, const khash_t(p) *tax, tax_t taxid) {
-        for(const KeyT k: set) add(k, tax, taxid);
+        for(const KeyT k: set) if(mine(k)) add(k, tax, taxid);
     }
     // Final rebuild: minimum value width, sorted dense ids, sized for size().
     std::unique_ptr<map_type> finish() {

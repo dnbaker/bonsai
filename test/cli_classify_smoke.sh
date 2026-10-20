@@ -44,6 +44,14 @@ cmp -s "$T/db.default" "$T/db.compact" || fail "build: the default is not the co
 head -c 6 "$T/db.khash" | grep -q BNSCKM && fail "build -L wrote a compact database"
 "$BNS" build -k 31 -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/db.gz" "$T/gA.fa" "$T/gB.fa" > /dev/null 2>&1 && fail "build accepted a gzipped compact database"
 "$BNS" build -L -k 31 -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/dbl.gz" "$T/gA.fa" "$T/gB.fa" > /dev/null 2>&1 || fail "build -L .gz"
+# sharded compact database (build -x): identical classification and -U report
+"$BNS" build -x 3 -k 31 -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/db.sharded" "$T/gA.fa" "$T/gB.fa" > "$T/buildx.log" 2>&1 || fail "build -x 3"
+head -c 8 "$T/db.sharded" | grep -q BNSCKM04 || fail "build -x 3 did not write a sharded (BNSCKM04) database"
+ls "$T"/db.sharded.shard* > /dev/null 2>&1 && fail "build -x left shard files behind"
+"$BNS" classify -k -U "$T/x1.tsv" "$T/db.compact" "$T/nodes.dmp" "$T/reads.fq" > "$T/x1.out" 2>/dev/null || fail "classify (compact)"
+"$BNS" classify -k -U "$T/x3.tsv" "$T/db.sharded" "$T/nodes.dmp" "$T/reads.fq" > "$T/x3.out" 2>/dev/null || fail "classify (sharded)"
+cmp -s "$T/x1.out" "$T/x3.out" || fail "sharded classification differs from unsharded"
+cmp -s "$T/x1.tsv" "$T/x3.tsv" || fail "sharded -U report differs from unsharded"
 # feature-count (-f) and taxonomic-depth (-t) minimized builds: prebuild writes
 # the phase-1 map, build reads it (<phase1> <out> <genomes>) and leaves it intact
 for m in f t; do
