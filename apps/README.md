@@ -169,3 +169,22 @@ replicate has biological dispersion. Each experiment is 6 vs 6 samples, repeated
   - Worse at <= 0.3x, where few duplicates leave g unidentifiable and MinHash error (~3%) dominates.
   - Below Jaccard at 3x.
   - Post hoc, same samples.
+
+### R0: real mock runs streamed from ENA (42 runs, 60 MB R1 heads, ~2.2 GB transferred, ~0 disk)
+- **Host background.** Human-only controls classify 1.30e-3 of reads (6-9 species with reads). The D6331
+  dilution series sits on that floor from 1:10^3 on.
+- **Dilution slope.** After subtracting the host background, the microbial fraction falls ~10x per 10x dilution
+  through 1:10^3; the slope over the clear-excess range is in results/r0.md.
+- **Coverage >= 1e-3** removes every host artefact (0 species in the human-only controls), but loses true species
+  as depth falls (12, then 9, then 2-3 of 15 species from 1:1 to 1:10^3).
+- **Blanks.** Template-free extraction blanks have 21-23 species with reads, 8-9 passing coverage: kit
+  contamination (the "kitome"), which needs a negative-control model rather than a threshold.
+- **Platform bias.** Species Bray-Curtis is 0.07-0.14 within a platform, 0.16 Illumina vs HiFi, and 0.43 ONT
+  vs either.
+- **D6300** (absent members abundant and distant): AUROC 1.0 for every score.
+- **Read saturation with M2's pre-set threshold (0.3) does NOT transfer.**
+  - 1:1: 1-3/15 species pass. 1:10^2-10^3: 9-11/15 pass. Absent relatives: 0 throughout.
+  - Cause: the normalizer w (sample-wide mean hits per classified read) is dragged down by host-artefact reads,
+    and a true read's hits split between its species and conserved ancestor-level k-mers.
+  - Fix to try: a per-clade expected hits/read from the database (the fraction of a genome's k-mers that fall
+    within its clade), recorded at build time.

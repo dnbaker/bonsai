@@ -1,5 +1,6 @@
 #include <fstream>
 #include <numeric>
+#include <tuple>
 #include <sstream>
 #include <omp.h>
 #include "bonsai/feature_min.h"
@@ -931,7 +932,17 @@ int profile_usage(const char *arg) {
                  "      also PERMANOVA on the samples' k-mer Jaccard distances for that clade (k-mer content\n"
                  "      shifts, e.g. strain replacement, at equal abundance) and the share of B's pooled k-mers\n"
                  "      absent from A's. Header lines: community PERMANOVA on tree EMD and Bray-Curtis.\n"
-                 "      -N: [9999] (all relabelings when fewer), -s: [1], -m: [1]\n", arg);
+                 "      -N: [9999] (all relabelings when fewer), -s: [1], -m: [1]\n"
+                 "  taxdiff [-r rank] [-m min_reads] [-a alpha] <a.bprof> <b.bprof>\n"
+                 "      Tree-structured comparison of two profiles: per node, B vs A read rates (Poisson;\n"
+                 "      conditional on the node's total, a binomial): rate ratio with exact Clopper-Pearson 95%\n"
+                 "      CI, G = 2 log likelihood ratio and its chi-square p, marginal (share of all classified\n"
+                 "      reads) and conditional (share of the parent clade: localizes a change to where it\n"
+                 "      arises; the nearest branching ancestor). Overdispersion: beta-binomial, var inflated by\n"
+                 "      1 + (n - 1) rho with rho fit robustly per test kind (median G of the adjusted nodes = chi2\n"
+                 "      median); p_od from that; BH q over the reported nodes; call over/under at q < alpha. Two\n"
+                 "      single samples: p_od, not raw Poisson p, is the honest one.\n"
+                 "      -m: nodes with >= min_reads in A + B [10]; -a: [0.05]\n", arg);
     return EXIT_FAILURE;
 }
 uint8_t parse_rank(const char *r) {
@@ -1293,6 +1304,159 @@ int profile_main(int argc, char *argv[]) {
                          r.mean[0], r.mean[1], r.lfc, r.p, qs[i]);
             if(kmers) std::fprintf(stdout, "\t%.6f\t%.6f\t%.6g\t%.6g\t%.6g\t%zu\t%.6f", r.within, r.between, r.kf, r.kp, kqs[i], r.krel, r.novel);
             std::fputc('\n', stdout);
+        }
+        return EXIT_SUCCESS;
+    }
+    if(sub == "taxdiff") {
+        uint8_t rank = RANK_UNKNOWN;
+        uint64_t min_reads = 10;
+        double alpha = 0.05;
+        while((c = getopt(argc, argv, "r:m:a:h?")) >= 0) switch(c) {
+            case 'r': rank = parse_rank(optarg); break;
+            case 'm': min_reads = std::strtoull(optarg, nullptr, 10); break;
+            case 'a': alpha = std::atof(optarg); break;
+            default: return profile_usage(argv[-1]);
+        }
+        if(argc - optind != 2) return profile_usage(argv[-1]);
+        std::unordered_map<tax_t, tax_t> parent;
+        std::unordered_map<tax_t, uint8_t> ranks;
+        std::vector<ProfileSummary> sums;
+        Profile first;
+        bool has_ranks = true;
+        for(int i = 0; i < 2; ++i) {
+            Profile pr = Profile::read(argv[optind + i]);
+            if(i == 0) {first.k = pr.k; first.canonical = pr.canonical; first.kind = pr.kind; first.p = pr.p; first.fingerprint = pr.fingerprint;}
+            else if(const auto why = first.incompatibility(pr); why.size()) RUNTIME_ERROR(std::string("profiles are not comparable: ") + why);
+            has_ranks &= bool(pr.has_ranks);
+            for(const auto &kv: pr.taxa) {
+                parent.emplace(kv.first, kv.second.parent);
+                if(kv.second.rank != RANK_UNKNOWN) ranks.emplace(kv.first, kv.second.rank);
+            }
+            sums.push_back(summarize(std::move(pr), [](tax_t, uint64_t, uint8_t) {return false;}));
+        }
+        if(rank != RANK_UNKNOWN && !has_ranks) RUNTIME_ERROR("-r needs profiles with ranks");
+        const auto &A = sums[0], &B = sums[1];
+        auto reads = [](const ProfileSummary &s, tax_t t) -> double {
+            const auto it = s.clade_reads.find(t);
+            return it == s.clade_reads.end() ? 0.: double(it->second);
+        };
+        struct Row {tax_t t; double ra, rb, rr, lo, hi, g, p, crr = NAN, clo = NAN, chi = NAN, cg = NAN, cp = NAN, pa, cpa = NAN; tax_t cond_on = 0;};
+        // rate ratio B/A of k (A) of n against references Ma, Mb, with CP 95% CI on k/n
+        auto test = [](double k, double n, double Ma, double Mb, double &rr, double &lo, double &hi, double &g, double &p) {
+            const double p0 = Ma / (Ma + Mb);
+            rr = ((n - k + .5) / Mb) / ((k + .5) / Ma);
+            const auto ci = clopper_pearson(k, n);   // on A's share; B/A ratio inverts it
+            auto ratio = [&](double q) {return q <= 0. ? INFINITY: (1. - q) / q * Ma / Mb;};
+            lo = ratio(ci.second); hi = ratio(ci.first);
+            g = binomial_g(k, n, p0); p = chisq1_p(g);
+        };
+        std::set<tax_t> nodes;
+        for(const auto *s: {&A, &B}) for(const auto &kv: s->clade_reads) nodes.insert(kv.first);
+        std::vector<Row> rows;
+        for(const tax_t t: nodes) {
+            const double ra = reads(A, t), rb = reads(B, t);
+            if(ra + rb < double(min_reads)) continue;
+            Row r{t, ra, rb};
+            test(ra, ra + rb, double(A.classified), double(B.classified), r.rr, r.lo, r.hi, r.g, r.p);
+            // condition on the nearest branching ancestor: the first ancestor whose
+            // clade holds more reads than this node (a lone child's parent tells nothing)
+            tax_t par = t;
+            for(unsigned guard = 0; guard < 4096; ++guard) {
+                const auto pit = parent.find(par);
+                if(pit == parent.end() || !pit->second || pit->second == par) {par = 0; break;}
+                par = pit->second;
+                if(reads(A, par) + reads(B, par) > ra + rb) break;
+            }
+            r.cond_on = par;
+            if(par) {
+                const double pa = reads(A, par), pb = reads(B, par);
+                if(pa > 0 && pb > 0) test(ra, ra + rb, pa, pb, r.crr, r.clo, r.chi, r.cg, r.cp);
+            }
+            rows.push_back(r);
+        }
+        // Overdispersion, beta-binomial (quasi-likelihood): var = n p (1 - p) (1 + (n - 1) rho),
+        // so a node's G inflates with its count. rho per test kind solves
+        // median_i G_i / (1 + (n_i - 1) rho) = 0.4549 (the chi-square 1 df median), robust to the
+        // nodes that truly differ; p from G_i / (1 + (n_i - 1) rho).
+        // Lone-child chains (a species, its genus, family, ... holding the same reads in both
+        // samples, conditioned on the same branching ancestor) are one test: fit rho and
+        // BH over one representative per chain (the deepest; other members copy its q).
+        std::map<std::tuple<double, double, tax_t>, size_t> chain_rep;
+        std::vector<size_t> rep_of(rows.size());
+        auto depth = [&](tax_t t) {unsigned d = 0; for(auto it = parent.find(t); it != parent.end() && it->second && it->second != t && d < 4096; it = parent.find(it->second)) ++d; return d;};
+        for(size_t i = 0; i < rows.size(); ++i) {
+            const auto key = std::make_tuple(rows[i].ra, rows[i].rb, rows[i].cond_on);
+            auto it = chain_rep.find(key);
+            if(it == chain_rep.end()) chain_rep.emplace(key, i);
+            else if(depth(rows[i].t) > depth(rows[it->second].t)) it->second = i;
+        }
+        for(size_t i = 0; i < rows.size(); ++i) rep_of[i] = chain_rep.at(std::make_tuple(rows[i].ra, rows[i].rb, rows[i].cond_on));
+        auto fit_rho = [&](bool cond) {
+            std::vector<std::pair<double, double>> gn;
+            for(size_t i = 0; i < rows.size(); ++i) {
+                if(rep_of[i] != i) continue;
+                const double g = cond ? rows[i].cg: rows[i].g;
+                if(!std::isnan(g)) gn.emplace_back(g, rows[i].ra + rows[i].rb);
+            }
+            auto med = [&](double rho) {
+                std::vector<double> v;
+                for(const auto &x: gn) v.push_back(x.first / (1. + (x.second - 1.) * rho));
+                std::nth_element(v.begin(), v.begin() + v.size() / 2, v.end());
+                return v[v.size() / 2];
+            };
+            if(gn.size() < 3 || med(0.) <= 0.454936) return 0.;
+            double lo = 0., hi = 1.;
+            while(med(hi) > 0.454936 && hi < 1e6) hi *= 2.;
+            for(int i = 0; i < 100; ++i) {const double mid = .5 * (lo + hi); (med(mid) > 0.454936 ? lo: hi) = mid;}
+            return .5 * (lo + hi);
+        };
+        const double lm = fit_rho(false), lc = fit_rho(true);
+        for(auto &r: rows) {
+            const double n = r.ra + r.rb;
+            r.pa = chisq1_p(r.g / (1. + (n - 1.) * lm));
+            if(!std::isnan(r.cg)) r.cpa = chisq1_p(r.cg / (1. + (n - 1.) * lc));
+        }
+        auto rank_label = [&](tax_t t) -> std::string {
+            if(!has_ranks) return "-";
+            const auto it = ranks.find(t);
+            return profile_rank_name(it == ranks.end() ? uint8_t(RANK_UNKNOWN): it->second);
+        };
+        std::vector<Row> out;
+        std::vector<size_t> out_src;
+        for(size_t i = 0; i < rows.size(); ++i) {
+            const auto it = ranks.find(rows[i].t);
+            if(rank == RANK_UNKNOWN || (it != ranks.end() && it->second == rank)) out.push_back(rows[i]), out_src.push_back(i);
+        }
+        // BH over one test per chain among the reported nodes; chain members share its q
+        std::map<size_t, size_t> rep_slot;   // representative row -> index into the BH vectors
+        std::vector<double> mp, cpv;
+        for(size_t j = 0; j < out.size(); ++j) {
+            const size_t rr = rep_of[out_src[j]];
+            if(rep_slot.emplace(rr, mp.size()).second) mp.push_back(rows[rr].pa), cpv.push_back(rows[rr].cpa);
+        }
+        const auto mq0 = bh_qvalues(mp), cq0 = bh_qvalues(cpv);
+        std::vector<double> mq(out.size()), cq(out.size());
+        for(size_t j = 0; j < out.size(); ++j) {const size_t k = rep_slot.at(rep_of[out_src[j]]); mq[j] = mq0[k]; cq[j] = cq0[k];}
+        std::vector<size_t> order(out.size());
+        std::iota(order.begin(), order.end(), size_t(0));
+        std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+            const double x = std::isnan(out[a].cpa) ? out[a].pa: out[a].cpa, y = std::isnan(out[b].cpa) ? out[b].pa: out[b].cpa;
+            return x != y ? x < y: out[a].t < out[b].t;
+        });
+        std::fprintf(stdout, "#taxdiff\tA=%s\t%llu\tB=%s\t%llu\trho_marginal=%.4g\trho_conditional=%.4g\n", A.name.data(),
+                     (unsigned long long)A.classified, B.name.data(), (unsigned long long)B.classified, lm, lc);
+        std::fprintf(stdout, "#taxid\trank\tparent\treads_a\treads_b\tlog2rr\tci_lo\tci_hi\tG\tp\tp_od\tq\t"
+                             "cond_on\tcond_log2rr\tcond_ci_lo\tcond_ci_hi\tcond_G\tcond_p\tcond_p_od\tcond_q\tcall\n");
+        auto l2 = [](double x) {return std::log2(x);};
+        for(const size_t i: order) {
+            const Row &r = out[i];
+            const double qq = std::isnan(cq[i]) ? mq[i]: cq[i];
+            const double dir = std::isnan(r.crr) ? r.rr: r.crr;
+            const char *call = qq < alpha ? (dir > 1. ? "over_in_b": "under_in_b"): "ns";
+            const auto pit = parent.find(r.t);
+            std::fprintf(stdout, "%u\t%s\t%u\t%.0f\t%.0f\t%.4f\t%.4f\t%.4f\t%.4g\t%.4g\t%.4g\t%.4g\t%u\t%.4f\t%.4f\t%.4f\t%.4g\t%.4g\t%.4g\t%.4g\t%s\n",
+                         r.t, rank_label(r.t).data(), pit == parent.end() ? 0u: pit->second, r.ra, r.rb, l2(r.rr), l2(r.lo), l2(r.hi),
+                         r.g, r.p, r.pa, mq[i], r.cond_on, l2(r.crr), l2(r.clo), l2(r.chi), r.cg, r.cp, r.cpa, cq[i], call);
         }
         return EXIT_SUCCESS;
     }

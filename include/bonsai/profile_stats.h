@@ -36,6 +36,51 @@ inline std::vector<double> bh_qvalues(const std::vector<double> &p) {
     return q;
 }
 
+// Regularized incomplete beta I_x(a, b) (continued fraction, Lentz): binomial
+// tails and Clopper-Pearson intervals for taxdiff.
+inline double incbeta(double a, double b, double x) {
+    if(x <= 0.) return 0.;
+    if(x >= 1.) return 1.;
+    if(x > (a + 1.) / (a + b + 2.)) return 1. - incbeta(b, a, 1. - x);
+    const double lbeta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
+    const double front = std::exp(a * std::log(x) + b * std::log1p(-x) - lbeta) / a;
+    double f = 1., c = 1., d = 0.;
+    for(int i = 0; i <= 400; ++i) {
+        const int m = i / 2;
+        double num;
+        if(i == 0) num = 1.;
+        else if(i % 2 == 0) num = m * (b - m) * x / ((a + 2. * m - 1.) * (a + 2. * m));
+        else num = -((a + m) * (a + b + m) * x) / ((a + 2. * m) * (a + 2. * m + 1.));
+        d = 1. + num * d; if(std::abs(d) < 1e-300) d = 1e-300; d = 1. / d;
+        c = 1. + num / c; if(std::abs(c) < 1e-300) c = 1e-300;
+        const double cd = c * d;
+        f *= cd;
+        if(std::abs(1. - cd) < 1e-14) break;
+    }
+    return front * (f - 1.);
+}
+// x with incbeta(a, b, x) = q (bisection).
+inline double incbeta_inv(double a, double b, double q) {
+    double lo = 0., hi = 1.;
+    for(int i = 0; i < 100; ++i) {
+        const double mid = .5 * (lo + hi);
+        (incbeta(a, b, mid) < q ? lo: hi) = mid;
+    }
+    return .5 * (lo + hi);
+}
+// Clopper-Pearson interval for a binomial proportion, k of n.
+inline std::pair<double, double> clopper_pearson(double k, double n, double level = 0.95) {
+    const double a = (1. - level) / 2.;
+    return {k <= 0. ? 0.: incbeta_inv(k, n - k + 1., a), k >= n ? 1.: incbeta_inv(k + 1., n - k, 1. - a)};
+}
+// G statistic (2 x log-likelihood ratio) of k of n against expected proportion p0;
+// chi-square 1 df p-value.
+inline double binomial_g(double k, double n, double p0) {
+    auto term = [](double o, double e) {return o > 0. ? o * std::log(o / e): 0.;};
+    return n > 0. ? 2. * (term(k, n * p0) + term(n - k, n * (1. - p0))): 0.;
+}
+inline double chisq1_p(double g) {return std::erfc(std::sqrt(std::max(0., g) / 2.));}
+
 inline double n_choose_k(unsigned n, unsigned k) {
     double r = 1.;
     for(unsigned i = 1; i <= k; ++i) r = r * (n - k + i) / i;

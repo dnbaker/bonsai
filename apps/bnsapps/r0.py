@@ -25,6 +25,7 @@ import urllib.request
 
 from . import common, m1, mock, stream
 
+RSAT_MIN = 0.3   # read-saturation threshold, fixed in advance from M2 (absent <= 0.20, present >= 0.34)
 MAX_BYTES = int(float(os.environ.get("R0_MAX_BYTES", 60e6)))   # ~0.9 MB/s from ENA here: ~1 min per run
 ONT_RUNS = int(os.environ.get("R0_ONT_RUNS", 3))
 COV_MIN = 1e-3
@@ -88,13 +89,20 @@ def profile_run(r, db, nodes):
 
 
 def species_reads(rep):
+    """Species scores from a report; read_saturation as in M2 (distinct / E[distinct | reads])."""
     _, _, rows = common.read_tsv(rep)
     tot = sum(int(r["taxon_reads"]) for r in rows)
     out = {"_total": tot, "_unclassified": int(next(r for r in rows if r["taxid"] == "0")["clade_reads"])}
+    root = next((r for r in rows if r["taxid"] == "1"), None)
+    w = float(root["clade_kmers"]) / float(root["clade_reads"]) if root and float(root["clade_reads"]) > 0 else 0.0
     for r in rows:
         if r["rank"] == "species":
-            out[int(r["taxid"])] = {"reads": int(r["clade_reads"]), "distinct": float(r["clade_uniq_kmers"]),
-                                    "coverage": float(r["cov"]) if r["cov"] != "NA" else 0.0}
+            u, nr = float(r["clade_uniq_kmers"]), float(r["clade_reads"])
+            cov = float(r["cov"]) if r["cov"] != "NA" else 0.0
+            g = u / cov if cov > 0 else 0.0
+            eu = g * (1 - math.exp(-nr * w / g)) if g > 0 and w > 0 else 0.0
+            out[int(r["taxid"])] = {"reads": int(nr), "distinct": u, "coverage": cov,
+                                    "read_saturation": min(1.0, u / eu) if eu > 0 else 0.0}
     return out
 
 
@@ -132,13 +140,24 @@ def run():
         frac = 1 - s["_unclassified"] / s["_total"] if s["_total"] else float("nan")
         det = sum(1 for t in mock.MOCK_SPECIES if t in s and s[t]["reads"] > 0)
         detc = sum(1 for t in mock.MOCK_SPECIES if t in s and s[t]["coverage"] >= COV_MIN)
+        dets = sum(1 for t in mock.MOCK_SPECIES if t in s and s[t]["reads"] > 0 and s[t]["read_saturation"] >= RSAT_MIN)
         fp = sum(1 for t in mock.ABSENT_SPECIES if t in s and s[t]["reads"] > 0)
+        fps = sum(1 for t in mock.ABSENT_SPECIES if t in s and s[t]["reads"] > 0 and s[t]["read_saturation"] >= RSAT_MIN)
         b = sum(bc(s, x) for x in ref) / len(ref) if ref else float("nan")
         e0a.append({"run": r["run_accession"], "log10_host": r["log10_host"], "rep": r["rep"], "classified_frac": frac,
-                    "detected_reads": det, "detected_cov": detc, "absent_with_reads": fp, "bc_to_dna_only": b})
+                    "detected_reads": det, "detected_cov": detc, "detected_rsat": dets, "absent_with_reads": fp,
+                    "absent_rsat": fps, "bc_to_dna_only": b})
     res["E0a"] = e0a
-    pts = [(e["log10_host"], math.log10(e["classified_frac"])) for e in e0a if e["classified_frac"] > 0]
-    measurable = [p for p in pts if p[1] > -5.5]
+    # host background: human-only controls classify a fraction of reads (host reads with
+    # bacterial k-mer hits); the microbial signal is the excess over it
+    hb = [1 - sp[r["run_accession"]]["_unclassified"] / sp[r["run_accession"]]["_total"] for r in by("human_only")]
+    bg = sum(hb) / len(hb) if hb else 0.0
+    sd = math.sqrt(sum((x - bg) ** 2 for x in hb) / max(1, len(hb) - 1)) if len(hb) > 1 else 0.0
+    res["host_background_frac"], res["host_background_sd"] = bg, sd
+    # fit where the excess is well clear of the background: > 3 SD and > 10% of it
+    pts = [(e["log10_host"], math.log10(e["classified_frac"] - bg)) for e in e0a
+           if e["classified_frac"] - bg > max(3 * sd, 0.1 * bg)]
+    measurable = pts
     if len(measurable) >= 3:
         mx = sum(x for x, _ in measurable) / len(measurable)
         my = sum(y for _, y in measurable) / len(measurable)
@@ -146,13 +165,16 @@ def run():
     else:
         slope = float("nan")
     res["E0a_slope"] = slope
-    lines.append(f"- E0a dilution: log10(classified fraction) vs log10(host:microbe) slope {common.fmt(slope, 2)} "
-                 f"over {len(measurable)} measurable runs (ideal -1)")
+    lines.append(f"- host background (human-only controls): {bg:.2e} +/- {sd:.1e} of reads classified")
+    lines.append(f"- E0a dilution: log10(classified fraction - host background) vs log10(host:microbe) slope "
+                 f"{common.fmt(slope, 2)} over {len(measurable)} runs with excess > max(3 SD, 10%) of the background "
+                 f"(ratios {sorted({x for x, _ in measurable})}; ideal -1)")
     for lg in sorted({e["log10_host"] for e in e0a}):
         g = [e for e in e0a if e["log10_host"] == lg]
         lines.append(f"  - 1:10^{lg}: classified {', '.join('%.2e' % e['classified_frac'] for e in g)}; species "
                      f"detected (reads) {[e['detected_reads'] for e in g]}, (cov >= {COV_MIN}) {[e['detected_cov'] for e in g]}; "
-                     f"absent relatives with reads {[e['absent_with_reads'] for e in g]}; BC to DNA-only "
+                     f"(read saturation >= {RSAT_MIN}) {[e['detected_rsat'] for e in g]}; "
+                     f"absent relatives with reads {[e['absent_with_reads'] for e in g]} (read sat. {[e['absent_rsat'] for e in g]}); BC to DNA-only "
                      f"{[round(e['bc_to_dna_only'], 3) for e in g]}")
     for kind in ("human_only", "blank"):
         for r in by(kind):
@@ -160,7 +182,8 @@ def run():
             called = {t: v for t, v in s.items() if isinstance(t, int) and v["reads"] > 0}
             lines.append(f"  - {kind} {r['run_accession']}: {s['_total']} reads, {s['_total'] - s['_unclassified']} classified; "
                          f"species with reads {len(called)}, with coverage >= {COV_MIN} "
-                         f"{sum(1 for v in called.values() if v['coverage'] >= COV_MIN)}")
+                         f"{sum(1 for v in called.values() if v['coverage'] >= COV_MIN)}, with read saturation >= {RSAT_MIN} "
+                         f"{sum(1 for v in called.values() if v['read_saturation'] >= RSAT_MIN)}")
             res.setdefault("E0a_controls", {})[r["run_accession"]] = {str(t): v for t, v in called.items()}
     # E0b
     groups = {"illumina": by("illumina_d6331") + by("d6331_only"), "ont": by("ont_d6331")}

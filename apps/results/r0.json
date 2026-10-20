@@ -1,0 +1,1521 @@
+{
+ "E0a": [
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 4,
+   "bc_to_dna_only": 0.09767701187339917,
+   "classified_frac": 0.0824054992485892,
+   "detected_cov": 12,
+   "detected_reads": 13,
+   "detected_rsat": 1,
+   "log10_host": 0,
+   "rep": 1,
+   "run": "SRR38158124"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 6,
+   "bc_to_dna_only": 0.0895838827603258,
+   "classified_frac": 0.08058409200085659,
+   "detected_cov": 12,
+   "detected_reads": 14,
+   "detected_rsat": 2,
+   "log10_host": 0,
+   "rep": 2,
+   "run": "SRR38158123"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 5,
+   "bc_to_dna_only": 0.09182884532070801,
+   "classified_frac": 0.08263911656463685,
+   "detected_cov": 12,
+   "detected_reads": 14,
+   "detected_rsat": 3,
+   "log10_host": 0,
+   "rep": 3,
+   "run": "SRR38158112"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.1076296989902592,
+   "classified_frac": 0.009730085608342764,
+   "detected_cov": 12,
+   "detected_reads": 14,
+   "detected_rsat": 5,
+   "log10_host": 1,
+   "rep": 1,
+   "run": "SRR38158101"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 6,
+   "bc_to_dna_only": 0.10664407734487324,
+   "classified_frac": 0.009968176838562548,
+   "detected_cov": 12,
+   "detected_reads": 13,
+   "detected_rsat": 2,
+   "log10_host": 1,
+   "rep": 2,
+   "run": "SRR38158097"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.11457858913367974,
+   "classified_frac": 0.010425627741940113,
+   "detected_cov": 12,
+   "detected_reads": 13,
+   "detected_rsat": 3,
+   "log10_host": 1,
+   "rep": 3,
+   "run": "SRR38158096"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 4,
+   "bc_to_dna_only": 0.47906138245196206,
+   "classified_frac": 0.0022285993236628165,
+   "detected_cov": 9,
+   "detected_reads": 13,
+   "detected_rsat": 11,
+   "log10_host": 2,
+   "rep": 1,
+   "run": "SRR38158095"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.4675331363604093,
+   "classified_frac": 0.00210071178343596,
+   "detected_cov": 7,
+   "detected_reads": 12,
+   "detected_rsat": 11,
+   "log10_host": 2,
+   "rep": 2,
+   "run": "SRR38158094"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.4693607622384901,
+   "classified_frac": 0.00221600114802023,
+   "detected_cov": 8,
+   "detected_reads": 13,
+   "detected_rsat": 11,
+   "log10_host": 2,
+   "rep": 3,
+   "run": "SRR38158093"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.7782070575952678,
+   "classified_frac": 0.0013911342283451367,
+   "detected_cov": 3,
+   "detected_reads": 12,
+   "detected_rsat": 10,
+   "log10_host": 3,
+   "rep": 1,
+   "run": "SRR38158092"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.7696028069555452,
+   "classified_frac": 0.0014081797459236656,
+   "detected_cov": 2,
+   "detected_reads": 11,
+   "detected_rsat": 9,
+   "log10_host": 3,
+   "rep": 2,
+   "run": "SRR38158122"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.7701199720902998,
+   "classified_frac": 0.0013765645387791015,
+   "detected_cov": 2,
+   "detected_reads": 12,
+   "detected_rsat": 11,
+   "log10_host": 3,
+   "rep": 3,
+   "run": "SRR38158121"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.8206970066526081,
+   "classified_frac": 0.0012522839555211274,
+   "detected_cov": 0,
+   "detected_reads": 7,
+   "detected_rsat": 5,
+   "log10_host": 4,
+   "rep": 1,
+   "run": "SRR38158120"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.8233573254960692,
+   "classified_frac": 0.0013194951751381856,
+   "detected_cov": 0,
+   "detected_reads": 8,
+   "detected_rsat": 6,
+   "log10_host": 4,
+   "rep": 2,
+   "run": "SRR38158119"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.8240980576734599,
+   "classified_frac": 0.0013090788496978867,
+   "detected_cov": 0,
+   "detected_reads": 10,
+   "detected_rsat": 7,
+   "log10_host": 4,
+   "rep": 3,
+   "run": "SRR38158118"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 2,
+   "bc_to_dna_only": 0.8346717771588513,
+   "classified_frac": 0.0012894584690383848,
+   "detected_cov": 0,
+   "detected_reads": 3,
+   "detected_rsat": 1,
+   "log10_host": 5,
+   "rep": 1,
+   "run": "SRR38158117"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 2,
+   "bc_to_dna_only": 0.8347416798649852,
+   "classified_frac": 0.0012759451869802652,
+   "detected_cov": 0,
+   "detected_reads": 2,
+   "detected_rsat": 0,
+   "log10_host": 5,
+   "rep": 2,
+   "run": "SRR38158116"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.8297963134646014,
+   "classified_frac": 0.0012999381840936852,
+   "detected_cov": 0,
+   "detected_reads": 3,
+   "detected_rsat": 0,
+   "log10_host": 5,
+   "rep": 3,
+   "run": "SRR38158115"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.8343810114346746,
+   "classified_frac": 0.001256268990339482,
+   "detected_cov": 0,
+   "detected_reads": 4,
+   "detected_rsat": 2,
+   "log10_host": 6,
+   "rep": 1,
+   "run": "SRR38158114"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.8270371257738184,
+   "classified_frac": 0.0012508809968311274,
+   "detected_cov": 0,
+   "detected_reads": 4,
+   "detected_rsat": 0,
+   "log10_host": 6,
+   "rep": 2,
+   "run": "SRR38158113"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.8246650945542884,
+   "classified_frac": 0.0012548657790907303,
+   "detected_cov": 0,
+   "detected_reads": 4,
+   "detected_rsat": 0,
+   "log10_host": 6,
+   "rep": 3,
+   "run": "SRR38158111"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.8314554150308173,
+   "classified_frac": 0.0013279042555151,
+   "detected_cov": 0,
+   "detected_reads": 4,
+   "detected_rsat": 0,
+   "log10_host": 7,
+   "rep": 1,
+   "run": "SRR38158110"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.8231291385844955,
+   "classified_frac": 0.001297778735829258,
+   "detected_cov": 0,
+   "detected_reads": 4,
+   "detected_rsat": 0,
+   "log10_host": 7,
+   "rep": 2,
+   "run": "SRR38158109"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.8295220077725803,
+   "classified_frac": 0.0012156690538769332,
+   "detected_cov": 0,
+   "detected_reads": 3,
+   "detected_rsat": 0,
+   "log10_host": 7,
+   "rep": 3,
+   "run": "SRR38158108"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 2,
+   "bc_to_dna_only": 0.8352097007736979,
+   "classified_frac": 0.0012519848849805726,
+   "detected_cov": 0,
+   "detected_reads": 2,
+   "detected_rsat": 0,
+   "log10_host": 8,
+   "rep": 1,
+   "run": "SRR38158107"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.8312706102969776,
+   "classified_frac": 0.001318272113378649,
+   "detected_cov": 0,
+   "detected_reads": 4,
+   "detected_rsat": 1,
+   "log10_host": 8,
+   "rep": 2,
+   "run": "SRR38158106"
+  },
+  {
+   "absent_rsat": 0,
+   "absent_with_reads": 3,
+   "bc_to_dna_only": 0.827514042364637,
+   "classified_frac": 0.0013278939941737677,
+   "detected_cov": 0,
+   "detected_reads": 4,
+   "detected_rsat": 0,
+   "log10_host": 8,
+   "rep": 3,
+   "run": "SRR38158105"
+  }
+ ],
+ "E0a_controls": {
+  "SRR38158091": {
+   "1351": {
+    "coverage": 0.000463,
+    "distinct": 1303.0,
+    "read_saturation": 0.3354595509779883,
+    "reads": 40
+   },
+   "1496": {
+    "coverage": 1e-06,
+    "distinct": 5.0,
+    "read_saturation": 0.025727898137404427,
+    "reads": 2
+   },
+   "1502": {
+    "coverage": 9e-06,
+    "distinct": 29.0,
+    "read_saturation": 0.0746139546796281,
+    "reads": 4
+   },
+   "1613": {
+    "coverage": 0.005831,
+    "distinct": 10464.0,
+    "read_saturation": 0.7160625037492765,
+    "reads": 151
+   },
+   "1680": {
+    "coverage": 0.00659,
+    "distinct": 13583.0,
+    "read_saturation": 0.6657748682719359,
+    "reads": 211
+   },
+   "239935": {
+    "coverage": 0.001712,
+    "distinct": 4783.0,
+    "read_saturation": 0.7699447255519033,
+    "reads": 64
+   },
+   "28128": {
+    "coverage": 0.002649,
+    "distinct": 7139.0,
+    "read_saturation": 0.6186965237597566,
+    "reads": 119
+   },
+   "28901": {
+    "coverage": 5e-06,
+    "distinct": 23.0,
+    "read_saturation": 0.1183485314349724,
+    "reads": 2
+   },
+   "301301": {
+    "coverage": 0.007846,
+    "distinct": 26746.0,
+    "read_saturation": 0.7438277725890626,
+    "reads": 372
+   },
+   "423477": {
+    "coverage": 0.006366,
+    "distinct": 13419.0,
+    "read_saturation": 0.5184670996654109,
+    "reads": 268
+   },
+   "550": {
+    "coverage": 1e-05,
+    "distinct": 48.0,
+    "read_saturation": 0.09879820891962716,
+    "reads": 5
+   },
+   "562": {
+    "coverage": 0.003012,
+    "distinct": 14709.0,
+    "read_saturation": 0.3662543851434674,
+    "reads": 415
+   },
+   "573": {
+    "coverage": 4e-06,
+    "distinct": 20.0,
+    "read_saturation": 0.02940474077015571,
+    "reads": 7
+   },
+   "582": {
+    "coverage": 2.5e-05,
+    "distinct": 104.0,
+    "read_saturation": 0.02433658764992232,
+    "reads": 44
+   },
+   "584": {
+    "coverage": 1e-06,
+    "distinct": 4.0,
+    "read_saturation": 0.020582418511390425,
+    "reads": 2
+   },
+   "615": {
+    "coverage": 8e-06,
+    "distinct": 42.0,
+    "read_saturation": 0.04802847662821833,
+    "reads": 9
+   },
+   "623": {
+    "coverage": 6.2e-05,
+    "distinct": 74.0,
+    "read_saturation": 0.15233719905767398,
+    "reads": 5
+   },
+   "632": {
+    "coverage": 3.3e-05,
+    "distinct": 150.0,
+    "read_saturation": 0.013799041299169703,
+    "reads": 112
+   },
+   "817": {
+    "coverage": 0.004242,
+    "distinct": 21611.0,
+    "read_saturation": 0.6233466552879903,
+    "reads": 358
+   },
+   "851": {
+    "coverage": 0.000296,
+    "distinct": 704.0,
+    "read_saturation": 0.3623897858854871,
+    "reads": 20
+   },
+   "853": {
+    "coverage": 0.013047,
+    "distinct": 37271.0,
+    "read_saturation": 0.770594540636268,
+    "reads": 502
+   }
+  },
+  "SRR38158098": {
+   "1351": {
+    "coverage": 0.000446,
+    "distinct": 1254.0,
+    "read_saturation": 0.18575746939215795,
+    "reads": 74
+   },
+   "1496": {
+    "coverage": 3.4e-05,
+    "distinct": 138.0,
+    "read_saturation": 0.11624059848893278,
+    "reads": 13
+   },
+   "1502": {
+    "coverage": 1e-05,
+    "distinct": 32.0,
+    "read_saturation": 0.058397532300428726,
+    "reads": 6
+   },
+   "1613": {
+    "coverage": 0.005417,
+    "distinct": 9721.0,
+    "read_saturation": 0.7075552703537553,
+    "reads": 151
+   },
+   "1680": {
+    "coverage": 0.007661,
+    "distinct": 15789.0,
+    "read_saturation": 0.5878505027622876,
+    "reads": 296
+   },
+   "2173": {
+    "coverage": 5e-06,
+    "distinct": 9.0,
+    "read_saturation": 0.09853989803733272,
+    "reads": 1
+   },
+   "239935": {
+    "coverage": 0.00094,
+    "distinct": 2625.0,
+    "read_saturation": 0.7772288629409748,
+    "reads": 37
+   },
+   "28128": {
+    "coverage": 0.00237,
+    "distinct": 6386.0,
+    "read_saturation": 0.5987734601316925,
+    "reads": 117
+   },
+   "28901": {
+    "coverage": 1.5e-05,
+    "distinct": 67.0,
+    "read_saturation": 0.1222668643586021,
+    "reads": 6
+   },
+   "301301": {
+    "coverage": 0.00679,
+    "distinct": 23145.0,
+    "read_saturation": 0.8155963390346139,
+    "reads": 312
+   },
+   "423477": {
+    "coverage": 0.005086,
+    "distinct": 10722.0,
+    "read_saturation": 0.4797462441992713,
+    "reads": 246
+   },
+   "545": {
+    "coverage": 2.1e-05,
+    "distinct": 92.0,
+    "read_saturation": 0.0915806076486764,
+    "reads": 11
+   },
+   "550": {
+    "coverage": 2.2e-05,
+    "distinct": 105.0,
+    "read_saturation": 0.14371137238761222,
+    "reads": 8
+   },
+   "562": {
+    "coverage": 0.003299,
+    "distinct": 16114.0,
+    "read_saturation": 0.368441446365275,
+    "reads": 481
+   },
+   "573": {
+    "coverage": 1.8e-05,
+    "distinct": 99.0,
+    "read_saturation": 0.09033494848038728,
+    "reads": 12
+   },
+   "582": {
+    "coverage": 1.4e-05,
+    "distinct": 58.0,
+    "read_saturation": 0.018150394820671267,
+    "reads": 35
+   },
+   "584": {
+    "coverage": 1e-06,
+    "distinct": 4.0,
+    "read_saturation": 0.005474799905007708,
+    "reads": 8
+   },
+   "615": {
+    "coverage": 9e-06,
+    "distinct": 46.0,
+    "read_saturation": 0.02651163656308555,
+    "reads": 19
+   },
+   "632": {
+    "coverage": 3.7e-05,
+    "distinct": 166.0,
+    "read_saturation": 0.028867195437226132,
+    "reads": 63
+   },
+   "817": {
+    "coverage": 0.003913,
+    "distinct": 19938.0,
+    "read_saturation": 0.5229450646556689,
+    "reads": 419
+   },
+   "851": {
+    "coverage": 5.9e-05,
+    "distinct": 141.0,
+    "read_saturation": 0.1403706446960775,
+    "reads": 11
+   },
+   "853": {
+    "coverage": 0.00896,
+    "distinct": 25595.0,
+    "read_saturation": 0.7557741900387424,
+    "reads": 373
+   }
+  },
+  "SRR38158099": {
+   "1351": {
+    "coverage": 0.000486,
+    "distinct": 1369.0,
+    "read_saturation": 0.1619801762054954,
+    "reads": 98
+   },
+   "1496": {
+    "coverage": 0.000162,
+    "distinct": 667.0,
+    "read_saturation": 0.3511037934329908,
+    "reads": 22
+   },
+   "1502": {
+    "coverage": 2.7e-05,
+    "distinct": 91.0,
+    "read_saturation": 0.05018467419433816,
+    "reads": 21
+   },
+   "1613": {
+    "coverage": 0.006104,
+    "distinct": 10954.0,
+    "read_saturation": 0.6340271032184989,
+    "reads": 201
+   },
+   "1680": {
+    "coverage": 0.011768,
+    "distinct": 24253.0,
+    "read_saturation": 0.651419892817726,
+    "reads": 435
+   },
+   "2173": {
+    "coverage": 0.000124,
+    "distinct": 226.0,
+    "read_saturation": 0.43616527579455966,
+    "reads": 6
+   },
+   "239935": {
+    "coverage": 0.002013,
+    "distinct": 5625.0,
+    "read_saturation": 0.6724094962839331,
+    "reads": 97
+   },
+   "28128": {
+    "coverage": 0.004461,
+    "distinct": 12022.0,
+    "read_saturation": 0.8068006024730304,
+    "reads": 173
+   },
+   "28901": {
+    "coverage": 1.3e-05,
+    "distinct": 58.0,
+    "read_saturation": 0.07462003949752623,
+    "reads": 9
+   },
+   "301301": {
+    "coverage": 0.008603,
+    "distinct": 29326.0,
+    "read_saturation": 0.7957669683231524,
+    "reads": 429
+   },
+   "423477": {
+    "coverage": 0.007309,
+    "distinct": 15407.0,
+    "read_saturation": 0.6384717472297853,
+    "reads": 281
+   },
+   "545": {
+    "coverage": 6e-06,
+    "distinct": 26.0,
+    "read_saturation": 0.15051651897030363,
+    "reads": 2
+   },
+   "550": {
+    "coverage": 1.6e-05,
+    "distinct": 76.0,
+    "read_saturation": 0.06285979946158876,
+    "reads": 14
+   },
+   "562": {
+    "coverage": 0.004906,
+    "distinct": 23960.0,
+    "read_saturation": 0.40218135121197407,
+    "reads": 694
+   },
+   "573": {
+    "coverage": 5.4e-05,
+    "distinct": 290.0,
+    "read_saturation": 0.1865608495746769,
+    "reads": 18
+   },
+   "582": {
+    "coverage": 7.3e-05,
+    "distinct": 301.0,
+    "read_saturation": 0.07115827893485958,
+    "reads": 49
+   },
+   "584": {
+    "coverage": 7e-06,
+    "distinct": 26.0,
+    "read_saturation": 0.014338121137281196,
+    "reads": 21
+   },
+   "615": {
+    "coverage": 1.5e-05,
+    "distinct": 79.0,
+    "read_saturation": 0.04356269455900137,
+    "reads": 21
+   },
+   "623": {
+    "coverage": 0.000176,
+    "distinct": 209.0,
+    "read_saturation": 0.2689540391789564,
+    "reads": 9
+   },
+   "632": {
+    "coverage": 3.7e-05,
+    "distinct": 167.0,
+    "read_saturation": 0.01683172261458403,
+    "reads": 115
+   },
+   "817": {
+    "coverage": 0.00417,
+    "distinct": 21244.0,
+    "read_saturation": 0.5688208423514804,
+    "reads": 434
+   },
+   "851": {
+    "coverage": 0.000189,
+    "distinct": 450.0,
+    "read_saturation": 0.24819371905940968,
+    "reads": 21
+   },
+   "853": {
+    "coverage": 0.01524,
+    "distinct": 43536.0,
+    "read_saturation": 0.755506706449816,
+    "reads": 674
+   }
+  },
+  "SRR38158102": {
+   "301301": {
+    "coverage": 1e-06,
+    "distinct": 5.0,
+    "read_saturation": 0.23917934209846636,
+    "reads": 2
+   },
+   "562": {
+    "coverage": 1e-06,
+    "distinct": 6.0,
+    "read_saturation": 0.035877326316852705,
+    "reads": 16
+   },
+   "584": {
+    "coverage": 2e-06,
+    "distinct": 8.0,
+    "read_saturation": 0.001661243790167494,
+    "reads": 461
+   },
+   "623": {
+    "coverage": 5e-06,
+    "distinct": 6.0,
+    "read_saturation": 0.05740542213958003,
+    "reads": 10
+   },
+   "632": {
+    "coverage": 1e-06,
+    "distinct": 3.0,
+    "read_saturation": 0.013046618666223312,
+    "reads": 22
+   },
+   "817": {
+    "coverage": 2e-06,
+    "distinct": 11.0,
+    "read_saturation": 0.0005440279127212767,
+    "reads": 1938
+   }
+  },
+  "SRR38158103": {
+   "28901": {
+    "coverage": 1e-06,
+    "distinct": 5.0,
+    "read_saturation": 0.4825097906686197,
+    "reads": 1
+   },
+   "562": {
+    "coverage": 1e-06,
+    "distinct": 7.0,
+    "read_saturation": 0.04825142906952498,
+    "reads": 14
+   },
+   "584": {
+    "coverage": 2e-06,
+    "distinct": 8.0,
+    "read_saturation": 0.0018978425960825486,
+    "reads": 407
+   },
+   "623": {
+    "coverage": 5e-06,
+    "distinct": 6.0,
+    "read_saturation": 0.038603243308136026,
+    "reads": 15
+   },
+   "632": {
+    "coverage": 1e-06,
+    "distinct": 3.0,
+    "read_saturation": 0.010722928689486889,
+    "reads": 27
+   },
+   "817": {
+    "coverage": 2e-06,
+    "distinct": 12.0,
+    "read_saturation": 0.0006025705788456918,
+    "reads": 1925
+   }
+  },
+  "SRR38158104": {
+   "28901": {
+    "coverage": 0.0,
+    "distinct": 1.0,
+    "read_saturation": 0.0,
+    "reads": 3
+   },
+   "301301": {
+    "coverage": 1e-06,
+    "distinct": 5.0,
+    "read_saturation": 0.09600020586138032,
+    "reads": 5
+   },
+   "562": {
+    "coverage": 2e-06,
+    "distinct": 8.0,
+    "read_saturation": 0.09600070586425179,
+    "reads": 8
+   },
+   "584": {
+    "coverage": 2e-06,
+    "distinct": 8.0,
+    "read_saturation": 0.0014951590691723003,
+    "reads": 514
+   },
+   "623": {
+    "coverage": 5e-06,
+    "distinct": 6.0,
+    "read_saturation": 0.05236597596382545,
+    "reads": 11
+   },
+   "632": {
+    "coverage": 1e-06,
+    "distinct": 3.0,
+    "read_saturation": 0.02400042646865511,
+    "reads": 12
+   },
+   "817": {
+    "coverage": 2e-06,
+    "distinct": 11.0,
+    "read_saturation": 0.0005148676873466119,
+    "reads": 2055
+   },
+   "851": {
+    "coverage": 1e-06,
+    "distinct": 2.0,
+    "read_saturation": 0.09600020586138032,
+    "reads": 2
+   },
+   "853": {
+    "coverage": 1.4e-05,
+    "distinct": 39.0,
+    "read_saturation": 1.0,
+    "reads": 1
+   }
+  }
+ },
+ "E0a_slope": -0.9805242905501667,
+ "E0b": {
+  "illumina_vs_hifi": [
+   0.11698819692623796,
+   0.11676228852060522,
+   0.1993905774155097,
+   0.2016835400704846
+  ],
+  "illumina_vs_ont": [
+   0.41777240484694234,
+   0.3894683631796221,
+   0.41812627732666185,
+   0.42735613769277225,
+   0.4085299327176577,
+   0.4277100101724918,
+   0.43667275726292587,
+   0.4307400700641827,
+   0.44769626875069546,
+   0.43736895095825634,
+   0.43058014968701086,
+   0.44839142325249504
+  ],
+  "ont_vs_hifi": [
+   0.4468909501998971,
+   0.38118238163386176,
+   0.44722064356070357
+  ],
+  "within_illumina": [
+   0.02658895170220288,
+   0.18965889989592655,
+   0.19213207559726597,
+   0.1954520253193417,
+   0.1987818202321936,
+   0.009416596741278482
+  ],
+  "within_ont": [
+   0.06881046352762643,
+   0.05147217467227794,
+   0.0750351971306179
+  ]
+ },
+ "E0c": {
+  "SRR33710516": {
+   "eval": {
+    "coverage": {
+     "absent_above_min_present": 0,
+     "auroc": 1.0
+    },
+    "distinct": {
+     "absent_above_min_present": 0,
+     "auroc": 1.0
+    },
+    "reads": {
+     "absent_above_min_present": 0,
+     "auroc": 1.0
+    }
+   },
+   "scores": {
+    "1351": {
+     "coverage": 0.893666,
+     "distinct": 2514888.0,
+     "read_saturation": 0.9349530155811598,
+     "reads": 85580
+    },
+    "1496": {
+     "coverage": 1.7e-05,
+     "distinct": 70.0,
+     "read_saturation": 0.01551546796046937,
+     "reads": 44
+    },
+    "1502": {
+     "coverage": 3.8e-05,
+     "distinct": 127.0,
+     "read_saturation": 0.007903722111885156,
+     "reads": 157
+    },
+    "1613": {
+     "coverage": 0.742453,
+     "distinct": 1332317.0,
+     "read_saturation": 0.8299335740864716,
+     "reads": 39354
+    },
+    "1680": {
+     "coverage": 4.7e-05,
+     "distinct": 97.0,
+     "read_saturation": 0.012302500636780237,
+     "reads": 77
+    },
+    "2173": {
+     "coverage": 1e-06,
+     "distinct": 1.0,
+     "read_saturation": 0.0024373090410756246,
+     "reads": 4
+    },
+    "239935": {
+     "coverage": 9e-06,
+     "distinct": 26.0,
+     "read_saturation": 0.01810651013826543,
+     "reads": 14
+    },
+    "28128": {
+     "coverage": 6e-06,
+     "distinct": 17.0,
+     "read_saturation": 0.012749385809797115,
+     "reads": 13
+    },
+    "28901": {
+     "coverage": 0.970303,
+     "distinct": 4366959.0,
+     "read_saturation": 0.9725507364679824,
+     "reads": 266282
+    },
+    "301301": {
+     "coverage": 1.3e-05,
+     "distinct": 44.0,
+     "read_saturation": 0.0074009568220020855,
+     "reads": 58
+    },
+    "423477": {
+     "coverage": 6.5e-05,
+     "distinct": 136.0,
+     "read_saturation": 0.006198250590670242,
+     "reads": 215
+    },
+    "545": {
+     "coverage": 6.8e-05,
+     "distinct": 301.0,
+     "read_saturation": 0.03299938297308585,
+     "reads": 89
+    },
+    "550": {
+     "coverage": 0.000111,
+     "distinct": 535.0,
+     "read_saturation": 0.01973393434526635,
+     "reads": 265
+    },
+    "562": {
+     "coverage": 0.405981,
+     "distinct": 1982808.0,
+     "read_saturation": 0.4097421244124169,
+     "reads": 223308
+    },
+    "573": {
+     "coverage": 0.000141,
+     "distinct": 765.0,
+     "read_saturation": 0.022131627054119172,
+     "reads": 338
+    },
+    "582": {
+     "coverage": 2.2e-05,
+     "distinct": 90.0,
+     "read_saturation": 0.02140737365276099,
+     "reads": 41
+    },
+    "584": {
+     "coverage": 9e-06,
+     "distinct": 35.0,
+     "read_saturation": 0.02843393865100321,
+     "reads": 12
+    },
+    "615": {
+     "coverage": 0.000319,
+     "distinct": 1652.0,
+     "read_saturation": 0.020568577004577007,
+     "reads": 789
+    },
+    "623": {
+     "coverage": 0.000392,
+     "distinct": 466.0,
+     "read_saturation": 0.08589826241332864,
+     "reads": 53
+    },
+    "632": {
+     "coverage": 3.1e-05,
+     "distinct": 139.0,
+     "read_saturation": 0.02259660034354357,
+     "reads": 60
+    },
+    "817": {
+     "coverage": 0.0,
+     "distinct": 2.0,
+     "read_saturation": 0.0,
+     "reads": 4
+    },
+    "851": {
+     "coverage": 1.3e-05,
+     "distinct": 31.0,
+     "read_saturation": 0.021589666142004305,
+     "reads": 14
+    },
+    "853": {
+     "coverage": 4.5e-05,
+     "distinct": 128.0,
+     "read_saturation": 0.01249897564067995,
+     "reads": 100
+    }
+   }
+  },
+  "SRR33710517": {
+   "eval": {
+    "coverage": {
+     "absent_above_min_present": 0,
+     "auroc": 1.0
+    },
+    "distinct": {
+     "absent_above_min_present": 0,
+     "auroc": 1.0
+    },
+    "reads": {
+     "absent_above_min_present": 0,
+     "auroc": 1.0
+    }
+   },
+   "scores": {
+    "1351": {
+     "coverage": 0.867823,
+     "distinct": 2442161.0,
+     "read_saturation": 0.927818739856705,
+     "reads": 75035
+    },
+    "1496": {
+     "coverage": 4.1e-05,
+     "distinct": 169.0,
+     "read_saturation": 0.03828678769459291,
+     "reads": 43
+    },
+    "1502": {
+     "coverage": 3.9e-05,
+     "distinct": 132.0,
+     "read_saturation": 0.007081076834001225,
+     "reads": 182
+    },
+    "1613": {
+     "coverage": 0.738915,
+     "distinct": 1325969.0,
+     "read_saturation": 0.8332008727954865,
+     "reads": 38070
+    },
+    "1680": {
+     "coverage": 0.000101,
+     "distinct": 209.0,
+     "read_saturation": 0.018219349335186475,
+     "reads": 112
+    },
+    "2173": {
+     "coverage": 1e-06,
+     "distinct": 1.0,
+     "read_saturation": 0.00973689180415363,
+     "reads": 1
+    },
+    "239935": {
+     "coverage": 9.1e-05,
+     "distinct": 255.0,
+     "read_saturation": 0.08280483860097765,
+     "reads": 30
+    },
+    "28128": {
+     "coverage": 0.000123,
+     "distinct": 332.0,
+     "read_saturation": 0.1796438445836189,
+     "reads": 18
+    },
+    "28901": {
+     "coverage": 0.973093,
+     "distinct": 4379515.0,
+     "read_saturation": 0.9752478680499163,
+     "reads": 267956
+    },
+    "301301": {
+     "coverage": 1.4e-05,
+     "distinct": 49.0,
+     "read_saturation": 0.014038859928254795,
+     "reads": 34
+    },
+    "423477": {
+     "coverage": 0.00046,
+     "distinct": 970.0,
+     "read_saturation": 0.04093862299837129,
+     "reads": 232
+    },
+    "545": {
+     "coverage": 8.7e-05,
+     "distinct": 384.0,
+     "read_saturation": 0.03565089342362261,
+     "reads": 105
+    },
+    "550": {
+     "coverage": 0.000123,
+     "distinct": 595.0,
+     "read_saturation": 0.02225754576007641,
+     "reads": 261
+    },
+    "562": {
+     "coverage": 0.407911,
+     "distinct": 1992232.0,
+     "read_saturation": 0.4112425011116687,
+     "reads": 229001
+    },
+    "573": {
+     "coverage": 0.000172,
+     "distinct": 930.0,
+     "read_saturation": 0.025238443487913906,
+     "reads": 360
+    },
+    "582": {
+     "coverage": 1.4e-05,
+     "distinct": 58.0,
+     "read_saturation": 0.012556128504760272,
+     "reads": 45
+    },
+    "584": {
+     "coverage": 1.1e-05,
+     "distinct": 40.0,
+     "read_saturation": 0.01623282028070084,
+     "reads": 24
+    },
+    "615": {
+     "coverage": 0.000321,
+     "distinct": 1662.0,
+     "read_saturation": 0.017769130380205236,
+     "reads": 919
+    },
+    "623": {
+     "coverage": 0.000517,
+     "distinct": 614.0,
+     "read_saturation": 0.06253119688047584,
+     "reads": 96
+    },
+    "632": {
+     "coverage": 2.9e-05,
+     "distinct": 133.0,
+     "read_saturation": 0.016406151222563,
+     "reads": 79
+    },
+    "817": {
+     "coverage": 0.000346,
+     "distinct": 1763.0,
+     "read_saturation": 0.536587354086682,
+     "reads": 32
+    },
+    "851": {
+     "coverage": 0.000101,
+     "distinct": 241.0,
+     "read_saturation": 0.15648186695008323,
+     "reads": 15
+    },
+    "853": {
+     "coverage": 0.000287,
+     "distinct": 819.0,
+     "read_saturation": 0.07756208264835966,
+     "reads": 103
+    }
+   }
+  }
+ },
+ "analysis": "r0",
+ "bytes_streamed": 0,
+ "host_background_frac": 0.0012985072725910651,
+ "host_background_sd": 6.682280666765898e-06,
+ "max_bytes": 60000000,
+ "runs": {
+  "ERR14714116": {
+   "kind": "ont_d6331",
+   "log10_host": null,
+   "r1_bytes": 488843068,
+   "rep": 1,
+   "sample_title": "D6331_Zymo"
+  },
+  "ERR14714117": {
+   "kind": "ont_d6331",
+   "log10_host": null,
+   "r1_bytes": 593969087,
+   "rep": 2,
+   "sample_title": "D6331_Zymo"
+  },
+  "ERR14714119": {
+   "kind": "ont_d6331",
+   "log10_host": null,
+   "r1_bytes": 446207087,
+   "rep": 3,
+   "sample_title": "D6331_Zymo"
+  },
+  "SRR33710516": {
+   "kind": "d6300",
+   "log10_host": null,
+   "r1_bytes": 1497101059,
+   "rep": 2,
+   "sample_title": "Zymobiomics Microbial Community Standard (catalogue no. D6300) Replicate 2"
+  },
+  "SRR33710517": {
+   "kind": "d6300",
+   "log10_host": null,
+   "r1_bytes": 1132090650,
+   "rep": 1,
+   "sample_title": "Zymobiomics Microbial Community Standard (catalogue no. D6300) Replicate 1"
+  },
+  "SRR33710518": {
+   "kind": "illumina_d6331",
+   "log10_host": null,
+   "r1_bytes": 1040917457,
+   "rep": 2,
+   "sample_title": "Zymobiomics Gut Microbiome Standard (catelogue no. D6331) Replicate 2"
+  },
+  "SRR33710519": {
+   "kind": "illumina_d6331",
+   "log10_host": null,
+   "r1_bytes": 1242391364,
+   "rep": 1,
+   "sample_title": "Zymobiomics Gut Microbiome Standard (catelogue no. D6331) Replicate 1"
+  },
+  "SRR38158090": {
+   "kind": "d6331_only",
+   "log10_host": 0,
+   "r1_bytes": 56242436543,
+   "rep": 3,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 DNA only, replicate 3"
+  },
+  "SRR38158091": {
+   "kind": "blank",
+   "log10_host": null,
+   "r1_bytes": 9112151,
+   "rep": 1,
+   "sample_title": "Template-free extraction negative control, replicate 1"
+  },
+  "SRR38158092": {
+   "kind": "dilution",
+   "log10_host": 3,
+   "r1_bytes": 14327542935,
+   "rep": 1,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^3, replicate 1"
+  },
+  "SRR38158093": {
+   "kind": "dilution",
+   "log10_host": 2,
+   "r1_bytes": 13705140061,
+   "rep": 3,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^2, replicate 3"
+  },
+  "SRR38158094": {
+   "kind": "dilution",
+   "log10_host": 2,
+   "r1_bytes": 13517228343,
+   "rep": 2,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^2, replicate 2"
+  },
+  "SRR38158095": {
+   "kind": "dilution",
+   "log10_host": 2,
+   "r1_bytes": 12926303788,
+   "rep": 1,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^2, replicate 1"
+  },
+  "SRR38158096": {
+   "kind": "dilution",
+   "log10_host": 1,
+   "r1_bytes": 15923703521,
+   "rep": 3,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^1, replicate 3"
+  },
+  "SRR38158097": {
+   "kind": "dilution",
+   "log10_host": 1,
+   "r1_bytes": 14840827094,
+   "rep": 2,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^1, replicate 2"
+  },
+  "SRR38158098": {
+   "kind": "blank",
+   "log10_host": null,
+   "r1_bytes": 14531988,
+   "rep": 3,
+   "sample_title": "Template-free extraction negative control, replicate 3"
+  },
+  "SRR38158099": {
+   "kind": "blank",
+   "log10_host": null,
+   "r1_bytes": 20812426,
+   "rep": 2,
+   "sample_title": "Template-free extraction negative control, replicate 2"
+  },
+  "SRR38158100": {
+   "kind": "d6331_only",
+   "log10_host": 0,
+   "r1_bytes": 62474814090,
+   "rep": 2,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 DNA only, replicate 2"
+  },
+  "SRR38158101": {
+   "kind": "dilution",
+   "log10_host": 1,
+   "r1_bytes": 14372305835,
+   "rep": 1,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^1, replicate 1"
+  },
+  "SRR38158102": {
+   "kind": "human_only",
+   "log10_host": null,
+   "r1_bytes": 14161528914,
+   "rep": 3,
+   "sample_title": "Human DNA only control (HCT116), replicate 3"
+  },
+  "SRR38158103": {
+   "kind": "human_only",
+   "log10_host": null,
+   "r1_bytes": 14128578450,
+   "rep": 2,
+   "sample_title": "Human DNA only control (HCT116), replicate 2"
+  },
+  "SRR38158104": {
+   "kind": "human_only",
+   "log10_host": null,
+   "r1_bytes": 13830828801,
+   "rep": 1,
+   "sample_title": "Human DNA only control (HCT116), replicate 1"
+  },
+  "SRR38158105": {
+   "kind": "dilution",
+   "log10_host": 8,
+   "r1_bytes": 13197679215,
+   "rep": 3,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^8, replicate 3"
+  },
+  "SRR38158106": {
+   "kind": "dilution",
+   "log10_host": 8,
+   "r1_bytes": 14117410271,
+   "rep": 2,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^8, replicate 2"
+  },
+  "SRR38158107": {
+   "kind": "dilution",
+   "log10_host": 8,
+   "r1_bytes": 15801349995,
+   "rep": 1,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^8, replicate 1"
+  },
+  "SRR38158108": {
+   "kind": "dilution",
+   "log10_host": 7,
+   "r1_bytes": 13933698951,
+   "rep": 3,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^7, replicate 3"
+  },
+  "SRR38158109": {
+   "kind": "dilution",
+   "log10_host": 7,
+   "r1_bytes": 13347365106,
+   "rep": 2,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^7, replicate 2"
+  },
+  "SRR38158110": {
+   "kind": "dilution",
+   "log10_host": 7,
+   "r1_bytes": 12087432207,
+   "rep": 1,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^7, replicate 1"
+  },
+  "SRR38158111": {
+   "kind": "dilution",
+   "log10_host": 6,
+   "r1_bytes": 13479913306,
+   "rep": 3,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^6, replicate 3"
+  },
+  "SRR38158112": {
+   "kind": "dilution",
+   "log10_host": 0,
+   "r1_bytes": 29592710217,
+   "rep": 3,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:1, replicate 3"
+  },
+  "SRR38158113": {
+   "kind": "dilution",
+   "log10_host": 6,
+   "r1_bytes": 13279541062,
+   "rep": 2,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^6, replicate 2"
+  },
+  "SRR38158114": {
+   "kind": "dilution",
+   "log10_host": 6,
+   "r1_bytes": 15524102602,
+   "rep": 1,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^6, replicate 1"
+  },
+  "SRR38158115": {
+   "kind": "dilution",
+   "log10_host": 5,
+   "r1_bytes": 13860605770,
+   "rep": 3,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^5, replicate 3"
+  },
+  "SRR38158116": {
+   "kind": "dilution",
+   "log10_host": 5,
+   "r1_bytes": 18475184283,
+   "rep": 2,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^5, replicate 2"
+  },
+  "SRR38158117": {
+   "kind": "dilution",
+   "log10_host": 5,
+   "r1_bytes": 15649647178,
+   "rep": 1,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^5, replicate 1"
+  },
+  "SRR38158118": {
+   "kind": "dilution",
+   "log10_host": 4,
+   "r1_bytes": 13017140185,
+   "rep": 3,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^4, replicate 3"
+  },
+  "SRR38158119": {
+   "kind": "dilution",
+   "log10_host": 4,
+   "r1_bytes": 13015087883,
+   "rep": 2,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^4, replicate 2"
+  },
+  "SRR38158120": {
+   "kind": "dilution",
+   "log10_host": 4,
+   "r1_bytes": 13203413177,
+   "rep": 1,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^4, replicate 1"
+  },
+  "SRR38158121": {
+   "kind": "dilution",
+   "log10_host": 3,
+   "r1_bytes": 13849461783,
+   "rep": 3,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^3, replicate 3"
+  },
+  "SRR38158122": {
+   "kind": "dilution",
+   "log10_host": 3,
+   "r1_bytes": 12320441474,
+   "rep": 2,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:10^3, replicate 2"
+  },
+  "SRR38158123": {
+   "kind": "dilution",
+   "log10_host": 0,
+   "r1_bytes": 29514122951,
+   "rep": 2,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:1, replicate 2"
+  },
+  "SRR38158124": {
+   "kind": "dilution",
+   "log10_host": 0,
+   "r1_bytes": 31281651016,
+   "rep": 1,
+   "sample_title": "ZymoBIOMICS Gut Standard D6331 spike-in to HCT116 gDNA, microbe:host ratio 1:1, replicate 1"
+  }
+ },
+ "written": "2026-10-20 14:01:12"
+}
