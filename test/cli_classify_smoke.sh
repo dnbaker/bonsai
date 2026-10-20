@@ -44,6 +44,41 @@ cmp -s "$T/db.default" "$T/db.compact" || fail "build: the default is not the co
 head -c 6 "$T/db.khash" | grep -q BNSCKM && fail "build -L wrote a compact database"
 "$BNS" build -k 31 -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/db.gz" "$T/gA.fa" "$T/gB.fa" > /dev/null 2>&1 && fail "build accepted a gzipped compact database"
 "$BNS" build -L -k 31 -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/dbl.gz" "$T/gA.fa" "$T/gB.fa" > /dev/null 2>&1 || fail "build -L .gz"
+# feature-count (-f) and taxonomic-depth (-t) minimized builds: prebuild writes
+# the phase-1 map, build reads it (<phase1> <out> <genomes>) and leaves it intact
+for m in f t; do
+    "$BNS" prebuild -$m -k 31 "$T/seq2tax" "$T/nodes.dmp" "$T/p1.$m" "$T/gA.fa" "$T/gB.fa" > "$T/p1.$m.log" 2>&1 || fail "prebuild -$m"
+    cp "$T/p1.$m" "$T/p1.$m.orig"
+    "$BNS" build -$m -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/p1.$m" "$T/db.min$m" "$T/gA.fa" "$T/gB.fa" > "$T/min$m.log" 2>&1 \
+        || { tail -5 "$T/min$m.log"; fail "build -$m"; }
+    cmp -s "$T/p1.$m" "$T/p1.$m.orig" || fail "build -$m overwrote its phase-1 input"
+    [ -s "$T/db.min$m" ] || fail "build -$m wrote no database"
+    head -c 6 "$T/db.min$m" | grep -q BNSCKM && fail "build -$m wrote a compact database"
+    "$BNS" classify -k "$T/db.min$m" "$T/nodes.dmp" "$T/reads.fq" > "$T/min$m.out" 2>/dev/null || fail "classify (-$m database)"
+    [ "$(awk '$2 ~ /^r/ && $3 == 562' "$T/min$m.out" | wc -l)" -eq 6 ] || fail "-$m database: error-free reads not at 562: $(head -3 "$T/min$m.out")"
+done
+# Minimizers chosen by the phase-1 score: gC is gA with a SNP every 45 bp under
+# another genus (623), so a 60 bp window mixes k-mers shared with gA (LCA: family
+# 543) and genome-specific ones. Lex selection keeps some shared ones; -f (fewest
+# genomes) and -t (deepest taxon) avoid them. At w > k, density matches lex
+# (score ties broken by k-mer hash).
+awk 'BEGIN{split("A C G T",b," ")} /^>/ {print ">gC"; next} {g = g $0}
+    END {s = ""; for(i = 1; i <= length(g); ++i) {c = substr(g, i, 1); if(i % 45 == 0) for(j = 1; j <= 4; ++j) if(b[j] != c) {c = b[j]; break}; s = s c}
+         for(i = 1; i <= length(s); i += 80) print substr(s, i, 80)}' "$T/gA.fa" > "$T/gC.fa"
+printf 'gA\t562\ngB\t584\ngC\t623\n' > "$T/seq2tax3"
+{ cat "$T/nodes.dmp"; printf '620\t|\t543\t|\tgenus\t|\n623\t|\t620\t|\tspecies\t|\n'; } > "$T/nodes3.dmp"
+"$BNS" build -L -k 31 -w 60 -T "$T/nodes3.dmp" -M "$T/seq2tax3" "$T/db3.lex" "$T/gA.fa" "$T/gB.fa" "$T/gC.fa" > /dev/null 2>&1 || fail "build -L -w 60"
+shared() { "$BNS" hist "$1" 2>/dev/null | awk -F'\t' '$1 == 543 {n = $2} END {print n + 0}'; }
+total() { "$BNS" hist "$1" 2>/dev/null | awk -F'\t' 'NR > 1 {n += $2} END {print n + 0}'; }
+lex_shared=$(shared "$T/db3.lex"); lex_total=$(total "$T/db3.lex")
+[ "$lex_shared" -gt 100 ] || fail "lex -w 60 kept only $lex_shared shared k-mers (test needs some)"
+for m in f t; do
+    "$BNS" prebuild -$m -k 31 "$T/seq2tax3" "$T/nodes3.dmp" "$T/p3.$m" "$T/gA.fa" "$T/gB.fa" "$T/gC.fa" > /dev/null 2>&1 || fail "prebuild -$m (3 genomes)"
+    "$BNS" build -$m -w 60 -T "$T/nodes3.dmp" -M "$T/seq2tax3" "$T/p3.$m" "$T/db3.$m" "$T/gA.fa" "$T/gB.fa" "$T/gC.fa" > /dev/null 2>&1 || fail "build -$m -w 60"
+    n=$(shared "$T/db3.$m"); tot=$(total "$T/db3.$m")
+    [ "$n" -lt $((lex_shared / 4)) ] || fail "-$m kept $n shared k-mers (lex: $lex_shared): phase-1 score not used"
+    [ "$tot" -lt $((lex_total * 13 / 10)) ] || fail "-$m -w 60 kept $tot k-mers (lex: $lex_total): not minimizing"
+done
 
 for db in khash compact; do
     "$BNS" classify -k "$T/db.$db" "$T/nodes.dmp" "$T/reads.fq" > "$T/plain.$db" 2>/dev/null || fail "classify plain ($db)"

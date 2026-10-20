@@ -404,7 +404,7 @@ int phase2_main(int argc, char *argv[]) {
     if(inpaths.empty()) LOG_EXIT("Need input files from command line or file. See usage.\n");
     LOG_DEBUG("Got paths\n");
     if(seq2taxpath.empty()) LOG_EXIT("seq2taxpath required for final database generation.");
-    if(score_scheme::LEX == mode || score_scheme::ENTROPY) {
+    if(score_scheme::LEX == mode || score_scheme::ENTROPY == mode) {   // was "|| ENTROPY": always true, so -f / -t never reached the minimized build
         LOG_INFO("Final map will be written to %s\n", dbpath.data());
         Spacer sp(k, wsz, sv);
         Database<khash_t(c)>  phase2_map(sp);
@@ -541,11 +541,9 @@ int phase1_main(int argc, char *argv[]) {
     if(mode == score_scheme::LEX) LOG_EXIT("No phase1 required for lexicographic. Use phase2 instead.\n");
     auto mapbuilder(mode == score_scheme::TAX_DEPTH ? taxdepth_map<score::Lex>
                                                     : ftct_map<score::Lex>);
+    // Database(Spacer) already stores the spacing as differences (Spacer::sub1);
+    // decrementing again here wrote -1s, so build -f/-t encoded different k-mers.
     Database<khash_t(64)> db(sp, 1, mapbuilder(inpaths, taxmap, argv[optind], sp, num_threads, canon, hash_size));
-    for(auto &i: db.s_) {
-        LOG_DEBUG("Decrementing value %i to %i\n", i, i - 1);
-        --i;
-    }
     db.write(argv[optind + 2]);
 
     kh_destroy(p, taxmap);

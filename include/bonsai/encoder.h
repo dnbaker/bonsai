@@ -66,19 +66,22 @@ static INLINE T ent_score(T i, void *data) {
     const u64 h = u64(lex_score(i) >> (sizeof(T) * CHAR_BIT - 48));
     return T(u64(h / (ent + 1e-4)));
 }
+// Score from a phase-1 map (bonsai prebuild -f / -t): the high 32 bits of the
+// k-mer's packed value (genome count, or ~0 - taxon depth), so windows pick the
+// fewest genomes / deepest taxon; ties (most k-mers: one genome, one taxon) are
+// broken by a hash of the k-mer, giving random-order minimizer density among
+// equals (the low bits were the taxid, so every window kept a different
+// k-mer). A k-mer absent from the map scores highest and is never preferred.
+// (The lookup test was inverted, returning vals[kh_end] for every k-mer present.)
 static INLINE u64 hash_score(u64 i, void *data) {
-    khint_t k1;
-    khash_t(64) *hash((khash_t(64) *)data);
-    if(likely((k1 = kh_get(64, hash, i)) == kh_end(hash))) return kh_val(hash, k1);
-    for(k1 = 0; k1 != kh_end(hash); ++k1) {
-        LOG_DEBUG("Did not find key. Scanning.\n");
-        if(kh_key(hash, k1) == i) __ac_set_isdel_false(hash->flags, k1);
-        return kh_val(hash, k1);
-    }
-    std::fprintf(stderr, "i: %" PRIu64 "\n", i);
-    std::exit(EXIT_FAILURE);
-    __builtin_unreachable();
-    return 0uL;
+    const khash_t(64) *hash((const khash_t(64) *)data);
+    const khint_t k1 = kh_get(64, hash, i);
+    if(k1 == kh_end(hash)) return std::numeric_limits<u64>::max();
+    u64 h = i;   // splitmix64 finalizer
+    h ^= h >> 30; h *= 0xbf58476d1ce4e5b9ULL;
+    h ^= h >> 27; h *= 0x94d049bb133111ebULL;
+    h ^= h >> 31;
+    return (kh_val(hash, k1) & 0xFFFFFFFF00000000ULL) | (h >> 32);
 }
 
 namespace score {

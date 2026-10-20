@@ -22,6 +22,26 @@
   Counters hold database k-mers only, so k-mer content is measured over the database.
 - `make check`: unit tests and the CLI smokes (`test/cli_profile_smoke.sh` is new).
 
+### Fixed: feature-count (-f) and taxonomic-depth (-t) minimized builds
+These builds could not have worked; each fix below was needed for `prebuild -f|-t`
+then `build -f|-t` to give a usable database.
+- `build -f|-t` never reached the minimized build: the mode test `LEX == mode || ENTROPY` was
+  always true, so it built an entropy LCA map, wrote it over the phase-1 input (the first
+  positional) and read the intended output path as a genome.
+- `prebuild` decremented the stored spacing a second time (Database already stores it as
+  differences), writing -1s; build then encoded different k-mers ("Missing kmer from database").
+- `kh_set` (khash64.h) dropped the slot kh_put returned for a new key: the value was written
+  past the end of the values array and the slot kept uninitialized memory (the minimized
+  database's taxa were garbage). Its CAS retry also never reread the old value.
+- `hash_score` (the phase-1 minimizer score) had its lookup test inverted, reading vals[kh_end].
+- `update_feature_counter` stored a depth as the taxon, never incremented the genome count, and
+  took LCAs of packed values (now as update_frequency_counter does).
+- Minimizer ties under the phase-1 score are broken by a k-mer hash (the low bits were the
+  taxid, so every window kept a different k-mer: no minimization at w > k).
+- cli_classify_smoke: -f and -t end to end (phase-1 input untouched, reads classified), and
+  with w > k: density as lex, and k-mers shared between genomes avoided (lex keeps ~450 of a
+  test set, -f/-t keep none).
+
 ### Changed: compact k-mer -> taxon databases by default
 - `bonsai build` (lex LCA, the default mode) writes the compact `cht_map_t` database, as `-Z`
   did; `-L` writes the legacy khash database. Non-lex modes still build khash (logged). A gzip

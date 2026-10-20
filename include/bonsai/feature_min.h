@@ -427,8 +427,14 @@ inline void update_feature_counter(khash_t(64) *kc, const khash_t(all) *set, con
                 k2 = kh_put(64, kc, kh_key(set, ki), &khr);
                 if(unlikely(khr < 0))
                     RUNTIME_ERROR(ks::sprintf("Could not insert key %" PRIu64 " to table of size %zu.", kh_key(set, ki), kh_size(kc)).data());
-                kh_val(kc, k2) = FMencode(1, node_depth(tax, taxid));
-            } else while(!kh_try_set(64, kc, k2, FMencode(FMcount(kh_val(kc, k2)), lca(tax, taxid, kh_val(kc, k2)))));
+                kh_val(kc, k2) = FMencode(1, taxid);
+            } else {
+                // genome count + 1, and the LCA with the stored taxon (it kept the count,
+                // stored a depth as the taxon, and took the LCA of the packed value)
+                u64 old;
+                do old = kh_val(kc, k2);
+                while(!kh_try_set(64, kc, k2, FMencode(FMcount(old) + 1, lca(tax, taxid, FMtax(old)))));
+            }
         }
     }
 }
