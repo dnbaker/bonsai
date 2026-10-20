@@ -54,8 +54,9 @@ def experiment(tag, rng, p, db, nodes, strain_b=STRAIN_A, fold=1.0):
             for i in range(N_PER_GROUP):
                 comp = sample(rng, p, STRAIN_A if g == "A" else strain_b, fold if g == "B" else 1.0)
                 prof = common.work("m4", tag, f"{g}{i}.bprof")
-                stream.profile_stream(simreads.chunks(simreads.reads(comp, READ_LEN, ERR, rng.randrange(1 << 30))),
-                                      prof, db, nodes)
+                seed = rng.randrange(1 << 30)
+                if not common.reuse(prof):
+                    stream.profile_stream(simreads.chunks(simreads.reads(comp, READ_LEN, ERR, seed)), prof, db, nodes)
                 fh.write(f"{prof}\t{g}\n")
                 paths.append((prof, g))
     _, _, rows = common.bonsai_tsv("profile", "diff", "-K", "-r", "species", "-N", 9999, "-s", rng.randrange(1 << 30), groups)
@@ -100,6 +101,21 @@ def run():
         e4a[name] = {"fpr": fpr, "n_tests": n, "se_at_0.05": se, "ks_d": d, "ks_p": ksp, "pass": fpr <= 0.05 + 2 * se}
         lines.append(f"- E4a null {name}: FPR {common.fmt(fpr)} over {n} tests (pass <= {common.fmt(0.05 + 2 * se)}): "
                      f"{'PASS' if e4a[name]['pass'] else 'FAIL'}; KS D {common.fmt(d)} (p {common.fmt(ksp)})")
+    # rejections per experiment: tests within an experiment share samples, so a
+    # pooled SE over all tests is optimistic; report the experiment-level spread
+    for key, name in (("p", "reads"), ("kp", "kmers"), ("wp", "wilcoxon")):
+        per = [sum(1 for v in ex.values() if v[key] < 0.05) for ex in null]
+        ntests = [sum(1 for v in ex.values() if not math.isnan(v[key])) for ex in null]
+        e4a[name]["rejections_per_experiment"] = per
+        e4a[name]["tests_per_experiment"] = ntests
+        rates = [r / n for r, n in zip(per, ntests) if n]
+        m = sum(rates) / len(rates)
+        sd = math.sqrt(sum((x - m) ** 2 for x in rates) / (len(rates) - 1))
+        e4a[name]["experiment_mean_fpr"] = m
+        e4a[name]["experiment_se"] = sd / math.sqrt(len(rates))
+        lines.append(f"  - {name}: rejections per experiment {per}; experiment-level FPR {common.fmt(m)} "
+                     f"+/- {common.fmt(sd / math.sqrt(len(rates)))} (SE over {len(rates)} experiments)")
+    e4a["null_pvalues"] = [{str(t): [v["p"], v["kp"], v["wp"]] for t, v in ex.items()} for ex in null]
     res["E4a"] = e4a
     # E4b abundance shift
     e4b = {}

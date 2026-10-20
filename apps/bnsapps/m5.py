@@ -40,7 +40,9 @@ def run():
                     comp.append((mock.mock_path(m4.ECOLI_FILE[t]), t, counts[-1] // len(st) + (k < counts[-1] % len(st))))
                 name = f"b{int(beta)}_s{s}_{j}"
                 prof = common.work("m5", f"b{int(beta)}", f"{name}.bprof")
-                stream.profile_stream(simreads.chunks(simreads.reads(comp, 150, 0.01, rng.randrange(1 << 30))), prof, db, nodes)
+                seed = rng.randrange(1 << 30)
+                if not common.reuse(prof):
+                    stream.profile_stream(simreads.chunks(simreads.reads(comp, 150, 0.01, seed)), prof, db, nodes)
                 subj[name] = s
                 profs.append(prof)
         idx = common.work("m5", f"b{int(beta)}", "index.bidx")

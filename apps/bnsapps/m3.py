@@ -19,6 +19,7 @@ COVERAGES = (0.1, 0.3, 1.0, 3.0)
 N_PER_COV = 16
 READ_LEN, ERR = 150, 0.01
 BACKGROUND_READS = 1500
+METRICS = ("kmer_jaccard", "kmer_containment_min", "kmer_coverage_normalized", "leaf_abundance_sim")
 ECOLI = [(f, t) for f, t in mock.MOCK if t in mock.STRAINS]
 OTHERS = [(f, t) for f, t in mock.MOCK if t not in mock.STRAINS]
 
@@ -39,10 +40,17 @@ def pair_scores(profiles, names):
     kpath = common.work("m3", "tmp", "kmers.tsv")
     common.bonsai("profile", "compare", "-r", "species", "-K", kpath, *profiles)
     _, _, krows = common.read_tsv(kpath)
-    jac = {}
+    jac, cmin, cnorm = {}, {}, {}
     for r in krows:
         if r["taxid"] == "562":
-            jac[frozenset((r["sample_a"], r["sample_b"]))] = float(r["jaccard"])
+            key = frozenset((r["sample_a"], r["sample_b"]))
+            a, b, sh = float(r["uniq_a"]), float(r["uniq_b"]), float(r["shared"])
+            jac[key] = float(r["jaccard"])
+            cmin[key] = sh / min(a, b) if min(a, b) > 0 else 0.0
+            # shared / (|A||B|): under uniform subsampling of a clade universe of
+            # size g (constant across pairs), E[shared] ~ rho |A||B| / g, so this ranks
+            # pairs by the shared fraction rho independently of coverage
+            cnorm[key] = sh / (a * b) if a > 0 and b > 0 else 0.0
     _, header, trows = common.bonsai_tsv("profile", "table", "-r", "strain", *profiles)
     leaves = {n: {} for n in names}
     for r in trows:
@@ -56,13 +64,15 @@ def pair_scores(profiles, names):
             bc = 1 - sum(min(va.get(t, 0) / sa, vb.get(t, 0) / sb) for t in set(va) | set(vb))
         else:
             bc = 1.0
-        out[(a, b)] = {"kmer_jaccard": jac.get(frozenset((a, b)), 0.0), "leaf_abundance_sim": 1 - bc}
+        key = frozenset((a, b))
+        out[(a, b)] = {"kmer_jaccard": jac.get(key, 0.0), "kmer_containment_min": cmin.get(key, 0.0),
+                       "kmer_coverage_normalized": cnorm.get(key, 0.0), "leaf_abundance_sim": 1 - bc}
     return out
 
 
 def evaluate(pairs, truth):
     res = {}
-    for m in ("kmer_jaccard", "leaf_abundance_sim"):
+    for m in METRICS:
         pos = [v[m] for p, v in pairs.items() if truth[p]]
         neg = [v[m] for p, v in pairs.items() if not truth[p]]
         res[m] = {"auroc": common.auroc(pos, neg), "ci95": common.bootstrap_ci(common.auroc, [pos, neg], n=1000, seed=SEED),
@@ -85,11 +95,15 @@ def run():
             name = f"c{cov}_s{i}"
             strains, comp = sample_plan(rng, cov)
             plans[name] = strains
-            data = list(simreads.chunks(simreads.reads(comp, READ_LEN, ERR, rng.randrange(1 << 30))))
+            seed = rng.randrange(1 << 30)   # drawn even when resuming, so the sequence is the same
+            paths = {k: common.work("m3", k, f"c{cov}", f"{name}.bprof") for k in dbs}
+            data = None
             for k, (db, nodes, _) in dbs.items():
-                p = common.work("m3", k, f"c{cov}", f"{name}.bprof")
-                stream.profile_stream(iter(data), p, db, nodes)
-                profs[k].append(p)
+                if not common.reuse(paths[k]):
+                    if data is None:
+                        data = list(simreads.chunks(simreads.reads(comp, READ_LEN, ERR, seed)))
+                    stream.profile_stream(iter(data), paths[k], db, nodes)
+                profs[k].append(paths[k])
         names = list(plans)
         truth = {(a, b): bool(set(plans[a]) & set(plans[b])) for a, b in itertools.combinations(names, 2)}
         res["E3a"][cov] = evaluate(pair_scores(profs["mock"], names), truth)
@@ -102,6 +116,8 @@ def run():
                     ptruth[(s, a, b)] = truth[(a, b)]
         res["E3b"][cov] = evaluate(pooled, ptruth)
         e, f = res["E3a"][cov], res["E3b"][cov]
+        lines.append(f"- c={cov}x: " + "; ".join(f"{cond} {m} {common.fmt(res[cond][cov][m]['auroc'])}"
+                                                for cond in ("E3a", "E3b") for m in METRICS))
         lines.append(f"- c={cov}x: E3a k-mer {common.fmt(e['kmer_jaccard']['auroc'])} "
                      f"[{common.fmt(e['kmer_jaccard']['ci95'][0])}, {common.fmt(e['kmer_jaccard']['ci95'][1])}] vs leaf "
                      f"{common.fmt(e['leaf_abundance_sim']['auroc'])}; E3b (strain not in database) k-mer "
@@ -109,12 +125,14 @@ def run():
                      f"{common.fmt(f['kmer_jaccard']['ci95'][1])}] vs leaf {common.fmt(f['leaf_abundance_sim']['auroc'])} "
                      f"({f['kmer_jaccard']['n_pos']}+/{f['kmer_jaccard']['n_neg']}- pairs)")
     for cond in ("E3a", "E3b"):
-        for m in ("kmer_jaccard", "leaf_abundance_sim"):
+        for m in METRICS:
             lim = next((c for c in COVERAGES if res[cond][c][m]["auroc"] >= 0.95), None)
             res[cond][f"detection_limit_{m}"] = lim
             lines.append(f"- {cond} detection limit ({m}, AUROC >= 0.95): {lim if lim else '> ' + str(COVERAGES[-1])}x")
-    b1 = res["E3b"][1.0]["kmer_jaccard"]["auroc"]
-    lines.append(f"- verdict: E3b at 1x = {common.fmt(b1)}: " + (
+    b1 = max(res["E3b"][1.0][m]["auroc"] for m in METRICS if m.startswith("kmer"))
+    lines.append("- note: kmer_containment_min and kmer_coverage_normalized were added after the first run (post hoc, "
+                 "same samples); a confirmatory run needs a fresh seed")
+    lines.append(f"- verdict: E3b at 1x, best k-mer statistic = {common.fmt(b1)}: " + (
         "k-mer sharing tracks strains absent from the database" if b1 > 0.9 else
         "k-mer sharing needs the strain in the database (state as a limitation)" if b1 < 0.7 else
         "partial: strains absent from the database are tracked only weakly"))

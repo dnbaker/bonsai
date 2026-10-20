@@ -21,6 +21,11 @@ def work(*parts):
     return p
 
 
+def reuse(path):
+    """True if a finished output exists and BNS_APPS_FRESH is unset (resume)."""
+    return not os.environ.get("BNS_APPS_FRESH") and os.path.exists(path) and os.path.getsize(path) > 0
+
+
 def bonsai(*args, stdout=subprocess.DEVNULL, check=True, **kw):
     """Run bonsai; stderr captured and shown on failure."""
     r = subprocess.run([BONSAI, *map(str, args)], stdout=stdout, stderr=subprocess.PIPE, **kw)
@@ -150,9 +155,17 @@ def fmt(x, d=3):
 
 # ---- results ----
 
+def _str_keys(o):
+    if isinstance(o, dict):
+        return {str(k): _str_keys(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_str_keys(v) for v in o]
+    return o
+
+
 def write_results(aid, data, verdict_lines):
     os.makedirs(RESULTS, exist_ok=True)
-    data = dict(data, analysis=aid, written=time.strftime("%Y-%m-%d %H:%M:%S"))
+    data = _str_keys(dict(data, analysis=aid, written=time.strftime("%Y-%m-%d %H:%M:%S")))
     with open(os.path.join(RESULTS, aid + ".json"), "w") as fh:
         json.dump(data, fh, indent=1, sort_keys=True, default=str)
     with open(os.path.join(RESULTS, aid + ".md"), "w") as fh:

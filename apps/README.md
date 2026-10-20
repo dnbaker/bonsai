@@ -133,3 +133,23 @@ replicate has biological dispersion. Each experiment is 6 vs 6 samples, repeated
 - **Kill criteria:** M4c k-mer power < 0.5, or M4a FPR > 0.1, means no DA paper. R1 showing k-mer ≤ abundance
   means the search claim goes. If both fail, the contribution is engineering (bonsai profiles as a format),
   not a methods paper.
+
+## Status (2026-10-20, first full mock pass; numbers in results/)
+- **M1 PASS on real HiFi reads.** Merging 2, 4 or 8 shards reproduces the whole run; `report` equals `-U`; a
+  pipe equals the file. The profile is 0.12% of the gzipped input.
+- **M2.** With reads of organisms absent from the database, in a staggered community: reads AUROC 0.89
+  (4/8 relatives above the rarest true species) vs distinct k-mers / coverage 1.00 (0/8). n = 15 vs 8.
+- **M3 partial.**
+  - With strains in the database, strain-leaf abundance wins at every coverage.
+  - With the strain absent, k-mer Jaccard beats leaf abundance only at 3x (0.96 vs 0.85). At <= 1x the two are
+    about level (0.79-0.87 vs 0.81-0.87).
+  - A post-hoc coverage-normalized statistic did not help.
+  - Low-coverage strain sharing is limited by sampling, not by the statistic.
+- **M4 holds after the calibration follow-up.**
+  - k-mer test FPR: 0.080 over the first 20 null experiments, then 0.048 +/- 0.006 over 60 more (m4cal; KS
+    p 0.93). Pooled 0.056.
+  - Strain swap at equal abundance: k-mer power 0.80, read test 0.10.
+  - Read test calibrated (0.043 and 0.063 +/- 0.008); power 0.80 at x2.
+- **M5 negative for whole-sample k-mer search.** Abundance metrics beat k-mer metrics in both synthetic
+  regimes (beta 5: Bray-Curtis top-1 0.92 vs k-mer 0.68). At these depths, whole-sample counters reflect
+  resampling. If search is to use k-mers at all, it has to be per clade.
