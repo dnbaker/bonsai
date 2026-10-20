@@ -19,6 +19,8 @@
 // so intermediate nodes hold their whole subtree. Without -U nothing is
 // collected.
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <atomic>
 #include <cstdio>
 #include <memory>
@@ -358,6 +360,23 @@ inline UniqBatch::Local &UniqBatch::local_slow(tax_t t) {
     return it->second;
 }
 
+// Per-k-mer coverage of a clade (Poisson): with P of its k-mers present at
+// coverage lambda, hits = P lambda and distinct = P (1 - e^-lambda), so the
+// multiplicity hits / distinct = lambda / (1 - e^-lambda) gives lambda, and P =
+// hits / lambda (the sylph-style effective coverage, from the counter and the hit
+// count together). NaN when no duplicates are seen (multiplicity <= 1:
+// lambda unidentifiable, coverage << 1).
+inline double clade_lambda(double hits, double distinct) {
+    if(distinct <= 0. || hits <= distinct * (1. + 1e-9)) return std::numeric_limits<double>::quiet_NaN();
+    const double m = hits / distinct;
+    double lo = 0., hi = std::max(1., 2. * m);
+    for(int i = 0; i < 200; ++i) {
+        const double mid = .5 * (lo + hi);
+        (mid / -std::expm1(-mid) < m ? lo: hi) = mid;
+    }
+    return .5 * (lo + hi);
+}
+
 // Report: one row per taxon with reads or k-mers in its clade, by clade reads
 // (descending). db_clade: database k-mers per clade (absent or 0: coverage
 // NA); rank_name: rank label per taxon. sketch_dir (optional, b-bit MinHash
@@ -377,8 +396,9 @@ void write_uniq_rows(std::FILE *fp, UniqTable &table, const Parents &taxmap,
     std::sort(rows.begin(), rows.end(), [](const auto &a, const auto &b) {
         return a.second->clade_reads != b.second->clade_reads ? a.second->clade_reads > b.second->clade_reads: a.first < b.first;
     });
-    std::fprintf(fp, "#taxid\tparent\trank\tpct_reads\tclade_reads\ttaxon_reads\tclade_kmers\tclade_uniq_kmers\ttaxon_uniq_kmers\tdup\tcov\n");
-    std::fprintf(fp, "0\t0\tunclassified\t%.4f\t%llu\t%llu\t0\t0\t0\t0\tNA\n",
+    std::fprintf(fp, "#taxid\tparent\trank\tpct_reads\tclade_reads\ttaxon_reads\tclade_kmers\tclade_uniq_kmers\ttaxon_uniq_kmers\tdup\tcov"
+                     "\tlambda\tpresent_kmers\tcontainment\n");
+    std::fprintf(fp, "0\t0\tunclassified\t%.4f\t%llu\t%llu\t0\t0\t0\t0\tNA\tNA\tNA\tNA\n",
                  total_reads ? 100. * unclassified / total_reads: 0., (unsigned long long)unclassified, (unsigned long long)unclassified);
     for(auto &r: rows) {
         SharedTally &c = *r.second;
@@ -389,8 +409,17 @@ void write_uniq_rows(std::FILE *fp, UniqTable &table, const Parents &taxmap,
                      (unsigned long long)c.clade_reads, (unsigned long long)c.taxon_reads, (unsigned long long)c.clade_kmers,
                      u, c.taxon_uniq, u > 0. ? double(c.clade_kmers) / u: 0.);
         const auto it = db.find(r.first);
-        if(it != db.end() && it->second) std::fprintf(fp, "%.6f\n", std::min(1., u / double(it->second)));
-        else std::fprintf(fp, "NA\n");
+        const bool have_db = it != db.end() && it->second;
+        if(have_db) std::fprintf(fp, "%.6f", std::min(1., u / double(it->second)));
+        else std::fprintf(fp, "NA");
+        // lambda, present k-mers, containment (present / database k-mers of the clade)
+        const double lam = clade_lambda(double(c.clade_kmers), u);
+        if(std::isnan(lam)) std::fprintf(fp, "\tNA\tNA\tNA\n");
+        else {
+            const double present = double(c.clade_kmers) / lam;
+            if(have_db) std::fprintf(fp, "\t%.4f\t%.0f\t%.6f\n", lam, present, std::min(1., present / double(it->second)));
+            else std::fprintf(fp, "\t%.4f\t%.0f\tNA\n", lam, present);
+        }
         if(sketch_dir && table.kind == UniqSketch::BBMH)
             c.uniq.bbmh(sketch_b).write((*sketch_dir + "/" + std::to_string(r.first) + ".bbmh").data());
     }
