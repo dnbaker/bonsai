@@ -8,7 +8,8 @@
 //   cft073:  E. coli CFT073 held out (truth 562).
 //   methano: every Methanobacterium held out (truth: Euryarchaeota 28890, whose only
 //            remaining member is Haladaptatus, a different class); real spurious hits.
-// Reads are simulated from the held-out genome(s): 150 bp error-free, and
+// Reads are simulated from the held-out genome(s), with a constant Phred
+// quality matching the error rate (Q40 error-free): 150 bp error-free, and
 // 2/5/10 kb with "hifi" (0.5% subs) or "ont" (3% subs, 1% ins, 1% del) errors.
 // For each mode, the call C vs the truth T: exact (C == T), below (C a strict
 // descendant of T: a wrong strain or clade), above (strict ancestor), wrong
@@ -17,6 +18,7 @@
 #include "classifier.h"
 
 #include <chrono>
+#include <cmath>
 #include <cstring>
 #include <cstdio>
 #include <map>
@@ -48,16 +50,16 @@ const std::pair<tax_t, tax_t> PARENTS[] = {
     {900001, 2162}, {900002, 2162}, {900003, 2162},
     {183963, 28890}, {2235, 183963}, {367188, 2235}, {900004, 367188},
 };
-struct Mode {const char *name; double conf; unsigned window; bool nearest, hits_only;};
+struct Mode {const char *name; double conf; bool hits_only, quality;};
 const Mode MODES[] = {
-    {"pooled", 0., 0, false, false},
-    {"conf0.3", 0.3, 0, false, false},
-    {"hits0.5", 0.5, 0, false, true},
-    {"hits0.7", 0.7, 0, false, true},
-    {"win512", 0., 512, false, false},
-    {"nearest", 0., 0, true, false},
-    {"nearest+conf0.5", 0.5, 0, true, false},
-    {"nearest+conf0.7", 0.7, 0, true, false},
+    {"pooled", 0., false, false},
+    {"conf0.3", 0.3, false, false},
+    {"hits0.5", 0.5, true, false},
+    {"hits0.7", 0.7, true, false},
+    {"hits0.9", 0.9, true, false},
+    {"qual0.3", 0.3, false, true},
+    {"qual0.5", 0.5, false, true},
+    {"qual0.7", 0.7, false, true},
 };
 
 std::vector<std::string> read_fasta_gz(const std::string &path) {
@@ -152,12 +154,15 @@ int main(int argc, char **argv) {
                     while(off >= src[ri]->size()) off -= src[ri++]->size();
                     if(src[ri]->size() < cd.L + 1 || off + cd.L > src[ri]->size()) continue;
                     const std::string s = mutate(src[ri]->substr(off, cd.L), cd.sub, cd.ins, cd.del, rng);
-                    std::fprintf(a, "@r%u\n%s\n+\n%s\n", r++, s.data(), std::string(s.size(), 'I').data());
+                    // constant Phred quality matching the simulated per-base error rate (Q40 when error-free)
+                    const double perr = cd.sub + cd.ins + cd.del;
+                    const int q = perr > 0 ? std::min(40, int(std::lround(-10 * std::log10(perr)))): 40;
+                    std::fprintf(a, "@r%u\n%s\n+\n%s\n", r++, s.data(), std::string(s.size(), char(33 + q)).data());
                 }
                 std::fclose(a);
             }
             for(const Mode &m: MODES) {
-                cl.set_confidence(m.conf); cl.set_window(m.window); cl.set_nearest(m.nearest); cl.set_confidence_hits_only(m.hits_only);
+                cl.set_confidence(m.conf); cl.set_confidence_hits_only(m.hits_only); cl.set_confidence_quality(m.quality);
                 std::FILE *o = std::tmpfile();
                 process_dataset(cl, taxmap, fq.data(), nullptr, o, 1 << 14, 32);
                 std::fflush(o); std::rewind(o);

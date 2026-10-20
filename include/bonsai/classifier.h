@@ -1,5 +1,7 @@
 #pragma once
+#include <array>
 #include <atomic>
+#include <cmath>
 #include "kspp/ks.h"
 #include "encoder.h"
 #include "feature_min.h"
@@ -72,16 +74,13 @@ INLINE void append_counts(u32 count, const char character, ks::string &ks) {
 
 // Lineage evidence of a read's call (Perseus-style channels, k-mer hits):
 // exact (the call), ancestor (strict ancestors of the call), descendant (strict
-// descendants) and conflict (unrelated taxa). Windows: windows with hits, and
-// how many of those are consistent with the call. hi: the high-confidence call.
+// descendants) and conflict (unrelated taxa). hi: the high-confidence call.
 struct ReadEvidence {
     u32 exact = 0, ancestor = 0, descendant = 0, conflict = 0;
-    u32 windows = 0, consistent = 0;
     tax_t hi = 0;
-    bool emit_lineage = false, emit_windows = false, emit_hi = false;
+    bool emit_lineage = false, emit_hi = false;
 };
-// Fields, tab-terminated like M:/A:: E:exact,ancestor,descendant,conflict
-// W:consistent/windows H:taxon
+// Fields, tab-terminated like M:/A:: E:exact,ancestor,descendant,conflict H:taxon
 INLINE void append_evidence(const ReadEvidence *ev, ks::string &ks) {
     if(!ev) return;
     if(ev->emit_lineage) {
@@ -90,11 +89,6 @@ INLINE void append_evidence(const ReadEvidence *ev, ks::string &ks) {
         ks.putuw_(ev->ancestor); ks.putc_(',');
         ks.putuw_(ev->descendant); ks.putc_(',');
         ks.putuw_(ev->conflict); ks.putc_('\t');
-    }
-    if(ev->emit_windows) {
-        ks.putsn_("W:", 2);
-        ks.putuw_(ev->consistent); ks.putc_('/');
-        ks.putuw_(ev->windows); ks.putc_('\t');
     }
     if(ev->emit_hi) {
         ks.putsn_("H:", 2);
@@ -191,34 +185,22 @@ struct ClassifierGeneric {
     // hitting keys (repeats of one minimizer count once).
     double confidence_ = 0.;
     unsigned min_hit_groups_ = 0;
-    // Positional adjudication (defaults: off). window_: k-mer positions per
-    // window (~bp for DNA; a trailing partial window merges into the previous
-    // one). Each window is called on its own hits, the read is called from one
-    // vote per window, and that call walks up until >= window_agree_ of the
-    // windows with hits are consistent with it (call, ancestor or descendant),
-    // so a conserved island (rRNA, IS element) wins only the windows it covers
-    // however many k-mers it holds (window_adjudicate). Not applied to
-    // translated databases. confidence_hi_: a second, stricter call, the
-    // confidence walk-up of the first call at this threshold (H: field).
-    // emit_evidence_: per-read lineage evidence of the call (E: field).
-    // nearest_: call from nearest-hit attribution (each k-mer position of the
-    // read belongs to its nearest hit; root-to-leaf paths are scored by owned
-    // positions, not hit counts). At divergence d only ~(1-d)^k of k-mers
-    // survive, so hit counts let a short identical island outvote a longer,
-    // merely related region; owned positions track region length as long as
-    // the region has hits at all. No scale parameter. Not applied to
-    // translated databases; confidence stays k-mer based.
-    // confidence_hits_only_: confidence over the read's hits only, not hits +
-    // misses (Perseus normalizes by classified k-mers): error-heavy reads lose
-    // most k-mers to misses, which Kraken2's denominator counts against every
-    // clade. With nearest_, confidence is always the fraction of the read's
-    // owned positions attributed to the clade (misses are owned by hits).
-    unsigned window_ = 0;
-    bool nearest_ = false;
-    bool confidence_hits_only_ = false;
-    double window_agree_ = 0.5;
+    // confidence_hi_: a second, stricter call, the confidence walk-up of the
+    // call at this threshold (H: field). emit_evidence_: per-read lineage
+    // evidence of the call (E: field).
+    // Confidence denominators: hits + misses (Kraken2, the default);
+    // confidence_hits_only_: hits only (Perseus normalizes by classified
+    // k-mers); confidence_quality_: the expected number of error-free k-mer
+    // windows given the read's base qualities (expected_intact_windows), which
+    // takes precedence and falls back to hits + misses for FASTA. Kraken2's
+    // denominator counts error-destroyed k-mers against every clade, so noisy
+    // reads fail any threshold; hits-only keeps them but also keeps reads whose
+    // only hits are conserved genes of an out-of-database relative; the
+    // quality-aware denominator keeps the first and drops the second.
     double confidence_hi_ = 0.;
     bool emit_evidence_ = false;
+    bool confidence_hits_only_ = false;
+    bool confidence_quality_ = false;
     public:
     void set_confidence(double c) {
         if(!(c >= 0. && c <= 1.)) RUNTIME_ERROR("confidence must lie in [0, 1]");
@@ -228,13 +210,9 @@ struct ClassifierGeneric {
         if(!(c >= 0. && c <= 1.)) RUNTIME_ERROR("high confidence must lie in [0, 1]");
         confidence_hi_ = c;
     }
-    void set_window(unsigned w, double agree = 0.5) {
-        if(!(agree >= 0. && agree <= 1.)) RUNTIME_ERROR("window agreement must lie in [0, 1]");
-        window_ = w; window_agree_ = agree;
-    }
     void set_emit_evidence(bool v) {emit_evidence_ = v;}
-    void set_nearest(bool v) {nearest_ = v;}
     void set_confidence_hits_only(bool v) {confidence_hits_only_ = v;}
+    void set_confidence_quality(bool v) {confidence_quality_ = v;}
     void set_min_hit_groups(unsigned n) {min_hit_groups_ = n;}
     double confidence() const {return confidence_;}
     unsigned min_hit_groups() const {return min_hit_groups_;}
@@ -317,12 +295,6 @@ struct LookupScratch {
     std::vector<KeyT> kmers;
     std::vector<tax_t> taxa;
     std::vector<uint64_t> buf;
-    std::vector<uint32_t> win;       // window id of each hit (parallel to the read's taxa)
-    std::vector<tax_t> wcalls;       // per-window calls
-    tax_counter votes, wc;           // window votes / one window's hits (reused)
-    tax_counter owned;               // nearest-hit attribution: 2 x positions owned, per taxon
-    std::vector<u32> hpos, hidx;     // nearest-hit attribution: hit ordinal within its mate, taxon index
-    std::vector<u32> own;            // nearest-hit attribution: 2 x positions owned, per taxon index
 };
 
 namespace {
@@ -363,6 +335,39 @@ inline tax_t confident_ancestor(tax_t taxon, const tax_counter &hit_counts, cons
     return 0;
 }
 
+// Expected number of error-free span-windows of a read, from its Phred+33
+// qualities: sum over windows of prod (1 - p_i). A base outside ACGT/U, or of
+// quality 0, counts as certainly wrong (such windows are never emitted). The
+// denominator of quality-aware confidence: a read from a genome in the
+// database expects about this many hits whatever its error rate, so the
+// confidence of the true clade stays near 1 for noisy reads, while an
+// out-of-database relative (hits only in conserved genes) stays low.
+inline double expected_intact_windows(const char *seq, const char *qual, size_t n, unsigned span) {
+    static const auto lg = [] {
+        std::array<double, 94> t{};
+        t[0] = 0.;
+        for(int q = 1; q < 94; ++q) t[q] = std::log1p(-std::pow(10., -q / 10.));
+        return t;
+    }();
+    if(!span || n < span) return 0.;
+    auto bad = [&](size_t i) {
+        const int q = qual[i] - 33;
+        switch(seq[i]) {case 'A': case 'C': case 'G': case 'T': case 'U': case 'a': case 'c': case 'g': case 't': case 'u': break; default: return true;}
+        return q <= 0;
+    };
+    auto term = [&](size_t i) {return lg[std::min(qual[i] - 33, 93)];};
+    double e = 0., s = 0.;
+    unsigned zeros = 0;
+    for(size_t i = 0; i < n; ++i) {
+        if(bad(i)) ++zeros; else s += term(i);
+        if(i >= span) {
+            if(bad(i - span)) --zeros; else s -= term(i - span);
+        }
+        if(i + 1 >= span && !zeros) e += std::exp(s);
+    }
+    return e;
+}
+
 // Relation of hit taxon t to call x: 0 exact, 1 strict ancestor of x,
 // 2 strict descendant of x, 3 unrelated (conflicting).
 inline int lineage_relation(tax_t t, tax_t x, const khash_t(p) *taxmap) {
@@ -395,38 +400,6 @@ inline void lineage_evidence(tax_t call, const tax_counter &hit_counts, const kh
         }
     }
 }
-// Calls each window on its own hits (taxa and win in read order, win
-// nondecreasing), then calls the read from the window calls with one vote per
-// window (resolve_tree over them), and walks that call up until >= agree of the
-// windows with a call are consistent with it (exact, ancestor or descendant);
-// at the root every window is consistent. A conserved island (rRNA, IS
-// element) shared with another family wins at most the windows it covers.
-// With a single window this is the pooled call. `call` (the pooled call) is
-// the fallback when no window has a call.
-inline tax_t window_adjudicate(tax_t call, const std::vector<tax_t> &taxa, const std::vector<uint32_t> &win,
-                               const khash_t(p) *taxmap, double agree, std::vector<tax_t> &wcalls, ReadEvidence &ev,
-                               tax_counter &votes, tax_counter &wc) {
-    wcalls.clear();
-    votes.clear();
-    for(size_t i = 0, j; i < taxa.size(); i = j) {
-        wc.clear();
-        for(j = i; j < taxa.size() && win[j] == win[i]; ++j) wc.add(taxa[j]);
-        if(const tax_t t = resolve_tree(wc, taxmap)) wcalls.push_back(t), votes.add(t);
-    }
-    ev.windows = wcalls.size();
-    if(wcalls.empty()) return call;
-    call = resolve_tree(votes, taxmap);
-    for(;;) {
-        u32 cons = 0;
-        for(const tax_t t: wcalls) cons += lineage_relation(t, call, taxmap) != 3;
-        ev.consistent = cons;
-        if(cons >= agree * double(wcalls.size())) return call;
-        const tax_t p = get_parent(taxmap, call);
-        if(p == tax_t(-1) || p == 0) return call;
-        call = p;
-    }
-}
-
 template<typename ScoreType, typename DB>
 unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
                       typename ClassifierGeneric<ScoreType, DB>::keys_type &enc,
@@ -455,54 +428,15 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
     // CompactKmerMap: collect the mate's k-mers, look them all up in one
     // prefetched batch, then consume the results in the same order -- the
     // same hits, misses and taxa sequence as the streaming path.
-    // Windows: hit -> (emitted k-mer ordinal within its mate) / window_; each
-    // mate's trailing partial window merges into its last full one, and the
-    // second mate's windows are numbered after the first's.
-    // Only reads with a mate spanning >= 2 windows: a shorter read is one
-    // window (the pooled call), and short mates must not become one vote each.
-    const bool windowed = c.window_ && !enc.translated()
-        && std::max<u64>(bs->l_seq, is_paired ? (bs + 1)->l_seq: 0) >= 2ull * c.window_ + enc.span() - 1;
-    size_t pos = 0;
-    u32 win_base = 0;
-    scratch.win.clear();
-    const auto close_windows = [&](size_t first) {
-        if(!windowed) return;
-        const u32 nwin = std::max<size_t>(1, pos / c.window_);
-        for(size_t i = first; i < scratch.win.size(); ++i) scratch.win[i] = win_base + std::min(scratch.win[i], nwin - 1);
-        win_base += nwin;
-    };
-    // Nearest-hit attribution: every k-mer position of a mate belongs to its
-    // nearest hit (ties split; the ends to the first/last hit), and taxa are
-    // scored by the positions they own instead of by hit count.
-    const bool nearest = c.nearest_ && !enc.translated();
-    scratch.hpos.clear(); scratch.hidx.clear(); scratch.own.clear();
-    const auto add_hit = [&](tax_t t) {
-        taxa.push_back(t);
-        const u32 i = hit_counts.add(t);
-        if(nearest) scratch.hpos.push_back(pos), scratch.hidx.push_back(i);
-    };
-    const auto attribute = [&](size_t first) {   // hits [first, end) of the mate just processed, pos positions
-        if(!nearest) return;
-        const size_t last = scratch.hpos.size();
-        scratch.own.resize(hit_counts.size());
-        for(size_t i = first; i < last; ++i) {
-            const u64 lo = i == first ? 0: u64(scratch.hpos[i - 1]) + scratch.hpos[i];
-            const u64 hi = i + 1 == last ? 2 * u64(pos): u64(scratch.hpos[i]) + scratch.hpos[i + 1];
-            scratch.own[scratch.hidx[i]] += u32(hi - lo);
-        }
-    };
     auto process = [&](const char *seq, size_t len) {
-        pos = 0;
         if constexpr(std::is_same<DB, khash_t(c)>::value) {
             auto fn = [&] (u64 kmer) {
                 //If the kmer is missing from our database, just say we don't know what it is.
                 if((ki = kh_get(c, c.db_, kmer)) == kh_end(c.db_)) ++missing_count;
                 else {
-                    add_hit(kh_val(c.db_, ki));
+                    taxa.push_back(kh_val(c.db_, ki)), hit_counts.add(kh_val(c.db_, ki));
                     if(c.min_hit_groups_) scratch.hits.push_back(kmer);
-                    if(windowed) scratch.win.push_back(pos / c.window_);
                 }
-                ++pos;
             };
             enc.for_each(fn, seq, len);
         } else {
@@ -520,56 +454,38 @@ unsigned classify_seq(const ClassifierGeneric<ScoreType, DB> &c,
             c.db_->get_many(scratch.uniq.begin(), scratch.uniq.end(), scratch.taxa.begin(), scratch.buf);
             for(size_t i = 0; i < scratch.uniq.size(); ++i) {
                 const tax_t t = scratch.taxa[i];
-                if(t == DB::NOT_FOUND) {missing_count += scratch.runs[i]; pos += scratch.runs[i]; continue;}
-                for(uint32_t r = 0; r < scratch.runs[i]; ++r, ++pos) {
-                    add_hit(t);
-                    if(windowed) scratch.win.push_back(pos / c.window_);
-                }
+                if(t == DB::NOT_FOUND) {missing_count += scratch.runs[i]; continue;}
+                for(uint32_t r = 0; r < scratch.runs[i]; ++r) taxa.push_back(t), hit_counts.add(t);
                 if(c.min_hit_groups_) scratch.hits.push_back(scratch.uniq[i]);
             }
         }
     };
     scratch.hits.clear();
     process(bs->seq, bs->l_seq);
-    close_windows(0);
-    attribute(0);
     unsigned ambig_count(count_ambig(bs->l_seq, 0));
     if(is_paired) {
         const auto pre(n_not_ambig());
-        const size_t first = scratch.win.size(), hfirst = scratch.hpos.size();
         process((bs + 1)->seq, (bs + 1)->l_seq);
-        close_windows(first);
-        attribute(hfirst);
         ambig_count += count_ambig((bs + 1)->l_seq, pre);
     }
 
-    // Evidence for the call and for confidence: hit counts over hits + misses
-    // (Kraken2), hit counts over hits only (confidence_hits_only_), or owned
-    // positions over all owned positions (nearest-hit attribution).
-    const tax_counter *evidence = &hit_counts;
-    double evidence_total = double(taxa.size()) + (c.confidence_hits_only_ ? 0.: double(missing_count));
-    if(nearest && hit_counts.size()) {
-        scratch.owned.clear();
-        evidence_total = 0.;
-        for(unsigned i = 0; i < hit_counts.size(); ++i)
-            scratch.owned.add(hit_counts.keys()[i], scratch.own[i]), evidence_total += scratch.own[i];
-        evidence = &scratch.owned;
-    }
-    taxon = resolve_tree(*evidence, taxmap);
+    taxon = resolve_tree(hit_counts, taxmap);
     if(taxon && c.min_hit_groups_) {
         std::sort(scratch.hits.begin(), scratch.hits.end());
         const size_t groups = std::unique(scratch.hits.begin(), scratch.hits.end()) - scratch.hits.begin();
         if(groups < c.min_hit_groups_) taxon = 0;
     }
+    double total = double(taxa.size()) + (c.confidence_hits_only_ ? 0.: double(missing_count));
+    if(c.confidence_quality_ && !enc.translated() && bs->qual) {
+        total = expected_intact_windows(bs->seq, bs->qual, bs->l_seq, enc.span());
+        if(is_paired && (bs + 1)->qual) total += expected_intact_windows((bs + 1)->seq, (bs + 1)->qual, (bs + 1)->l_seq, enc.span());
+    }
+    if(taxon && c.confidence_ > 0.) taxon = confident_ancestor(taxon, hit_counts, taxmap, total, c.confidence_);
+    // Two calls: the call above and its stricter confidence_hi_ walk-up
+    // (an ancestor-or-self, or unclassified).
     ReadEvidence ev;
-    if(taxon && windowed) taxon = window_adjudicate(taxon, taxa, scratch.win, taxmap, c.window_agree_, scratch.wcalls, ev, scratch.votes, scratch.wc);
-    if(taxon && c.confidence_ > 0.) taxon = confident_ancestor(taxon, *evidence, taxmap, evidence_total, c.confidence_);
-    // Two calls: the (possibly specific) call above and the stricter
-    // confidence_hi_ walk-up of it, an ancestor-or-self or unclassified.
-    if((ev.emit_hi = c.confidence_hi_ > 0.) && taxon)
-        ev.hi = confident_ancestor(taxon, *evidence, taxmap, evidence_total, c.confidence_hi_);
+    if((ev.emit_hi = c.confidence_hi_ > 0.) && taxon) ev.hi = confident_ancestor(taxon, hit_counts, taxmap, total, c.confidence_hi_);
     if((ev.emit_lineage = c.emit_evidence_)) lineage_evidence(taxon, hit_counts, taxmap, ev);
-    ev.emit_windows = c.emit_evidence_ && windowed;
     ++c.classified_[!taxon];
     if(c.get_emit_all() || taxon) {
         switch(c.output_flag_) {

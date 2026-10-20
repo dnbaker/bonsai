@@ -5,10 +5,11 @@
 //   Species 4's genome carries an island of I bp. A read from an unsampled
 //   relative of 2 is (L - I) bp of genome 2 at divergence d, with the island
 //   spliced in at a random point. Truth: 2 (in-lineage: 10).
-// Modes: pooled (default), confidence 0.3, hits-only confidence 0.5 (-R),
-// 256/512/1024-position windows, nearest-hit attribution (-N) alone and with
-// attributed confidence 0.5. For each (I, d, L) cell: reads
-// called 2, in lineage (2 or 10), wrong family (4 or 20), root/unclassified.
+// Modes: pooled (default), Kraken2 confidence 0.3, hits-only confidence (-R)
+// 0.5/0.7/0.9, quality-aware confidence (-Q) 0.3/0.5/0.7 (reads at Q40).
+// (Windowed adjudication and nearest-hit attribution were tried here and on
+// the real-genome benchmarks and dropped: no gain on real data.) For each
+// (I, d, L) cell: reads // called 2, in lineage (2 or 10), wrong family (4 or 20), root/unclassified.
 // Then single-thread throughput of each mode on short and long error-free reads.
 // Usage: adjudication_sweep [reads_per_cell=20] [seed=7] > sweep.csv
 #include "classifier.h"
@@ -38,25 +39,20 @@ std::string mutate(std::string s, double rate, std::mt19937_64 &rng) {
     for(auto &c: s) if(u(rng) < rate) {char n; do n = b[rng() & 3]; while(n == c); c = n;}
     return s;
 }
-struct Mode {
-    const char *name;
-    double conf;
-    unsigned window;
-    bool nearest, hits_only;
-};
+struct Mode {const char *name; double conf; bool hits_only, quality;};
 const Mode MODES[] = {
-    {"pooled", 0., 0, false, false},
-    {"conf0.3", 0.3, 0, false, false},
-    {"hits0.5", 0.5, 0, false, true},
-    {"win256", 0., 256, false, false},
-    {"win512", 0., 512, false, false},
-    {"win1024", 0., 1024, false, false},
-    {"nearest", 0., 0, true, false},
-    {"nearest+conf0.5", 0.5, 0, true, false},
+    {"pooled", 0., false, false},
+    {"conf0.3", 0.3, false, false},
+    {"hits0.5", 0.5, true, false},
+    {"hits0.7", 0.7, true, false},
+    {"hits0.9", 0.9, true, false},
+    {"qual0.3", 0.3, false, true},
+    {"qual0.5", 0.5, false, true},
+    {"qual0.7", 0.7, false, true},
 };
 template<typename CL>
 void set_mode(CL &c, const Mode &m) {
-    c.set_confidence(m.conf); c.set_window(m.window); c.set_nearest(m.nearest); c.set_confidence_hits_only(m.hits_only);
+    c.set_confidence(m.conf); c.set_confidence_hits_only(m.hits_only); c.set_confidence_quality(m.quality);
 }
 template<typename CL>
 std::vector<tax_t> classify(const CL &cl, const khash_t(p) *taxmap, const std::string &fq) {
