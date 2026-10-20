@@ -309,7 +309,7 @@ int classify_main(int argc, char *argv[]) {
 
 int phase2_main(int argc, char *argv[]) {
     int c, mode(score_scheme::LEX), wsz(-1), num_threads(1), k(31);
-    bool canon(true), compact_out(false);
+    bool canon(true), compact_out(true), compact_explicit(false);
     KeySpec keyspec;              // -P alphabet, -6 translate, -H hash bits (compact builds)
     WRITE write_fmt = UNCOMPRESSED;
     std::size_t start_size(1<<16);
@@ -332,9 +332,10 @@ int phase2_main(int argc, char *argv[]) {
                      "-T: Set tax_path.\n"
                      "-M: Set seq2taxpath.\n"
                      "-S: Set spacing.\n"
-                     "-z: Write gzip-compressed.\n"
-                     "-Z: Build a compact database (sketch cht_map_t; see `bonsai compact`) directly, without\n"
-                     "    an intermediate khash. Lex LCA databases only; classify detects the format.\n"
+                     "-z: Write gzip-compressed (khash databases only: with -L).\n"
+                     "-Z: Compact database (sketch cht_map_t), built directly without an intermediate khash.\n"
+                     "    The default for lex LCA databases; classify detects the format.\n"
+                     "-L: Legacy khash database instead of compact (also what non-lex modes build).\n"
                      "-P: Amino-acid key alphabet for a protein database (-Z): PROTEIN20, PROTEIN14, PROTEIN8, PROTEIN6.\n"
                      "    k counts residues. References are protein FASTA unless -6 is given.\n"
                      "-6: 6-frame translate nucleotide references (and, at classify, reads) into -P residues.\n"
@@ -342,7 +343,7 @@ int phase2_main(int argc, char *argv[]) {
                      , *argv);
         std::exit(EXIT_FAILURE);
     }
-    while((c = getopt(argc, argv, "Cw:M:S:p:k:T:F:P:H:tef6Zh?")) >= 0) {
+    while((c = getopt(argc, argv, "Cw:M:S:p:k:T:F:P:H:tef6zZLh?")) >= 0) {
         switch(c) {
             case 'C': canon = false; break;
             case 'h': case '?': goto usage;
@@ -358,7 +359,8 @@ int phase2_main(int argc, char *argv[]) {
             case 'F': paths_file = optarg; break;
             case 'e': mode = score_scheme::ENTROPY; break;
             case 'z': write_fmt = ZLIB; break;
-            case 'Z': compact_out = true; break;
+            case 'Z': compact_out = true; compact_explicit = true; break;
+            case 'L': compact_out = false; break;
             case 'P': if(!input_type_from_string(optarg, keyspec.rht)) LOG_EXIT("Unknown alphabet %s\n", optarg); break;
             case '6': keyspec.translate = true; break;
             case 'H': keyspec.hash_bits = unsigned(std::atoi(optarg)); break;
@@ -366,9 +368,13 @@ int phase2_main(int argc, char *argv[]) {
     }
     dbpath = argv[optind];
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
-    if(compact_out && mode != score_scheme::LEX) LOG_EXIT("-Z (compact output) builds lex LCA databases only.\n");
+    if(mode != score_scheme::LEX && compact_out) {
+        if(compact_explicit) LOG_EXIT("-Z (compact output) builds lex LCA databases only.\n");
+        LOG_INFO("Non-lex mode: building a khash database (compact databases are lex LCA only).\n");
+        compact_out = false;
+    }
     if((keyspec.rht != DNA || keyspec.translate || keyspec.hash_bits) && !compact_out)
-        LOG_EXIT("-P / -6 / -H describe the key encoding, which only compact databases (-Z) record.\n");
+        LOG_EXIT("-P / -6 / -H describe the key encoding, which only compact databases (the default, not -L) record.\n");
     if(keyspec.translate && keyspec.rht == DNA) LOG_EXIT("-6 translates into an amino-acid alphabet; give one with -P.\n");
     if(keyspec.rht != DNA) canon = false;
     if(wsz < k) wsz = k;
@@ -387,6 +393,8 @@ int phase2_main(int argc, char *argv[]) {
     const std::string suf(".gz");
 #endif
     if(endswith(dbpath, suf))     write_fmt = ZLIB;
+    if(write_fmt && compact_out)
+        LOG_EXIT("Compact databases are written uncompressed; for a gzipped khash database add -L.\n");
     if(write_fmt && !endswith(dbpath, ".gz"))
         dbpath += suf, LOG_INFO("Writing gzipped, but without a .gz suffix. Adding it.\n");
     LOG_INFO("db output path: %s\n", dbpath.data());

@@ -37,8 +37,13 @@ awk -v seed=13 'BEGIN{srand(seed); split("A C G T",b," ")}
         }
     }' "$T/gA.fa" > "$T/reads.fq"
 
-"$BNS" build -k 31 -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/db.khash" "$T/gA.fa" "$T/gB.fa" > "$T/build.log" 2>&1 || fail "build (khash)"
+"$BNS" build -L -k 31 -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/db.khash" "$T/gA.fa" "$T/gB.fa" > "$T/build.log" 2>&1 || fail "build (khash)"
 "$BNS" build -Z -k 31 -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/db.compact" "$T/gA.fa" "$T/gB.fa" > "$T/buildz.log" 2>&1 || fail "build (compact)"
+"$BNS" build -k 31 -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/db.default" "$T/gA.fa" "$T/gB.fa" > "$T/buildd.log" 2>&1 || fail "build (default)"
+cmp -s "$T/db.default" "$T/db.compact" || fail "build: the default is not the compact (-Z) database"
+head -c 6 "$T/db.khash" | grep -q BNSCKM && fail "build -L wrote a compact database"
+"$BNS" build -k 31 -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/db.gz" "$T/gA.fa" "$T/gB.fa" > /dev/null 2>&1 && fail "build accepted a gzipped compact database"
+"$BNS" build -L -k 31 -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/dbl.gz" "$T/gA.fa" "$T/gB.fa" > /dev/null 2>&1 || fail "build -L .gz"
 
 for db in khash compact; do
     "$BNS" classify -k "$T/db.$db" "$T/nodes.dmp" "$T/reads.fq" > "$T/plain.$db" 2>/dev/null || fail "classify plain ($db)"

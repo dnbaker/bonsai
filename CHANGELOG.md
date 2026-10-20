@@ -22,6 +22,12 @@
   Counters hold database k-mers only, so k-mer content is measured over the database.
 - `make check`: unit tests and the CLI smokes (`test/cli_profile_smoke.sh` is new).
 
+### Changed: compact k-mer -> taxon databases by default
+- `bonsai build` (lex LCA, the default mode) writes the compact `cht_map_t` database, as `-Z`
+  did; `-L` writes the legacy khash database. Non-lex modes still build khash (logged). A gzip
+  output path or `-z` needs `-L` (compact databases are uncompressed); `-z` is now accepted
+  (it was documented but missing from the option string). classify reads both formats.
+
 ### Changed (results change, -U)
 - A distinct-k-mer counter is exact iff it holds at most 512 distinct k-mers, else a sketch,
   whatever order hits arrived in (before, a taxon with 513 to ~1023 distinct k-mers could be

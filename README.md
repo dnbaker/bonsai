@@ -55,6 +55,7 @@ Usage instructions are available in each executable by executing it with no opti
 For classification purposes, the commands involved are `bonsai prebuild`, `bonsai build`, and `bonsai classify`.
 prebuild is only required for taxonomic or feature minimization strategies, for which case database building requires double the memory requirements.
 Unless you're very sure you know what you're doing, we recommend simply `bonsai build` with either Entropy or Lexicographic minimization.
+Lexicographic (the default) builds write the compact k-mer -> taxon database (sketch `cht_map_t`, uncompressed); `-L` writes the legacy khash database instead, which is also what the other modes build. `bonsai classify` detects either format.
 
 To build a database with k = 31, window size = 50, minimized by entropy, from a taxonomy in `ref/nodes.dmp` and a nameidmap in `ref/nameidmap.txt` and store it in in `bns.db`
 ```
