@@ -102,4 +102,12 @@ awk -F'\t' '$1 == 562 {exit !($8 > 0.2 && $13 < 0.05 && $11 < $10)}' "$T/sdiff.t
     || fail "diff -K: strain shift not found by k-mers (or reads called it): $(awk -F'\t' '$1 == 562' "$T/sdiff.tsv")"
 printf '%s\tA\n%s\tB\n%s\tC\n' "$T/A1.bprof" "$T/B1.bprof" "$T/SA1.bprof" > "$T/three.tsv"
 "$BNS" profile diff "$T/three.tsv" > /dev/null 2>&1 && fail "diff accepted three groups"
+# taxdiff: CIs/e-values on every node; -E parsimonious explanation (interval null, e-BH tau)
+"$BNS" profile taxdiff "$T/a.mh.bprof" "$T/b.mh.bprof" > "$T/td.tsv" || fail taxdiff
+awk -F'\t' '$1 == 562 {exit !($6 < -3 && $8 < 0)}' "$T/td.tsv" || fail "taxdiff: 562 not under in b: $(awk -F'\t' '$1 == 562' "$T/td.tsv")"
+"$BNS" profile taxdiff -E "$T/a.mh.bprof" "$T/a1.mh.bprof" > "$T/tdn.tsv" || fail "taxdiff -E (same genome)"
+grep -q 'selected=0' "$T/tdn.tsv" || fail "taxdiff -E selected nodes between read subsets of one genome: $(cat "$T/tdn.tsv")"
+"$BNS" profile taxdiff -E "$T/a.mh.bprof" "$T/c.mh.bprof" > "$T/tdc.tsv" || fail "taxdiff -E (a vs c)"
+awk -F'\t' 'NR > 2 && ($1 == 584 || $1 == 562 || $1 == 583 || $1 == 561 || $1 == 1903414 || $1 == 543) {ok = 1} END {exit !ok}' "$T/tdc.tsv" \
+    || fail "taxdiff -E: c (75% gA + 25% gB) vs a explained by nothing on the gA/gB lineages: $(cat "$T/tdc.tsv")"
 echo "cli_profile_smoke: all checks passed"

@@ -943,7 +943,13 @@ int profile_usage(const char *arg) {
                  "      median); p_od from that; BH q over the reported nodes; call over/under at q < alpha. Two\n"
                  "      single samples: p_od, not raw Poisson p, is the honest one. hier: selective testing over\n"
                  "      families of siblings (Simes per family, BH across families, BH within selected ones).\n"
-                 "      -m: nodes with >= min_reads in A + B [10]; -a: [0.05]\n", arg);
+                 "      -m: nodes with >= min_reads in A + B [10]; -a: [0.05]\n"
+                 "      log10_e / cond_log10_e: e-values (beta-binomial null vs uniform-share mixture).\n"
+                 "      -E: print only a parsimonious explanation: per family of siblings, greedily the child with\n"
+                 "          the largest e-value against the rest, while e >= tau, tau = the e-BH threshold at alpha\n"
+                 "          over every family's first-step e-values (tuned automatically). -e tau: fixed tau.\n"
+                 "          Interval null |log2 rate ratio vs siblings| <= delta (-d, [1]): only changes beyond\n"
+                 "          2^delta count, so huge depths do not turn trivial differences into calls.\n", arg);
     return EXIT_FAILURE;
 }
 uint8_t parse_rank(const char *r) {
@@ -1311,11 +1317,15 @@ int profile_main(int argc, char *argv[]) {
     if(sub == "taxdiff") {
         uint8_t rank = RANK_UNKNOWN;
         uint64_t min_reads = 10;
-        double alpha = 0.05;
-        while((c = getopt(argc, argv, "r:m:a:h?")) >= 0) switch(c) {
+        double alpha = 0.05, tau_fixed = 0., delta = 1.;
+        bool explain = false;
+        while((c = getopt(argc, argv, "r:m:a:Ee:d:h?")) >= 0) switch(c) {
+            case 'd': delta = std::atof(optarg); break;
             case 'r': rank = parse_rank(optarg); break;
             case 'm': min_reads = std::strtoull(optarg, nullptr, 10); break;
             case 'a': alpha = std::atof(optarg); break;
+            case 'E': explain = true; break;
+            case 'e': explain = true; tau_fixed = std::atof(optarg); break;
             default: return profile_usage(argv[-1]);
         }
         if(argc - optind != 2) return profile_usage(argv[-1]);
@@ -1341,7 +1351,8 @@ int profile_main(int argc, char *argv[]) {
             const auto it = s.clade_reads.find(t);
             return it == s.clade_reads.end() ? 0.: double(it->second);
         };
-        struct Row {tax_t t; double ra, rb, rr, lo, hi, g, p, crr = NAN, clo = NAN, chi = NAN, cg = NAN, cp = NAN, pa, cpa = NAN; tax_t cond_on = 0;};
+        struct Row {tax_t t; double ra, rb, rr, lo, hi, g, p, crr = NAN, clo = NAN, chi = NAN, cg = NAN, cp = NAN, pa, cpa = NAN; tax_t cond_on = 0;
+                    double le = NAN, cle = NAN;};   // log10 e-values, marginal and conditional
         // rate ratio B/A of k (A) of n against references Ma, Mb, with CP 95% CI on k/n
         auto test = [](double k, double n, double Ma, double Mb, double &rr, double &lo, double &hi, double &g, double &p) {
             const double p0 = Ma / (Ma + Mb);
@@ -1412,10 +1423,16 @@ int profile_main(int argc, char *argv[]) {
             return .5 * (lo + hi);
         };
         const double lm = fit_rho(false), lc = fit_rho(true);
+        const double TA = double(A.classified), TB = double(B.classified);
         for(auto &r: rows) {
             const double n = r.ra + r.rb;
             r.pa = chisq1_p(r.g / (1. + (n - 1.) * lm));
-            if(!std::isnan(r.cg)) r.cpa = chisq1_p(r.cg / (1. + (n - 1.) * lc));
+            r.le = log_evalue_share(r.ra, n, TA / (TA + TB), lm) / std::log(10.);
+            if(!std::isnan(r.cg)) {
+                r.cpa = chisq1_p(r.cg / (1. + (n - 1.) * lc));
+                const double pa = reads(A, r.cond_on), pb = reads(B, r.cond_on);
+                r.cle = log_evalue_share(r.ra, n, pa / (pa + pb), lc) / std::log(10.);
+            }
         }
         auto rank_label = [&](tax_t t) -> std::string {
             if(!has_ranks) return "-";
@@ -1470,6 +1487,73 @@ int profile_main(int argc, char *argv[]) {
             const auto qs = bh_qvalues(ps);
             for(size_t j = 0; j < mem.size(); ++j) if(qs[j] < alpha * double(nsel) / double(fam_ids.size())) hier[mem[j]] = 1;
         }
+        if(explain) {
+            // Parsimonious explanation (tree-guided aggregation): within each family of
+            // siblings (children of a branching node), greedily add the child with the
+            // largest e-value against the pool of the rest (parent clade minus this child and
+            // the children already chosen), while e >= tau. A uniformly scaled clade is one
+            // node in its parent's family (its own children stay quiet); a two-child family
+            // gets one call, not two complements. tau: the e-BH threshold at alpha over every
+            // family's first-step e-values (or -e). Effects are B vs A rate ratios of the child
+            // relative to the pool at selection.
+            // interval null: the child's B/A rate ratio relative to the pool is within
+            // 2^-delta .. 2^delta; in share space p(r) = 1 / (1 + r (pool_b / pool_a))
+            auto log_e_vs_pool = [&](double ca, double cb, double pa, double pb) -> double {
+                const double ra = pa - ca, rb = pb - cb;
+                if(ra <= 0. || rb <= 0. || ca + cb <= 0.) return -INFINITY;
+                const double ratio = rb / ra;
+                const double plo = 1. / (1. + std::exp2(delta) * ratio), phi = 1. / (1. + std::exp2(-delta) * ratio);
+                return log_evalue_share_band(ca, ca + cb, plo, phi, lc) / std::log(10.);
+            };
+            // pool = the family's sibling clades (the parent's own reads are unresolved
+            // within the parent, not a sibling)
+            auto pool_of = [&](const std::vector<size_t> &mem, double &pa, double &pb) {
+                pa = pb = 0.;
+                for(const size_t i: mem) pa += rows[i].ra, pb += rows[i].rb;
+            };
+            std::vector<double> first;
+            for(const auto &kv: family) {
+                double pa, pb;
+                pool_of(kv.second, pa, pb);
+                for(const size_t i: kv.second) {
+                    const double le = log_e_vs_pool(rows[i].ra, rows[i].rb, pa, pb);
+                    if(std::isfinite(le)) first.push_back(std::pow(10., std::min(le, 300.)));
+                }
+            }
+            const double tau = tau_fixed > 0. ? tau_fixed: ebh_threshold(first, alpha);
+            const double ltau = std::log10(tau);
+            struct Sel {size_t i; double eff, le;};
+            std::vector<Sel> sel;
+            for(const auto &kv: family) {
+                double pa, pb;
+                pool_of(kv.second, pa, pb);
+                std::vector<size_t> rem = kv.second;
+                while(!rem.empty()) {
+                    size_t best = 0; double bl = -INFINITY;
+                    for(size_t j = 0; j < rem.size(); ++j) {
+                        const double le = log_e_vs_pool(rows[rem[j]].ra, rows[rem[j]].rb, pa, pb);
+                        if(le > bl) bl = le, best = j;
+                    }
+                    if(!(bl >= ltau)) break;
+                    const Row &r = rows[rem[best]];
+                    const double eff = ((r.rb + .5) / (pb - r.rb + .5)) / ((r.ra + .5) / (pa - r.ra + .5));
+                    sel.push_back({rem[best], eff, bl});
+                    pa -= r.ra; pb -= r.rb;
+                    rem.erase(rem.begin() + best);
+                }
+            }
+            std::sort(sel.begin(), sel.end(), [](const Sel &a, const Sel &b) {return a.le > b.le;});
+            std::fprintf(stdout, "#explain\tA=%s\tB=%s\ttau=%.4g\tlog10_tau=%.3f\tdelta_log2=%.3g\tselected=%zu\tfamilies=%zu\trho_conditional=%.4g\n",
+                         A.name.data(), B.name.data(), tau, ltau, delta, sel.size(), family.size(), lc);
+            std::fprintf(stdout, "#taxid\trank\tcond_on\treads_a\treads_b\tlog2_vs_siblings\tlog10_e\tmarginal_log2rr\tmarginal_ci_lo\tmarginal_ci_hi\tcall\n");
+            for(const auto &x: sel) {
+                const Row &r = rows[x.i];
+                std::fprintf(stdout, "%u\t%s\t%u\t%.0f\t%.0f\t%.4f\t%.3f\t%.4f\t%.4f\t%.4f\t%s\n", r.t, rank_label(r.t).data(), r.cond_on,
+                             r.ra, r.rb, std::log2(x.eff), x.le, std::log2(r.rr), std::log2(r.lo), std::log2(r.hi),
+                             x.eff > 1. ? "over_in_b": "under_in_b");
+            }
+            return EXIT_SUCCESS;
+        }
         std::vector<size_t> order(out.size());
         std::iota(order.begin(), order.end(), size_t(0));
         std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
@@ -1479,7 +1563,7 @@ int profile_main(int argc, char *argv[]) {
         std::fprintf(stdout, "#taxdiff\tA=%s\t%llu\tB=%s\t%llu\trho_marginal=%.4g\trho_conditional=%.4g\n", A.name.data(),
                      (unsigned long long)A.classified, B.name.data(), (unsigned long long)B.classified, lm, lc);
         std::fprintf(stdout, "#taxid\trank\tparent\treads_a\treads_b\tlog2rr\tci_lo\tci_hi\tG\tp\tp_od\tq\t"
-                             "cond_on\tcond_log2rr\tcond_ci_lo\tcond_ci_hi\tcond_G\tcond_p\tcond_p_od\tcond_q\tcall\thier\n");
+                             "cond_on\tcond_log2rr\tcond_ci_lo\tcond_ci_hi\tcond_G\tcond_p\tcond_p_od\tcond_q\tcall\thier\tlog10_e\tcond_log10_e\n");
         auto l2 = [](double x) {return std::log2(x);};
         for(const size_t i: order) {
             const Row &r = out[i];
@@ -1489,9 +1573,9 @@ int profile_main(int argc, char *argv[]) {
             const auto pit = parent.find(r.t);
             const bool h = hier[rep_of[out_src[i]]];
             const char *hcall = h ? (dir > 1. ? "over_in_b": "under_in_b"): "ns";
-            std::fprintf(stdout, "%u\t%s\t%u\t%.0f\t%.0f\t%.4f\t%.4f\t%.4f\t%.4g\t%.4g\t%.4g\t%.4g\t%u\t%.4f\t%.4f\t%.4f\t%.4g\t%.4g\t%.4g\t%.4g\t%s\t%s\n",
+            std::fprintf(stdout, "%u\t%s\t%u\t%.0f\t%.0f\t%.4f\t%.4f\t%.4f\t%.4g\t%.4g\t%.4g\t%.4g\t%u\t%.4f\t%.4f\t%.4f\t%.4g\t%.4g\t%.4g\t%.4g\t%s\t%s\t%.3f\t%.3f\n",
                          r.t, rank_label(r.t).data(), pit == parent.end() ? 0u: pit->second, r.ra, r.rb, l2(r.rr), l2(r.lo), l2(r.hi),
-                         r.g, r.p, r.pa, mq[i], r.cond_on, l2(r.crr), l2(r.clo), l2(r.chi), r.cg, r.cp, r.cpa, cq[i], call, hcall);
+                         r.g, r.p, r.pa, mq[i], r.cond_on, l2(r.crr), l2(r.clo), l2(r.chi), r.cg, r.cp, r.cpa, cq[i], call, hcall, r.le, r.cle);
         }
         return EXIT_SUCCESS;
     }

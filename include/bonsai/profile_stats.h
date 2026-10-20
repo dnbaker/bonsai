@@ -81,6 +81,61 @@ inline double binomial_g(double k, double n, double p0) {
 }
 inline double chisq1_p(double g) {return std::erfc(std::sqrt(std::max(0., g) / 2.));}
 
+// log beta-binomial pmf of k of n with mean p and intra-class correlation rho
+// (a = p (1/rho - 1), b = (1 - p)(1/rho - 1)); the binomial when rho -> 0.
+inline double log_betabinom(double k, double n, double p, double rho) {
+    const double lc = std::lgamma(n + 1.) - std::lgamma(k + 1.) - std::lgamma(n - k + 1.);
+    p = std::min(std::max(p, 1e-300), 1. - 1e-16);
+    if(rho <= 1e-12) return lc + k * std::log(p) + (n - k) * std::log1p(-p);
+    const double phi = 1. / rho - 1., a = p * phi, b = (1. - p) * phi;
+    auto lbeta = [](double x, double y) {return std::lgamma(x) + std::lgamma(y) - std::lgamma(x + y);};
+    return lc + lbeta(k + a, n - k + b) - lbeta(a, b);
+}
+// log e-value for k of n against null share p0 (beta-binomial, rho): the Bayes
+// factor of a uniform mixture over the share against the null. With the null
+// simple its expectation under the null is 1 (rho plugged in: approximate).
+// The mixture integral is taken on a fine grid around the observed share.
+inline double log_evalue_share(double k, double n, double p0, double rho) {
+    if(n <= 0.) return 0.;
+    const double lnull = log_betabinom(k, n, p0, rho);
+    double lalt;
+    if(rho <= 1e-12) lalt = -std::log(n + 1.);   // integral of the binomial over a uniform share
+    else {
+        const double c = (k + .5) / (n + 1.), sd = std::sqrt(c * (1. - c) * (rho + 1. / (n + 1.)));
+        const double lo = std::max(1e-12, c - 12. * sd), hi = std::min(1. - 1e-12, c + 12. * sd);
+        const int m = 800;
+        const double h = (hi - lo) / m;
+        double mx = -INFINITY;
+        std::vector<double> v(m + 1);
+        for(int i = 0; i <= m; ++i) mx = std::max(mx, v[i] = log_betabinom(k, n, lo + i * h, rho));
+        double acc = 0.;
+        for(int i = 0; i <= m; ++i) acc += (i == 0 || i == m ? .5: 1.) * std::exp(v[i] - mx);
+        lalt = mx + std::log(acc * h);
+    }
+    return lalt - lnull;
+}
+// log e-value against an interval null: the share lies in [plo, phi] (e.g. a
+// rate ratio within 2^-delta .. 2^delta). Null likelihood: its supremum over the
+// band (beta-binomial, rho), which bounds every null in it, so the ratio stays
+// a valid e-value; alternative: the uniform-share mixture of log_evalue_share.
+inline double log_evalue_share_band(double k, double n, double plo, double phi, double rho) {
+    if(n <= 0.) return 0.;
+    const double lalt = log_evalue_share(k, n, 0.5, rho) + log_betabinom(k, n, 0.5, rho);   // the mixture's log marginal
+    const double phat = std::min(std::max(k / n, plo), phi);
+    return lalt - log_betabinom(k, n, phat, rho);
+}
+
+// e-BH (Wang & Ramdas 2022): the k largest e-values with e_(k) >= m / (alpha k)
+// are rejected; valid FDR control under arbitrary dependence. Returns the
+// threshold on e (infinity when nothing is rejected).
+inline double ebh_threshold(std::vector<double> e, double alpha) {
+    std::sort(e.begin(), e.end(), std::greater<double>());
+    const double m = e.size();
+    double t = INFINITY;
+    for(size_t k = 1; k <= e.size(); ++k) if(e[k - 1] >= m / (alpha * k)) t = m / (alpha * k);
+    return t;
+}
+
 inline double n_choose_k(unsigned n, unsigned k) {
     double r = 1.;
     for(unsigned i = 1; i <= k; ++i) r = r * (n - k + i) / i;
