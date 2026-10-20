@@ -21,6 +21,39 @@ def work(*parts):
     return p
 
 
+# Shared-host etiquette (swarm board 2026-10-20 ledger): before any heavy step,
+# wait while swap use > SWAP_MAX or free+inactive memory < FREE_MIN (macOS).
+SWAP_MAX = float(os.environ.get("BNS_APPS_SWAP_MAX_GB", 4)) * 1e9
+FREE_MIN = float(os.environ.get("BNS_APPS_FREE_MIN_GB", 2)) * 1e9
+
+
+def memory_state():
+    """(swap used bytes, free+inactive bytes) on macOS; (0, inf) elsewhere."""
+    try:
+        sw = subprocess.run(["sysctl", "-n", "vm.swapusage"], capture_output=True, text=True).stdout
+        used = sw.split("used = ")[1].split()[0]
+        swap = float(used[:-1]) * {"M": 1e6, "G": 1e9, "K": 1e3}[used[-1]]
+        vm = subprocess.run(["vm_stat"], capture_output=True, text=True).stdout
+        page = int(vm.split("page size of ")[1].split()[0])
+        free = sum(int(l.split()[-1].rstrip(".")) for l in vm.splitlines() if l.startswith(("Pages free", "Pages inactive")))
+        return swap, free * page
+    except (IndexError, ValueError, KeyError, FileNotFoundError):
+        return 0.0, float("inf")
+
+
+def memory_gate(what=""):
+    waited = 0
+    while True:
+        swap, free = memory_state()
+        if swap <= SWAP_MAX and free >= FREE_MIN:
+            return waited
+        if waited % 300 == 0:
+            print(f"[memory] waiting before {what}: swap {swap / 1e9:.1f} GB (max {SWAP_MAX / 1e9:.0f}), "
+                  f"free+inactive {free / 1e9:.1f} GB (min {FREE_MIN / 1e9:.0f})", flush=True)
+        time.sleep(30)
+        waited += 30
+
+
 def reuse(path):
     """True if a finished output exists and BNS_APPS_FRESH is unset (resume)."""
     return not os.environ.get("BNS_APPS_FRESH") and os.path.exists(path) and os.path.getsize(path) > 0

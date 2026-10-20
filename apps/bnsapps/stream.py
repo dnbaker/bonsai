@@ -30,6 +30,7 @@ def profile_stream(source, profile, db, nodes, **kw):
     Returns {seconds, bytes, peak_rss_bytes, profile_bytes}."""
     # /usr/bin/time -l (macOS) reports this run's peak RSS on stderr
     cmd = ["/usr/bin/time", "-l", common.BONSAI, *map(str, classify_args(profile, db, nodes, **kw))]
+    common.memory_gate("classify " + os.path.basename(profile))
     t0 = time.time()
     # stderr to a file: classify logs per chunk, and a full stderr pipe would
     # block it while we block writing its stdin

@@ -133,6 +133,7 @@ def build_db(name, gens, k=31, threads=4):
         with open(info_path) as fh:
             return db, nodes, json.load(fh)
     s2t = write_seq2tax(common.work("db", f"{name}.seq2tax"), gens)
+    common.memory_gate("build " + name)
     t0 = time.time()
     r0 = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
     common.bonsai("build", "-k", k, "-p", threads, "-T", nodes, "-M", s2t, db, *[g for g, _ in gens])
