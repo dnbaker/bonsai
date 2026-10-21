@@ -281,3 +281,20 @@ unit-tested now. Real evaluation needs a normals corpus (to be decided with the 
    - **bonsai needs:** a two-ID database value and a profile-format extension for cells.
 3. X3 localization stays as is. BugSigDB GSEA (tree-aware null): lower priority.
 4. X4 (separate functional tree): left as is.
+
+### Paper 1 decision (PI 2026-10-20): profiles + tree-structured comparison; grafting is paper 2
+- **Fair comparison separates the layers** (PI: "bracken estimation can be replayed on any of the classifiers").
+  - Classification layer: bonsai, Kraken2, ... judged on raw per-node counts.
+  - Re-estimation layer: Bracken-style redistribution of reads stopped above species, applied to EVERY
+    classifier's output.
+- **bonsai `profile reestimate`.**
+  - The read-distribution matrix P(read from genome g ends at node v) comes from the simulator + database.
+  - EM over it, with containment-informed priors (cardinality says which species / strains are present). This
+    is the second dimension improving the first.
+  - **Endpoint:** species abundance error vs truth on the mocks (D6331, podar, sims), raw vs Bracken vs
+    reestimate, for each classifier.
+- **Remaining evidence for paper 1:** real panel-of-normals calibration; CRC no-training utility vs published
+  cross-study classifiers; fair head-to-head (sourmash / sylph / Kraken2 + Bracken on identical inputs);
+  2D taxdiff.
+- **Grafting (paper 2):** synthetic strain-group nodes. Only ~24% of E. coli reads resolve to a strain leaf
+  today. It will be evaluated with paper-1 machinery (M3, podar strain sets).
