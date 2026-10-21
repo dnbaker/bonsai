@@ -21,8 +21,9 @@ def revcomp(s):
     return s.translate(_COMP)[::-1]
 
 
-def reads(composition, length=150, error=0.01, seed=1):
-    """composition: [(genome path, taxid, n reads)]. Yields FASTQ records (str)."""
+def reads(composition, length=150, error=0.01, seed=1, strand=None):
+    """composition: [(genome path, taxid, n reads)]. Yields FASTQ records (str).
+    strand: None (random), '+' (forward only) or '-' (reverse complement only)."""
     rng = random.Random(seed)
     qual = "I" * length
     log1m = math.log1p(-error) if 0 < error < 1 else 0.0
@@ -33,7 +34,8 @@ def reads(composition, length=150, error=0.01, seed=1):
         for i in range(n):
             o = rng.randrange(span)
             s = g[o:o + length]
-            if rng.random() < 0.5:
+            flip = rng.random() < 0.5
+            if strand == "-" or (strand is None and flip):
                 s = revcomp(s)
             # independent substitutions at rate `error` (Binomial(L, error) of them):
             # geometric gaps between error positions, ~1 draw per error, not per base

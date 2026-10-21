@@ -160,7 +160,10 @@ public:
         if(std::is_same<ScoreType, score::Entropy>::value) {
             ent_tracker_.reset(new CircusEnt(sp_.k_));
         }
-        if(!sp_.unspaced() && canonicalize_) {
+        // Spaced seeds canonicalize under the both-strand contract (canonical_spaced_kmer):
+        // min(pattern on the window, pattern on its reverse complement), valid for any
+        // pattern. (They used to be left uncanonicalized, so reverse-strand reads missed.)
+        if(!sp_.unspaced() && canonicalize_ && rht != DNA) {
             canonicalize_ = false;
         }
     }
@@ -242,10 +245,13 @@ public:
         if(sp_.unspaced()) {
             for_each_uncanon_unspaced_unwindowed(ffunc);
         } else {
-            KmerT min;
-            while(likely(has_next_kmer()))
-                if((min = next_kmer()) != ENCODE_OVERFLOW)
-                    ffunc(min);
+            // spaced: both-strand canonical key per position (canonical_kmer_at)
+            while(likely(has_next_kmer())) {
+                const unsigned start = pos_++;
+                const KmerT fwd = kmer(start);
+                if(fwd == ENCODE_OVERFLOW && !kmer_is_valid(start)) continue;
+                func(canonical_kmer_at(start, fwd));
+            }
         }
     }
     template<typename Functor>
@@ -455,8 +461,7 @@ public:
                     else for_each_uncanon_unspaced_windowed(func);
                 }
             } else {
-                // Spaced seeds are never canonicalized: unless the seed is
-                // symmetric, a k-mer and its reverse complement use different positions.
+                // uncanonical spaced (canonicalization off, or a non-DNA alphabet)
                 for_each_uncanon_spaced(func);
             }
         }
@@ -650,6 +655,30 @@ public:
             if(lutptr[uint8_t(s_[start += space])] == int8_t(-1)) return false;
         return true;
     }
+    // Spaced DNA seed, both strands: the pattern applied to the reverse complement of
+    // the window [start, start + span) selects positions start + span - 1 - o_j,
+    // complemented, in pattern order; the canonical key is the smaller of that and the
+    // forward key. Valid for any pattern (asymmetric ones included); a read from either
+    // strand meets the reference at the same key.
+    INLINE KmerT rc_spaced_kmer(unsigned start) const {
+        const unsigned last = start + sp_.c_ - 1;
+        int8_t c = lutptr[uint8_t(s_[last])];
+        if(c < 0) return ENCODE_OVERFLOW;
+        KmerT rc = KmerT(3 - c);
+        unsigned off = 0;
+        for(const auto space: sp_.s_) {
+            off += space;
+            if((c = lutptr[uint8_t(s_[last - off])]) < 0) return ENCODE_OVERFLOW;
+            rc = (rc << 2) | KmerT(3 - c);
+        }
+        return rc;
+    }
+    INLINE KmerT canonical_kmer_at(unsigned start, KmerT fwd) const {
+        if(rht != DNA) return fwd;
+        if(sp_.unspaced()) return canonical_representation(fwd, sp_.k_);
+        const KmerT rc = rc_spaced_kmer(start);
+        return rc < fwd ? rc: fwd;
+    }
     INLINE KmerT next_canonicalized_minimizer() {
         assert(has_next_kmer());
         const unsigned start = pos_++;
@@ -657,7 +686,7 @@ public:
         // Invalid k-mers stay out of the window, as in the unspaced rolling
         // encoders; canonicalizing the marker would turn it into poly-A.
         if(nk == ENCODE_OVERFLOW && !kmer_is_valid(start)) return ENCODE_OVERFLOW;
-        if(rht == DNA) nk = canonical_representation(nk, sp_.k_);
+        nk = canonical_kmer_at(start, nk);
         const KmerT kscore(scorer_(nk, getdata()));
         return qmap_.next_value(nk, kscore);
     }

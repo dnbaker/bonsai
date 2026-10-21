@@ -22,6 +22,16 @@
   Counters hold database k-mers only, so k-mer content is measured over the database.
 - `make check`: unit tests and the CLI smokes (`test/cli_profile_smoke.sh` is new).
 
+### Fixed: spaced seeds were single-stranded
+- Spaced seeds were never canonicalized (the encoder switched canonicalization off for a spaced
+  spacer), so a database built from forward-strand references missed reverse-strand reads: on the
+  D6331 mock, forward-only reads classified 0.999 and reverse-only 0.010-0.025, i.e. about half of
+  all reads lost.
+- Spaced keys are now canonical under a both-strand contract: min(pattern on the window, pattern
+  on its reverse complement), valid for any pattern (asymmetric included).
+- Contiguous seeds are unchanged (classification and -U byte-identical).
+- **Spaced databases built before this change must be rebuilt.**
+
 ### Fixed: feature-count (-f) and taxonomic-depth (-t) minimized builds
 These builds could not have worked; each fix below was needed for `prebuild -f|-t`
 then `build -f|-t` to give a usable database.

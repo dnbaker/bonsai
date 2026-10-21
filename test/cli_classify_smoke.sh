@@ -44,6 +44,14 @@ cmp -s "$T/db.default" "$T/db.compact" || fail "build: the default is not the co
 head -c 6 "$T/db.khash" | grep -q BNSCKM && fail "build -L wrote a compact database"
 "$BNS" build -k 31 -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/db.gz" "$T/gA.fa" "$T/gB.fa" > /dev/null 2>&1 && fail "build accepted a gzipped compact database"
 "$BNS" build -L -k 31 -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/dbl.gz" "$T/gA.fa" "$T/gB.fa" > /dev/null 2>&1 || fail "build -L .gz"
+# spaced seeds, both strands: an asymmetric pattern; reverse-complemented reads must classify
+# like their forward originals (spaced seeds used to be uncanonicalized: reverse reads missed)
+awk 'NR % 4 == 2 {cmd = "echo " $0 " | rev | tr ACGT TGCA"; cmd | getline r; close(cmd); print r; next} {print}' "$T/reads.fq" > "$T/reads_rc.fq"
+"$BNS" build -k 31 -S 0,0,1,0,0,0,2,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0 -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/db.spaced" "$T/gA.fa" "$T/gB.fa" > "$T/builds.log" 2>&1 || fail "build spaced"
+"$BNS" classify -k "$T/db.spaced" "$T/nodes.dmp" "$T/reads.fq" > "$T/sp_fwd.out" 2>/dev/null || fail "classify spaced (forward)"
+"$BNS" classify -k "$T/db.spaced" "$T/nodes.dmp" "$T/reads_rc.fq" > "$T/sp_rev.out" 2>/dev/null || fail "classify spaced (reverse)"
+nf=$(awk '$1 == "C" && $3 == 562' "$T/sp_fwd.out" | wc -l); nr=$(awk '$1 == "C" && $3 == 562' "$T/sp_rev.out" | wc -l)
+[ "$nf" -eq "$nr" ] && [ "$nf" -ge 6 ] || fail "spaced seed strand asymmetry: $nf forward vs $nr reverse reads at 562"
 # sharded compact database (build -x): identical classification and -U report
 "$BNS" build -x 3 -k 31 -T "$T/nodes.dmp" -M "$T/seq2tax" "$T/db.sharded" "$T/gA.fa" "$T/gB.fa" > "$T/buildx.log" 2>&1 || fail "build -x 3"
 head -c 8 "$T/db.sharded" | grep -q BNSCKM04 || fail "build -x 3 did not write a sharded (BNSCKM04) database"

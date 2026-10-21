@@ -8,7 +8,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bnsapps import common, mock  # noqa: E402
 
-ANALYSES = ["m1", "m2", "m3", "m4", "m4cal", "m5", "m6", "r0", "r1", "r2", "corpus", "gutdb", "x1", "stream_corpus", "sweep"]
+ANALYSES = ["m1", "m2", "m3", "m4", "m4cal", "m5", "m6", "r0", "r1", "r2", "corpus", "gutdb", "x1", "stream_corpus", "sweep", "seeds"]
 
 
 def setup():

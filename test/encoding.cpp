@@ -22,7 +22,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         while(v.size() < 30) v.push_back(0);
         Spacer sp(31, 31, v);
         EncType enc(&test[0], 34, sp, nullptr, true);
-        REQUIRE(!enc.canonicalize()); // Spaced can't be canon
+        REQUIRE(enc.canonicalize()); // spaced DNA seeds canonicalize (both-strand contract); next_kmer is the raw forward k-mer
         REQUIRE(sp.s_.size() == 30);
         REQUIRE(std::accumulate(sp.s_.begin(), sp.s_.end(), 0u) == sp.s_.size() + std::accumulate(v.begin(), v.end(), 0));
         std::string to_use = test;
@@ -37,7 +37,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         while(v.size() < 30) v.push_back(0);
         Spacer sp(31, 31, v);
         EncType enc(&test[0], 34, sp, nullptr, true);
-        REQUIRE(!enc.canonicalize()); // Spaced kmers cannot be canonicalized (unless they're palindromic, but I haven't enabled that edge case.)
+        REQUIRE(enc.canonicalize()); // both-strand contract for spaced DNA; next_minimizer encodes the raw forward window
         REQUIRE(sp.s_.size() == 30);
         REQUIRE(std::accumulate(sp.s_.begin(), sp.s_.end(), 0u) == sp.s_.size() + std::accumulate(v.begin(), v.end(), 0));
         std::string to_use = test;
@@ -50,7 +50,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
         while(v.size() < 30) v.push_back(0);
         Spacer sp(31, 31, v);
         EncType enc(nullptr, 34, sp, nullptr, true);
-        REQUIRE(!enc.canonicalize());
+        REQUIRE(enc.canonicalize());
         gzFile fp(gzopen("test/small_genome.fa", "rb"));
         kseq_t *ks(kseq_init(fp));
         kseq_read(ks);
@@ -74,7 +74,7 @@ TEST_CASE( "Spacer encodes and decodes contiguous, unminimized seeds correctly."
             Spacer sp(31, window_size, v);
             window_size = std::max(window_size, (int)sp.c_);
             EncType enc(ks->seq.s, ks->seq.l, sp, nullptr, true);
-            REQUIRE(!enc.canonicalize());
+            REQUIRE(enc.canonicalize());
             uint64_t km, n(0);
             while(enc.has_next_kmer()) {
                 ++n;
@@ -333,4 +333,25 @@ TEST_CASE("xzparse") {
         REQUIRE(lhv == zhv);
     }
     globfree(&glo);
+}
+
+TEST_CASE("spaced seeds: canonical keys are the same on both strands (any pattern)", "[spaced]") {
+    // an asymmetric pattern: canonical keys of a sequence and of its reverse complement
+    // must be the same multiset (min(pattern on window, pattern on its reverse complement))
+    const std::string seq("ACATGCTAGCATGCTGACTGACTGATCGATCGTAGGCTTACGATCGATCGGATTACAGGCATCGACTAGCATCGACGTAGCTAGCATCG");
+    std::string rc(seq.rbegin(), seq.rend());
+    for(auto &c: rc) c = c == 'A' ? 'T': c == 'C' ? 'G': c == 'G' ? 'C': 'A';
+    spvec_t v(20, 0);
+    v[2] = 1; v[6] = 2; v[11] = 1;   // not a palindrome
+    Spacer sp(21, 21, v);
+    auto keys = [&](const std::string &s) {
+        EncType enc(sp, true);
+        std::vector<uint64_t> out;
+        enc.for_each([&](uint64_t k) {out.push_back(k);}, s.data(), s.size());
+        std::sort(out.begin(), out.end());
+        return out;
+    };
+    const auto a = keys(seq), b = keys(rc);
+    REQUIRE(!a.empty());
+    REQUIRE(a == b);
 }
