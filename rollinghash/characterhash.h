@@ -1,7 +1,7 @@
 #ifndef CHARACTERHASH
 #define CHARACTERHASH
 #include "aesctr/wy.h"
-#include "hll/include/flat_hash_map/flat_hash_map.hpp"
+#include "hll/include/ankerl/unordered_dense.h"
 
 typedef unsigned long long uint64;
 typedef unsigned int uint32;
@@ -125,7 +125,7 @@ public:
         return access(i, std::integral_constant<bool, (nbrofchars > 0)>());
     }
 
-    std::conditional_t<(nbrofchars > 0), std::array<hashvaluetype, nbrofchars>, ska::flat_hash_map<chartype, hashvaluetype>>
+    std::conditional_t<(nbrofchars > 0), std::array<hashvaluetype, nbrofchars>, ankerl::unordered_dense::map<chartype, hashvaluetype>>
         hashvalues;
 };
 

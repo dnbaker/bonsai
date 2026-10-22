@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cinttypes>
-#include "btree/map.h"
 #include "hll/include/circularqueue/cq.h"
 #include <vector>
 
@@ -21,7 +20,7 @@ struct ElScore {
     }
     INLINE ElScore(): el_(0), score_(0) {}
     INLINE bool operator<(const ElScore &other) const {
-        return std::tie(score_, el_) < std::tie(other.score_, other.el_); // Lexicographic is tie-breaker.
+        return std::tie(score_, el_) < std::tie(other.score_, el_); // Lexicographic is tie-breaker.
     }
     INLINE bool operator==(const ElScore &other) const {
         return el_ == other.el_;
@@ -29,72 +28,79 @@ struct ElScore {
 };
 
 
+/*
+Sliding-window minimum over (score, element) pairs with exact first-in
+tie-breaking. The queue is kept monotonically increasing from front to
+back: a new pair pops every back pair that it does not strictly exceed,
+so the front always holds the lexicographic minimum of the window —
+identical selection to the previous btree-multimap implementation
+(minimum score, smallest element on ties) at amortized O(1) per slide
+instead of O(log w) tree operations per insert and erase. Window fullness
+is tracked by position: dominance pops shrink the deque below the window
+population, so expiry and fullness use sequence numbers, not deque size.
+*/
 template<typename T, typename ScoreType, typename Compare=std::less<void>>
 class QueueMap {
     using PairType           = ElScore<T, ScoreType>;
-    using MapType = btree::map<PairType, unsigned>;
-    using map_iterator = typename MapType::iterator;
-    using const_map_iterator = typename MapType::const_iterator;
     using list_type = circ::deque<ElScore<T, ScoreType>, u32>;
+    using pos_type  = circ::deque<u64, u32>;
 
-    list_type list_;
-    MapType map_;
-    size_t wsz_;  // window size to keep
+    list_type list_;  // monotone: front = min (score, el) of live window entries
+    pos_type  poss_;  // sequence number of each list_ entry, aligned 1:1
+    u64 seq_;         // number of pushes since construction/reset
+    size_t wsz_;      // window size to keep
     public:
-    QueueMap(size_t wsz=1): list_(wsz), wsz_(wsz) {}
-    QueueMap(QueueMap &&o): list_(std::move(o.list_)), map_(std::move(o.map_)), wsz_(o.wsz_) {}
-    QueueMap(const QueueMap &&o): list_(o.list_), map_(o.map_), wsz_(o.wsz_) {}
-    QueueMap &operator=(QueueMap &&o) {
-        list_ = std::move(o.list_);
-        map_ = std::move(o.map_);
-        wsz_ = std::move(o.wsz_);
-        return *this;
-    }
-    QueueMap &operator=(const QueueMap &o) {
-        list_ = o.list_;
-        map_ = o.map_;
-        wsz_ = o.wsz_;
-        return *this;
-    }
+    QueueMap(size_t wsz=1): list_(wsz), poss_(wsz), seq_(0), wsz_(wsz) {}
+    QueueMap(QueueMap &&o) = default;
+    QueueMap &operator=(QueueMap &&o) = default;
+    QueueMap &operator=(const QueueMap &o) = default;
     void resize(size_t newsz) {
         wsz_ = newsz;
         list_.resize(newsz);
+        poss_.resize(newsz);
     }
+    // Monotone push: back pairs not strictly smaller than el are dead —
+    // el outscores them and expires later.
     INLINE void add(const PairType &el) {
-        auto it(map_.lower_bound(el));
-        if(it != map_.end()) {
-            if(it->first == el) ++it->second;
-            else map_.emplace_hint(it, el, 1);
-        } else map_.emplace(el, 1);
+        while(list_.size() && !(list_.back() < el)) {
+            list_.pop_back();
+            poss_.pop_back();
+        }
+        list_.emplace_back(el);
+        poss_.emplace_back(seq_++);
     }
-    INLINE void del(const PairType &el) {
-        auto f(map_.find(el));
-        if(--f->second <= 0) map_.erase(f);
+    // The only expiry pattern is the window sliding past the front pair.
+    INLINE void del(const PairType &) {
+        list_.pop_front();
+        poss_.pop_front();
     }
-    map_iterator       begin()       {return map_.begin();}
-    const_map_iterator begin() const {return map_.cbegin();}
-    map_iterator       end()       {return map_.end();}
-    const_map_iterator end() const {return map_.cend();}
-    // Do a std::enable_if that involves moving the element if it's by reference?
-    T next_value(const T el, const T score) {
-        add(list_.emplace_back(el, score));
-        if(list_.size() > wsz_) del(list_.pop_front());
-        if(list_.size() == wsz_) return map_.begin()->first.el_;
+    INLINE T next_value(const T el, const T score) {
+        add(PairType(el, score));
+        // Expire the element wsz positions back; if dominance already removed
+        // it, the front is younger and stays.
+        if(seq_ > wsz_ && poss_.front() == seq_ - wsz_ - 1) {
+            list_.pop_front();
+            poss_.pop_front();
+        }
+        if(seq_ >= wsz_) return list_.front().el_;
         if(std::is_same<T, u128>::value)
             return u128(-1);
         return std::numeric_limits<T>::max();
         // Signal a window that is not filled by 0xFFFFFFFFFFFFFFFF
     }
     void reset() {
-        list_.clear(); map_.clear();
+        list_.clear();
+        poss_.clear();
+        seq_ = 0;
     }
     size_t size() const {return wsz_;}
-    size_t n_in_queue() const {return list_.size();}
+    size_t n_in_queue() const {return std::min(seq_, u64(wsz_));}
     bool partially_full() const {
         const auto n = n_in_queue();
         return n > 0u && n < wsz_;
     }
-    const auto &max_in_queue() const {return begin()->first;}
+    // The minimum-(score, el) pair currently in the window.
+    const auto &max_in_queue() const {return list_.front();}
 };
 
 using qmap_t = QueueMap<u64, u64>;

@@ -1,0 +1,995 @@
+{
+ "SRR12324253": {
+  "E10a": {
+   "bonsai_leaf_reads": {
+    "pearson_log10": 0.4559077943303347,
+    "spearman": 0.3395252837977296
+   },
+   "gather": {
+    "pearson_log10": 0.22535191797292892,
+    "spearman": 0.25077399380804954
+   },
+   "species_bonsai": {
+    "pearson_log10": 0.915473914429453,
+    "spearman": 0.9725274725274725
+   },
+   "species_gather": {
+    "pearson_log10": 0.25704785158582544,
+    "spearman": 0.12087912087912088
+   }
+  },
+  "E10c": {
+   "bonsai_cov": 0.9375,
+   "bonsai_leaf_reads": 0.875,
+   "gather": 0.875
+  },
+  "classified": 5112608,
+  "cost": {
+   "bytes": 300000000,
+   "peak_rss_bytes": 834076672,
+   "profile_bytes": 218516,
+   "seconds": 297.035
+  },
+  "downloaded_bytes": 58957894,
+  "genomes": 18,
+  "label": "zymo_d6300",
+  "leaf_frac": 0.6978203687824296,
+  "missing_genomes": [],
+  "n_gather_fp": 2,
+  "records": [
+   {
+    "acc": "GCA_006992865.1",
+    "bonsai_cov": 0.035068,
+    "bonsai_leaf_reads": 6775.0,
+    "bonsai_species_reads": 6775.0,
+    "gather": 0.23047046111614053,
+    "map_abund": 63573501.0,
+    "map_covered_frac": 0.7791577515741075,
+    "species": 2000006
+   },
+   {
+    "acc": "GCA_012275245.1",
+    "bonsai_cov": 0.142027,
+    "bonsai_leaf_reads": 3750.0,
+    "bonsai_species_reads": 15991.0,
+    "gather": 0.165376865344742,
+    "map_abund": 117882620.0,
+    "map_covered_frac": 0.9638867877904744,
+    "species": 2000012
+   },
+   {
+    "acc": "GCA_000780515.1",
+    "bonsai_cov": 0.00284,
+    "bonsai_leaf_reads": 447.0,
+    "bonsai_species_reads": 1263227.0,
+    "gather": 0.10797827293169407,
+    "map_abund": 6170767343.0,
+    "map_covered_frac": 0.8827758900205531,
+    "species": 2000019
+   },
+   {
+    "acc": "GCA_006370495.1",
+    "bonsai_cov": 0.992875,
+    "bonsai_leaf_reads": 1290223.0,
+    "bonsai_species_reads": 1290223.0,
+    "gather": 0.06745904272406039,
+    "map_abund": 3982237747.0,
+    "map_covered_frac": 0.9999213726188836,
+    "species": 2000021
+   },
+   {
+    "acc": "GCA_005153965.1",
+    "bonsai_cov": 0.947335,
+    "bonsai_leaf_reads": 140644.0,
+    "bonsai_species_reads": 140644.0,
+    "gather": 0.05790964576701808,
+    "map_abund": 431901644.0,
+    "map_covered_frac": 0.9973152994200137,
+    "species": 2000027
+   },
+   {
+    "acc": "GCA_900143315.1",
+    "bonsai_cov": 0.002068,
+    "bonsai_leaf_reads": 280.0,
+    "bonsai_species_reads": 1263227.0,
+    "gather": 0.04668107350407383,
+    "map_abund": 4572985506.0,
+    "map_covered_frac": 0.8565787234132108,
+    "species": 2000019
+   },
+   {
+    "acc": "GCA_005154665.1",
+    "bonsai_cov": 1.0,
+    "bonsai_leaf_reads": 80515.0,
+    "bonsai_species_reads": 80515.0,
+    "gather": 0.04108868965920042,
+    "map_abund": 288158436.0,
+    "map_covered_frac": 0.9994390700644638,
+    "species": 2000030
+   },
+   {
+    "acc": "GCA_006370485.1",
+    "bonsai_cov": 1.0,
+    "bonsai_leaf_reads": 225413.0,
+    "bonsai_species_reads": 225413.0,
+    "gather": 0.0395993341704874,
+    "map_abund": 680064123.0,
+    "map_covered_frac": 0.9993566791343215,
+    "species": 2000033
+   },
+   {
+    "acc": "GCA_000091045.1",
+    "bonsai_cov": 0.023762,
+    "bonsai_leaf_reads": 4147.0,
+    "bonsai_species_reads": 7922.0,
+    "gather": 0.0267499926992378,
+    "map_abund": 52084474.0,
+    "map_covered_frac": 0.8270894138659606,
+    "species": 2000034
+   },
+   {
+    "acc": "GCA_005341425.1",
+    "bonsai_cov": 0.963774,
+    "bonsai_leaf_reads": 316185.0,
+    "bonsai_species_reads": 316185.0,
+    "gather": 0.02628274391846509,
+    "map_abund": 910389879.0,
+    "map_covered_frac": 0.999952245685975,
+    "species": 2000038
+   },
+   {
+    "acc": "GCA_006364795.1",
+    "bonsai_cov": 1.0,
+    "bonsai_leaf_reads": 637011.0,
+    "bonsai_species_reads": 637011.0,
+    "gather": 0.026238939345267647,
+    "map_abund": 3457708855.0,
+    "map_covered_frac": 1.0,
+    "species": 2000042
+   },
+   {
+    "acc": "GCA_000149245.3",
+    "bonsai_cov": 0.016789,
+    "bonsai_leaf_reads": 3618.0,
+    "bonsai_species_reads": 7922.0,
+    "gather": 0.024355342697777647,
+    "map_abund": 48414839.0,
+    "map_covered_frac": 0.760992850962185,
+    "species": 2000034
+   },
+   {
+    "acc": "GCA_005154485.1",
+    "bonsai_cov": 1.0,
+    "bonsai_leaf_reads": 337394.0,
+    "bonsai_species_reads": 337394.0,
+    "gather": 0.014776742691937038,
+    "map_abund": 1419405124.0,
+    "map_covered_frac": 0.9994961010645389,
+    "species": 2000045
+   },
+   {
+    "acc": "GCA_006370475.1",
+    "bonsai_cov": 0.986625,
+    "bonsai_leaf_reads": 515610.0,
+    "bonsai_species_reads": 1263227.0,
+    "gather": 0.013681628362000993,
+    "map_abund": 3941914478.0,
+    "map_covered_frac": 0.9999501328937943,
+    "species": 2000019
+   },
+   {
+    "acc": "GCA_001483345.1",
+    "bonsai_cov": 0.001114,
+    "bonsai_leaf_reads": 1283.0,
+    "bonsai_species_reads": 1283.0,
+    "gather": 0.009563998481441462,
+    "map_abund": 143922387.0,
+    "map_covered_frac": 0.4548266958992986,
+    "species": 2000046
+   },
+   {
+    "acc": "GCA_007682135.1",
+    "bonsai_cov": 0.005618,
+    "bonsai_leaf_reads": 320.0,
+    "bonsai_species_reads": 320.0,
+    "gather": 0.00765119878515317,
+    "map_abund": 27203870.999999996,
+    "map_covered_frac": 0.13695832208365033,
+    "species": 2000047
+   },
+   {
+    "acc": "GCA_003270815.1",
+    "bonsai_cov": 0.043066,
+    "bonsai_leaf_reads": 2930.0,
+    "bonsai_species_reads": 15991.0,
+    "gather": 0.004161434453756972,
+    "map_abund": 128149443.99999999,
+    "map_covered_frac": 0.9834455458408715,
+    "species": 2000012
+   },
+   {
+    "acc": "GCA_001739935.1",
+    "bonsai_cov": 0.029063,
+    "bonsai_leaf_reads": 1137.0,
+    "bonsai_species_reads": 15991.0,
+    "gather": 0.0021756271354729435,
+    "map_abund": 129933374.0,
+    "map_covered_frac": 0.9532404222636323,
+    "species": 2000012
+   }
+  ]
+ },
+ "SRR606249": {
+  "E10a": {
+   "bonsai_leaf_reads": {
+    "pearson_log10": 0.1624039216880773,
+    "spearman": 0.7936194505644089
+   },
+   "gather": {
+    "pearson_log10": 0.6620283363609968,
+    "spearman": 0.3376090461121509
+   },
+   "species_bonsai": {
+    "pearson_log10": 0.13482863934978953,
+    "spearman": 0.7995177030438184
+   },
+   "species_gather": {
+    "pearson_log10": 0.5772625628604815,
+    "spearman": 0.3001826817683595
+   }
+  },
+  "E10c": {
+   "bonsai_cov": 0.9571428571428572,
+   "bonsai_leaf_reads": 0.9571428571428572,
+   "gather": 0.969047619047619
+  },
+  "classified": 3932873,
+  "cost": {
+   "bytes": 300000000,
+   "peak_rss_bytes": 3236446208,
+   "profile_bytes": 694020,
+   "seconds": 425.965
+  },
+  "downloaded_bytes": 61724705,
+  "genomes": 73,
+  "label": "podar",
+  "leaf_frac": 0.910379765631893,
+  "missing_genomes": [],
+  "n_gather_fp": 3,
+  "records": [
+   {
+    "acc": "GCA_000013645.1",
+    "bonsai_cov": 0.214261,
+    "bonsai_leaf_reads": 34787.0,
+    "bonsai_species_reads": 34787.0,
+    "gather": 0.045443910428263644,
+    "map_abund": 100614837.0,
+    "map_covered_frac": 0.9927565511865107,
+    "species": 2000006
+   },
+   {
+    "acc": "GCA_000009705.1",
+    "bonsai_cov": 0.527974,
+    "bonsai_leaf_reads": 90453.0,
+    "bonsai_species_reads": 90453.0,
+    "gather": 0.03552453279000166,
+    "map_abund": 245361966.0,
+    "map_covered_frac": 0.9999929282456822,
+    "species": 2000012
+   },
+   {
+    "acc": "GCA_000196115.1",
+    "bonsai_cov": 0.970795,
+    "bonsai_leaf_reads": 365072.0,
+    "bonsai_species_reads": 365072.0,
+    "gather": 0.03431081041559024,
+    "map_abund": 962980361.9999999,
+    "map_covered_frac": 0.9999997201065386,
+    "species": 2000018
+   },
+   {
+    "acc": "GCA_000018565.1",
+    "bonsai_cov": 0.460885,
+    "bonsai_leaf_reads": 59028.0,
+    "bonsai_species_reads": 59028.0,
+    "gather": 0.03219045205065463,
+    "map_abund": 161033881.0,
+    "map_covered_frac": 0.9999317655623888,
+    "species": 2000024
+   },
+   {
+    "acc": "GCA_002959695.1",
+    "bonsai_cov": 0.487386,
+    "bonsai_leaf_reads": 57728.0,
+    "bonsai_species_reads": 57728.0,
+    "gather": 0.030820749290776685,
+    "map_abund": 161095657.0,
+    "map_covered_frac": 0.9968005418574045,
+    "species": 2000030
+   },
+   {
+    "acc": "GCA_000018265.1",
+    "bonsai_cov": 0.0,
+    "bonsai_leaf_reads": 0.0,
+    "bonsai_species_reads": 0.0,
+    "gather": 0.02748179416438383,
+    "map_abund": 158572673.0,
+    "map_covered_frac": 0.9977170453070592,
+    "species": 2000036
+   },
+   {
+    "acc": "GCA_000007345.1",
+    "bonsai_cov": 0.386162,
+    "bonsai_leaf_reads": 40329.0,
+    "bonsai_species_reads": 40329.0,
+    "gather": 0.02642892656248477,
+    "map_abund": 109943859.0,
+    "map_covered_frac": 0.9999831348109325,
+    "species": 2000043
+   },
+   {
+    "acc": "GCA_000021665.1",
+    "bonsai_cov": 0.208456,
+    "bonsai_leaf_reads": 15282.0,
+    "bonsai_species_reads": 43749.0,
+    "gather": 0.025288319993760786,
+    "map_abund": 111138392.00000001,
+    "map_covered_frac": 0.9996788510443593,
+    "species": 2000048
+   },
+   {
+    "acc": "GCA_000195675.1",
+    "bonsai_cov": 0.294095,
+    "bonsai_leaf_reads": 30577.0,
+    "bonsai_species_reads": 30577.0,
+    "gather": 0.025185957865798376,
+    "map_abund": 89134276.0,
+    "map_covered_frac": 0.9853071043319581,
+    "species": 2000051
+   },
+   {
+    "acc": "GCA_000022185.1",
+    "bonsai_cov": 0.0,
+    "bonsai_leaf_reads": 0.0,
+    "bonsai_species_reads": 0.0,
+    "gather": 0.024630277742573873,
+    "map_abund": 192451251.0,
+    "map_covered_frac": 0.9989195190692642,
+    "species": 2000055
+   },
+   {
+    "acc": "GCA_000012825.1",
+    "bonsai_cov": 0.38809,
+    "bonsai_leaf_reads": 37081.0,
+    "bonsai_species_reads": 37081.0,
+    "gather": 0.02410871832867017,
+    "map_abund": 105745052.0,
+    "map_covered_frac": 0.999992446528686,
+    "species": 2000056
+   },
+   {
+    "acc": "GCA_000016425.1",
+    "bonsai_cov": 0.385318,
+    "bonsai_leaf_reads": 40420.0,
+    "bonsai_species_reads": 40420.0,
+    "gather": 0.02343117852929994,
+    "map_abund": 145160041.0,
+    "map_covered_frac": 0.9981567837361728,
+    "species": 2000057
+   },
+   {
+    "acc": "GCA_000019785.1",
+    "bonsai_cov": 0.471065,
+    "bonsai_leaf_reads": 49466.0,
+    "bonsai_species_reads": 49466.0,
+    "gather": 0.023172836015871005,
+    "map_abund": 136103161.0,
+    "map_covered_frac": 0.9962359985521662,
+    "species": 2000060
+   },
+   {
+    "acc": "GCA_000010305.1",
+    "bonsai_cov": 0.941587,
+    "bonsai_leaf_reads": 156380.0,
+    "bonsai_species_reads": 156380.0,
+    "gather": 0.02256353763514238,
+    "map_abund": 414232719.0,
+    "map_covered_frac": 0.999998274733209,
+    "species": 2000066
+   },
+   {
+    "acc": "GCA_000011965.2",
+    "bonsai_cov": 0.285664,
+    "bonsai_leaf_reads": 23193.0,
+    "bonsai_species_reads": 23193.0,
+    "gather": 0.022100470865788625,
+    "map_abund": 74516377.0,
+    "map_covered_frac": 0.9982803917716138,
+    "species": 2000071
+   },
+   {
+    "acc": "GCA_000022565.1",
+    "bonsai_cov": 0.848013,
+    "bonsai_leaf_reads": 125609.0,
+    "bonsai_species_reads": 125609.0,
+    "gather": 0.02031157081996939,
+    "map_abund": 334827364.0,
+    "map_covered_frac": 1.0,
+    "species": 2000077
+   },
+   {
+    "acc": "GCA_000025685.1",
+    "bonsai_cov": 0.473924,
+    "bonsai_leaf_reads": 41266.0,
+    "bonsai_species_reads": 41266.0,
+    "gather": 0.019175838638291236,
+    "map_abund": 109080757.0,
+    "map_covered_frac": 0.9978504323556531,
+    "species": 2000082
+   },
+   {
+    "acc": "GCA_000152645.1",
+    "bonsai_cov": 0.849682,
+    "bonsai_leaf_reads": 114642.0,
+    "bonsai_species_reads": 114642.0,
+    "gather": 0.018785887674624916,
+    "map_abund": 606851122.0,
+    "map_covered_frac": 0.9976995478886008,
+    "species": 2000084
+   },
+   {
+    "acc": "GCA_000007985.2",
+    "bonsai_cov": 0.852489,
+    "bonsai_leaf_reads": 109823.0,
+    "bonsai_species_reads": 109823.0,
+    "gather": 0.018400811098004427,
+    "map_abund": 291591869.0,
+    "map_covered_frac": 0.9999992134506236,
+    "species": 2000089
+   },
+   {
+    "acc": "GCA_000015865.1",
+    "bonsai_cov": 0.620039,
+    "bonsai_leaf_reads": 50460.0,
+    "bonsai_species_reads": 50460.0,
+    "gather": 0.017815884652504946,
+    "map_abund": 138352682.0,
+    "map_covered_frac": 0.9999981786490312,
+    "species": 2000095
+   },
+   {
+    "acc": "GCA_003513425.1",
+    "bonsai_cov": 0.477806,
+    "bonsai_leaf_reads": 15400.0,
+    "bonsai_species_reads": 15400.0,
+    "gather": 0.01582713473780672,
+    "map_abund": 92692380.0,
+    "map_covered_frac": 0.9992567831276493,
+    "species": 2000099
+   },
+   {
+    "acc": "GCA_001638825.1",
+    "bonsai_cov": 0.404349,
+    "bonsai_leaf_reads": 26240.0,
+    "bonsai_species_reads": 26240.0,
+    "gather": 0.015627284868927734,
+    "map_abund": 72819978.0,
+    "map_covered_frac": 0.9938740090858401,
+    "species": 2000105
+   },
+   {
+    "acc": "GCA_000020645.1",
+    "bonsai_cov": 0.614203,
+    "bonsai_leaf_reads": 43856.0,
+    "bonsai_species_reads": 43856.0,
+    "gather": 0.014442808816791289,
+    "map_abund": 127762462.0,
+    "map_covered_frac": 0.9999658741292105,
+    "species": 2000111
+   },
+   {
+    "acc": "GCA_000015125.1",
+    "bonsai_cov": 0.639,
+    "bonsai_leaf_reads": 49788.0,
+    "bonsai_species_reads": 49788.0,
+    "gather": 0.014013862756758338,
+    "map_abund": 147410712.0,
+    "map_covered_frac": 0.9999875554500428,
+    "species": 2000113
+   },
+   {
+    "acc": "GCA_000156375.1",
+    "bonsai_cov": 0.665101,
+    "bonsai_leaf_reads": 49829.0,
+    "bonsai_species_reads": 49829.0,
+    "gather": 0.01395049572516256,
+    "map_abund": 134720596.0,
+    "map_covered_frac": 0.9853073504054107,
+    "species": 2000114
+   },
+   {
+    "acc": "GCA_000008185.1",
+    "bonsai_cov": 0.815361,
+    "bonsai_leaf_reads": 66473.0,
+    "bonsai_species_reads": 66473.0,
+    "gather": 0.013882254306520955,
+    "map_abund": 178201584.0,
+    "map_covered_frac": 1.0,
+    "species": 2000120
+   },
+   {
+    "acc": "GCA_000022325.1",
+    "bonsai_cov": 0.579117,
+    "bonsai_leaf_reads": 41455.0,
+    "bonsai_species_reads": 41455.0,
+    "gather": 0.013545921600358755,
+    "map_abund": 141588696.0,
+    "map_covered_frac": 1.0,
+    "species": 2000124
+   },
+   {
+    "acc": "GCA_000009145.1",
+    "bonsai_cov": 0.964886,
+    "bonsai_leaf_reads": 127612.0,
+    "bonsai_species_reads": 127612.0,
+    "gather": 0.013287579086929818,
+    "map_abund": 338962582.0,
+    "map_covered_frac": 0.9952949652465387,
+    "species": 2000128
+   },
+   {
+    "acc": "GCA_000020225.1",
+    "bonsai_cov": 0.573383,
+    "bonsai_leaf_reads": 35444.0,
+    "bonsai_species_reads": 35444.0,
+    "gather": 0.013165719410784094,
+    "map_abund": 95512442.99999999,
+    "map_covered_frac": 0.9999954956679586,
+    "species": 2000134
+   },
+   {
+    "acc": "GCA_000172575.2",
+    "bonsai_cov": 0.642821,
+    "bonsai_leaf_reads": 42197.0,
+    "bonsai_species_reads": 42197.0,
+    "gather": 0.013102352379188317,
+    "map_abund": 116090326.0,
+    "map_covered_frac": 0.9999967148788611,
+    "species": 2000139
+   },
+   {
+    "acc": "GCA_000011205.1",
+    "bonsai_cov": 0.9268,
+    "bonsai_leaf_reads": 102121.0,
+    "bonsai_species_reads": 102121.0,
+    "gather": 0.013058482895775856,
+    "map_abund": 269788927.0,
+    "map_covered_frac": 0.9999981445444411,
+    "species": 2000145
+   },
+   {
+    "acc": "GCA_000020465.1",
+    "bonsai_cov": 0.676867,
+    "bonsai_leaf_reads": 48897.0,
+    "bonsai_species_reads": 48897.0,
+    "gather": 0.013024362186455054,
+    "map_abund": 143854827.0,
+    "map_covered_frac": 0.9997387069468124,
+    "species": 2000146
+   },
+   {
+    "acc": "GCA_000017325.1",
+    "bonsai_cov": 0.243143,
+    "bonsai_leaf_reads": 17978.0,
+    "bonsai_species_reads": 43749.0,
+    "gather": 0.012868381800988525,
+    "map_abund": 111129084.0,
+    "map_covered_frac": 0.9999634851710268,
+    "species": 2000048
+   },
+   {
+    "acc": "GCA_000016545.1",
+    "bonsai_cov": 0.692326,
+    "bonsai_leaf_reads": 50605.0,
+    "bonsai_species_reads": 50605.0,
+    "gather": 0.012678280706201195,
+    "map_abund": 158907743.0,
+    "map_covered_frac": 0.9999966333083637,
+    "species": 2000147
+   },
+   {
+    "acc": "GCA_003514505.1",
+    "bonsai_cov": 0.626752,
+    "bonsai_leaf_reads": 34103.0,
+    "bonsai_species_reads": 34103.0,
+    "gather": 0.012263957807305732,
+    "map_abund": 96299422.0,
+    "map_covered_frac": 0.9997149526068898,
+    "species": 2000150
+   },
+   {
+    "acc": "GCA_013137915.1",
+    "bonsai_cov": 0.392861,
+    "bonsai_leaf_reads": 19319.0,
+    "bonsai_species_reads": 19319.0,
+    "gather": 0.012005615293876795,
+    "map_abund": 54710994.99999999,
+    "map_covered_frac": 0.9999260290451198,
+    "species": 2000156
+   },
+   {
+    "acc": "GCA_000007225.1",
+    "bonsai_cov": 0.892323,
+    "bonsai_leaf_reads": 75089.0,
+    "bonsai_species_reads": 75089.0,
+    "gather": 0.010947873304931905,
+    "map_abund": 200621696.0,
+    "map_covered_frac": 0.9997957191002641,
+    "species": 2000160
+   },
+   {
+    "acc": "GCA_000019085.1",
+    "bonsai_cov": 0.519953,
+    "bonsai_leaf_reads": 26020.0,
+    "bonsai_species_reads": 26020.0,
+    "gather": 0.010767520984236232,
+    "map_abund": 74885111.0,
+    "map_covered_frac": 0.9999995767761857,
+    "species": 2000163
+   },
+   {
+    "acc": "GCA_000006985.1",
+    "bonsai_cov": 0.742572,
+    "bonsai_leaf_reads": 42994.0,
+    "bonsai_species_reads": 42994.0,
+    "gather": 0.010553047954219756,
+    "map_abund": 118393506.0,
+    "map_covered_frac": 0.9999972157074933,
+    "species": 2000165
+   },
+   {
+    "acc": "GCA_000016385.1",
+    "bonsai_cov": 0.764387,
+    "bonsai_leaf_reads": 43781.0,
+    "bonsai_species_reads": 43781.0,
+    "gather": 0.010514052857853125,
+    "map_abund": 118745802.0,
+    "map_covered_frac": 0.9999608689174739,
+    "species": 2000166
+   },
+   {
+    "acc": "GCA_000008665.1",
+    "bonsai_cov": 0.952109,
+    "bonsai_leaf_reads": 100691.0,
+    "bonsai_species_reads": 100691.0,
+    "gather": 0.010426313891028204,
+    "map_abund": 265311554.0,
+    "map_covered_frac": 0.9999972456849063,
+    "species": 2000171
+   },
+   {
+    "acc": "GCA_003054575.1",
+    "bonsai_cov": 0.269119,
+    "bonsai_leaf_reads": 10093.0,
+    "bonsai_species_reads": 10093.0,
+    "gather": 0.010382444407615743,
+    "map_abund": 31610402.0,
+    "map_covered_frac": 0.9919779558535335,
+    "species": 2000175
+   },
+   {
+    "acc": "GCA_003450455.1",
+    "bonsai_cov": 0.749477,
+    "bonsai_leaf_reads": 42565.0,
+    "bonsai_species_reads": 42565.0,
+    "gather": 0.010372695633524085,
+    "map_abund": 111364310.0,
+    "map_covered_frac": 0.9987767259544958,
+    "species": 2000179
+   },
+   {
+    "acc": "GCA_001314265.1",
+    "bonsai_cov": 0.59194,
+    "bonsai_leaf_reads": 31426.0,
+    "bonsai_species_reads": 31426.0,
+    "gather": 0.010280082279653333,
+    "map_abund": 84953486.0,
+    "map_covered_frac": 0.9999609058410877,
+    "species": 2000182
+   },
+   {
+    "acc": "GCA_000016085.1",
+    "bonsai_cov": 0.0,
+    "bonsai_leaf_reads": 0.0,
+    "bonsai_species_reads": 0.0,
+    "gather": 0.010075358023728517,
+    "map_abund": 168024956.0,
+    "map_covered_frac": 0.9999994915748874,
+    "species": 2000183
+   },
+   {
+    "acc": "GCA_900637325.1",
+    "bonsai_cov": 0.631672,
+    "bonsai_leaf_reads": 34937.0,
+    "bonsai_species_reads": 34937.0,
+    "gather": 0.009895005703032844,
+    "map_abund": 94330914.0,
+    "map_covered_frac": 0.9988918593279822,
+    "species": 2000188
+   },
+   {
+    "acc": "GCA_000021565.1",
+    "bonsai_cov": 0.872329,
+    "bonsai_leaf_reads": 55286.0,
+    "bonsai_species_reads": 55286.0,
+    "gather": 0.009734150930520487,
+    "map_abund": 148350303.0,
+    "map_covered_frac": 0.9999984878773124,
+    "species": 2000194
+   },
+   {
+    "acc": "GCA_000015805.1",
+    "bonsai_cov": 0.859973,
+    "bonsai_leaf_reads": 59653.0,
+    "bonsai_species_reads": 59653.0,
+    "gather": 0.009651286350741395,
+    "map_abund": 158092831.0,
+    "map_covered_frac": 1.0,
+    "species": 2000195
+   },
+   {
+    "acc": "GCA_000152605.1",
+    "bonsai_cov": 0.878306,
+    "bonsai_leaf_reads": 97097.0,
+    "bonsai_species_reads": 97097.0,
+    "gather": 0.009514803513458183,
+    "map_abund": 548612477.0,
+    "map_covered_frac": 0.9996601378949629,
+    "species": 2000196
+   },
+   {
+    "acc": "GCA_000018945.1",
+    "bonsai_cov": 0.977085,
+    "bonsai_leaf_reads": 78113.0,
+    "bonsai_species_reads": 78113.0,
+    "gather": 0.009022490421829454,
+    "map_abund": 288987199.0,
+    "map_covered_frac": 0.9999994693727243,
+    "species": 2000202
+   },
+   {
+    "acc": "GCA_000021645.1",
+    "bonsai_cov": 0.680706,
+    "bonsai_leaf_reads": 34056.0,
+    "bonsai_species_reads": 34056.0,
+    "gather": 0.008963997777279508,
+    "map_abund": 93454245.0,
+    "map_covered_frac": 1.0,
+    "species": 2000208
+   },
+   {
+    "acc": "GCA_000007305.1",
+    "bonsai_cov": 0.878183,
+    "bonsai_leaf_reads": 60954.0,
+    "bonsai_species_reads": 60954.0,
+    "gather": 0.008954249003187848,
+    "map_abund": 167483345.0,
+    "map_covered_frac": 0.9994853939932588,
+    "species": 2000213
+   },
+   {
+    "acc": "GCA_000020325.1",
+    "bonsai_cov": 0.767028,
+    "bonsai_leaf_reads": 37919.0,
+    "bonsai_species_reads": 37919.0,
+    "gather": 0.00866178578043811,
+    "map_abund": 127712623.0,
+    "map_covered_frac": 1.0,
+    "species": 2000215
+   },
+   {
+    "acc": "GCA_000016125.1",
+    "bonsai_cov": 0.729107,
+    "bonsai_leaf_reads": 35078.0,
+    "bonsai_species_reads": 61924.0,
+    "gather": 0.008652037006346452,
+    "map_abund": 119034706.0,
+    "map_covered_frac": 1.0,
+    "species": 2000220
+   },
+   {
+    "acc": "GCA_000011105.1",
+    "bonsai_cov": 0.943021,
+    "bonsai_leaf_reads": 88298.0,
+    "bonsai_species_reads": 88298.0,
+    "gather": 0.008486307846788266,
+    "map_abund": 237081840.00000003,
+    "map_covered_frac": 0.9999608859336039,
+    "species": 2000221
+   },
+   {
+    "acc": "GCA_000091665.1",
+    "bonsai_cov": 0.816553,
+    "bonsai_leaf_reads": 41800.0,
+    "bonsai_species_reads": 41800.0,
+    "gather": 0.008184095849946869,
+    "map_abund": 111884086.99999999,
+    "map_covered_frac": 0.9999936778956818,
+    "species": 2000224
+   },
+   {
+    "acc": "GCA_000019625.1",
+    "bonsai_cov": 0.988623,
+    "bonsai_leaf_reads": 88558.0,
+    "bonsai_species_reads": 88558.0,
+    "gather": 0.008149975140626067,
+    "map_abund": 568597109.0,
+    "map_covered_frac": 1.0,
+    "species": 2000225
+   },
+   {
+    "acc": "GCA_000007185.1",
+    "bonsai_cov": 0.764275,
+    "bonsai_leaf_reads": 39184.0,
+    "bonsai_species_reads": 39184.0,
+    "gather": 0.007950125271747079,
+    "map_abund": 103921067.0,
+    "map_covered_frac": 0.9999952801496664,
+    "species": 2000230
+   },
+   {
+    "acc": "GCA_000020785.1",
+    "bonsai_cov": 0.899443,
+    "bonsai_leaf_reads": 54902.0,
+    "bonsai_species_reads": 54902.0,
+    "gather": 0.007774647338097234,
+    "map_abund": 145675171.0,
+    "map_covered_frac": 1.0,
+    "species": 2000233
+   },
+   {
+    "acc": "GCA_000011585.1",
+    "bonsai_cov": 0.636096,
+    "bonsai_leaf_reads": 26163.0,
+    "bonsai_species_reads": 61924.0,
+    "gather": 0.007374947600339257,
+    "map_abund": 100550202.0,
+    "map_covered_frac": 1.0,
+    "species": 2000220
+   },
+   {
+    "acc": "GCA_000025665.1",
+    "bonsai_cov": 0.757629,
+    "bonsai_leaf_reads": 42794.0,
+    "bonsai_species_reads": 42794.0,
+    "gather": 0.007199469666689414,
+    "map_abund": 113113313.0,
+    "map_covered_frac": 0.999997982213888,
+    "species": 2000238
+   },
+   {
+    "acc": "GCA_000017945.1",
+    "bonsai_cov": 0.467826,
+    "bonsai_leaf_reads": 11928.0,
+    "bonsai_species_reads": 11928.0,
+    "gather": 0.006258712966844419,
+    "map_abund": 33094803.000000004,
+    "map_covered_frac": 1.0,
+    "species": 2000242
+   },
+   {
+    "acc": "GCA_000173615.1",
+    "bonsai_cov": 0.374416,
+    "bonsai_leaf_reads": 10105.0,
+    "bonsai_species_reads": 10105.0,
+    "gather": 0.005449564717236808,
+    "map_abund": 94087534.0,
+    "map_covered_frac": 0.9995809630810879,
+    "species": 2000243
+   },
+   {
+    "acc": "GCA_000016785.1",
+    "bonsai_cov": 0.865308,
+    "bonsai_leaf_reads": 31833.0,
+    "bonsai_species_reads": 31833.0,
+    "gather": 0.0035778000916384767,
+    "map_abund": 493373109.0,
+    "map_covered_frac": 1.0,
+    "species": 2000244
+   },
+   {
+    "acc": "GCA_009717815.1",
+    "bonsai_cov": 0.007166,
+    "bonsai_leaf_reads": 284.0,
+    "bonsai_species_reads": 1092.0,
+    "gather": 0.00231045945972294,
+    "map_abund": 6504579.0,
+    "map_covered_frac": 0.5319600237587838,
+    "species": 2000247
+   },
+   {
+    "acc": "GCA_000008085.1",
+    "bonsai_cov": 0.960415,
+    "bonsai_leaf_reads": 56842.0,
+    "bonsai_species_reads": 56842.0,
+    "gather": 0.0021008608167522934,
+    "map_abund": 150958866.0,
+    "map_covered_frac": 0.9967833606649216,
+    "species": 2000253
+   },
+   {
+    "acc": "GCA_000015485.1",
+    "bonsai_cov": 0.085993,
+    "bonsai_leaf_reads": 3434.0,
+    "bonsai_species_reads": 3434.0,
+    "gather": 0.0016816635308110005,
+    "map_abund": 98325130.0,
+    "map_covered_frac": 0.940334697933108,
+    "species": 2000254
+   },
+   {
+    "acc": "GCA_002799245.1",
+    "bonsai_cov": 0.002333,
+    "bonsai_leaf_reads": 155.0,
+    "bonsai_species_reads": 155.0,
+    "gather": 0.0010284956666699163,
+    "map_abund": 1866471.0,
+    "map_covered_frac": 0.07772641753907683,
+    "species": 2000258
+   },
+   {
+    "acc": "GCA_000507765.1",
+    "bonsai_cov": 0.005792,
+    "bonsai_leaf_reads": 258.0,
+    "bonsai_species_reads": 1092.0,
+    "gather": 0.0009505054739366524,
+    "map_abund": 6491675.0,
+    "map_covered_frac": 0.5242032535289037,
+    "species": 2000247
+   },
+   {
+    "acc": "GCA_003228185.1",
+    "bonsai_cov": 0.000647,
+    "bonsai_leaf_reads": 127.0,
+    "bonsai_species_reads": 127.0,
+    "gather": 0.0009505054739366524,
+    "map_abund": 8848410.0,
+    "map_covered_frac": 0.02887186536563613,
+    "species": 2000262
+   },
+   {
+    "acc": "GCA_900115135.1",
+    "bonsai_cov": 0.031872,
+    "bonsai_leaf_reads": 4715.0,
+    "bonsai_species_reads": 4715.0,
+    "gather": 0.0006677910252785713,
+    "map_abund": 81598312.0,
+    "map_covered_frac": 0.8014314213049192,
+    "species": 2000263
+   },
+   {
+    "acc": "GCA_013135395.1",
+    "bonsai_cov": 0.001423,
+    "bonsai_leaf_reads": 100.0,
+    "bonsai_species_reads": 100.0,
+    "gather": 0.0005800520584536494,
+    "map_abund": 4121235.0,
+    "map_covered_frac": 0.04483550419865556,
+    "species": 2000267
+   },
+   {
+    "acc": "GCA_003470855.1",
+    "bonsai_cov": 0.005387,
+    "bonsai_leaf_reads": 263.0,
+    "bonsai_species_reads": 1092.0,
+    "gather": 0.0005069362527662147,
+    "map_abund": 6523830.0,
+    "map_covered_frac": 0.548173261475505,
+    "species": 2000247
+   }
+  ]
+ },
+ "analysis": "r2",
+ "max_bytes": 300000000,
+ "written": "2026-10-20 14:44:06"
+}

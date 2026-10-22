@@ -1,4 +1,5 @@
 #pragma once
+#include "hashmap.h"
 #include "feature_min.h"
 #include "counter.h"
 
@@ -50,7 +51,7 @@ class kgset_t {
     std::vector<khash_t(all)>    core_;
     std::vector<std::string>    paths_;
     const khash_t(all)         *acceptable_;
-    const std::unordered_map<u32, std::forward_list<std::string>> *fl_;
+    const bns::umap<u32, std::forward_list<std::string>> *fl_;
     std::vector<tax_t>          taxes_;
 
 public:
@@ -60,7 +61,7 @@ public:
         ForPool pool(num_threads);
         pool.forpool(&kg_helper, reinterpret_cast<void *>(&data), core_.size());
     }
-    void fill(const std::unordered_map<u32, std::forward_list<std::string>> *path_map, const Spacer &sp, bool canonicalize=true, int num_threads=-1) {
+    void fill(const bns::umap<u32, std::forward_list<std::string>> *path_map, const Spacer &sp, bool canonicalize=true, int num_threads=-1) {
         auto &pm(*path_map);
         if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
         std::vector<const std::forward_list<std::string>*> tmpfl;
@@ -97,7 +98,7 @@ public:
                 std::end(paths), sp, canonicalize, num_threads, acc) {}
 
     // Forward list constructor
-    kgset_t(const std::unordered_map<u32, std::forward_list<std::string>> &list,
+    kgset_t(const bns::umap<u32, std::forward_list<std::string>> &list,
             const Spacer &sp, bool canonicalize=true, int num_threads=-1, const khash_t(all) *acc=nullptr): acceptable_(acc), fl_(&list) {
         if(list.size() == 0) LOG_EXIT("List size is 0\n");
         core_.reserve(list.size());

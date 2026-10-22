@@ -5,6 +5,7 @@
 #include "khash64.h"
 #include "util.h"
 #include "klib/kthread.h"
+#include "kmermap.h"
 #include <set>
 
 // Decode 64-bit hash (contains both tax id and taxonomy depth for id)
@@ -32,45 +33,165 @@ inline khash_t(64) *make_taxdepth_hash(khash_t(c) *kc, const khash_t(p) *tax);
 inline void update_lca_map(khash_t(c) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid);
 inline void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid);
 inline void update_feature_counter(khash_t(64) *kc, const khash_t(all) *set, const khash_t(p) *tax, tax_t taxid);
+inline void update_frequency_counter(khash_t(64) *kc, const khash_t(64) *counts, const khash_t(p) *tax, tax_t taxid);
 inline void update_minimized_map(const khash_t(all) *set, const khash_t(64) *full_map, khash_t(c) *ret);
+
+template<typename ScoreType>
+// Presize a freshly-allocated khash from the input's byte size so the fill
+// loop rehashes once or twice instead of ~log2(n) times. Compressed inputs
+// underestimate the sequence length, which only leaves a couple of growth
+// rounds. No-op for non-empty or already-large tables (reused tables).
+#define BNS_KHASH_PRESIZE(name, h, path) do { \
+    if(kh_size(h) == 0 && (h)->n_buckets < 256) { \
+        struct stat sb; \
+        if(::stat(path, &sb) == 0 && sb.st_size > 0) { \
+            const u64 want(u64(sb.st_size) * 2 + 64); \
+            kh_resize(name, h, want > (u64(1) << 26) ? khint_t(1u << 26): khint_t(want)); \
+        } \
+    } \
+} while(0)
+
+size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks=nullptr,
+                       const KeySpec &spec=KeySpec{});
+template<typename ScoreType>
+size_t fill_count_genome(const char *path, const Spacer &sp, khash_t(64) *ret, size_t index, void *data, bool canon, kseq_t *ks=nullptr);
 
 // Wrap these in structs so that downstream code can be managed as a set, not updated one-by-one.
 struct LcaMap {
     using ReturnType = khash_t(c) *;
+    using CounterType = khash_t(all);
     static constexpr size_t ValSize = sizeof(*(ReturnType{0})->vals);
+    template<typename ScoreType>
+    static size_t fill(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                       const KeySpec &spec = KeySpec{}) {
+        return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks, spec);
+    }
     static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *, khash_t(c) *r32, khash_t(64) *, tax_t taxid) {
         update_lca_map(r32, set, tax, taxid);
     }
 };
+// Builds the LCA database straight into a CompactKmerMap (see
+// CompactLcaBuilder, kmermap.h) through make_map's scheduling; no khash_t(c)
+// is allocated. A "custom sink" updater: make_map hands it each genome's set
+// and returns release().
+// 128-bit keys: a genome's distinct keys as a sorted vector (khash_t(all) is u64).
+template<typename ScoreType>
+size_t fill_vec_genome128(const char *path, const Spacer &sp, std::vector<u128> *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                          const KeySpec &spec = KeySpec{}) {
+    KmerKeys<ScoreType, u128> enc(sp, canon, data, spec);   // exact k-mers for 32 < k <= 64 (DNA), wide hashes beyond
+    ret->clear();
+    enc.for_each([&](u128 x) {ret->push_back(x);}, path, ks);
+    std::sort(ret->begin(), ret->end());
+    ret->erase(std::unique(ret->begin(), ret->end()), ret->end());
+    return index;
+}
+static inline void clear_counter(std::vector<u128> *c) {c->clear();}
+static inline void free_counter(std::vector<u128> &c) {std::vector<u128>().swap(c);}
+
+template<typename KeyT = u64>
+struct CompactLcaMapT {
+    using ReturnType = std::unique_ptr<BasicCompactKmerMap<KeyT>>;
+    using CounterType = std::conditional_t<std::is_same<KeyT, u64>::value, khash_t(all), std::vector<u128>>;
+    static constexpr size_t ValSize = 4;
+    static constexpr bool kCustomSink = true;
+    std::unique_ptr<CompactLcaBuilder<KeyT>> b;
+    KeySpec spec;   // alphabet / translation / hash width of the database being built
+    template<typename ScoreType>
+    static size_t fill(const char *path, const Spacer &sp, CounterType *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                       const KeySpec &spec) {
+        if constexpr(std::is_same<KeyT, u64>::value) return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks, spec);
+        else return fill_vec_genome128<ScoreType>(path, sp, ret, index, data, canon, ks, spec);
+    }
+    void update(const khash_t(p) *tax, const CounterType *set, const khash_t(64) *, khash_t(c) *, khash_t(64) *, tax_t taxid) {
+        if constexpr(std::is_same<KeyT, u64>::value) b->update(set, tax, taxid);
+        else b->update(*set, tax, taxid);
+    }
+    ReturnType release() {return b->finish();}
+};
+using CompactLcaMap = CompactLcaMapT<u64>;
+template<typename T, typename = void> struct has_keyspec: std::false_type {};
+template<typename T> struct has_keyspec<T, std::void_t<decltype(std::declval<T>().spec)>>: std::true_type {};
+template<typename T> KeySpec keyspec_of(const T &mu) {
+    if constexpr(has_keyspec<T>::value) return mu.spec;
+    else {(void)mu; return KeySpec{};}
+}
+template<typename T, typename = void> struct has_custom_sink: std::false_type {};
+template<typename T> struct has_custom_sink<T, std::void_t<decltype(T::kCustomSink)>>: std::integral_constant<bool, T::kCustomSink> {};
+
 struct TdMap {
     using ReturnType = khash_t(64) *;
+    using CounterType = khash_t(all);
     static constexpr size_t ValSize = sizeof(*(ReturnType{0})->vals);
+    template<typename ScoreType>
+    static size_t fill(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                       const KeySpec &spec) {
+        return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks, spec);
+    }
     static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *, khash_t(c) *, khash_t(64) *r64, tax_t taxid) {
         update_td_map(r64, set, tax, taxid);
     }
 };
 struct FcMap {
     using ReturnType = khash_t(64) *;
+    using CounterType = khash_t(all);
     static constexpr size_t ValSize = sizeof(*(ReturnType{0})->vals);
+    template<typename ScoreType>
+    static size_t fill(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                       const KeySpec &spec) {
+        return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks, spec);
+    }
     static void update(const khash_t(p) *tax, const khash_t(all) *set, const khash_t(64) *, khash_t(c) *, khash_t(64) *r64, tax_t taxid) {
         update_feature_counter(r64, set, tax, taxid);
     }
 };
 struct MinMap {
     using ReturnType = khash_t(c) *;
+    using CounterType = khash_t(all);
     static constexpr size_t ValSize = sizeof(*(ReturnType{0})->vals);
+    template<typename ScoreType>
+    static size_t fill(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                       const KeySpec &spec) {
+        return fill_set_genome<ScoreType>(path, sp, ret, index, data, canon, ks, spec);
+    }
     static void update(const khash_t(p) *, const khash_t(all) *set, const khash_t(64) *d64, khash_t(c) *r32, khash_t(64) *, tax_t) {
         update_minimized_map(set, d64, r32);
     }
 };
+struct FqMap {
+    using ReturnType = khash_t(64) *;
+    using CounterType = khash_t(64);
+    static constexpr size_t ValSize = sizeof(*(ReturnType{0})->vals);
+    template<typename ScoreType>
+    static size_t fill(const char *path, const Spacer &sp, khash_t(64) *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                       const KeySpec &) {
+        return fill_count_genome<ScoreType>(path, sp, ret, index, data, canon, ks);
+    }
+    static void update(const khash_t(p) *tax, const khash_t(64) *counts, const khash_t(64) *, khash_t(c) *, khash_t(64) *r64, tax_t taxid) {
+        update_frequency_counter(r64, counts, tax, taxid);
+    }
+};
+
+static inline void free_counter(khash_t(all) &c) {
+    std::free(c.flags);
+    std::free(c.keys);
+}
+static inline void free_counter(khash_t(64) &c) {
+    std::free(c.flags);
+    std::free(c.keys);
+    std::free(c.vals);
+}
+static inline void clear_counter(khash_t(all) *c) { kh_clear(all, c); }
+static inline void clear_counter(khash_t(64) *c) { kh_clear(64, c); }
 
 template<typename ScoreType>
-size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks=nullptr) {
+size_t fill_set_genome(const char *path, const Spacer &sp, khash_t(all) *ret, size_t index, void *data, bool canon, kseq_t *ks,
+                       const KeySpec &spec) {
     LOG_ASSERT(ret);
     LOG_DEBUG("Filling from genome at path %s. kseq is pre-allocated ? %s. %p\n", path, ks ? "true": "false", (void *)ks);
+    if(!ks) BNS_KHASH_PRESIZE(all, ret, path);
 
-    Encoder<ScoreType> enc(0, 0, sp, data, canon);
-    enc.for_each([&](auto x) {
+    KmerKeys<ScoreType> enc(sp, canon, data, spec);   // exact k-mers within 64 bits, folded/rolling-hash keys beyond
+    enc.for_each([&](u64 x) {
         auto it = kh_get(all, ret, x);
         if(it == kh_end(ret)) {
             int khr;
@@ -89,40 +210,66 @@ size_t fill_set_genome_container(Container &container, const Spacer &sp, khash_t
     return sz;
 }
 
+// Like fill_set_genome, but counts absolute k-mer frequencies within the genome
+// (set-style maps collapse repeated occurrences; this does not).
+template<typename ScoreType>
+size_t fill_count_genome(const char *path, const Spacer &sp, khash_t(64) *ret, size_t index, void *data, bool canon, kseq_t *ks) {
+    LOG_ASSERT(ret);
+    LOG_DEBUG("Filling k-mer counts from genome at path %s\n", path);
+    if(!ks) BNS_KHASH_PRESIZE(64, ret, path);
+    Encoder<ScoreType> enc(0, 0, sp, data, canon);
+    enc.for_each([&](auto x) {
+        auto it = kh_get(64, ret, x);
+        if(it == kh_end(ret)) {
+            int khr;
+            it = kh_put(64, ret, x, &khr);
+            if(unlikely(khr < 0))
+                RUNTIME_ERROR(ks::sprintf("Could not insert key %" PRIu64 " to table of size %zu.", x, kh_size(ret)).data());
+            kh_val(ret, it) = 1;
+        } else ++kh_val(ret, it);
+    }, path, ks);
+    LOG_DEBUG("Counted %zu distinct k-mers from genome at path %s\n", kh_size(ret), path);
+    return index;
+}
 
-template<typename ScoreType, typename MapUpdater>
+
+template<typename ScoreType, typename MapUpdater, typename CounterT=typename MapUpdater::CounterType>
 typename MapUpdater::ReturnType
-make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon, size_t start_size, const khash_t(64) *data) {
-    MapUpdater mu;
+make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon, size_t start_size, const khash_t(64) *data,
+         MapUpdater mu = MapUpdater{}) {
+    constexpr bool custom_sink = has_custom_sink<MapUpdater>::value;
 
     khash_t(c) *r32 = nullptr;
     khash_t(64) *r64 = nullptr;
     // Update this to include tax ids in the hash map.
     size_t submitted(0), completed(0), todo(fns.size());
     if(num_threads < 0) num_threads = std::thread::hardware_concurrency();
-    std::vector<khash_t(all)> counters(num_threads);
-    std::memset(counters.data(), 0, sizeof(khash_t(all)) * counters.size());
+    std::vector<CounterT> counters(num_threads);
+    if constexpr(std::is_trivially_copyable<CounterT>::value)   // khash counters start zeroed; vectors construct empty
+        std::memset(static_cast<void *>(counters.data()), 0, sizeof(CounterT) * counters.size());
     LOG_DEBUG("Started things\n");
-    if(MapUpdater::ValSize == 8) {
-        r64 = static_cast<khash_t(64) *>(std::calloc(sizeof(khash_t(64)), 1));
-        kh_resize(64, r64, start_size);
-    } else {
-        r32 = static_cast<khash_t(c) *>(std::calloc(sizeof(khash_t(c)), 1));
-        kh_resize(c, r32, start_size);
+    if constexpr(!custom_sink) {
+        if(MapUpdater::ValSize == 8) {
+            r64 = static_cast<khash_t(64) *>(std::calloc(1, sizeof(khash_t(64))));
+            kh_resize(64, r64, start_size);
+        } else {
+            r32 = static_cast<khash_t(c) *>(std::calloc(1, sizeof(khash_t(c))));
+            kh_resize(c, r32, start_size);
+        }
     }
     khash_t(name) *name_hash(build_name_hash(seq2tax_path));
     std::vector<std::future<size_t>> futures;
     // Mkae the future return the kseq pointer and then use it for resubmission.
     // TODO: Also use a fixed st of kh_all sets to reduce memory allocations.
     KSeqBufferHolder kseqs(num_threads);
-    std::vector<uint32_t> counter_map;
 
     // Submit the first set of jobs
     std::set<size_t> used;
+    std::vector<uint32_t> genome_counter(todo);
     for(size_t i(0); i < (unsigned)num_threads && i < todo; ++i) {
         futures.emplace_back(std::async(
-          std::launch::async, fill_set_genome<ScoreType>, fns[i].data(), sp, counters.data() + i, i, (void *)data, canon, kseqs.data() + submitted));
-        counter_map.emplace_back(submitted);
+          std::launch::async, &MapUpdater::template fill<ScoreType>, fns[i].data(), sp, counters.data() + i, i, (void *)data, canon, kseqs.data() + submitted, keyspec_of(mu)));
+        genome_counter[i] = i;
         LOG_DEBUG("Submitted for %zu.\n", submitted);
         ++submitted;
     }
@@ -136,17 +283,18 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
             if(submitted == todo) break;
             if(used.find(index) != used.end()) continue;
             used.insert(index);
-            const auto coffset = counter_map.at(index);
-            khash_t(all) *counter = counters.data() + coffset; // Pointer to the counter to use
-            kseq_t *ks_to_submit = kseqs.data() + coffset;
-            f = std::async(
-              std::launch::async, fill_set_genome<ScoreType>, fns[submitted].data(),
-              sp, counter, submitted, (void *)data, canon, ks_to_submit);
-            counter_map.emplace_back(coffset);
-            ++submitted, ++completed;
-            LOG_DEBUG("Have now submitted %zu element\n", submitted);
+            const auto coffset = genome_counter[index];
+            CounterT *counter = counters.data() + coffset; // Pointer to the counter to use
             const tax_t taxid(get_taxid(fns[index].data(), name_hash));
             mu.update(tax_map, counter, data, r32, r64, taxid);
+            clear_counter(counter); // Reset for the next genome assigned to this slot.
+            kseq_t *ks_to_submit = kseqs.data() + coffset;
+            f = std::async(
+              std::launch::async, &MapUpdater::template fill<ScoreType>, fns[submitted].data(),
+              sp, counter, submitted, (void *)data, canon, ks_to_submit, keyspec_of(mu));
+            genome_counter[submitted] = coffset;
+            ++submitted, ++completed;
+            LOG_DEBUG("Have now submitted %zu element\n", submitted);
         }
     }
 
@@ -154,20 +302,21 @@ make_map(const std::vector<std::string> fns, const khash_t(p) *tax_map, const ch
     for(auto &f: futures) if(f.valid()) {
         const size_t index(f.get());
         const tax_t taxid(get_taxid(fns[index].data(), name_hash));
-        mu.update(tax_map, counters.data() + index, data, r32, r64, taxid);
+        mu.update(tax_map, counters.data() + genome_counter[index], data, r32, r64, taxid);
         ++completed;
     }
 
     // Clean up
-    for(auto &counter: counters) {
-        std::free(counter.flags);
-        std::free(counter.keys);
-    }
+    for(auto &counter: counters) free_counter(counter);
     kh_destroy(name, name_hash);
     LOG_DEBUG("Finished making map!\n");
-    if (MapUpdater::ValSize == 8)
-        r32 = reinterpret_cast<khash_t(c) *>(r64);
-    return reinterpret_cast<typename MapUpdater::ReturnType>(r32);
+    if constexpr(custom_sink) {
+        return mu.release();
+    } else {
+        if (MapUpdater::ValSize == 8)
+            r32 = reinterpret_cast<khash_t(c) *>(r64);
+        return reinterpret_cast<typename MapUpdater::ReturnType>(r32);
+    }
 }
 
 template<typename ScoreType>
@@ -176,10 +325,33 @@ auto feature_count_map(const std::vector<std::string> fns, const khash_t(p) *tax
 }
 
 template<typename ScoreType>
+khash_t(64) *frequency_map(const std::vector<std::string> fns, const khash_t(p) *tax_map,
+                           const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon, size_t start_size) {
+    return make_map<ScoreType, FqMap>(fns, tax_map, seq2tax_path, sp, num_threads, canon, start_size, nullptr);
+}
+
+template<typename ScoreType>
 khash_t(c) *lca_map(const std::vector<std::string> &fns, const khash_t(p) *tax_map,
                     const char *seq2tax_path,
                     const Spacer &sp, int num_threads, bool canon, size_t start_size) {
     return make_map<ScoreType, LcaMap>(fns, tax_map, seq2tax_path, sp, num_threads, canon, start_size, nullptr);
+}
+
+// lca_map straight into a compact database (no khash_t(c)): estimated_kmers
+// from the cardinality estimate, key_bits from KmerKeys<ScoreType,
+// KeyT>::key_bits_for(k). KeyT = u128 for exact keys beyond 64 bits (DNA
+// 32 < k <= 64).
+template<typename ScoreType, typename KeyT = u64>
+std::unique_ptr<BasicCompactKmerMap<KeyT>> compact_lca_map(const std::vector<std::string> &fns, const khash_t(p) *tax_map,
+                                                           const char *seq2tax_path, const Spacer &sp, int num_threads, bool canon,
+                                                           size_t estimated_kmers, unsigned key_bits, const KeySpec &spec = KeySpec{},
+                                                           unsigned shard = 0, unsigned nshards = 1) {
+    // sharded builds (build -x): this call keeps only the keys of `shard`, sized for 1/nshards of them
+    CompactLcaMapT<KeyT> mu;
+    mu.b = std::make_unique<CompactLcaBuilder<KeyT>>(estimated_kmers / std::max(1u, nshards) + 1, kh_size(tax_map), key_bits);
+    mu.b->set_shard(shard, nshards);
+    mu.spec = spec;
+    return make_map<ScoreType, CompactLcaMapT<KeyT>>(fns, tax_map, seq2tax_path, sp, num_threads, canon, 0, nullptr, std::move(mu));
 }
 
 template<typename ScoreType>
@@ -238,10 +410,10 @@ inline void update_td_map(khash_t(64) *kc, const khash_t(all) *set, const khash_
                 k2 = kh_put(64, kc, kh_key(set, ki), &khr);
                 if(unlikely(khr < 0))
                     RUNTIME_ERROR(ks::sprintf("Could not insert key %" PRIu64 " to table of size %zu.", kh_key(set, ki), kh_size(kc)).data());
-                kh_val(kc, k2) = TDencode(node_depth(tax, kh_val(kc, ki)), kh_val(kc, ki));
+                kh_val(kc, k2) = TDencode(node_depth(tax, taxid), taxid);
                 if(unlikely(kh_size(kc) % 1000000 == 0)) LOG_INFO("Final hash size %zu\n", kh_size(kc));
-            } else if(kh_val(kc, k2) != taxid) {
-                do val = lca(tax, taxid, kh_val(kc, k2));
+            } else if(TDtax(kh_val(kc, k2)) != taxid) {
+                do val = lca(tax, taxid, TDtax(kh_val(kc, k2)));
                 while(!kh_try_set(64, kc, k2, val == (tax_t)-1 ? 1: TDencode(node_depth(tax, val), val)));
             }
         }
@@ -258,8 +430,36 @@ inline void update_feature_counter(khash_t(64) *kc, const khash_t(all) *set, con
                 k2 = kh_put(64, kc, kh_key(set, ki), &khr);
                 if(unlikely(khr < 0))
                     RUNTIME_ERROR(ks::sprintf("Could not insert key %" PRIu64 " to table of size %zu.", kh_key(set, ki), kh_size(kc)).data());
-                kh_val(kc, k2) = FMencode(1, node_depth(tax, taxid));
-            } else while(!kh_try_set(64, kc, k2, FMencode(FMcount(kh_val(kc, k2)), lca(tax, taxid, kh_val(kc, k2)))));
+                kh_val(kc, k2) = FMencode(1, taxid);
+            } else {
+                // genome count + 1, and the LCA with the stored taxon (it kept the count,
+                // stored a depth as the taxon, and took the LCA of the packed value)
+                u64 old;
+                do old = kh_val(kc, k2);
+                while(!kh_try_set(64, kc, k2, FMencode(FMcount(old) + 1, lca(tax, taxid, FMtax(old)))));
+            }
+        }
+    }
+}
+// Frequency-based minimization (TODO.md item 5): value tracks absolute k-mer
+// frequency summed over genomes (FMcount) alongside the LCA of the genomes
+// containing it (FMtax), rather than genome count or taxonomic depth.
+inline void update_frequency_counter(khash_t(64) *kc, const khash_t(64) *counts, const khash_t(p) *tax, const tax_t taxid) {
+    int khr;
+    khint_t k2;
+    for(khiter_t ki(kh_begin(counts)); ki < kh_end(counts); ++ki) {
+        if(kh_exist(counts, ki)) {
+            const u64 count(kh_val(counts, ki));
+            if((k2 = kh_get(64, kc, kh_key(counts, ki))) == kh_end(kc)) {
+                k2 = kh_put(64, kc, kh_key(counts, ki), &khr);
+                if(unlikely(khr < 0))
+                    RUNTIME_ERROR(ks::sprintf("Could not insert key %" PRIu64 " to table of size %zu.", kh_key(counts, ki), kh_size(kc)).data());
+                kh_val(kc, k2) = FMencode(count, taxid);
+            } else {
+                const u64 newcount(FMcount(kh_val(kc, k2)) + count);
+                kh_val(kc, k2) = FMencode(newcount,
+                                          lca(tax, taxid, FMtax(kh_val(kc, k2))));
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include "hashmap.h"
 #include <algorithm>
 #include <cassert>
 #include <chrono>
@@ -18,10 +19,16 @@
 #include <unordered_set>
 #include <sys/stat.h>
 #include <zlib.h>
+#include <cerrno>
+#include <unistd.h>
 #include "klib/kthread.h"
 
 
-#ifndef _VEC_H__
+// Apple-Silicon workaround (originally 748410c): the vec headers did not
+// compile there. Keep it aarch64-only: on other targets disabling VEC routes
+// sketch cardinality estimates through the submodule's broken
+// VEC_DISABLED__ sum_counts fallback and turns off its SIMD paths.
+#if defined(__aarch64__) && !defined(_VEC_H__)
 #ifndef VEC_DISABLED__
 #define VEC_DISABLED__
 #endif
@@ -103,6 +110,42 @@
 
 namespace bns {
 using namespace std::literals;
+
+// Full-transfer POSIX write: loop on short counts, restart on EINTR. Returns
+// the number of bytes written, or -1 with errno preserved on a hard error;
+// a zero-length progress report from write() is treated as EIO. Use for
+// blocking fds when the whole buffer must land (index dumps, k-mer blobs).
+INLINE ssize_t write_all(int fd, const void *buf, size_t n) noexcept {
+    const char *p(static_cast<const char *>(buf));
+    size_t done(0);
+    while(done < n) {
+        const ssize_t ret(::write(fd, p + done, n - done));
+        if(ret < 0) {
+            if(errno == EINTR) continue;
+            return -1;
+        }
+        if(ret == 0) {errno = EIO; return -1;}
+        done += size_t(ret);
+    }
+    return ssize_t(done);
+}
+// Full-transfer POSIX read: loop on short counts, restart on EINTR. Returns
+// the number of bytes read; a short count means EOF, -1 with errno preserved
+// means a hard error.
+INLINE ssize_t read_all(int fd, void *buf, size_t n) noexcept {
+    char *p(static_cast<char *>(buf));
+    size_t done(0);
+    while(done < n) {
+        const ssize_t ret(::read(fd, p + done, n - done));
+        if(ret < 0) {
+            if(errno == EINTR) continue;
+            return -1;
+        }
+        if(ret == 0) break;
+        done += size_t(ret);
+    }
+    return ssize_t(done);
+}
 
 using RNGType = wy::WyHash<uint64_t, 8>;
 
@@ -276,7 +319,7 @@ void print_khash(T *rex) noexcept {
 }
 
 
-#define __fw(item, fn) ::write(fn, static_cast<const void *>(std::addressof(item)), sizeof(item))
+#define __fw(item, fn) write_all(fn, static_cast<const void *>(std::addressof(item)), sizeof(item))
 template<typename T>
 size_t khash_write_impl(const T *map, const int fn) noexcept {
     for(khiter_t ki(0); ki != kh_end(map); ++ki)
@@ -286,17 +329,26 @@ size_t khash_write_impl(const T *map, const int fn) noexcept {
     ret += __fw(map->n_occupied, fn);
     ret += __fw(map->size, fn);
     ret += __fw(map->upper_bound, fn);
-    ret += ::write(fn, map->flags, __ac_fsize(map->n_buckets) * sizeof(*map->flags));
-    ret += ::write(fn, map->keys, map->n_buckets * sizeof(*map->keys));
-    ret += ::write(fn, map->vals, map->n_buckets * sizeof(*map->vals));
+    ret += write_all(fn, map->flags, __ac_fsize(map->n_buckets) * sizeof(*map->flags));
+    ret += write_all(fn, map->keys, map->n_buckets * sizeof(*map->keys));
+    ret += write_all(fn, map->vals, map->n_buckets * sizeof(*map->vals));
     return ret;
 }
 #undef __fw
 template<typename T>
 size_t khash_write_impl(const T *map, std::FILE *fp) noexcept {
-    std::fflush(fp);
-    const auto ret = khash_write_impl<T>(map, fileno(fp));
-    std::fflush(fp);
+    // Use stdio exclusively: mixing buffered stdio with raw write(2) on the
+    // same descriptor interleaves bytes nondeterministically.
+    for(khiter_t ki(0); ki != kh_end(map); ++ki)
+        if(!kh_exist(map, ki))
+            kh_key(map, ki) = 0, kh_val(map, ki) = 0;
+    size_t ret = std::fwrite(&map->n_buckets, sizeof(map->n_buckets), 1, fp);
+    ret += std::fwrite(&map->n_occupied, sizeof(map->n_occupied), 1, fp);
+    ret += std::fwrite(&map->size, sizeof(map->size), 1, fp);
+    ret += std::fwrite(&map->upper_bound, sizeof(map->upper_bound), 1, fp);
+    ret += std::fwrite(map->flags, __ac_fsize(map->n_buckets) * sizeof(*map->flags), 1, fp);
+    ret += std::fwrite(map->keys, map->n_buckets * sizeof(*map->keys), 1, fp);
+    ret += std::fwrite(map->vals, map->n_buckets * sizeof(*map->vals), 1, fp);
     return ret;
 }
 #define __gz(item, fp) gzwrite(fp, static_cast<const void *>(&(item)), sizeof(item))
@@ -336,10 +388,10 @@ T *khash_load_impl(const int fn) noexcept {
     T *rex((T *)std::calloc(1, sizeof(T)));
     using keytype_t = std::remove_pointer_t<decltype(rex->keys)>;
     using valtype_t = std::remove_pointer_t<decltype(rex->vals)>;
-    if(::read(fn, &rex->n_buckets, sizeof(rex->n_buckets)) != sizeof(rex->n_buckets)) exit(1);
-    if(::read(fn, &rex->n_occupied, sizeof(rex->n_occupied)) !=  sizeof(rex->n_occupied)) exit(1);
-    if((::read(fn, &rex->size, sizeof(rex->size))) != sizeof(rex->size)) exit(1);
-    if(::read(fn, &rex->upper_bound, sizeof(rex->upper_bound)) != sizeof(rex->upper_bound)) exit(1);
+    if(read_all(fn, &rex->n_buckets, sizeof(rex->n_buckets)) != sizeof(rex->n_buckets)) exit(1);
+    if(read_all(fn, &rex->n_occupied, sizeof(rex->n_occupied)) !=  sizeof(rex->n_occupied)) exit(1);
+    if((read_all(fn, &rex->size, sizeof(rex->size))) != sizeof(rex->size)) exit(1);
+    if(read_all(fn, &rex->upper_bound, sizeof(rex->upper_bound)) != sizeof(rex->upper_bound)) exit(1);
     rex->flags = (u32 *)std::malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
     if(!rex->flags) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", (sizeof(*rex->flags) * __ac_fsize(rex->n_buckets)), (sizeof(*rex->flags) * __ac_fsize(rex->n_buckets)) >> 30), exit(1);
     rex->keys = (keytype_t *)std::malloc(sizeof(*rex->keys) * rex->n_buckets);
@@ -347,19 +399,34 @@ T *khash_load_impl(const int fn) noexcept {
     rex->vals = (valtype_t *)std::malloc(sizeof(*rex->vals) * rex->n_buckets);
     if(!rex->vals) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->vals) * rex->n_buckets, sizeof(*rex->vals) * rex->n_buckets >> 30), exit(1);
     ssize_t nb = __ac_fsize(rex->n_buckets) * sizeof(*rex->flags);
-    if(::read(fn, rex->flags, nb) != nb) exit(1);
+    if(read_all(fn, rex->flags, nb) != nb) exit(1);
     nb = rex->n_buckets * sizeof(*rex->keys);
-    if(::read(fn, rex->keys, nb) != nb) exit(1);
+    if(read_all(fn, rex->keys, nb) != nb) exit(1);
     nb = rex->n_buckets * sizeof(*rex->vals);
-    if(::read(fn, rex->vals, nb) != nb) exit(1);
+    if(read_all(fn, rex->vals, nb) != nb) exit(1);
     return rex;
 }
 
 template <typename T>
 T *khash_load_impl(std::FILE *fp) noexcept {
-    std::fflush(fp);
-    auto rex = khash_load_impl<T>(fileno(fp));
-    std::fflush(fp);
+    // Use stdio exclusively: mixing buffered stdio with raw read(2) on the
+    // same descriptor loses prefetched bytes (and breaks on pipes).
+    T *rex((T *)std::calloc(1, sizeof(T)));
+    using keytype_t = std::remove_pointer_t<decltype(rex->keys)>;
+    using valtype_t = std::remove_pointer_t<decltype(rex->vals)>;
+    if(std::fread(&rex->n_buckets, sizeof(rex->n_buckets), 1, fp) != 1) exit(1);
+    if(std::fread(&rex->n_occupied, sizeof(rex->n_occupied), 1, fp) != 1) exit(1);
+    if(std::fread(&rex->size, sizeof(rex->size), 1, fp) != 1) exit(1);
+    if(std::fread(&rex->upper_bound, sizeof(rex->upper_bound), 1, fp) != 1) exit(1);
+    rex->flags = (u32 *)std::malloc(sizeof(*rex->flags) * __ac_fsize(rex->n_buckets));
+    if(!rex->flags) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", (sizeof(*rex->flags) * __ac_fsize(rex->n_buckets)), (sizeof(*rex->flags) * __ac_fsize(rex->n_buckets))) >> 30, exit(1);
+    rex->keys = (keytype_t *)std::malloc(sizeof(*rex->keys) * rex->n_buckets);
+    if(!rex->keys) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->keys) * rex->n_buckets, sizeof(*rex->keys) * rex->n_buckets >> 30), exit(1);
+    rex->vals = (valtype_t *)std::malloc(sizeof(*rex->vals) * rex->n_buckets);
+    if(!rex->vals) fprintf(stderr, "Could not allocate %zu bytes of memory (%zu GB)\n", sizeof(*rex->vals) * rex->n_buckets, sizeof(*rex->vals) * rex->n_buckets >> 30), exit(1);
+    if(std::fread(rex->flags, __ac_fsize(rex->n_buckets) * sizeof(*rex->flags), 1, fp) != 1) exit(1);
+    if(std::fread(rex->keys, rex->n_buckets * sizeof(*rex->keys), 1, fp) != 1) exit(1);
+    if(std::fread(rex->vals, rex->n_buckets * sizeof(*rex->vals), 1, fp) != 1) exit(1);
     return rex;
 }
 
@@ -377,6 +444,10 @@ INLINE tax_t get_parent(const khash_t(p) *taxmap, tax_t key) noexcept {
     return ((ki = kh_get(p, taxmap, key)) != kh_end(taxmap)) ? kh_val(taxmap, ki)
                                                              : std::numeric_limits<tax_t>::max();
 }
+
+// Parent lookup shared by the classifier and reports: a khash_t(p), or (in
+// taxmap.h) a CompactTaxMap; tax_t(-1) when absent.
+inline tax_t tax_parent(const khash_t(p) *m, tax_t t) noexcept {return get_parent(m, t);}
 
 inline bool isfile(const char *path) noexcept {return access(path, F_OK) != -1;}
 inline bool isfile(const std::string &path) noexcept {return isfile(path.data());}
@@ -495,7 +566,7 @@ INLINE char *strchrnul(char *str, int c) {
 }
 
 namespace detail {
-    static const std::unordered_map<int, const char *> zerr2str {
+    static const bns::umap<int, const char *> zerr2str {
         {Z_OK, "Z_OK"},
         {Z_STREAM_END, "Z_STREAM_END"},
         {Z_STREAM_END, "Z_STREAM_END"},
@@ -592,9 +663,9 @@ static size_t count_lines(const char *fn) noexcept {
     return n;
 }
 
-static std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(const khash_t(p) *tax) noexcept {
-    std::unordered_map<tax_t, std::vector<tax_t>> ret;
-    typename std::unordered_map<tax_t, std::vector<tax_t>>::iterator m;
+static bns::umap<tax_t, std::vector<tax_t>> invert_parent_map(const khash_t(p) *tax) noexcept {
+    bns::umap<tax_t, std::vector<tax_t>> ret;
+    typename bns::umap<tax_t, std::vector<tax_t>>::iterator m;
     for(khiter_t ki(0); ki < kh_end(tax); ++ki) {
         if(!kh_exist(tax, ki)) continue;
         if((m = ret.find(kh_val(tax, ki))) == ret.end()) m = ret.emplace(kh_val(tax, ki), std::vector<tax_t>{kh_key(tax, ki)}).first;
@@ -608,7 +679,7 @@ static std::unordered_map<tax_t, std::vector<tax_t>> invert_parent_map(const kha
     return ret;
 }
 
-static std::vector<tax_t> get_all_descendents(const std::unordered_map<tax_t, std::vector<tax_t>> &map, tax_t tax) {
+static std::vector<tax_t> get_all_descendents(const bns::umap<tax_t, std::vector<tax_t>> &map, tax_t tax) {
     std::vector<tax_t> ret;
     auto m(map.find(tax));
     if(m != map.end()) {
@@ -695,6 +766,7 @@ static khash_t(name) *build_name_hash(const char *fn) noexcept {
     char *buf((char *)std::malloc(bufsz));
     ssize_t len;
     std::FILE *fp(std::fopen(fn, "r"));
+    if(fp == nullptr) LOG_EXIT("Could not open name hash file %s.\n", fn);
     khash_t(name) *ret(kh_init(name));
     kh_resize(name, ret, count_lines(fn));
     char *p;
@@ -703,15 +775,18 @@ static khash_t(name) *build_name_hash(const char *fn) noexcept {
     while((len = getline(&buf, &bufsz, fp)) >= 0) {
         switch(*buf) case '\0': case '\n': case '#': continue;
         p = ::bns::strchrnul(buf, '\t');
-        ki = kh_put(name, ret, buf, &khr);
+        // Insert under the name alone; the bucket is chosen by hashing the key,
+        // and lookups (get_taxid) probe with only the name.
+        namelen = p - buf;
+        char *tmp = static_cast<char *>(std::malloc(namelen + 1));
+        std::memcpy(tmp, buf, namelen);
+        tmp[namelen] = '\0';
+        ki = kh_put(name, ret, tmp, &khr);
         if(khr == 0) { // Key already present.
+            std::free(tmp);
             LOG_INFO("Key %s already present. Updating value from "
                      "%i to %s.\tNote: if you have performed TaxonomyReformation, this is an error.\n", kh_key(ret, ki), kh_val(ret, ki), p + 1);
         } else {
-            namelen = p - buf;
-            char *tmp = static_cast<char *>(std::malloc(namelen + 1));
-            std::memcpy(tmp, buf, namelen);
-            tmp[namelen] = '\0';
             kh_key(ret, ki) = tmp;
         }
         kh_val(ret, ki) = std::atoi(p + 1);
@@ -727,6 +802,36 @@ static void destroy_name_hash(khash_t(name) *hash) noexcept {
         if(kh_exist(hash, ki))
             std::free((void *)kh_key(hash, ki));
     kh_destroy(name, hash);
+}
+
+// First whitespace-delimited token of a fasta file's first header (a
+// "|kraken:taxid|" suffix, if present, is stripped). Empty when the file
+// has no header or cannot be read.
+static std::string first_header_token(const char *path) {
+    gzFile fp(gzopen(path, "rb"));
+    if(fp == nullptr) return {};
+    char buf[8192];
+    std::string ret;
+    if(gzgets(fp, buf, sizeof(buf)) != nullptr && buf[0] == '>') {
+        char *p(buf + 1);
+        while(*p == ' ') ++p;
+        char *start(p);
+        while(*p && !std::isspace(*p)) ++p;
+        ret.assign(start, p);
+        const auto kpos(ret.find("|kraken:taxid|"));
+        if(kpos != std::string::npos) ret.resize(kpos);
+    }
+    gzclose(fp);
+    return ret;
+}
+// Probe wrapper: first-header token + name-hash lookup; returns tax_t(-1)
+// when the token is absent from the name hash.
+static tax_t first_header_taxid(const char *path, const khash_t(name) *name_hash, std::string *seqid_out = nullptr) {
+    const std::string seqid(first_header_token(path));
+    if(seqid_out) *seqid_out = seqid;
+    if(seqid.empty()) return tax_t(-1);
+    const khint_t ki(kh_get(name, name_hash, seqid.data()));
+    return ki == kh_end(name_hash) ? tax_t(-1): kh_val(name_hash, ki);
 }
 
 static std::map<tax_t, tax_t> build_kraken_tax(const std::string &fname) {
@@ -772,10 +877,17 @@ static khash_t(p) *build_parent_map(const char *fn) {
     const char *p;
     while(std::getline(is, line)) {
         switch(line[0]) case '\n': case '\0': case '#': continue;
+        // Parse the parent before inserting: lines without a pipe are
+        // malformed, and atoi(p + 2) silently mangles compact "child|parent"
+        // rows (atoi from past the first parent digit: "100|123" -> 23, while
+        // "100|1" becomes a spurious extra root).
+        p = std::strchr(line.data(), '|');
+        if(p == nullptr) {
+            LOG_WARNING("Malformed line (no pipe): %s", line.data());
+            continue;
+        }
         ki = kh_put(p, ret, std::atoi(line.data()), &khr);
-        kh_val(ret, ki) = (p = std::strchr(line.data(), '|')) ? std::atoi(p + 2)
-                                                              : tax_t(-1);
-        if(kh_val(ret, ki) == tax_t(-1)) LOG_WARNING("Malformed line: %s", line.data());
+        kh_val(ret, ki) = std::atoi(p + 1);
     }
     ki = kh_put(p, ret, 1, &khr);
     kh_val(ret, ki) = 0; // Root of the tree.
@@ -796,8 +908,9 @@ static void kset_union(khash_t(all) *a, khash_t(all) *b) noexcept {
  // return leaf of highest weighted leaf-to-root path.
  // Taken, modified from Kraken with new, faster containers.
 #if !NDEBUG
+template<typename Parents>
 static tax_t resolve_tree(const std::map<tax_t, tax_t> &hit_counts,
-                          const khash_t(p) *parent_map) noexcept
+                          const Parents &parent_map) noexcept
 {
   linear::set<tax_t> max_taxa;
   tax_t max_taxon(0), max_score(0);
@@ -806,8 +919,14 @@ static tax_t resolve_tree(const std::map<tax_t, tax_t> &hit_counts,
   for(auto it(hit_counts.cbegin()), e(hit_counts.cend()); it != e; ++it) {
     tax_t taxon(it->first), node(taxon), score(0);
     // Instead of while node > 0
-    while(node)
-        score += hit_counts.at(node), node = kh_val(parent_map, kh_get(p, parent_map, node));
+    // Ancestors with no hits score 0 (as hit_counts.count() does in the release
+    // version below); .at() threw std::out_of_range for them in debug builds.
+    while(node) {
+        const auto hit = hit_counts.find(node);
+        score += hit == hit_counts.end() ? 0: hit->second;
+        node = tax_parent(parent_map, node);
+        if(node == tax_t(-1)) break;   // not in the taxonomy (khash: was a read past kh_end)
+    }
     if(score > max_score) {
       max_taxa.clear();
       max_score = score;
@@ -828,19 +947,32 @@ static tax_t resolve_tree(const std::map<tax_t, tax_t> &hit_counts,
 }
 #endif
 
-static tax_t resolve_tree(const linear::counter<tax_t, u16> &hit_counts,
-                          const khash_t(p) *parent_map) noexcept
+template<typename Parents>
+static tax_t resolve_tree(const linear::counter<tax_t, u32> &hit_counts,
+                          const Parents &parent_map, khash_t(p) *count_lut = nullptr) noexcept
 {
   linear::set<tax_t> max_taxa;
   tax_t max_taxon(0), max_score(0);
 
-  // Sum each taxon's LTR path
+  // Sum each hit taxon's score over its root path: the counts of the hit
+  // taxa on the path (itself and its ancestors that were hit). The counter's
+  // linear count() scan per path step is the quadratic part; a hash map of
+  // the same counts (reused per read) makes each step O(1).
+  const bool own(count_lut == nullptr);
+  if(own) count_lut = kh_init(p);
+  for(unsigned i(0); i < hit_counts.size(); ++i) {
+    int khr;
+    const khint_t ki = kh_put(p, count_lut, hit_counts.keys()[i], &khr);
+    kh_val(count_lut, ki) = hit_counts.vals()[i];
+  }
   for(unsigned i(0); i < hit_counts.size(); ++i) {
     tax_t taxon(hit_counts.keys()[i]), node(taxon), score(0);
     // Instead of while node > 0
     while(node) {
-        score += hit_counts.count(node);
-        node = kh_val(parent_map, kh_get(p, parent_map, node));
+        const khint_t ki = kh_get(p, count_lut, node);
+        if(ki != kh_end(count_lut)) score += kh_val(count_lut, ki);
+        node = tax_parent(parent_map, node);
+        if(node == tax_t(-1)) break;   // not in the taxonomy (khash: was a read past kh_end)
     }
     // In C++20, we can use the spaceship operator!
     if(score > max_score) {
@@ -853,6 +985,7 @@ static tax_t resolve_tree(const linear::counter<tax_t, u16> &hit_counts,
       max_taxa.insert(taxon);
     }
   }
+  if(own) kh_destroy(p, count_lut);
   // If two LTR paths are tied for max, return LCA of all
   if(max_taxa.size()) {
     auto sit(max_taxa.begin());
@@ -938,10 +1071,10 @@ static std::map<uint32_t, uint32_t> kh2kr(khash_t(p) *map) {
 }
 
 
-static std::unordered_map<tax_t, std::forward_list<std::string>> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths) {
+static bns::umap<tax_t, std::forward_list<std::string>> tax2genome_map(khash_t(name) *name_map, const std::vector<std::string> &paths) {
     tax_t taxid;
-    std::unordered_map<tax_t, std::forward_list<std::string>> ret;
-    typename std::unordered_map<tax_t, std::forward_list<std::string>>::iterator m;
+    bns::umap<tax_t, std::forward_list<std::string>> ret;
+    typename bns::umap<tax_t, std::forward_list<std::string>>::iterator m;
     ret.reserve(paths.size());
 #if !NDEBUG
     ks::string ks;
@@ -965,10 +1098,10 @@ static std::unordered_map<tax_t, std::forward_list<std::string>> tax2genome_map(
 }
 
 
-static std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(
+static bns::umap<tax_t, std::set<tax_t>> make_ptc_map(
         const khash_t(p) *taxmap, const std::vector<tax_t> &taxes,
-        const std::unordered_map<tax_t, ClassLevel> &lvl_map) {
-    std::unordered_map<tax_t, std::set<tax_t>> ret;
+        const bns::umap<tax_t, ClassLevel> &lvl_map) {
+    bns::umap<tax_t, std::set<tax_t>> ret;
     ret.reserve(kh_size(taxmap));
     std::vector<tax_t> sorted_taxes = taxes;
 #if !NDEBUG
@@ -992,7 +1125,7 @@ static std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(
         assert(lvl_map.at(*it1) <= lvl_map.at(*it2));
     }
 #endif
-    typename std::unordered_map<tax_t, std::set<tax_t>>::iterator it;
+    typename bns::umap<tax_t, std::set<tax_t>>::iterator it;
     khiter_t ki;
     tax_t tmptax;
     for(auto sit(sorted_taxes.begin()), eit(sorted_taxes.end()); sit != eit; ++sit) {
@@ -1020,13 +1153,13 @@ static std::unordered_map<tax_t, std::set<tax_t>> make_ptc_map(
     return ret;
 }
 
-static std::unordered_map<tax_t, std::forward_list<std::string>> tax2desc_genome_map(
-        const std::unordered_map<tax_t, std::forward_list<std::string>> &tx2g,
+static bns::umap<tax_t, std::forward_list<std::string>> tax2desc_genome_map(
+        const bns::umap<tax_t, std::forward_list<std::string>> &tx2g,
         const khash_t(p) *taxmap, const std::vector<tax_t> &taxes,
-        const std::unordered_map<tax_t, ClassLevel> &lvl_map) {
-    std::unordered_map<tax_t, std::forward_list<std::string>> ret;
+        const bns::umap<tax_t, ClassLevel> &lvl_map) {
+    bns::umap<tax_t, std::forward_list<std::string>> ret;
     for(const auto &pair: make_ptc_map(taxmap, taxes, lvl_map)) {
-        typename std::unordered_map<tax_t, std::forward_list<std::string>>::const_iterator pit;
+        typename bns::umap<tax_t, std::forward_list<std::string>>::const_iterator pit;
         std::forward_list<std::string> list;
         if((pit = tx2g.find(pair.first)) != tx2g.end()) {
             for(const auto &str: pit->second) list.push_front(str);
@@ -1070,7 +1203,7 @@ _KHD(p)
 
 template<> void khash_destroy(khash_t(name) *map) noexcept {destroy_name_hash(map);}
 
-static ClassLevel get_linelvl(const char *line, std::string &buffer, const std::unordered_map<std::string, ClassLevel> &map) {
+static ClassLevel get_linelvl(const char *line, std::string &buffer, const bns::umap<std::string, ClassLevel> &map) {
     const char *p(strchr(line, '|'));
     if(!p || (p = strchr(p + 1, '|')) == nullptr)
         RUNTIME_ERROR("Improperly formatted line");
@@ -1089,8 +1222,8 @@ static ClassLevel get_linelvl(const char *line, std::string &buffer, const std::
     return m->second;
 }
 
-static std::unordered_map<tax_t, ClassLevel> get_tax_depths(const khash_t(p) *taxmap, const char *path) {
-    std::unordered_map<tax_t, ClassLevel> ret;
+static bns::umap<tax_t, ClassLevel> get_tax_depths(const khash_t(p) *taxmap, const char *path) {
+    bns::umap<tax_t, ClassLevel> ret;
     std::ifstream ifs(path);
     std::string buffer;
     tax_t t;
@@ -1106,12 +1239,12 @@ static std::unordered_map<tax_t, ClassLevel> get_tax_depths(const khash_t(p) *ta
 static std::vector<tax_t> get_sorted_taxes(const khash_t(p) *taxmap, const char *path) {
     std::vector<tax_t> taxes;
     {
-        std::unordered_set<tax_t> taxset;
+        bns::uset<tax_t> taxset;
         for(khiter_t ki(0); ki != kh_end(taxmap); ++ki) if(kh_exist(taxmap, ki)) taxset.insert(kh_key(taxmap, ki));
         taxes = std::vector<tax_t>(taxset.begin(), taxset.end());
     }
-    std::unordered_map<tax_t, ClassLevel> taxclassmap(get_tax_depths(taxmap, path));
-    typename std::unordered_map<tax_t, ClassLevel>::iterator ma, mb;
+    bns::umap<tax_t, ClassLevel> taxclassmap(get_tax_depths(taxmap, path));
+    typename bns::umap<tax_t, ClassLevel>::iterator ma, mb;
     SORT(taxes.begin(), taxes.end(), [&tcm=taxclassmap,tm=taxmap,&ma,&mb](const tax_t a, const tax_t b) {
         return (ma = tcm.find(a)) == tcm.end() ? (mb = tcm.find(b)) == tcm.end() ? a < b: false
                                                : (mb = tcm.find(b)) == tcm.end() ? true
@@ -1121,7 +1254,7 @@ static std::vector<tax_t> get_sorted_taxes(const khash_t(p) *taxmap, const char 
     return taxes;
 }
 
-static std::vector<tax_t> get_desc_lca(tax_t a, tax_t b, const std::unordered_map<tax_t, std::vector<tax_t>> &parent_map, const khash_t(p) *taxmap) {
+static std::vector<tax_t> get_desc_lca(tax_t a, tax_t b, const bns::umap<tax_t, std::vector<tax_t>> &parent_map, const khash_t(p) *taxmap) {
     return get_all_descendents(parent_map, lca(taxmap, a, b));
 }
 
@@ -1170,10 +1303,10 @@ static lazy::vector<u64, size_t> load_binary_kmers(const char *path) {
     if(fp == nullptr) throw std::system_error(std::error_code(2, std::system_category()), std::string("Cannot open path at ") + path + ".\n");
     lazy::vector<u64, size_t> ret;
     u64 n;
-    ::read(fileno(fp), static_cast<void *>(&n), sizeof(n));
+    read_all(fileno(fp), static_cast<void *>(&n), sizeof(n));
     ret.resize(n, lazy::LAZY_VEC_NOINIT);
     ssize_t nread;
-    if((nread = ::read(fileno(fp), static_cast<void *>(&ret[0]), n * sizeof(u64))) != ssize_t(n * sizeof(u64)))
+    if((nread = read_all(fileno(fp), static_cast<void *>(&ret[0]), n * sizeof(u64))) != ssize_t(n * sizeof(u64)))
         RUNTIME_ERROR(ks::sprintf("Only read %zd bytes from file when expected %zu.", nread, size_t(n * sizeof(u64))).data());
     std::fclose(fp);
     return ret;

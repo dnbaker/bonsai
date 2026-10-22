@@ -1,6 +1,7 @@
 #ifndef _TX_H__
 #define _TX_H__
 
+#include "hashmap.h"
 #include <stdexcept>
 #include <thread>
 #include <unordered_map>
@@ -38,8 +39,8 @@ protected:
     khash_t(p)           *pmap_;
     khash_t(name)    *name_map_;
     std::vector<tax_t> old_ids_;
-    std::unordered_map<tax_t, std::vector<std::string>> path_map;
-    std::unordered_map<tax_t, std::string> newid_path_map;
+    bns::umap<tax_t, std::vector<std::string>> path_map;
+    bns::umap<tax_t, std::string> newid_path_map;
     khash_t(p) *old_to_new_;
     uint64_t        counter_:62;
     uint64_t          filled_:1;
@@ -55,23 +56,17 @@ public:
         counter_(1), filled_(false), panic_on_undef_(panic_on_undef)
     {
         LOG_DEBUG("Initialized default stuff. name map size: %zu\n", kh_size(name_map_));
-        // Copy input hash map
+        // Copy input hash map by insertion; bucket counts need not match.
         khash_t(p) *ct(kh_init(p));
-        kh_resize(p, ct, kh_size(old_tax));
-        assert(ct->n_buckets == old_tax->n_buckets && (std::to_string(ct->n_buckets) + "," + std::to_string(old_tax->n_buckets)).data());
-        std::memcpy(ct->keys, old_tax->keys, sizeof(tax_t) * old_tax->n_buckets);
-        std::memcpy(ct->vals, old_tax->vals, sizeof(tax_t) * old_tax->n_buckets);
-        std::memcpy(ct->flags, old_tax->flags, __ac_fsize(old_tax->n_buckets));
-#define CP(x) ct->x = old_tax->x
-        CP(n_buckets); CP(size); CP(n_occupied); CP(upper_bound);
-#undef CP
+        for(khint_t ki(0); ki != kh_end(old_tax); ++ki) {
+            if(kh_exist(old_tax, ki)) {
+                int khr_;
+                const auto k(kh_put(p, ct, kh_key(old_tax, ki), &khr_));
+                if(unlikely(khr_ < 0)) throw std::runtime_error("Failed to copy taxonomy map.");
+                kh_val(ct, k) = kh_val(old_tax, ki);
+            }
+        }
         LOG_DEBUG("Copied stuff. copied map size: %zu\n", kh_size(ct));
-#if !NDEBUG
-        for(khint_t ki(0); ki < kh_end(ct); ++ki)
-            if(kh_exist(ct, ki))
-                assert(kh_get(p, old_tax, kh_key(ct, ki)) != kh_end(old_tax));
-#endif
-        LOG_DEBUG("Map was correctly copied.\n");
 
         // Add the root of the tree to our pmap.
         int khr;
@@ -81,46 +76,80 @@ public:
         fill_path_map(paths);
         // Deterministic seeding that still varies run to run.
         std::mt19937 mt(std::hash<size_t>()(kh_size(old_tax) * path_map.size()));
+        std::vector<std::pair<tax_t, std::string>> split; // Inserted after the loop; inserting into path_map here would invalidate the iteration.
         for(auto &pair: path_map) {
             if(pair.second.size() > 1) {
                 for(auto &path: pair.second) {
                     tax_t tmp(mt());
-                    while(kh_get(p, ct, tmp) != kh_end(ct)) tmp = mt();
-                    path_map[tmp] = {path};
+                    while(tmp == 0 || kh_get(p, ct, tmp) != kh_end(ct)) tmp = mt();
                     ki = kh_put(p, ct, tmp, &khr);
                     if(unlikely(khr < 0)) throw std::runtime_error(ks::sprintf("[%s:%d] Could not insert key %u to table of size %zu.", __PRETTY_FUNCTION__, __LINE__, tmp, kh_size(ct)).data());
                     kh_val(ct, ki) = pair.first;
-                    newid_path_map[tmp] = path;
+                    split.emplace_back(tmp, path);
                 }
                 std::vector<std::string> vec;
                 std::swap(vec, pair.second);
             }
         }
+        for(auto &pair: split) path_map.emplace(pair.first, std::vector<std::string>{pair.second});
         std::vector<tax_t> insertion_order;
         insertion_order.reserve(path_map.size());
         for(const auto &pair: path_map) insertion_order.push_back(pair.first);
-        assert(insertion_order.size() == std::unordered_set<tax_t>(insertion_order.begin(), insertion_order.end()).size() &&
+        // Every annotated tax id's ancestors must also be present: each new
+        // node's parent is resolved through old_to_new_, and an old parent
+        // missing from the map would leave the new parent undefined.
+        {
+            bns::uset<tax_t> seen(insertion_order.begin(), insertion_order.end());
+            const size_t n(insertion_order.size());
+            for(size_t i(0); i < n; ++i) {
+                khint_t ki(kh_get(p, ct, insertion_order[i]));
+                for(tax_t anc(ki == kh_end(ct) ? 0 : kh_val(ct, ki)); anc; anc = (ki = kh_get(p, ct, anc)) == kh_end(ct) ? 0 : kh_val(ct, ki)) {
+                    if(seen.insert(anc).second) insertion_order.push_back(anc);
+                }
+            }
+        }
+        assert(insertion_order.size() == bns::uset<tax_t>(insertion_order.begin(), insertion_order.end()).size() &&
                "Some tax ids are being repeated in this array.");
         pdqsort(std::begin(insertion_order), std::end(insertion_order),
-                [old_tax] (const tax_t a, const tax_t b) {
-            return node_depth(old_tax, a) < node_depth(old_tax, b);
+                [ct] (const tax_t a, const tax_t b) {
+            // Use ct, not the input map: ids synthesized for duplicate genomes
+            // are only present in ct, and node_depth exits on missing ids.
+            return node_depth(ct, a) < node_depth(ct, b);
         });
         for(const auto tax: insertion_order) {
             int khr;
             khiter_t ki(kh_put(p, old_to_new_, tax, &khr));
             if(unlikely(khr < 0)) throw std::runtime_error(ks::sprintf("[%s:%d] Could not insert key %u to table of size %zu.", __PRETTY_FUNCTION__, __LINE__, tax, kh_size(old_to_new_)).data());
-            kh_val(old_to_new_, tax) = old_ids_.size();
+            const tax_t new_id(static_cast<tax_t>(old_ids_.size()));
+            kh_val(old_to_new_, ki) = new_id;
             old_ids_.emplace_back(tax);
-            ki = kh_put(p, pmap_, static_cast<tax_t>(old_ids_.size()), &khr);
-            if(unlikely(khr < 0)) throw std::runtime_error(ks::sprintf("[%s:%d] Could not insert key %u to table of size %zu.", __PRETTY_FUNCTION__, __LINE__, static_cast<tax_t>(old_ids_.size()), kh_size(pmap_)).data());
-            kh_val(pmap_, ki) = kh_val(old_to_new_, kh_get(p, old_to_new_, kh_val(ct, kh_get(p, ct, tax))));
-            // TODO: remove \.at check when we're certain it's working.
+            ki = kh_put(p, pmap_, new_id, &khr);
+            if(unlikely(khr < 0)) throw std::runtime_error(ks::sprintf("[%s:%d] Could not insert key %u to table of size %zu.", __PRETTY_FUNCTION__, __LINE__, new_id, kh_size(pmap_)).data());
+            const khint_t opi(kh_get(p, ct, tax));
+            const tax_t oparent(opi == kh_end(ct) ? 0 : kh_val(ct, opi));
+            const khint_t pni(kh_get(p, old_to_new_, oparent));
+            // Old parents not in the map (i.e., the root's 0) map to 0, the super-root.
+            kh_val(pmap_, ki) = pni == kh_end(old_to_new_) ? 0 : kh_val(old_to_new_, pni);
+        }
+        // Genomes that did not share a taxid still need a node of their own.
+        for(const auto &pair: path_map) {
+            if(!pair.second.empty()) {
+                const khint_t ni(kh_get(p, old_to_new_, pair.first));
+                if(ni != kh_end(old_to_new_)) newid_path_map[kh_val(old_to_new_, ni)] = pair.second.front();
+            }
+        }
+        for(const auto &pair: split) {
+            const khint_t ni(kh_get(p, old_to_new_, pair.first));
+            if(ni != kh_end(old_to_new_)) newid_path_map[kh_val(old_to_new_, ni)] = pair.second;
         }
         khash_destroy(ct);
         // Now convert name_map from old to new.
-        for(khint_t ki(0); ki < kh_size(name_map_); ++ki)
-            if(kh_exist(name_map_, ki))
-                kh_val(name_map_, ki) = kh_val(old_to_new_, kh_get(p, old_to_new_, kh_val(name_map_, ki)));
+        for(khint_t ki(0); ki != kh_end(name_map_); ++ki) {
+            if(kh_exist(name_map_, ki)) {
+                const khint_t ni(kh_get(p, old_to_new_, kh_val(name_map_, ki)));
+                if(ni != kh_end(old_to_new_)) kh_val(name_map_, ki) = kh_val(old_to_new_, ni);
+            }
+        }
 
         LOG_DEBUG("Paths to genomes with new subtax elements:\n\n\n%s", newtaxprintf().data());
         STLFREE(path_map);
@@ -159,6 +188,8 @@ public:
     }
 
     // Convenience functions
+    const khash_t(p) *pmap() const {return pmap_;}
+    const bns::umap<tax_t, std::string> &newid_paths() const {return newid_path_map;}
     tax_t parent(tax_t child) const {
         const auto ind(kh_get(p, pmap_, child));
         return ind == kh_end(pmap_) ? tax_t(-1): kh_val(pmap_, ind);
@@ -198,7 +229,7 @@ public:
 };
 using concise_tax_t = TaxonomyReformation;
 static std::vector<tax_t> build_new2old_map(const char *path, size_t bufsz) {
-        gzFile fp(gzopen(path, "wb"));
+        gzFile fp(gzopen(path, "rb"));
         std::vector<char> buf(bufsz);
         char *line;
         std::map<tax_t, tax_t> taxes;
@@ -224,7 +255,7 @@ static std::vector<tax_t> build_new2old_map(const char *path, size_t bufsz) {
 }
 static INLINE std::vector<tax_t> build_new2old_map(const std::string &str, size_t bufsz) { return build_new2old_map(str.data(), bufsz);}
 static std::vector<tax_t> binary_new2old_map(const char *fn) {
-    gzFile fp(gzopen(fn, "wb"));
+    gzFile fp(gzopen(fn, "rb"));
     if(fp == nullptr) RUNTIME_ERROR(ks::sprintf("Could not open file at %s\n", fn).data());
     tax_t tmp;
     std::vector<tax_t> ret;
@@ -233,8 +264,9 @@ static std::vector<tax_t> binary_new2old_map(const char *fn) {
     if(fsize & (sizeof(tax_t) - 1)) RUNTIME_ERROR(ks::sprintf("Wrong number of bytes %s (%zu/%zu)", fn, fsize, fsize & 3u).data());
     ret.reserve(fsize >> 2);
     int c;
-    while((c = gzread(fp, (void *)&tmp, sizeof(tmp))) == Z_OK) ret.push_back(tmp);
-    if(c != Z_STREAM_END) throw zlib_error(c, fn);
+    while((c = gzread(fp, (void *)&tmp, sizeof(tmp))) == int(sizeof(tmp))) ret.push_back(tmp);
+    if(c != Z_STREAM_END && c != 0) throw zlib_error(c, fn);
+    gzclose(fp);
     return ret;
 }
 

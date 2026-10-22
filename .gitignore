@@ -1,0 +1,67 @@
+# Object files and archives
+*.o
+*.do
+*.zo
+*.a
+
+# Build products
+/bin/*
+!/bin/*.cpp
+/lib/*
+!/lib/.gitkeep
+/unit
+/zunit
+/libzstd.a
+
+# Locally-built scratch binaries
+/bonsai
+/fsetsketcher
+/fopsetsketcher
+/opsetsketcher
+/setsketchscreener
+/taph
+/testdna
+
+# Stray output/error captures
+/err
+/err5
+/out
+/out.fa
+/distout
+
+# Python build artifacts
+python/build/
+python/dist/
+python/*.egg-info/
+python/timec
+python/var/
+
+# Downloaded/generated test data
+test/ec/*.xz
+test/ec/*.bz2
+test/ec/*.zst
+test/ec/*.ss
+test/ec/*.pmh
+test/ec/*.bmh
+test/ec/*.opss
+test/ec/*.names.txt
+test/*.zst
+test/*.names.txt
+
+# Third-party checkouts not part of bonsai
+flat_hash_map/
+rollinghashcpp/
+git-filter-repo/
+zomg/
+
+# Editor swap files
+*.swp
+
+# Locally-built scratch binaries
+/sketch_ab_bench
+/grafting_bench
+/grafting_scale_bench
+
+# Benchmark datasets (generated or downloaded; see data/README.md)
+/data/*/
+!/data/make_syn_scale_data.py

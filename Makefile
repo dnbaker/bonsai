@@ -39,8 +39,8 @@ OPT_MINUS_OPENMP= -O3 -funroll-loops\
 	  -pipe -fno-strict-aliasing $(ARCH_STR) $(FLAGS) $(EXTRA)
 OPT=$(OPT_MINUS_OPENMP) -fopenmp
 XXFLAGS=-fno-rtti
-CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++17 $(WARNINGS) -DBONSAI_VERSION=\"$(GIT_VERSION)\"
-CXXFLAGS_MINUS_OPENMP=$(OPT_MINUS_OPENMP) $(XXFLAGS) -std=c++1z $(WARNINGS) -Wno-cast-align -Wno-gnu-zero-variadic-macro-arguments -DBONSAI_VERSION=\"$(GIT_VERSION)\"
+CXXFLAGS=$(OPT) $(XXFLAGS) -std=c++20 $(WARNINGS) -DBONSAI_VERSION=\"$(GIT_VERSION)\"
+CXXFLAGS_MINUS_OPENMP=$(OPT_MINUS_OPENMP) $(XXFLAGS) -std=c++20 $(WARNINGS) -Wno-cast-align -Wno-gnu-zero-variadic-macro-arguments -DBONSAI_VERSION=\"$(GIT_VERSION)\"
 CCFLAGS=$(OPT) $(CFLAGS) -std=c11 $(WARNINGS) -DBONSAI_VERSION=\"$(GIT_VERSION)\"
 LIB=-lz
 LD=-L. $(EXTRA_LD)
@@ -164,6 +164,15 @@ lib/libbonsai.a: $(OBJS)
 zlib/libz.a:
 	+cd zlib && (./configure || echo "no configure needed") && $(MAKE)
 
+grafting_bench: bench/grafting_bench.cpp $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
+
+grafting_scale_bench: bench/grafting_scale_bench.cpp $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) klib/kthread.o zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG klib/kthread.o $< -o $@ $(LIB) zlib/libz.a
+
+sketch_ab_bench: bench/sketch_ab_bench.cpp $(wildcard include/bonsai/*.h) $(wildcard hll/include/sketch/*.h) zlib/libz.a
+	$(CXX) $(CXXFLAGS) $(DBG) $(INCLUDE) $(LD) -DNDEBUG $< -o $@ $(LIB) zlib/libz.a
+
 tests: clean unit
 
 unit: $(DOBJS) $(TEST_OBJS)
@@ -179,3 +188,13 @@ rolling: rolling_multk rolling_multk_sketch
 
 mostlyclean:
 	rm -f $(ZOBJS) $(ZTEST_OBJS) $(ZW_OBJS) $(OBJS) $(DEX) $(ZEX) $(EX) $(TEST_OBJS) $(DOBJS) unit lib/*o src/*o
+
+# Release gate (sketch's scripts/release_check.sh runs this with candidate
+# sketch trees in hll/): unit tests and the CLI smokes.
+JOBS ?= 2
+check:
+	$(MAKE) -j$(JOBS) bonsai unit
+	./unit
+	bash test/cli_classify_smoke.sh ./bonsai
+	if [ -f test/cli_profile_smoke.sh ]; then bash test/cli_profile_smoke.sh ./bonsai; fi
+.PHONY: check

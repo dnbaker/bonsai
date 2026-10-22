@@ -32,8 +32,9 @@
 
 namespace bns {
 
-
-static const int8_t cstr_lut[] {
+// U and u read as T so that RNA hashes like the corresponding DNA.
+// Bytes 128-255 are never valid, so that any unsigned char can index the table.
+static const int8_t cstr_lut[256] {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -41,13 +42,22 @@ static const int8_t cstr_lut[] {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1,  0, -1,  1, -1, -1, -1,  2,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+     3,  3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1,  0, -1,  1, -1, -1, -1,  2, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,  3, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1
+    -1, -1, -1, -1, -1, -1, -1, -1,  3,  3, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1,
+    // Bytes 128-255 are never valid, so that any unsigned char can index the table.
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
 
-static const u32 nucpos_arr_acgt[128] {
+static const u32 nucpos_arr_acgt[256] {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
@@ -56,7 +66,7 @@ static const u32 nucpos_arr_acgt[128] {
         0, 0, 0, 0
 };
 
-static const int8_t cstr_rc_lut[] {
+static const int8_t cstr_rc_lut[256] {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -64,10 +74,19 @@ static const int8_t cstr_rc_lut[] {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1, -1, -1, -1, -1,  3, -1,  2, -1, -1, -1,  1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-     0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+     0,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
     -1,  3, -1,  2, -1, -1, -1,  1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,  0, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1
+    -1, -1, -1, -1, -1, -1, -1, -1,  0,  0, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1,
+    // Bytes 128-255 are never valid, so that any unsigned char can index the table.
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
 
 static INLINE uint8_t nuc2num(char c) {return nucpos_arr_acgt[(uint8_t)c];}
@@ -80,7 +99,7 @@ static INLINE bool is_ready(std::future<R> const& f) {
 }
 
 // Jellyfish/Kraken
-static INLINE u64 reverse_complement(u64 kmer, uint8_t n) {
+static INLINE u64 reverse_complement(u64 kmer, uint8_t n) noexcept {
     kmer = ((kmer >> 2)  & 0x3333333333333333UL) | ((kmer & 0x3333333333333333UL) << 2);
     kmer = ((kmer >> 4)  & 0x0F0F0F0F0F0F0F0FUL) | ((kmer & 0x0F0F0F0F0F0F0F0FUL) << 4);
     kmer = ((kmer >> 8)  & 0x00FF00FF00FF00FFUL) | ((kmer & 0x00FF00FF00FF00FFUL) << 8);
@@ -134,11 +153,21 @@ inline static void countInU64Ex(uint64_t dw, uint32_t *arrs, unsigned k) {
     arrs[3] += (tmp = pop::popcount(x3));
 }
 
-static INLINE u64 canonical_representation(u64 kmer, uint8_t n) {
+static INLINE u64 canonical_representation(u64 kmer, uint8_t n) noexcept {
     const u64 revcom(reverse_complement(kmer, n));
     return kmer < revcom ? kmer : revcom;
 }
-static INLINE bool canonicalize(u64 &kmer, uint8_t n) {
+// 128-bit k-mers (k <= 64): reverse-complement each 64-bit half, swap the
+// halves, then shift away the unused low-order bases.
+static INLINE u128 reverse_complement(u128 kmer, uint8_t n) noexcept {
+    const u128 full = (u128(reverse_complement(u64(kmer), 32)) << 64) | reverse_complement(u64(kmer >> 64), 32);
+    return n >= 64 ? full: full >> (128 - 2 * n);
+}
+static INLINE u128 canonical_representation(u128 kmer, uint8_t n) noexcept {
+    const u128 revcom(reverse_complement(kmer, n));
+    return kmer < revcom ? kmer : revcom;
+}
+static INLINE bool canonicalize(u64 &kmer, uint8_t n) noexcept {
     const u64 revcom(reverse_complement(kmer, n));
     if(kmer < revcom) return false;
     kmer = revcom;

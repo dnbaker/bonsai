@@ -1,0 +1,1817 @@
+{
+ "analysis": "gutdb",
+ "cal_genomes": 50,
+ "cal_mbp": 157.559505,
+ "cal_peak_rss": 287604736,
+ "downloaded_bytes": 889135494,
+ "k": 31,
+ "n_selected": 300,
+ "n_species_catalogue": 4716,
+ "projected_full_rss": 1596871275.6404128,
+ "rss_per_bp": 1.8253721728816044,
+ "selected_mbp": 874.819557,
+ "top": [
+  {
+   "countries": 78,
+   "n_genomes": 8314,
+   "rep": "MGYG000002506",
+   "species": "s__Escherichia coli_D"
+  },
+  {
+   "countries": 32,
+   "n_genomes": 7511,
+   "rep": "MGYG000002492",
+   "species": "s__Agathobacter rectalis"
+  },
+  {
+   "countries": 27,
+   "n_genomes": 6001,
+   "rep": "MGYG000001346",
+   "species": "s__Bacteroides uniformis"
+  },
+  {
+   "countries": 28,
+   "n_genomes": 5767,
+   "rep": "MGYG000002478",
+   "species": "s__Phocaeicola dorei"
+  },
+  {
+   "countries": 25,
+   "n_genomes": 5043,
+   "rep": "MGYG000001302.1",
+   "species": "s__Alistipes putredinis"
+  },
+  {
+   "countries": 27,
+   "n_genomes": 4712,
+   "rep": "MGYG000002438",
+   "species": "s__Parabacteroides distasonis"
+  },
+  {
+   "countries": 30,
+   "n_genomes": 3764,
+   "rep": "MGYG000000258",
+   "species": "s__Ruminococcus_E bromii_B"
+  },
+  {
+   "countries": 27,
+   "n_genomes": 3324,
+   "rep": "MGYG000003937",
+   "species": "s__Gemmiger qucibialis"
+  },
+  {
+   "countries": 27,
+   "n_genomes": 3272,
+   "rep": "MGYG000000251",
+   "species": "s__Fusicatenibacter saccharivorans"
+  },
+  {
+   "countries": 26,
+   "n_genomes": 3164,
+   "rep": "MGYG000000060",
+   "species": "s__Lachnospira eligens_A"
+  },
+  {
+   "countries": 26,
+   "n_genomes": 3082,
+   "rep": "MGYG000002321",
+   "species": "s__Ruminococcus_D bicirculans"
+  },
+  {
+   "countries": 27,
+   "n_genomes": 2899,
+   "rep": "MGYG000003694",
+   "species": "s__Agathobacter faecis"
+  },
+  {
+   "countries": 26,
+   "n_genomes": 2891,
+   "rep": "MGYG000002545",
+   "species": "s__Faecalibacterium prausnitzii_G"
+  },
+  {
+   "countries": 24,
+   "n_genomes": 2841,
+   "rep": "MGYG000002528",
+   "species": "s__Anaerostipes hadrus"
+  },
+  {
+   "countries": 32,
+   "n_genomes": 2828,
+   "rep": "MGYG000001292",
+   "species": "s__Bifidobacterium infantis"
+  },
+  {
+   "countries": 24,
+   "n_genomes": 2578,
+   "rep": "MGYG000000144",
+   "species": "s__Barnesiella intestinihominis"
+  },
+  {
+   "countries": 26,
+   "n_genomes": 2497,
+   "rep": "MGYG000002454",
+   "species": "s__Akkermansia muciniphila"
+  },
+  {
+   "countries": 28,
+   "n_genomes": 2484,
+   "rep": "MGYG000004323",
+   "species": "s__CAG-180 sp000432435"
+  },
+  {
+   "countries": 29,
+   "n_genomes": 2479,
+   "rep": "MGYG000002293",
+   "species": "s__Prevotella sp900557255"
+  },
+  {
+   "countries": 30,
+   "n_genomes": 2476,
+   "rep": "MGYG000002395",
+   "species": "s__Bifidobacterium adolescentis"
+  },
+  {
+   "countries": 23,
+   "n_genomes": 2342,
+   "rep": "MGYG000004769",
+   "species": "s__Phascolarctobacterium faecium"
+  },
+  {
+   "countries": 27,
+   "n_genomes": 2212,
+   "rep": "MGYG000001338",
+   "species": "s__Blautia_A wexlerae_A"
+  },
+  {
+   "countries": 24,
+   "n_genomes": 2168,
+   "rep": "MGYG000000084",
+   "species": "s__Gemmiger formicilis"
+  },
+  {
+   "countries": 25,
+   "n_genomes": 2064,
+   "rep": "MGYG000003686",
+   "species": "s__ER4 sp000765235"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 2064,
+   "rep": "MGYG000000074",
+   "species": "s__Alistipes onderdonkii"
+  },
+  {
+   "countries": 26,
+   "n_genomes": 2034,
+   "rep": "MGYG000003891",
+   "species": "s__UBA11524 sp000437595"
+  },
+  {
+   "countries": 23,
+   "n_genomes": 1925,
+   "rep": "MGYG000000217",
+   "species": "s__Acetatifactor sp900066565"
+  },
+  {
+   "countries": 24,
+   "n_genomes": 1861,
+   "rep": "MGYG000000078",
+   "species": "s__Lachnospira rogosae_A"
+  },
+  {
+   "countries": 25,
+   "n_genomes": 1843,
+   "rep": "MGYG000003681",
+   "species": "s__Bacteroides stercoris"
+  },
+  {
+   "countries": 25,
+   "n_genomes": 1780,
+   "rep": "MGYG000000044",
+   "species": "s__Parabacteroides merdae"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 1667,
+   "rep": "MGYG000000723",
+   "species": "s__CAG-177 sp003514385"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 1662,
+   "rep": "MGYG000000190",
+   "species": "s__CAG-127 sp900319515"
+  },
+  {
+   "countries": 25,
+   "n_genomes": 1643,
+   "rep": "MGYG000002530",
+   "species": "s__Ruminiclostridium_E siraeum"
+  },
+  {
+   "countries": 25,
+   "n_genomes": 1639,
+   "rep": "MGYG000001374",
+   "species": "s__Mediterraneibacter torques"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 1620,
+   "rep": "MGYG000000254",
+   "species": "s__Odoribacter splanchnicus"
+  },
+  {
+   "countries": 26,
+   "n_genomes": 1604,
+   "rep": "MGYG000000231",
+   "species": "s__Coprococcus eutactus_A"
+  },
+  {
+   "countries": 25,
+   "n_genomes": 1594,
+   "rep": "MGYG000002570",
+   "species": "s__Ruminococcus_E sp003526955"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 1467,
+   "rep": "MGYG000004158",
+   "species": "s__Dialister invisus"
+  },
+  {
+   "countries": 27,
+   "n_genomes": 1453,
+   "rep": "MGYG000001029",
+   "species": "s__CAG-217 sp000436335"
+  },
+  {
+   "countries": 27,
+   "n_genomes": 1446,
+   "rep": "MGYG000001300",
+   "species": "s__Faecalibacterium prausnitzii"
+  },
+  {
+   "countries": 28,
+   "n_genomes": 1431,
+   "rep": "MGYG000001365",
+   "species": "s__Phascolarctobacterium_A succinatutens"
+  },
+  {
+   "countries": 24,
+   "n_genomes": 1373,
+   "rep": "MGYG000000041",
+   "species": "s__Acetatifactor sp900066365"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 1330,
+   "rep": "MGYG000000033",
+   "species": "s__CAG-41 sp900066215"
+  },
+  {
+   "countries": 25,
+   "n_genomes": 1280,
+   "rep": "MGYG000002272",
+   "species": "s__Faecalibacterium prausnitzii_D"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 1268,
+   "rep": "MGYG000000045",
+   "species": "s__Faecalibacillus intestinalis"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 1258,
+   "rep": "MGYG000000022",
+   "species": "s__Faecalibacterium prausnitzii_C"
+  },
+  {
+   "countries": 28,
+   "n_genomes": 1239,
+   "rep": "MGYG000001380",
+   "species": "s__Ruminococcus_B gnavus"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 1214,
+   "rep": "MGYG000000646",
+   "species": "s__Eubacterium_R sp000436835"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 1181,
+   "rep": "MGYG000000003",
+   "species": "s__Alistipes shahii"
+  },
+  {
+   "countries": 24,
+   "n_genomes": 1157,
+   "rep": "MGYG000001361",
+   "species": "s__Sutterella wadsworthensis"
+  },
+  {
+   "countries": 27,
+   "n_genomes": 1124,
+   "rep": "MGYG000001337",
+   "species": "s__Bacteroides fragilis"
+  },
+  {
+   "countries": 24,
+   "n_genomes": 1124,
+   "rep": "MGYG000003683",
+   "species": "s__Bifidobacterium pseudocatenulatum"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 1116,
+   "rep": "MGYG000000209",
+   "species": "s__Eubacterium_F sp003491505"
+  },
+  {
+   "countries": 26,
+   "n_genomes": 1112,
+   "rep": "MGYG000002396",
+   "species": "s__Bifidobacterium bifidum"
+  },
+  {
+   "countries": 24,
+   "n_genomes": 1087,
+   "rep": "MGYG000000530",
+   "species": "s__PeH17 sp000435055"
+  },
+  {
+   "countries": 23,
+   "n_genomes": 1079,
+   "rep": "MGYG000002556",
+   "species": "s__CAG-279 sp000437795"
+  },
+  {
+   "countries": 26,
+   "n_genomes": 1072,
+   "rep": "MGYG000001378",
+   "species": "s__Bacteroides ovatus"
+  },
+  {
+   "countries": 23,
+   "n_genomes": 1071,
+   "rep": "MGYG000002720",
+   "species": "s__CAG-83 sp000435555"
+  },
+  {
+   "countries": 27,
+   "n_genomes": 1061,
+   "rep": "MGYG000000271",
+   "species": "s__Roseburia sp900552665"
+  },
+  {
+   "countries": 23,
+   "n_genomes": 1057,
+   "rep": "MGYG000000562",
+   "species": "s__Lachnospira sp000437735"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 1056,
+   "rep": "MGYG000000076",
+   "species": "s__Roseburia intestinalis"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 1053,
+   "rep": "MGYG000002540",
+   "species": "s__Paraprevotella clara"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 1051,
+   "rep": "MGYG000003702",
+   "species": "s__Eisenbergiella sp900066775"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 1011,
+   "rep": "MGYG000004526",
+   "species": "s__CAG-103 sp000432375"
+  },
+  {
+   "countries": 23,
+   "n_genomes": 997,
+   "rep": "MGYG000000253",
+   "species": "s__Holdemanella sp002299315"
+  },
+  {
+   "countries": 23,
+   "n_genomes": 995,
+   "rep": "MGYG000000154",
+   "species": "s__RUG115 sp900066395"
+  },
+  {
+   "countries": 32,
+   "n_genomes": 986,
+   "rep": "MGYG000002538",
+   "species": "s__Klebsiella pneumoniae"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 977,
+   "rep": "MGYG000003693",
+   "species": "s__Phocaeicola plebeius_A"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 969,
+   "rep": "MGYG000001410",
+   "species": "s__Sutterella wadsworthensis_A"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 957,
+   "rep": "MGYG000003656",
+   "species": "s__UBA1417 sp003531055"
+  },
+  {
+   "countries": 24,
+   "n_genomes": 954,
+   "rep": "MGYG000001319",
+   "species": "s__Butyrivibrio_A crossotus"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 923,
+   "rep": "MGYG000001359",
+   "species": "s__Bilophila wadsworthia"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 911,
+   "rep": "MGYG000001694",
+   "species": "s__Enterococcus faecalis"
+  },
+  {
+   "countries": 23,
+   "n_genomes": 903,
+   "rep": "MGYG000001866",
+   "species": "s__Prevotella sp003447235"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 898,
+   "rep": "MGYG000002445",
+   "species": "s__Clostridium_Q sp003024715"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 880,
+   "rep": "MGYG000000242",
+   "species": "s__Enterocloster sp000431375"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 827,
+   "rep": "MGYG000002284",
+   "species": "s__Megamonas funiformis"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 825,
+   "rep": "MGYG000000189",
+   "species": "s__Coprococcus sp900066115"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 822,
+   "rep": "MGYG000004245",
+   "species": "s__SFEL01 sp004557245"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 821,
+   "rep": "MGYG000000725",
+   "species": "s__Dialister sp000434475"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 790,
+   "rep": "MGYG000001349",
+   "species": "s__Veillonella parvula_A"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 787,
+   "rep": "MGYG000000177",
+   "species": "s__Anaerotignum faecicola"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 760,
+   "rep": "MGYG000000142",
+   "species": "s__Blautia_A massiliensis"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 753,
+   "rep": "MGYG000004111",
+   "species": "s__Angelakisella sp900547385"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 746,
+   "rep": "MGYG000000185",
+   "species": "s__Agathobaculum butyriciproducens"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 732,
+   "rep": "MGYG000001294",
+   "species": "s__Parasutterella excrementihominis"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 711,
+   "rep": "MGYG000002517",
+   "species": "s__Roseburia hominis"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 710,
+   "rep": "MGYG000002926",
+   "species": "s__CAG-83 sp000431575"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 699,
+   "rep": "MGYG000001737",
+   "species": "s__Eubacterium_R sp000434995"
+  },
+  {
+   "countries": 23,
+   "n_genomes": 693,
+   "rep": "MGYG000000244",
+   "species": "s__Catenibacterium sp000437715"
+  },
+  {
+   "countries": 24,
+   "n_genomes": 687,
+   "rep": "MGYG000000606",
+   "species": "s__RC9 sp000433355"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 687,
+   "rep": "MGYG000000412",
+   "species": "s__Succinivibrio sp000431835"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 687,
+   "rep": "MGYG000003022",
+   "species": "s__Parasutterella sp000980495"
+  },
+  {
+   "countries": 25,
+   "n_genomes": 684,
+   "rep": "MGYG000000113",
+   "species": "s__Streptococcus salivarius"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 682,
+   "rep": "MGYG000001440",
+   "species": "s__Acidaminococcus intestini"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 670,
+   "rep": "MGYG000004196",
+   "species": "s__CAG-83 sp001916855"
+  },
+  {
+   "countries": 26,
+   "n_genomes": 669,
+   "rep": "MGYG000000249",
+   "species": "s__Mediterraneibacter faecis"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 650,
+   "rep": "MGYG000003682",
+   "species": "s__Ruthenibacterium lactatiformans"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 638,
+   "rep": "MGYG000000099",
+   "species": "s__Flavonifractor plautii"
+  },
+  {
+   "countries": 14,
+   "n_genomes": 629,
+   "rep": "MGYG000002057",
+   "species": "s__Dysosmobacter sp001916835"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 621,
+   "rep": "MGYG000004658",
+   "species": "s__Alistipes finegoldii"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 611,
+   "rep": "MGYG000000243",
+   "species": "s__Phocaeicola massiliensis"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 593,
+   "rep": "MGYG000001306",
+   "species": "s__Phocaeicola coprocola"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 593,
+   "rep": "MGYG000000208",
+   "species": "s__Eubacterium_G ventriosum"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 590,
+   "rep": "MGYG000004317",
+   "species": "s__Lachnospira sp900316325"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 587,
+   "rep": "MGYG000002336",
+   "species": "s__Megasphaera sp000417505"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 580,
+   "rep": "MGYG000002295",
+   "species": "s__Ruminococcus_C callidus"
+  },
+  {
+   "countries": 24,
+   "n_genomes": 579,
+   "rep": "MGYG000000196",
+   "species": "s__Bacteroides thetaiotaomicron"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 577,
+   "rep": "MGYG000000038",
+   "species": "s__Dorea_A longicatena"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 577,
+   "rep": "MGYG000000730",
+   "species": "s__Phil1 sp001940855"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 577,
+   "rep": "MGYG000001151",
+   "species": "s__Ruminococcus_C sp000433635"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 567,
+   "rep": "MGYG000004337",
+   "species": "s__Phascolarctobacterium sp000436095"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 566,
+   "rep": "MGYG000002453",
+   "species": "s__Akkermansia muciniphila_B"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 565,
+   "rep": "MGYG000002371",
+   "species": "s__Tidjanibacter inops_A"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 559,
+   "rep": "MGYG000002549",
+   "species": "s__Bacteroides caccae"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 559,
+   "rep": "MGYG000002580",
+   "species": "s__Lachnospira sp000436475"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 549,
+   "rep": "MGYG000000085",
+   "species": "s__Collinsella aerofaciens_F"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 546,
+   "rep": "MGYG000001400",
+   "species": "s__Erysipelatoclostridium ramosum"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 541,
+   "rep": "MGYG000000362",
+   "species": "s__CAG-115 sp003531585"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 537,
+   "rep": "MGYG000000743",
+   "species": "s__CAG-110 sp000434635"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 531,
+   "rep": "MGYG000000205",
+   "species": "s__CAG-81 sp900066535"
+  },
+  {
+   "countries": 24,
+   "n_genomes": 528,
+   "rep": "MGYG000002831",
+   "species": "s__CAG-349 sp003539515"
+  },
+  {
+   "countries": 25,
+   "n_genomes": 525,
+   "rep": "MGYG000001770",
+   "species": "s__Prevotella sp900313215"
+  },
+  {
+   "countries": 23,
+   "n_genomes": 524,
+   "rep": "MGYG000002715",
+   "species": "s__ER4 sp900317525"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 515,
+   "rep": "MGYG000004533",
+   "species": "s__CAG-495 sp000436375"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 513,
+   "rep": "MGYG000002422",
+   "species": "s__Campylobacter_D jejuni"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 506,
+   "rep": "MGYG000000193",
+   "species": "s__KLE1615 sp900066985"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 503,
+   "rep": "MGYG000002469",
+   "species": "s__Bifidobacterium breve"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 502,
+   "rep": "MGYG000004117",
+   "species": "s__CAG-302 sp001916775"
+  },
+  {
+   "countries": 23,
+   "n_genomes": 500,
+   "rep": "MGYG000000089",
+   "species": "s__CAG-353 sp900066885"
+  },
+  {
+   "countries": 14,
+   "n_genomes": 488,
+   "rep": "MGYG000000262",
+   "species": "s__Anaerobutyricum hallii"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 485,
+   "rep": "MGYG000001310",
+   "species": "s__Mediterraneibacter lactaris"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 479,
+   "rep": "MGYG000001415",
+   "species": "s__Alistipes communis"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 477,
+   "rep": "MGYG000002882",
+   "species": "s__CAG-83 sp000435975"
+  },
+  {
+   "countries": 25,
+   "n_genomes": 473,
+   "rep": "MGYG000002366",
+   "species": "s__Salmonella enterica"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 473,
+   "rep": "MGYG000004345",
+   "species": "s__Streptococcus thermophilus"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 473,
+   "rep": "MGYG000002292",
+   "species": "s__TF01-11 sp003529475"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 470,
+   "rep": "MGYG000000140",
+   "species": "s__UMGS1375 sp900066615"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 466,
+   "rep": "MGYG000002353",
+   "species": "s__Enterococcus_B faecium"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 463,
+   "rep": "MGYG000002455",
+   "species": "s__Bacteroides cellulosilyticus"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 459,
+   "rep": "MGYG000004390",
+   "species": "s__Prevotella sp002265625"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 448,
+   "rep": "MGYG000002327",
+   "species": "s__Dysosmobacter welbionis"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 443,
+   "rep": "MGYG000001136",
+   "species": "s__CAG-103 sp900543625"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 443,
+   "rep": "MGYG000002993",
+   "species": "s__CAG-170 sp000432135"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 441,
+   "rep": "MGYG000000036",
+   "species": "s__Pseudoruminococcus massiliensis"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 434,
+   "rep": "MGYG000001763",
+   "species": "s__Prevotella sp000434975"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 433,
+   "rep": "MGYG000001313",
+   "species": "s__Bacteroides eggerthii"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 431,
+   "rep": "MGYG000001493",
+   "species": "s__Enterocloster bolteae"
+  },
+  {
+   "countries": 25,
+   "n_genomes": 429,
+   "rep": "MGYG000001711",
+   "species": "s__Holdemanella biformis"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 426,
+   "rep": "MGYG000004256",
+   "species": "s__CAG-177 sp003538135"
+  },
+  {
+   "countries": 5,
+   "n_genomes": 421,
+   "rep": "MGYG000000122",
+   "species": "s__Staphylococcus epidermidis"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 415,
+   "rep": "MGYG000003217",
+   "species": "s__CAG-267 sp001917135"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 408,
+   "rep": "MGYG000001345",
+   "species": "s__Bacteroides xylanisolvens"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 406,
+   "rep": "MGYG000002616",
+   "species": "s__CAG-495 sp001917125"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 405,
+   "rep": "MGYG000000215",
+   "species": "s__Prevotella stercorea"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 398,
+   "rep": "MGYG000000484",
+   "species": "s__Butyrivibrio_A sp000431815"
+  },
+  {
+   "countries": 30,
+   "n_genomes": 396,
+   "rep": "MGYG000002311",
+   "species": "s__Vibrio cholerae"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 396,
+   "rep": "MGYG000002060",
+   "species": "s__CAG-110 sp003525905"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 396,
+   "rep": "MGYG000002773",
+   "species": "s__CAG-245 sp000435175"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 395,
+   "rep": "MGYG000003940",
+   "species": "s__CAG-302 sp000431795"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 392,
+   "rep": "MGYG000003318",
+   "species": "s__Duodenibacillus massiliensis"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 389,
+   "rep": "MGYG000003077",
+   "species": "s__CAG-196 sp002102975"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 386,
+   "rep": "MGYG000002021",
+   "species": "s__51-20 sp001917175"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 385,
+   "rep": "MGYG000003411",
+   "species": "s__CAG-568 sp000434395"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 383,
+   "rep": "MGYG000003697",
+   "species": "s__Prevotella copri_A"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 377,
+   "rep": "MGYG000002369",
+   "species": "s__Clostridioides difficile"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 374,
+   "rep": "MGYG000000018",
+   "species": "s__Coprococcus eutactus"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 371,
+   "rep": "MGYG000002447",
+   "species": "s__Mesosutterella multiformis"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 367,
+   "rep": "MGYG000000148",
+   "species": "s__Faecalimonas phoceensis"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 364,
+   "rep": "MGYG000001021",
+   "species": "s__Ruminococcus_C sp000980705"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 364,
+   "rep": "MGYG000002552",
+   "species": "s__Lachnospira sp000436535"
+  },
+  {
+   "countries": 11,
+   "n_genomes": 363,
+   "rep": "MGYG000003017",
+   "species": "s__Duodenibacillus sp900538905"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 359,
+   "rep": "MGYG000000002",
+   "species": "s__Blautia_A faecis"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 357,
+   "rep": "MGYG000004329",
+   "species": "s__Prevotellamassilia sp900539625"
+  },
+  {
+   "countries": 23,
+   "n_genomes": 355,
+   "rep": "MGYG000001334",
+   "species": "s__Ligilactobacillus ruminis"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 350,
+   "rep": "MGYG000001397",
+   "species": "s__Dialister succinatiphilus"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 346,
+   "rep": "MGYG000002482",
+   "species": "s__Ruminococcus_E bromii"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 342,
+   "rep": "MGYG000000273",
+   "species": "s__Phocaeicola coprophilus"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 342,
+   "rep": "MGYG000000933",
+   "species": "s__CAG-314 sp000437915"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 340,
+   "rep": "MGYG000001321",
+   "species": "s__Desulfovibrio piger"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 339,
+   "rep": "MGYG000003990",
+   "species": "s__Ruminococcus_E sp900314705"
+  },
+  {
+   "countries": 22,
+   "n_genomes": 336,
+   "rep": "MGYG000001396",
+   "species": "s__Clostridium_AQ innocuum"
+  },
+  {
+   "countries": 13,
+   "n_genomes": 331,
+   "rep": "MGYG000001168",
+   "species": "s__CAG-1427 sp000436075"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 329,
+   "rep": "MGYG000004388",
+   "species": "s__F23-B02 sp001916715"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 328,
+   "rep": "MGYG000003899",
+   "species": "s__Faecalibacterium sp900539945"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 322,
+   "rep": "MGYG000004474",
+   "species": "s__Sodaliphilus sp004557565"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 320,
+   "rep": "MGYG000004155",
+   "species": "s__CAG-273 sp003534295"
+  },
+  {
+   "countries": 14,
+   "n_genomes": 316,
+   "rep": "MGYG000001531",
+   "species": "s__Enterocloster sp001517625"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 313,
+   "rep": "MGYG000004431",
+   "species": "s__COE1 sp001916965"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 310,
+   "rep": "MGYG000002412",
+   "species": "s__Prevotellamassilia timonensis"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 310,
+   "rep": "MGYG000004137",
+   "species": "s__UBA738 sp003522945"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 310,
+   "rep": "MGYG000000534",
+   "species": "s__Prevotella sp900543975"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 307,
+   "rep": "MGYG000001565",
+   "species": "s__CAG-103 sp900757655"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 306,
+   "rep": "MGYG000004402",
+   "species": "s__RC9 sp000432515"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 305,
+   "rep": "MGYG000002609",
+   "species": "s__CAG-882 sp003486385"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 303,
+   "rep": "MGYG000004593",
+   "species": "s__CAG-194 sp000432915"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 301,
+   "rep": "MGYG000004006",
+   "species": "s__Alistipes sp000434235"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 297,
+   "rep": "MGYG000002544",
+   "species": "s__Eggerthella lenta"
+  },
+  {
+   "countries": 13,
+   "n_genomes": 295,
+   "rep": "MGYG000000250",
+   "species": "s__TF01-11 sp001414325"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 292,
+   "rep": "MGYG000001429",
+   "species": "s__Alistipes_A ihumii"
+  },
+  {
+   "countries": 12,
+   "n_genomes": 287,
+   "rep": "MGYG000002485",
+   "species": "s__Fusobacterium_A mortiferum"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 285,
+   "rep": "MGYG000002930",
+   "species": "s__Prevotellamassilia sp900540885"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 282,
+   "rep": "MGYG000000069",
+   "species": "s__Clostridium_A leptum"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 281,
+   "rep": "MGYG000000026",
+   "species": "s__Catenibacterium mitsuokai"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 279,
+   "rep": "MGYG000001110",
+   "species": "s__CAG-269 sp000431335"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 277,
+   "rep": "MGYG000003987",
+   "species": "s__UBA1691 sp900544375"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 275,
+   "rep": "MGYG000002480",
+   "species": "s__Adlercreutzia celatus_A"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 274,
+   "rep": "MGYG000001060",
+   "species": "s__Dialister hominis"
+  },
+  {
+   "countries": 14,
+   "n_genomes": 268,
+   "rep": "MGYG000000404",
+   "species": "s__UBA11774 sp003507655"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 267,
+   "rep": "MGYG000000203",
+   "species": "s__Butyricimonas virosa"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 267,
+   "rep": "MGYG000000225",
+   "species": "s__Duodenibacillus sp003472385"
+  },
+  {
+   "countries": 26,
+   "n_genomes": 265,
+   "rep": "MGYG000001490",
+   "species": "s__Bifidobacterium catenulatum"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 259,
+   "rep": "MGYG000002394",
+   "species": "s__Prevotella rara"
+  },
+  {
+   "countries": 14,
+   "n_genomes": 258,
+   "rep": "MGYG000000705",
+   "species": "s__CAG-475 sp000434435"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 253,
+   "rep": "MGYG000002504",
+   "species": "s__Enterobacter hormaechei_A"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 251,
+   "rep": "MGYG000004371",
+   "species": "s__Prevotella sp002251385"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 249,
+   "rep": "MGYG000004600",
+   "species": "s__CAG-307 sp001916215"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 248,
+   "rep": "MGYG000003481",
+   "species": "s__CAG-269 sp003525075"
+  },
+  {
+   "countries": 14,
+   "n_genomes": 248,
+   "rep": "MGYG000003695",
+   "species": "s__Ruminococcus_A sp003011855"
+  },
+  {
+   "countries": 23,
+   "n_genomes": 247,
+   "rep": "MGYG000004643",
+   "species": "s__Eubacterium_R sp003526845"
+  },
+  {
+   "countries": 14,
+   "n_genomes": 245,
+   "rep": "MGYG000001057",
+   "species": "s__Negativibacillus sp000435195"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 244,
+   "rep": "MGYG000000195",
+   "species": "s__Faecalibacterium prausnitzii_E"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 237,
+   "rep": "MGYG000004099",
+   "species": "s__Eubacterium_R sp000433975"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 237,
+   "rep": "MGYG000001315",
+   "species": "s__Bariatricus comes"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 236,
+   "rep": "MGYG000002619",
+   "species": "s__Faecalibacterium prausnitzii_J"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 236,
+   "rep": "MGYG000002279",
+   "species": "s__Dorea_A longicatena_B"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 233,
+   "rep": "MGYG000002509",
+   "species": "s__Slackia_A isoflavoniconvertens"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 233,
+   "rep": "MGYG000004451",
+   "species": "s__CAG-313 sp003539625"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 232,
+   "rep": "MGYG000002040",
+   "species": "s__Faecalibacterium sp900758465"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 228,
+   "rep": "MGYG000000669",
+   "species": "s__CAG-488 sp000434055"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 222,
+   "rep": "MGYG000000199",
+   "species": "s__Streptococcus parasanguinis_B"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 221,
+   "rep": "MGYG000000039",
+   "species": "s__Faecalibacterium prausnitzii_H"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 218,
+   "rep": "MGYG000003921",
+   "species": "s__Gemmiger sp900540595"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 218,
+   "rep": "MGYG000000028",
+   "species": "s__Anaerostipes hadrus_A"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 218,
+   "rep": "MGYG000001160",
+   "species": "s__CAG-274 sp000432155"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 217,
+   "rep": "MGYG000002001",
+   "species": "s__CAG-177 sp000431775"
+  },
+  {
+   "countries": 12,
+   "n_genomes": 216,
+   "rep": "MGYG000000183",
+   "species": "s__Butyricimonas paravirosa"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 215,
+   "rep": "MGYG000000651",
+   "species": "s__CAG-170 sp002404795"
+  },
+  {
+   "countries": 14,
+   "n_genomes": 215,
+   "rep": "MGYG000000027",
+   "species": "s__Mitsuokella jalaludinii"
+  },
+  {
+   "countries": 12,
+   "n_genomes": 215,
+   "rep": "MGYG000001444",
+   "species": "s__Veillonella atypica"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 214,
+   "rep": "MGYG000001391",
+   "species": "s__Coprobacter fastidiosus"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 212,
+   "rep": "MGYG000002143",
+   "species": "s__CAG-83 sp900545585"
+  },
+  {
+   "countries": 13,
+   "n_genomes": 212,
+   "rep": "MGYG000001633",
+   "species": "s__RC9 sp000435075"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 211,
+   "rep": "MGYG000002133",
+   "species": "s__Prevotella sp000436915"
+  },
+  {
+   "countries": 14,
+   "n_genomes": 210,
+   "rep": "MGYG000000087",
+   "species": "s__CAG-81 sp000435795"
+  },
+  {
+   "countries": 12,
+   "n_genomes": 210,
+   "rep": "MGYG000000653",
+   "species": "s__UBA11471 sp000434215"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 209,
+   "rep": "MGYG000000672",
+   "species": "s__RC9 sp000431015"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 208,
+   "rep": "MGYG000002955",
+   "species": "s__Desulfovibrio sp900319575"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 207,
+   "rep": "MGYG000002444",
+   "species": "s__Faecalibacillus faecis"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 206,
+   "rep": "MGYG000001627",
+   "species": "s__Gemmiger sp900539695"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 205,
+   "rep": "MGYG000004114",
+   "species": "s__CAG-95 sp000438155"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 204,
+   "rep": "MGYG000002072",
+   "species": "s__SFFH01 sp900542395"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 200,
+   "rep": "MGYG000002287",
+   "species": "s__Agathobaculum sp003481705"
+  },
+  {
+   "countries": 13,
+   "n_genomes": 200,
+   "rep": "MGYG000004083",
+   "species": "s__CAG-1427 sp000435675"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 197,
+   "rep": "MGYG000000187",
+   "species": "s__Lachnospira sp003537285"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 195,
+   "rep": "MGYG000003306",
+   "species": "s__CAG-448 sp003150135"
+  },
+  {
+   "countries": 10,
+   "n_genomes": 193,
+   "rep": "MGYG000002113",
+   "species": "s__Anaerovibrio sp900548165"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 192,
+   "rep": "MGYG000001756",
+   "species": "s__UBA1394 sp900538575"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 192,
+   "rep": "MGYG000002372",
+   "species": "s__Clostridium_P perfringens"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 191,
+   "rep": "MGYG000001085",
+   "species": "s__RC9 sp000434935"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 191,
+   "rep": "MGYG000002602",
+   "species": "s__CAG-274 sp900545305"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 189,
+   "rep": "MGYG000004639",
+   "species": "s__CAG-495 sp000432275"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 188,
+   "rep": "MGYG000002191",
+   "species": "s__CAG-313 sp000433035"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 185,
+   "rep": "MGYG000000133",
+   "species": "s__Blautia_A caecimuris"
+  },
+  {
+   "countries": 11,
+   "n_genomes": 185,
+   "rep": "MGYG000002331",
+   "species": "s__Vibrio parahaemolyticus"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 184,
+   "rep": "MGYG000000929",
+   "species": "s__CAG-273 sp000437855"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 183,
+   "rep": "MGYG000000993",
+   "species": "s__Haemophilus_D sp900756155"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 183,
+   "rep": "MGYG000001293",
+   "species": "s__Lacticaseibacillus rhamnosus"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 182,
+   "rep": "MGYG000000072",
+   "species": "s__UBA1394 sp900066845"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 181,
+   "rep": "MGYG000004130",
+   "species": "s__UBA1777 sp900547315"
+  },
+  {
+   "countries": 14,
+   "n_genomes": 181,
+   "rep": "MGYG000000784",
+   "species": "s__CAG-417 sp000432835"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 179,
+   "rep": "MGYG000002108",
+   "species": "s__Prevotella sp900290275"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 179,
+   "rep": "MGYG000002274",
+   "species": "s__Faecalibacterium prausnitzii_I"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 177,
+   "rep": "MGYG000000263",
+   "species": "s__Blautia_A sp900066335"
+  },
+  {
+   "countries": 13,
+   "n_genomes": 175,
+   "rep": "MGYG000002448",
+   "species": "s__Evtepia gabavorous"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 174,
+   "rep": "MGYG000001714",
+   "species": "s__Coprococcus_A catus"
+  },
+  {
+   "countries": 12,
+   "n_genomes": 174,
+   "rep": "MGYG000000631",
+   "species": "s__Prevotella sp002299635"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 172,
+   "rep": "MGYG000001385",
+   "species": "s__Alistipes_A indistinctus"
+  },
+  {
+   "countries": 9,
+   "n_genomes": 172,
+   "rep": "MGYG000001256",
+   "species": "s__CAG-354 sp001915925"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 169,
+   "rep": "MGYG000001314",
+   "species": "s__Bacteroides_F pectinophilus"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 169,
+   "rep": "MGYG000000233",
+   "species": "s__CAG-81 sp900066785"
+  },
+  {
+   "countries": 13,
+   "n_genomes": 169,
+   "rep": "MGYG000001367",
+   "species": "s__Clostridium_Q symbiosum"
+  },
+  {
+   "countries": 13,
+   "n_genomes": 169,
+   "rep": "MGYG000004794",
+   "species": "s__CAG-273 sp000435755"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 168,
+   "rep": "MGYG000001386",
+   "species": "s__Enterocloster clostridioformis"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 167,
+   "rep": "MGYG000000088",
+   "species": "s__Streptococcus lutetiensis"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 167,
+   "rep": "MGYG000000532",
+   "species": "s__CAG-510 sp000434615"
+  },
+  {
+   "countries": 21,
+   "n_genomes": 166,
+   "rep": "MGYG000002547",
+   "species": "s__Megasphaera elsdenii"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 164,
+   "rep": "MGYG000003844",
+   "species": "s__Ruminiclostridium_E sp900539195"
+  },
+  {
+   "countries": 18,
+   "n_genomes": 162,
+   "rep": "MGYG000000272",
+   "species": "s__Prevotella hominis"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 162,
+   "rep": "MGYG000002281",
+   "species": "s__Bacteroides faecis"
+  },
+  {
+   "countries": 16,
+   "n_genomes": 161,
+   "rep": "MGYG000004207",
+   "species": "s__UBA6398 sp003150315"
+  },
+  {
+   "countries": 20,
+   "n_genomes": 160,
+   "rep": "MGYG000004250",
+   "species": "s__Acetatifactor sp003447295"
+  },
+  {
+   "countries": 17,
+   "n_genomes": 158,
+   "rep": "MGYG000004000",
+   "species": "s__CAG-465 sp000433755"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 158,
+   "rep": "MGYG000002289",
+   "species": "s__Coprococcus sp000433075"
+  },
+  {
+   "countries": 13,
+   "n_genomes": 158,
+   "rep": "MGYG000001364",
+   "species": "s__Phocaeicola plebeius"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 157,
+   "rep": "MGYG000001677",
+   "species": "s__CAG-452 sp000434035"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 157,
+   "rep": "MGYG000002563",
+   "species": "s__Romboutsia timonensis"
+  },
+  {
+   "countries": 19,
+   "n_genomes": 156,
+   "rep": "MGYG000002470",
+   "species": "s__Bacteroides intestinalis"
+  },
+  {
+   "countries": 15,
+   "n_genomes": 156,
+   "rep": "MGYG000000667",
+   "species": "s__UBA7173 sp900546835"
+  },
+  {
+   "countries": 8,
+   "n_genomes": 156,
+   "rep": "MGYG000000016",
+   "species": "s__Anaerotignum sp001304995"
+  }
+ ],
+ "w": 64,
+ "written": "2026-10-20 15:41:29"
+}

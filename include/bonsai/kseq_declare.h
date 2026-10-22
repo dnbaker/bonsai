@@ -7,6 +7,7 @@
 #endif
 #include "klib/kseq.h"
 #include <stdlib.h>
+#include <string.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
@@ -51,9 +52,12 @@ static INLINE char *ksdup(const kstring_t *ks) {
 }
 
 // From bwa -- batch parsing.
+// One buffer per record: name\0, one spare byte, comment\0, seq\0, qual\0
+// (name.l + comment.l + seq.l + qual.l + 5 bytes; + 4 overran by one byte
+// whenever a header carries a comment, e.g. SRA's "@SRR... 1/1").
 static inline void kseq2bseq1(const kseq_t *ks, bseq1_t *s) // one chunk
 {
-    s->name = (char *)malloc(ks->name.l + ks->comment.l + ks->seq.l + ks->qual.l + 4);
+    s->name = (char *)malloc(ks->name.l + ks->comment.l + ks->seq.l + ks->qual.l + 5);
     memcpy(s->name, ks->name.s, ks->name.l + 1);
     char *start = s->name + ks->name.l + 2;
     if(ks->comment.l == 0) s->comment = NULL;
@@ -79,7 +83,7 @@ static inline void rekseq2bseq1(const kseq_t *ks, bseq1_t *s) // one chunk
         kseq2bseq1(ks, s);
         return;
     }
-    s->name = (char *)realloc(s->name, ks->name.l + ks->comment.l + ks->seq.l + ks->qual.l + 4);
+    s->name = (char *)realloc(s->name, ks->name.l + ks->comment.l + ks->seq.l + ks->qual.l + 5);
     memcpy(s->name, ks->name.s, ks->name.l + 1);
     char *start = s->name + ks->name.l + 2;
     if(ks->comment.l == 0) s->comment = NULL;
@@ -109,7 +113,22 @@ static inline void trim_readno(kstring_t *s)
         s->l -= 2, s->s[s->l] = 0;
 }
 
-static bseq1_t *bseq_read(int chunk_size, int *n_, void *ks1_, void *ks2_)
+// Grow seqs to hold index n, zeroing the new records: bseq_realloc_read
+// reuses records across chunks (rekseq2bseq1 reallocs name, classify reuses
+// sam), so a slot past any earlier chunk's count must start NULL, not as
+// realloc garbage.
+static inline bseq1_t *bseq_reserve(bseq1_t *seqs, int n, int *m_) {
+    if (n < *m_) return seqs;
+    const int om = *m_, m = om ? om << 1: 4096;
+    seqs = (bseq1_t *)realloc(seqs, (size_t)m * sizeof(bseq1_t));
+    if (!seqs) { fprintf(stderr, "[E::%s] out of memory\n", __func__); abort(); }
+    memset(seqs + om, 0, (size_t)(m - om) * sizeof(bseq1_t));
+    *m_ = m;
+    return seqs;
+}
+
+// m_ (optional): the record capacity, for bseq_realloc_read.
+static bseq1_t *bseq_read(int chunk_size, int *n_, void *ks1_, void *ks2_, int *m_ = NULL)
 {
     kseq_t *ks = (kseq_t*)ks1_, *ks2 = (kseq_t*)ks2_;
     int m, n, size;
@@ -120,10 +139,7 @@ static bseq1_t *bseq_read(int chunk_size, int *n_, void *ks1_, void *ks2_)
             fprintf(stderr, "[W::%s] the 2nd file has fewer sequences.\n", __func__);
             break;
         }
-        if (n >= m) {
-            m = m? m<<1 : 4096;
-            seqs = (bseq1_t *)realloc(seqs, m * sizeof(bseq1_t));
-        }
+        seqs = bseq_reserve(seqs, n + (ks2 != NULL), &m);
         trim_readno(&ks->name);
         kseq2bseq1(ks, seqs + n);
         seqs[n].id = n;
@@ -141,12 +157,15 @@ static bseq1_t *bseq_read(int chunk_size, int *n_, void *ks1_, void *ks2_)
             fprintf(stderr, "[W::%s] the 1st file has fewer sequences.\n", __func__);
     }
     *n_ = n;
+    if (m_) *m_ = m;
     return seqs;
 }
 
 
-static bseq1_t *bseq_realloc_read(int chunk_size, int *n_, void *ks1_, void *ks2_, bseq1_t *seqs) {
-    if(!seqs) return bseq_read(chunk_size, n_, ks1_, ks2_);
+// Reads the next chunk into seqs (capacity *m_, from bseq_read), growing it
+// when this chunk holds more records than any before.
+static bseq1_t *bseq_realloc_read(int chunk_size, int *n_, void *ks1_, void *ks2_, bseq1_t *seqs, int *m_) {
+    if(!seqs) return bseq_read(chunk_size, n_, ks1_, ks2_, m_);
     int n = 0, size = 0;
     kseq_t *ks = (kseq_t *)ks1_, *ks2 = (kseq_t *)ks2_;
     while (kseq_read(ks) >= 0) {
@@ -154,6 +173,7 @@ static bseq1_t *bseq_realloc_read(int chunk_size, int *n_, void *ks1_, void *ks2
             fprintf(stderr, "[W::%s] the 2nd file has fewer sequences.\n", __func__);
             break;
         }
+        seqs = bseq_reserve(seqs, n + (ks2 != NULL), m_);
         trim_readno(&ks->name);
         rekseq2bseq1(ks, seqs + n);
         seqs[n].id = n;

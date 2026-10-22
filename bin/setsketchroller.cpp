@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
     const size_t total_samples = std::accumulate(sizes.begin(), sizes.end(), size_t(0));
     auto start = std::chrono::high_resolution_clock::now();
     std::fprintf(stderr, "Sketches for %zu sequence files created in %fms\n", nfiles, std::chrono::duration<double, std::milli>(start - startload).count());
-    std::vector<ska::flat_hash_map<uint64_t, std::vector<uint32_t>>> maps;
+    std::vector<ankerl::unordered_dense::map<uint64_t, std::vector<uint32_t>>> maps;
     while(maps.size() < uint32_t(nthreads)) {
         maps.emplace_back();
     }

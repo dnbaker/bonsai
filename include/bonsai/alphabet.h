@@ -49,9 +49,9 @@ public:
                 for(size_t i = 0; i < offset; ++i) {
                     const auto destchar = arr[p[i + 1]];
                     if(arr[aliases[i] & 0xdf] == VT(-1))
-                        arr[aliases[i] & 0xdf] = arr[destchar];
+                        arr[aliases[i] & 0xdf] = destchar;
                     if(arr[aliases[i] | 32] == VT(-1))
-                        arr[aliases[i] | 32] = arr[destchar];
+                        arr[aliases[i] | 32] = destchar;
                 }
             }
         }
@@ -72,8 +72,8 @@ public:
             }
         }
     }
-    using SignedVT = typename std::make_signed<VT>::type;
-    constexpr VT translate(VT x) const {return lut[static_cast<SignedVT>(x)];}
+    using UnsignedVT = typename std::make_unsigned<VT>::type;
+    constexpr VT translate(VT x) const {return lut[static_cast<UnsignedVT>(x)];}
     constexpr VT *data() {return lut.data();}
     constexpr const VT *data() const {return lut.data();}
     static constexpr size_t size() {return NCHAR;}

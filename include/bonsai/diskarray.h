@@ -20,12 +20,12 @@ inline void allocate_file(std::FILE *fp, size_t nbytes) {
     const int fn(fileno(fp));
     bns::RNGType gen(nbytes);
     while(nbytes >= bufsz) {
-        ::write(fn, data.data(), bufsz);
+        if(bns::write_all(fn, data.data(), bufsz) != ssize_t(bufsz)) throw 1; // short write would undersize the mmap
         nbytes -= bufsz;
         for(size_t i(0); i < bufsz / sizeof(u64); ++i)
             *((uint64_t *)data.data() + i) = gen();
     }
-    ::write(fn, data.data(), nbytes);
+    if(bns::write_all(fn, data.data(), nbytes) != ssize_t(nbytes)) throw 1; // short write would undersize the mmap
 }
 
 

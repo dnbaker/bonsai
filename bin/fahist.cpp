@@ -1,3 +1,4 @@
+#include "hashmap.h"
 #include <unordered_map>
 #include <map>
 #include <vector>
@@ -35,7 +36,7 @@ void kfunc(void *data_, long index, int id) {
 int main(int argc, char **argv) {
     std::size_t nthreads(16);
     gzFile ofp(gzdopen(STDOUT_FILENO, "wT"));
-    std::unordered_map<std::size_t, std::size_t> data;
+    bns::umap<std::size_t, std::size_t> data;
     std::vector<std::map<std::size_t, std::size_t>> maps;
     std::vector<std::string> paths;
     paths.reserve(argc - 1);

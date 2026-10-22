@@ -1,4 +1,5 @@
 #pragma once
+#include "hashmap.h"
 #include "bitcmp.h"
 #include "kgset.h"
 
@@ -7,7 +8,7 @@ namespace bns {
 
 template<typename T>
 class AdjacencyList {
-    std::unordered_map<const T*, lazy::vector<const T*>, wang_hash_struct> map_;
+    bns::umap<const T*, lazy::vector<const T*>, wang_hash_struct> map_;
     size_t m_, nelem_;
     bool is_reverse_;
 
@@ -68,11 +69,11 @@ public:
 using adjmap_t = AdjacencyList<bitvec_t>;
 
 class bitmap_t {
-    std::unordered_map<u64, bitvec_t> core_;
+    bns::umap<u64, bitvec_t> core_;
 
 public:
-    std::unordered_map<u64, bitvec_t> fill(const kgset_t &set) {
-        std::unordered_map<u64, bitvec_t> tmp;
+    bns::umap<u64, bitvec_t> fill(const kgset_t &set) {
+        bns::umap<u64, bitvec_t> tmp;
         const unsigned len((set.size() + 63) >> 6);
         const khash_t(all) *h;
         const auto &vec(set.core());
@@ -84,8 +85,8 @@ public:
                 if(kh_exist(h, ki)) {
                     auto m(tmp.find(kh_key(h, ki)));
                     if(m == tmp.end()) m = tmp.emplace(kh_key(h, ki),
-                                                       bitvec_t(len, lazy::LAZY_VEC_INIT)).first;
-                    m->second[i >> 6] |= 1u << (i & 63u);
+                                                       bitvec_t(len)).first;
+                    m->second[i >> 6] |= u64(1) << (i & 63u);
                 }
             }
         }
@@ -101,8 +102,8 @@ public:
         unsigned bitsum;
 #if !NDEBUG
         size_t n_passed(0), total(tmp.size());
-        std::unordered_map<unsigned, size_t> counts;
-        std::unordered_set<std::string> stringset;
+        bns::umap<unsigned, size_t> counts;
+        bns::uset<std::string> stringset;
 #endif
         // Only keeps kmers from kgset if they don't have 1 or set.size() bits set.
         for(auto &i: tmp) {

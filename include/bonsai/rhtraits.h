@@ -8,7 +8,7 @@ enum InputType {
     DNA,
     PROTEIN,      // Treats all characters as valid
     PROTEIN20,    // Corresponds to AMINO20, which masks unexpected characters
-    PROTEIN_3BIT, // Corresponds to SEB8, which can hold 22 in 64-bits and 42 in 128-bits
+    PROTEIN_3BIT, // Corresponds to SEB8, which can hold 21 in 64-bits and 42 in 128-bits
     PROTEIN_14,   // Corresponds to SEB14, which can hold up to 16 in 64 bits and 33 in 128-bits
     PROTEIN_6,    // Corresponds to SEB6, which can hold up to 24 in 64 bits and 49 in 128-bits
     DNA2,         // AT vs GC, corresponds to DNA2PYR
@@ -46,6 +46,29 @@ template<> struct RHTraits<PROTEIN> {
 
 static constexpr inline size_t rh2n(InputType rht, size_t itemsize);
 static inline std::string to_string(InputType it);
+// Alphabet name -> InputType for command lines ("DNA", "PROTEIN20"/"AMINO20",
+// "PROTEIN14"/"SEB14", "PROTEIN8"/"SEB8", "PROTEIN6"/"SEB6", "PROTEIN").
+// Returns false when the name is unknown.
+static inline bool input_type_from_string(const std::string &name, InputType &out) {
+    std::string u(name);
+    for(auto &c: u) c = char(std::toupper(static_cast<unsigned char>(c)));
+    if(u == "DNA") out = DNA;
+    else if(u == "PROTEIN20" || u == "AMINO20" || u == "PROTEIN_20") out = PROTEIN20;
+    else if(u == "PROTEIN14" || u == "SEB14" || u == "PROTEIN_14") out = PROTEIN_14;
+    else if(u == "PROTEIN8" || u == "SEB8" || u == "PROTEIN_3BIT") out = PROTEIN_3BIT;
+    else if(u == "PROTEIN6" || u == "SEB6" || u == "PROTEIN_6") out = PROTEIN_6;
+    else if(u == "PROTEIN") out = PROTEIN;
+    else return false;
+    return true;
+}
+static constexpr inline size_t mul(InputType it);
+
+// True for alphabets whose size is a power of two, so that k-mers are packed
+// into fixed-width bit fields and can be truncated with a bit mask. Other
+// alphabets encode k-mers as base-mul(it) integers below mul(it)^k.
+static constexpr inline bool rh_bitpacked(InputType it) {
+    return it == DNA || it == DNA2 || it == DNAC || it == PROTEIN_3BIT || it == PROTEIN;
+}
 
 
 template<typename KmerT>
@@ -56,11 +79,13 @@ static inline KmerT rhmask(InputType it, int k) {
         case DNA2: case DNAC:
             ret = static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - k); break;
         case PROTEIN_3BIT:
-            ret = static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - k); break;
-        case PROTEIN20: ret =  std::pow(20, k); break;
-        case PROTEIN6: ret =  std::pow(6, k); break;
-        case PROTEIN14: ret =  std::pow(14, k); break;
-        case PROTEIN: ret = (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 8))); break;
+            ret = static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - 3 * k); break;
+        case PROTEIN20: case PROTEIN6: case PROTEIN14:
+            // Exact integer power; std::pow loses precision beyond 2^53.
+            ret = 1;
+            for(int i = 0; i < k; ++i) ret *= mul(it);
+            break;
+        case PROTEIN: ret = (static_cast<KmerT>(-1) >> (sizeof(KmerT) * 8 - (k << 3))); break;
         default:;
     }
     // else, stays at -1
@@ -91,7 +116,7 @@ template<> struct RHTraits<PROTEIN20> {
 template<> struct RHTraits<PROTEIN_3BIT> {
     static constexpr size_t alphsize = 8;
     static constexpr size_t nper32 = 10;
-    static constexpr size_t nper64 = 22;
+    static constexpr size_t nper64 = 21;
     static constexpr size_t nper128 = 42;
     static constexpr const alph::Alphabet &table = alph::SEB8;
     static constexpr const char *name = "PROTEIN3BIT";

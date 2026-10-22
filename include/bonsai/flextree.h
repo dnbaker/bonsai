@@ -1,6 +1,7 @@
 #ifndef __FLEX_TREE_H
 #define __FLEX_TREE_H
 
+#include "hashmap.h"
 #include "util.h"
 #include "counter.h"
 #include "bitmap.h"
@@ -11,7 +12,7 @@ namespace bns {
 struct fnode_t;
 using pop::vec_bitdiff;
 using pop::vec_popcnt;
-using NodeType = std::pair<const bitvec_t, fnode_t>;
+using NodeType = std::pair<bitvec_t, fnode_t>;   // an anchor slot type (umap's pair; key never mutated)
 
 struct fnode_t {
     u64                n_;  // Number of kmers at this point in tree.
@@ -40,13 +41,14 @@ INLINE u64 get_score(const NodeType *node) {return get_score(*node);}
 
 struct node_lt {
     bool operator()(const NodeType *a, const NodeType *b) const {
-        return get_score(*a) < get_score(*b);
+        const u64 sa(get_score(*a)), sb(get_score(*b));
+        return sa == sb ? a < b: sa < sb; // Tie-break on address so equal-score candidates are all kept.
     }
 };
 
 class FlexMap {
 
-    std::unordered_map<bitvec_t, fnode_t> map_;
+    bns::umap<bitvec_t, fnode_t> map_;
     std::vector<tax_t>                    tax_;
     u64                                     n_;
     u32                              bitcount_;
@@ -68,14 +70,15 @@ public:
     auto num_descendents()  const {return bitcount_;}
     template<typename T, typename LT>
     void fill_heap(std::set<T, LT> &heap, size_t max_heap_size) const {
-        for(auto &pair: map_) {
-            std::pair<const bitvec_t, fnode_t> &ref(const_cast<std::pair<const bitvec_t, fnode_t> &>(pair));
+        if(max_heap_size == 0) return;
+        for(const auto &pair: map_) {
+            NodeType &ref(const_cast<NodeType &>(pair));   // heap anchors mutate fnode_t through this (added_, scores)
             if(ref.second.added_) continue;
             //LOG_DEBUG("Adding pair where key's first entry is is %" PRIu64 " and the node is %s\n", ref.first[0], ref.second.str().data());
             //heap.insert(const_cast<std::pair<const std::vector<long long unsigned int>, bns::fnode_t>*>(&pair));
             if(heap.size() < max_heap_size) {
                 heap.insert(&ref);
-            } else if(get_score(pair) < get_score(*heap.begin())) {
+            } else if(get_score(ref) < get_score(*heap.begin())) {
                 heap.erase(heap.begin());
                 heap.insert(&ref);
             }
@@ -97,7 +100,7 @@ public:
         else ++match->second.n_;
         ++n_;
     }
-    void fill(const std::unordered_map<tax_t, std::forward_list<std::string>> &list, const Spacer &sp, bool canonicalize=true, int num_threads=-1,
+    void fill(const bns::umap<tax_t, std::forward_list<std::string>> &list, const Spacer &sp, bool canonicalize=true, int num_threads=-1,
               khash_t(all) *acc=nullptr) {
         if(tax_.size()) tax_.clear();
         for(const auto &pair: list) {
@@ -110,14 +113,15 @@ public:
         LOG_DEBUG("Map size: %zu\n", map.size());
         for(auto &&pair: map) add(std::move(pair.second));
 #else
-        for(auto &&pair: bitmap_t(kgset_t(list, sp, canonicalize, num_threads, acc)).get_map()) add(std::move(pair.second));
+        bitmap_t tmp_bitmap(kgset_t(list, sp, canonicalize, num_threads, acc));
+        for(auto &&pair: tmp_bitmap.get_map()) add(std::move(pair.second));
 #endif
     }
 };
 
 class FMEmitter {
     using HeapType = std::set<NodeType *, node_lt>;
-    using TaxPathType = std::unordered_map<tax_t, std::forward_list<std::string>>;
+    using TaxPathType = bns::umap<tax_t, std::forward_list<std::string>>;
     static const size_t BufferSize = 1 << 17;
 
     std::vector<FlexMap>   subtrees_;
@@ -127,6 +131,8 @@ class FMEmitter {
     const size_t         max_heapsz_;
     unsigned            left_to_add_;
     const bool                canon_;
+    // Instrumentation for greedy placement: (parent taxid, score) per emitted node.
+    std::vector<std::pair<tax_t, u64>> added_nodes_;
 
 
     /*
@@ -140,6 +146,7 @@ class FMEmitter {
         ks.putl_(get_score(*node));
         ks.putc_('\t');
         ks.putuw_(fm.parent());
+        ks.putc_('\t');
         const auto &taxes(fm.get_taxes());
         for(size_t i = 0, e = node->first.size(); i < e; ++i) {
             if((val = node->first[i]) == 0) continue;
@@ -171,8 +178,9 @@ class FMEmitter {
         return true;
     }
 public:
+    const std::vector<std::pair<tax_t, u64>> &added_nodes() const {return added_nodes_;}
     // Also need a map of taxid to tax level.
-    FMEmitter(khash_t(p) *tax, const std::unordered_map<tax_t, std::forward_list<std::string>> &taxpathmap, bool canonicalize=true,
+    FMEmitter(khash_t(p) *tax, const bns::umap<tax_t, std::forward_list<std::string>> &taxpathmap, bool canonicalize=true,
               size_t max_heapsz=1<<8, size_t to_add=0):
         tax_{tax}, tpm_{taxpathmap}, max_heapsz_{max_heapsz},
         left_to_add_((to_add ? to_add
@@ -255,12 +263,14 @@ public:
                 }
             }
             for(auto it(heap_.crbegin()), sit(heap_.crend()); it != sit;) {
-                format_emitted_node(ks, *it++, ++maxtax);
+                format_emitted_node(ks, *it, ++maxtax);
+                added_nodes_.emplace_back(subtrees_[(*it)->second.si_].parent(), get_score(*it));
                 (*it)->second.added_ = 1;
                 if(ks.size() & ~(BufferSize-1)) {
                     ks.write(fd), ks.clear();
                 }
                 if(--left_to_add_ == 0) return;
+                ++it;
             }
             std::fputs("I could continue this loop to add more nodes, but I am exiting for the proof of concept.\n", stderr);
             break;
@@ -271,13 +281,23 @@ public:
                 subtree.fill_heap(heap_, max_heapsz_);
                 // condense_subtree(heap_);
             }
+            if(heap_.empty()) {
+                LOG_WARNING("All candidate nodes have been added, but %u additions were requested. Stopping early.\n", left_to_add_);
+                break;
+            }
             for(auto it(heap_.crbegin()), sit(heap_.crend()); it != sit;) {
-                format_emitted_node(ks, *it++, ++maxtax);
+                format_emitted_node(ks, *it, ++maxtax);
+                added_nodes_.emplace_back(subtrees_[(*it)->second.si_].parent(), get_score(*it));
                 (*it)->second.added_ = 1;
                 if(ks.size() & ~(BufferSize-1)) {
                     ks.write(fd), ks.clear();
                 }
                 if(--left_to_add_ == 0) break;
+                ++it;
+            }
+            for(auto it(heap_.begin()); it != heap_.end();) {
+                if((*it)->second.added_) it = heap_.erase(it);
+                else ++it;
             }
         }
         ks.write(fd), ks.clear();
@@ -286,8 +306,8 @@ public:
     }
     template<typename T>
     void process_subtree(const tax_t parent, T bit, T eit, const Spacer &sp, int num_threads=-1, khash_t(all) *acc=nullptr) {
-        std::unordered_map<tax_t, std::forward_list<std::string>> tmpmap;
-        typename std::unordered_map<tax_t, std::forward_list<std::string>>::const_iterator m;
+        bns::umap<tax_t, std::forward_list<std::string>> tmpmap;
+        typename bns::umap<tax_t, std::forward_list<std::string>>::const_iterator m;
         while(bit != eit) {
             if((m = tpm_.find(*bit++)) == tpm_.end()) LOG_DEBUG("No paths found for tax %u. Continuing.\n", *(bit - 1));
             else tmpmap.emplace(m->first, m->second);

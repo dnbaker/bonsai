@@ -1,0 +1,46 @@
+{
+ "E1a": {
+  "2": true,
+  "4": true,
+  "8": true
+ },
+ "E1b": {
+  "hll": true,
+  "minhash": true
+ },
+ "E1c": true,
+ "E1d": {
+  "hifi": {
+   "bytes": 426395684,
+   "input_gz_bytes": 150000000,
+   "mbp_per_s": 23.67594827586207,
+   "peak_rss_bytes": 839278592,
+   "profile_bytes": 180780,
+   "profile_frac_of_gz": 0.0012052,
+   "reads_per_s": 2599.110122358176,
+   "seconds": 8.99
+  },
+  "sim150": {
+   "bytes": 120548910,
+   "mbp_per_s": 8.326029798422436,
+   "peak_rss_bytes": 833003520,
+   "profile_bytes": 210769,
+   "profile_frac_of_plain": 0.0017484106658450915,
+   "reads": 380000,
+   "reads_per_s": 55506.865322816244,
+   "seconds": 6.846
+  }
+ },
+ "analysis": "m1",
+ "db": {
+  "bytes": 822083874,
+  "genomes": 27,
+  "k": 31,
+  "max_rss_children": 2003206144,
+  "seconds": 36.5
+ },
+ "hifi_bp": 212846775,
+ "hifi_reads": 23366,
+ "seed": 20261020,
+ "written": "2026-10-20 11:24:13"
+}

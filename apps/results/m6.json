@@ -1,0 +1,22 @@
+{
+ "E6a": {
+  "frac_J_content_ge_0.8": 0.3503480278422274,
+  "median_J_content": 0.6168946925216741,
+  "median_J_raw": 0.04882198112601913,
+  "n_nodes": 431
+ },
+ "E6b": {
+  "auroc": 0.9478571428571428,
+  "experiments": 10,
+  "lowest_node_in_ecoli_lineage": 8
+ },
+ "E6c": {
+  "median_J_content_817_lineage": 0.8673000177364276,
+  "median_J_content_other": 0.5689282598434343,
+  "top_abundance_change_is_817": 0
+ },
+ "analysis": "m6",
+ "min_reads": 20,
+ "seed": 20261026,
+ "written": "2026-10-20 13:51:08"
+}

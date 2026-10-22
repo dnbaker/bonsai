@@ -1,5 +1,6 @@
 #ifndef _CLADE_HEADER_H__
 #define _CLADE_HEADER_H__
+#include "hashmap.h"
 #include <string>
 #include <iostream>
 #include <cassert>
@@ -74,7 +75,7 @@ static const char *classlvl_arr[31] {
     "varietas",
     "forma",
 };
-static const std::unordered_map<std::string, ClassLevel> classlvl_map {
+static const bns::umap<std::string, ClassLevel> classlvl_map {
     {"no rank",          ClassLevel::NO_RANK},
     {"root",             ClassLevel::ROOT},
     {"superkingdom",     ClassLevel::SUPERKINGDOM},

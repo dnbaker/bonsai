@@ -1,5 +1,6 @@
 #ifndef _COUNTER_H__
 #define _COUNTER_H__
+#include "hashmap.h"
 #include <algorithm>
 #include <typeinfo>
 #include <cstddef>
@@ -77,8 +78,8 @@ template<typename T, class Hash=std::hash<T>, typename SizeType=size_t, typename
 class Counter {
     SizeType                                     n_;
     SizeType                                 nelem_;
-    std::unordered_map<T, SizeType, Hash>      map_;
-    std::unordered_map<unsigned, unsigned>   *hist_;
+    bns::umap<T, SizeType, Hash>      map_;
+    bns::umap<unsigned, unsigned>   *hist_;
 
 public:
     Counter(): n_(0), nelem_(0), hist_(nullptr) {}
@@ -142,13 +143,13 @@ public:
     auto cend()               const {return map_.cend();}
     auto find(const T &elem)  const {return map_.find(elem);}
 
-    const std::unordered_map<T, SizeType, Hash> &get_map() const { return map_;}
+    const bns::umap<T, SizeType, Hash> &get_map() const { return map_;}
 
-    std::unordered_map<unsigned, unsigned> *make_hist() {
+    bns::umap<unsigned, unsigned> *make_hist() {
 #if 0
         if(hist_) delete hist_;
-        hist_ = new std::unordered_map<unsigned, unsigned>;
-        std::unordered_map<unsigned, unsigned>::iterator m;
+        hist_ = new bns::umap<unsigned, unsigned>;
+        bns::umap<unsigned, unsigned>::iterator m;
         LOG_DEBUG("map size: %zu\n", map_.size());
         for(auto &i: map_) {
             LOG_DEBUG("In map: vec '%s'@%zu\n", vec2str(i.first).data(), i.second);

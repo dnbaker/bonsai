@@ -1,0 +1,61 @@
+{
+ "E11a": {
+  "family_detect": 0.0,
+  "family_other": 0.0,
+  "global_any": 0.0,
+  "global_detect": 0.0,
+  "global_mean_log2_effect": NaN,
+  "global_other": 0.0,
+  "true_log2_median": null
+ },
+ "E11b": {
+  "2000": {
+   "family_detect": 0.0,
+   "family_other": 0.0,
+   "global_detect": 0.0,
+   "global_mean_log2_effect": NaN,
+   "global_other": 0.0,
+   "true_log2_median": 0.5930079692017368
+  },
+  "500": {
+   "family_detect": 0.0,
+   "family_other": 0.0,
+   "global_detect": 0.0,
+   "global_mean_log2_effect": NaN,
+   "global_other": 0.0,
+   "true_log2_median": 0.1726118125887768
+  },
+  "8000": {
+   "family_detect": 0.0,
+   "family_other": 0.0,
+   "global_detect": 0.0,
+   "global_mean_log2_effect": NaN,
+   "global_other": 0.0,
+   "true_log2_median": 1.6010088192763698
+  }
+ },
+ "E11c": {
+  "family_detect": 1.0,
+  "family_other": 0.0,
+  "global_detect": 1.0,
+  "global_mean_log2_effect": 6.04291034894547,
+  "global_other": 0.4166666666666667,
+  "true_log2_median": null
+ },
+ "alpha": 0.05,
+ "analysis": "x1",
+ "dtm_rho": {
+  "1": 0.019575582186834008,
+  "1239": 0.03232315266042097,
+  "171549": 0.08660015141168749,
+  "186802": 0.0940087102438463,
+  "186826": 0.07240322457966765,
+  "2": 0.01589197544020103,
+  "543": 0.0650551570722441,
+  "562": 1e-06
+ },
+ "n_null": 120,
+ "n_panel": 360,
+ "seed": 20261028,
+ "written": "2026-10-20 15:29:55"
+}
